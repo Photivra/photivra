@@ -1,10 +1,27 @@
-# Deterministic linear capture encoding: #15C
+# Deterministic linear capture encoding
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-`calculateLinearCaptureEncoding()` produces format-neutral unsigned 16-bit linear codes from one bounded inline `SimulatedCapture` plane. The exact plane/image-state identity is mandatory. The master stays unchanged; color, WB application, source reference value and upstream capture-saturation history accompany the encoded data. It neither chooses a file format nor invents a color conversion.
+`calculateLinearCaptureEncoding()` turns one bounded inline `SimulatedCapture` plane into unsigned 16-bit linear codes, without tying them to any file format (issue #15C).
 
-Encoding schema `0.1.0` uses one uniform channel mapping. Let B be `blackValue`, b be `blackCode`, R be the source plane's `referenceWhiteValue`, and r be `referenceWhiteCode`. R must exceed B, codes satisfy 0 ≤ b < r ≤ 65535, and all derived ranges/scales must be finite and representable. The continuous code is `b + (sample-B)/(R-B)*(r-b)`; scale is `(r-b)/(R-B)` codes per relative source unit. Same normalization/scale on every channel preserves linear color ratios after subtracting the declared black baseline.
+- The exact plane and image-state identity are required.
+- The master plane is not changed.
+- Colour, WB application, the source reference value and upstream capture-saturation history travel with the encoded data.
+- It does not choose a file format, and does not invent a colour conversion.
+
+## The mapping
+
+Encoding schema `0.1.0` uses one uniform mapping for every channel. Let:
+
+- B be `blackValue` and b be `blackCode`;
+- R be the source plane's `referenceWhiteValue` and r be `referenceWhiteCode`.
+
+Requirements: R must exceed B; codes must satisfy 0 ≤ b < r ≤ 65535; and all derived ranges and scales must be finite and representable.
+
+- The continuous code is `b + (sample-B)/(R-B)*(r-b)`.
+- The scale is `(r-b)/(R-B)` codes per relative source unit.
+
+Using the same normalisation and scale on every channel keeps linear colour ratios, after the declared black baseline is subtracted.
 
 | Contract | Meaning |
 | --- | --- |
@@ -16,10 +33,52 @@ Encoding schema `0.1.0` uses one uniform channel mapping. Let B be `blackValue`,
 | outOfRange | Explicit reject, or clip to 0/65535 with separate low/high source-sample counts. |
 | rounding | Nearest code; exact binary64 half ties toward the larger code. No dither or hidden stochastic state. |
 
-The implementation compares finite source values with representable limits before arithmetic, so extreme finite samples can clip without overflowing the mapping. Exact black/reference/endpoints return their declared codes; remaining in-range mapped values round with `Math.round` (model `uniform-linear-capture-uint16` 0.2.0; the earlier floor(code+0.5) rounded 0.49999999999999994 up to 1). Only endpoint arithmetic roundoff is bounded back to the code interval. Ideal in-range rounding error is at most 0.5/scale source units; this bound excludes clipping and binary64 arithmetic error. No promise of correctly rounded arbitrary-precision real arithmetic is made. NaN/Infinity/sparse source arrays and invalid or numerically unrepresentable ranges fail. Identical validated inputs produce identical codes across the supported JS runtimes.
+## Numerical behaviour
 
-An encoded maximum or quantized sample at 65535 does not prove sensor saturation, and a sample rounded to an endpoint is not counted as source clipping. Source `captureSaturation` remains upstream history in its original capture domain. `defaultRenderingExposureEv:null` means the encoder selects no rendering exposure or display white. It performs no gain/WB/adaptation, gamma/transfer curve, tone/look/gamut mapping, resampling, RAW reconstruction or recovery of upstream LDR losses.
+- Finite source values are compared with the representable limits before any arithmetic. So extreme finite samples can be clipped without overflowing the mapping.
+- Exact black, reference and endpoint values return their declared codes.
+- Other in-range mapped values round with `Math.round` (model `uniform-linear-capture-uint16` 0.2.0). The earlier `floor(code+0.5)` rounded 0.49999999999999994 up to 1.
+- Only rounding error at the endpoints is pulled back into the code range.
+- The ideal in-range rounding error is at most 0.5/scale source units. This bound excludes clipping and binary64 arithmetic error. Correctly rounded arbitrary-precision real arithmetic is not promised.
+- NaN, Infinity, sparse source arrays, and invalid or numerically unrepresentable ranges fail.
+- Identical validated inputs give identical codes on all supported JavaScript runtimes.
 
-Output is serializable numbers plus explicit metadata, in row-major interleaved source channel order. `captureMetadata` carries the sanitized source manifest without float planes: geometry/settings, resolved WB intent, adopted white, noise/source identities and model/evidence provenance remain available to serializers. `sourcePlane` carries color/WB/history/saturation and raster/channel identity without float storage. Packing bytes, endianness, checksums, TIFF/DNG tags and required format-specific range restrictions belong to #16; a serializer must honor the declared scientific meaning and reject mappings it cannot represent. XYZ, virtual channels and transformed RGB retain different identities, even if all can be quantized. Quantizing unresolved channels does not establish a usable sensor color profile or a DNG export-readiness claim. External float references remain manifests; this synchronous bounded executor rejects them rather than performing IO or trusting unverified bytes.
+## What codes do and do not mean
 
-Tests share #130 camera/seed metadata with the color tests. They check reference/headroom/clipping invariants, exact half ties and neighbors, offset-preserved negatives, independent negative/range rejection, extreme finite clipping, nonunit source reference/black, retained saturation, color→encoding consistency, deterministic results, state substitution, private/malformed policies and invalid samples/ranges. Implementation and arithmetic fixtures are independently authored, without third-party code/data or new runtime dependencies. Human science/provenance review and contributor DCO certification remain required before inclusion.
+- An encoded maximum, or a quantised sample at 65535, does not prove the sensor saturated.
+- A sample rounded to an endpoint is not counted as source clipping.
+- The source's `captureSaturation` stays upstream history in its original capture domain.
+- `defaultRenderingExposureEv:null` means the encoder chooses no rendering exposure or display white.
+- It applies no gain, WB or adaptation, gamma or transfer curve, tone, look or gamut mapping, or resampling. It does no RAW reconstruction, and does not recover losses from an upstream LDR (low dynamic range) step.
+
+## Output
+
+The output is serialisable numbers plus explicit metadata, in row-major order, with source channels interleaved.
+
+- `captureMetadata` carries the cleaned source manifest without float planes. Geometry and settings, resolved WB intent, adopted white, noise and source identities, and model and evidence provenance stay available to serialisers.
+- `sourcePlane` carries colour, WB, history, saturation, and raster and channel identity, without float storage.
+
+**What serialisers own.** Byte packing, endianness, checksums, TIFF/DNG tags and any format-specific range restrictions belong to the file export step ([photographic export](PHOTOGRAPHIC_EXPORT.md)). A serialiser must respect the declared scientific meaning, and reject mappings it cannot represent.
+
+- XYZ, virtual-camera channels and transformed RGB keep different identities, even though all of them can be quantised.
+- Quantising unresolved channels does not create a usable sensor colour profile, and does not make a DNG ready for export.
+- External float references stay as manifests. This synchronous bounded executor rejects them, rather than doing IO or trusting unverified bytes.
+
+## Tests
+
+The tests share the canonical camera and seed metadata (issue #130) with the colour tests. They check:
+
+- invariants for reference white, headroom and clipping;
+- exact half ties and their neighbours;
+- negatives kept through an offset;
+- independent rejection of negatives and of out-of-range values;
+- clipping of extreme finite values;
+- a non-unit source reference and black;
+- that saturation history is kept;
+- consistency between colour conversion and encoding;
+- deterministic results;
+- substitution of the wrong state;
+- private or malformed policies;
+- invalid samples and ranges.
+
+The implementation and arithmetic fixtures were written independently, with no third-party code or data and no new runtime dependencies. Human review of science and provenance, and contributor DCO certification, are still required before inclusion.

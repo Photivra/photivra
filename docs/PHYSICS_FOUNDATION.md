@@ -1,30 +1,41 @@
 # Physics Foundation
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Photivra starts with analytical models that can be independently tested and whose assumptions can be stated explicitly.
+This page describes the geometry and optics models in Photivra. Each one is an analytical model: it can be tested independently, and its assumptions are stated explicitly.
 
 ## Implemented models
 
 ### Rectilinear field of view
 
-The rectilinear relation is:
+A rectilinear (straight-line-preserving) lens gives this field of view (FOV):
 
 `FOV = 2 atan(d / (2v))`
 
-where `d` is the relevant sensor dimension and `v` is the projection/image-plane distance.
+- `d` is the relevant sensor dimension.
+- `v` is the projection distance (the lens-to-image-plane distance).
 
-When no focus distance is supplied, `v = f` is the infinity-focus/pinhole compatibility approximation. When focus distance is supplied, `v` is the ideal Gaussian thin-lens image distance.
+Which `v` is used depends on whether you supply a focus distance:
 
-For a centered sensor interval, the usual symmetric form is sufficient. For an off-center sensor interval, Photivra uses signed sensor-plane bounds relative to the optical axis:
+- **No focus distance:** `v = f` (the focal length). This is the infinity-focus, or pinhole, approximation.
+- **Focus distance supplied:** `v` is the ideal Gaussian thin-lens image distance.
+
+The symmetric formula above is enough for a sensor area centred on the optical axis. For an off-centre area, Photivra uses signed sensor-plane bounds measured from the optical axis:
 
 `FOV = atan(x_max / v) - atan(x_min / v)`
 
-This preserves asymmetric left/right or top/bottom angular limits instead of pretending every active crop is centered.
+This keeps the true left/right (or top/bottom) angular limits. It does not pretend that every active crop is centred.
 
 ### Non-rectilinear lens projections (2.0)
 
-`calculateLensProjectionImagePoint()` and `calculateLensProjectionDirection()` map between a camera-frame direction (+X right, +Y up, +Z toward the scene) and an image-plane point (+X right, +Y up, non-inverted) for an ideal mapping function. For field angle `θ` from the optical axis and image radius `r`:
+Two functions convert between a direction and an image point for an ideal lens mapping:
+
+- `calculateLensProjectionImagePoint()` maps a camera-frame direction to an image-plane point.
+- `calculateLensProjectionDirection()` maps an image-plane point back to a direction.
+
+Coordinates: the camera frame is +X right, +Y up, +Z toward the scene. The image plane is +X right, +Y up and not inverted.
+
+For field angle `θ` (measured from the optical axis) and image radius `r`:
 
 | `projectionModel` | Mapping | Domain |
 | --- | --- | --- |
@@ -35,28 +46,31 @@ This preserves asymmetric left/right or top/bottom angular limits instead of pre
 | `fisheye-orthographic` | `r = f sin θ` | `θ ≤ 90°` (`r ≤ f`) |
 | `equirectangular` | `x = f·longitude`, `y = f·latitude` | `|longitude| ≤ π`, `|latitude| ≤ π/2`, poles excluded |
 
-Radial models keep the image azimuth equal to the scene azimuth, so they are rotationally symmetric; equirectangular maps yaw to a horizontal translation. `calculateLensProjectionFieldOfView()` returns `2θ(d/2)` (or `d/f` for equirectangular) and rejects a sensor dimension beyond a fisheye's image circle or beyond 360°. `calculateLensProjectionFieldOfViewBounds()` handles off-centre crops with signed bounds.
+The radial models keep the image azimuth equal to the scene azimuth, so they are rotationally symmetric. The equirectangular model turns yaw into a horizontal shift.
 
-`calculateFieldOfView()` and `calculateFieldOfViewBounds()` accept an optional `projectionModel` discriminator. Omitting it, or passing `"rectilinear"`, returns exactly the previous result and model id. A non-rectilinear model uses the focal length as the mapping scale and rejects `focusDistanceM`, because a finite-focus fisheye scale is not modeled.
+- `calculateLensProjectionFieldOfView()` returns `2θ(d/2)` (or `d/f` for equirectangular). It rejects a sensor dimension larger than a fisheye's image circle, or wider than 360°.
+- `calculateLensProjectionFieldOfViewBounds()` handles off-centre crops with signed bounds.
 
-These are ideal mapping functions (Miyamoto 1964, *JOSA* 54:1060; Kingslake, *A History of the Photographic Lens*, 1989; Ray, *Applied Photographic Optics*, 3rd ed., 2002; Kannala & Brandt 2006, *IEEE TPAMI* 28:1335; Snyder, *Map Projections — A Working Manual*, USGS PP 1395, 1987). Real fisheye lenses deviate from them; a calibrated polynomial (for example Kannala–Brandt) would need defensible provenance.
+`calculateFieldOfView()` and `calculateFieldOfViewBounds()` take an optional `projectionModel`. If you omit it, or pass `"rectilinear"`, you get exactly the previous result and model id. A non-rectilinear model uses the focal length as its mapping scale. It rejects `focusDistanceM`, because the scale of a fisheye focused at a finite distance is not modelled.
+
+These are ideal mapping functions (Miyamoto 1964, *JOSA* 54:1060; Kingslake, *A History of the Photographic Lens*, 1989; Ray, *Applied Photographic Optics*, 3rd ed., 2002; Kannala & Brandt 2006, *IEEE TPAMI* 28:1335; Snyder, *Map Projections — A Working Manual*, USGS PP 1395, 1987). Real fisheye lenses deviate from them. Modelling a real lens would need a calibrated polynomial (for example Kannala–Brandt) with defensible provenance.
 
 ### Sensor geometry, sampling, capture, and crop
 
-Photivra separates physical image-formation geometry from digital sampling.
+Photivra keeps the physical geometry of image formation separate from digital sampling.
 
-`SensorImagingArea` represents the physical photosensitive area used for image formation. It is not a sensor package/die dimension.
+- `SensorImagingArea` is the physical light-sensitive area used to form the image. It is not the size of the sensor package or die.
+- `NativeImageRaster` is the sensor's effective native sampling grid. One image sample does not have to correspond to one physical photodiode.
+- `RasterDimensions` describes generic active and output rasters.
 
-`NativeImageRaster` represents the effective native image-sampling grid. It does not imply that one output/image sample corresponds one-to-one with one physical photodiode. Generic active/output rasters use `RasterDimensions`.
-
-Geometric sample pitch is derived independently on each axis:
+Sample pitch is computed separately on each axis:
 
 - `pitchX = imagingWidth / nativePixelWidth`;
 - `pitchY = imagingHeight / nativePixelHeight`.
 
-These pitches are geometric sample spacing only. They are not fill factor, effective collection area, or photon-collection area.
+These pitches are only the geometric spacing between samples. They are not the fill factor, the effective collection area or the photon-collection area.
 
-The capture pipeline is staged:
+The capture pipeline runs in stages:
 
 ```text
 physical imaging area + native raster
@@ -72,56 +86,52 @@ digital/output crop
 output raster
 ```
 
-Native raster coordinates use a top-left origin with +X right and +Y down. Integer rectangles are half-open. Physical camera rotation does not redefine the native coordinate system; Photivra transforms points, vectors, and rectangles explicitly between native and oriented coordinates.
+**Coordinates.** Native raster coordinates have their origin at the top left, with +X right and +Y down. Integer rectangles are half-open (they include their start edge but not their end edge). Rotating the camera does not change the native coordinate system. Instead, Photivra explicitly transforms points, vectors and rectangles between native and oriented coordinates.
 
-For the generic sensor model, active physical dimensions and optical-axis offset are derived by assuming the native sampling grid uniformly spans the declared physical imaging area. This assumption is recorded because a future calibrated camera profile may need explicit physical active-area data instead.
+**Active area.** The generic sensor model assumes the native sampling grid covers the declared physical imaging area uniformly. From that it derives the active physical dimensions and the offset from the optical axis. This assumption is recorded because a future calibrated camera profile may need to supply the physical active area directly.
 
-An off-center active rectangle changes both retained physical extent and angular position relative to the optical axis. It must therefore use asymmetric angular bounds rather than a centered FOV formula.
+**Off-centre active areas.** Moving the active rectangle off-centre changes both its physical size and its angle relative to the optical axis. It therefore needs asymmetric angular bounds, not the centred FOV formula. For an off-centre rectangle, the two corner-to-corner diagonal spans can differ. `calculateActiveCaptureFieldOfView()` reports both, and uses the larger one for its summary `diagonalDegrees` value.
 
-For an off-center rectangular active area, the two opposite-corner diagonal angular spans need not be equal. `calculateActiveCaptureFieldOfView()` reports both and uses the larger span for its compatibility `diagonalDegrees` summary.
+**Output crop.** Cropping and resampling the output is digital geometry. It does not change the physical sensor or the active-capture geometry. The output raster's aspect ratio must match the selected output crop; Photivra rejects any implicit stretching.
 
-Output crop/resampling is digital geometry. It does not mutate physical sensor identity or active-capture geometry. Output raster aspect ratio must remain consistent with the selected output crop; implicit geometric stretching is rejected.
+**Centred crop by crop factor.** The shorter axis is `floor(dimension / cropFactor)`. The longer axis is the integer closest to the source aspect ratio, capped at `floor(dimension / cropFactor)`. This keeps the aspect ratio as close as whole pixels allow.
 
-Centered crop dimensions are derived from a linear crop factor: the shorter axis is `floor(dimension / cropFactor)` and the longer axis is the integer nearest the source aspect ratio, capped at `floor(dimension / cropFactor)`, so aspect ratio is preserved as closely as whole pixels allow.
-
-Subject-height framing crop computes the additional same-aspect crop needed to target a requested subject-height fraction. It assumes the crop can be positioned around the subject and does not check subject position against image edges. The crop height is the largest whole-pixel height within the requested crop height but never fewer pixels than the subject needs, and the width is the nearest integer to the source aspect ratio.
+**Subject-height framing crop.** This computes the extra same-aspect crop needed so a subject fills a requested fraction of the image height. It assumes the crop can be positioned around the subject; it does not check whether the subject is near an image edge. The crop height is the largest whole-pixel height within the requested crop height, but never fewer pixels than the subject needs. The width is the integer closest to the source aspect ratio.
 
 ### Crop factor and 35 mm-equivalent focal length
 
-Physical crop factor is diagonal-based relative to a 36 × 24 mm reference frame:
+Crop factor is measured on the diagonal, relative to a 36 × 24 mm reference frame:
 
 `cropFactor = diagonal_35mm / activeCaptureDiagonal`
 
-Conventional 35 mm-equivalent focal length is:
+The usual 35 mm-equivalent focal length is:
 
 `equivalentFocalLength = actualFocalLength × cropFactor`
 
-The actual focal length remains the optical focal length. Equivalent focal length is a derived framing convention; it does not replace physical focal length in projection or depth-of-field calculations.
+The actual focal length stays the optical focal length. The equivalent focal length is only a framing convention. It never replaces the physical focal length in projection or depth-of-field calculations.
 
-Photivra bases equivalence on the active physical capture area, not later digital/output crop. Physical orientation leaves the active diagonal unchanged and therefore does not change diagonal-based equivalent focal length. Different aspect ratios can still produce different horizontal/vertical FOV even when the single diagonal-equivalent number is the same.
+Photivra bases equivalence on the active physical capture area, not on any later digital crop. Rotating the camera leaves the active diagonal unchanged, so it does not change the equivalent focal length. Two formats with the same diagonal-equivalent number can still have different horizontal and vertical FOV if their aspect ratios differ.
 
 ### Projection, focus extension, object size, and motion
 
-Field of view, projected fronto-parallel object size, projected representative-point subject motion, and camera-shake projection support two explicit projection modes:
+Four calculations support two projection modes: field of view, projected size of a flat object facing the camera, projected subject motion (of one representative point), and projected camera shake.
 
-- **pinhole/infinity-focus compatibility mode** when no focus distance is supplied: nominal focal length is used as the projection distance;
-- **focus-aware thin-lens mode** when a focus distance is supplied: sensor-plane projection distance is calculated from the Gaussian thin-lens relation `1/f = 1/s + 1/v`.
+- **Pinhole / infinity-focus mode** (no focus distance supplied): the nominal focal length is the projection distance.
+- **Focus-aware thin-lens mode** (focus distance supplied): the projection distance comes from the Gaussian thin-lens equation `1/f = 1/s + 1/v`.
 
-There is no hidden distance threshold or discontinuous transition between the modes. The caller chooses the model by supplying or omitting focus distance.
+There is no hidden distance threshold and no sudden switch between the modes. You choose the model by supplying or omitting the focus distance.
 
-At a focus distance of at least 100 focal lengths, the ideal thin-lens projection-distance scale differs from the infinity-focus approximation by no more than about 1.011%. For example, 200 mm focused at 22 m (110 focal lengths) changes projected scale by about 0.92%.
+How much does it matter? At a focus distance of 100 focal lengths or more, the thin-lens projection scale differs from the infinity-focus approximation by no more than about 1.011%. For example, a 200 mm lens focused at 22 m (110 focal lengths) changes the projected scale by about 0.92%.
 
-The focus-aware model improves internal consistency with thin-lens DOF/defocus calculations, but it is still an ideal paraxial model. It does not model real-lens focus breathing, pupil magnification, principal-plane movement, distortion, aberrations, or lens-specific macro behavior.
+The focus-aware model is more consistent with the thin-lens depth-of-field and defocus calculations. It is still an ideal paraxial (small-angle) model. It does not model real-lens focus breathing, pupil magnification, principal-plane movement, distortion, aberrations or lens-specific macro behaviour.
 
-Projected subject motion remains a representative-point displacement model with constant linear world velocity. The separate extended-object projection foundation now evaluates multiple explicit metric points under shared rigid translation, so depth-direction motion can produce spatially varying trajectories and validated planar magnification where appropriate.
+Projected subject motion is still a single-point model with constant linear velocity in the world. A separate model, described next, handles extended objects. It projects several metric points under the same rigid translation. Motion toward or away from the camera can then produce different trajectories across the object, and a validated planar magnification where that applies.
 
 ### Extended-object projection under rigid translation
 
-A representative point does not fully describe an extended object moving along the optical axis. Under rectilinear projection, an on-axis center point can remain fixed while off-axis points move radially as object depth changes.
+One point cannot describe an extended object moving along the optical axis. With rectilinear projection, a point on the axis can stay still while off-axis points move outward or inward as the object's depth changes.
 
-The extended-object foundation therefore projects each supplied metric point independently through time.
-
-For a rigid object and translating camera:
+So the extended-object model projects every supplied point independently over time. For a rigid object and a translating camera:
 
 ```text
 relative velocity = object translation - camera translation
@@ -129,101 +139,108 @@ position_i(t) = position_i(0) + relative velocity * t
 projected_i(t) = v * (x_i(t)/z_i(t), y_i(t)/z_i(t))
 ```
 
-where `v` is the selected nominal or focus-aware image-plane projection distance.
+Here `v` is the selected projection distance (nominal or focus-aware).
 
-This first model is deliberately rigid and translational. It does not model object rotation, articulation, deformation or acceleration.
+This first model is rigid and translation-only on purpose. It does not model rotation, articulation, deformation or acceleration of the object.
 
-A single uniform magnification is scientifically justified only for a constrained geometry. Photivra therefore reports a planar scale diagnostic only when the caller explicitly declares a fronto-parallel planar patch and every supplied point validates against the same reference depth. Under shared rigid translation the diagnostic scale is:
+A single magnification value is only valid for a constrained geometry. Photivra reports a planar scale only when the caller declares a flat patch facing the camera, and every supplied point checks out at the same reference depth. Under shared rigid translation that scale is:
 
 `reference depth / current depth`
 
-That special-case result does not imply that arbitrary 3D geometry admits one scale or one homography.
+This special case does not mean that arbitrary 3D geometry has one scale or one homography (a single planar image transform).
 
-When bound to #12, each object point is evaluated on its own local exposure clock. This preserves rolling-capture timing without treating sensor data readout as exposure timing.
+When the model is bound to a capture-mode timing profile (see the next section), each object point is evaluated on its own local exposure clock. This preserves rolling-shutter timing without treating sensor readout time as exposure time.
 
-The geometry result does not solve visibility. Axial/lateral motion can reveal/hide surfaces or move geometry through frame boundaries; a renderer must evaluate those states explicitly. Similarly, relative depth changes can alter defocus/PSF through the exposure, so a static blur/PSF composition is not automatically valid.
+The geometry result does not decide what is visible. Motion along or across the axis can reveal or hide surfaces, and can move geometry across the frame edge; a renderer must evaluate those states itself. Depth changes during the exposure can also change defocus and the PSF (point-spread function, the image of a point source), so a single static blur or PSF is not automatically valid.
 
 ### Mode-bound exposure/readout timing and temporal translation
 
-The #12 closure preserves two different clocks:
+Photivra keeps two clocks apart:
 
-1. **local exposure-window timing**, referenced to the first opening-boundary phase; and
-2. **sensor data-readout timing**, referenced to its own native readout phase.
+1. **Local exposure-window timing.** Measured from the first opening edge of the exposure.
+2. **Sensor data-readout timing.** Measured from the sensor's own native readout start.
 
-A capture-mode timing profile binds both sets of facts to one exact capture-mode/profile identity without asserting that those clocks are synchronized. Global readout removes spatial readout skew; it does not remove finite-exposure motion.
+A capture-mode timing profile ties both sets of facts to one exact capture mode and profile. It does not claim the two clocks are synchronised. A global readout removes the spatial skew of reading out row by row; it does not remove motion during a finite exposure.
 
-The first supported exposure/readout schedules remain simultaneous or uniform-linear native scans. More complex non-uniform schedules are rejected unless a future explicit model represents them.
+The supported exposure and readout schedules are simultaneous, or a uniform linear scan across the native sensor. More complex non-uniform schedules are rejected until an explicit model represents them.
 
-Pure camera rotation can be evaluated without scene depth. Camera translation cannot. Under constant translation, a stationary scene point at metric position `(x,y,z)` is evaluated from its relative camera-space position over time, so image displacement scales with scene depth through rectilinear projection. Consequently, arbitrary 3D translation does not admit one globally valid image-plane homography.
+**Rotation versus translation.** Pure camera rotation can be evaluated without knowing scene depth. Camera translation cannot. Under constant translation, a stationary scene point at metric position `(x,y,z)` is evaluated from its camera-relative position over time. Its image displacement therefore depends on its depth through rectilinear projection. As a result, arbitrary 3D translation has no single image-plane homography that is valid everywhere.
 
-Optional subject velocity remains separate from camera translation and composes as relative motion. The model does not reinterpret subject motion as sensor/readout behavior.
+Optional subject velocity stays separate from camera translation, and the two combine as relative motion. Subject motion is never reinterpreted as sensor or readout behaviour.
 
-Temporal radiance integration uses deterministic midpoint nodes inside each authoritative local exposure interval. Scene-radiance providers must evaluate at those physical capture times; sensor readout timing is not substituted for exposure time. Per-node uncertainty/evidence is preserved, while aggregate uncertainty remains unquantified unless justified correlation assumptions are supplied.
+**Integrating radiance over time.** Temporal radiance integration uses fixed midpoint sample times inside each local exposure interval. Scene-radiance providers must be evaluated at those physical capture times; sensor readout time is never substituted for exposure time. Each sample keeps its own uncertainty and evidence. The total uncertainty stays unquantified unless the caller supplies justified correlation assumptions.
 
 ### Manual flash timing and scene-light boundary
 
-The first flash model composes two already-established domains instead of introducing a special image effect:
+The first flash model is not a special image effect. It combines two existing models:
 
-1. #85 spatial/temporal illumination; and
-2. #12 exposure-boundary timing.
+1. spatial and temporal scene illumination; and
+2. exposure-edge timing.
 
-A short manual-flash pulse is an aperiodic relative illumination waveform attached to an explicit spatial source. The source geometry therefore remains available to the scene-radiance transport layer for distance, surface-angle, visibility/shadow, and indirect-light behavior.
+A short manual-flash pulse is a one-off (aperiodic) relative illumination waveform attached to an explicit light source in the scene. The source geometry therefore stays available to the scene-radiance transport layer, which handles distance, surface angle, visibility and shadows, and indirect light.
 
-Ordinary full-frame flash synchronization requires a non-empty interval where every point in the active capture is simultaneously exposed. For the currently supported simultaneous or uniform-linear boundary schedules:
+**Ordinary flash sync.** Normal full-frame flash sync needs a non-empty time interval during which every point of the active capture is exposed at once. For the supported simultaneous or uniform-linear schedules:
 
-- latest opening phase is zero for a simultaneous opening, otherwise the declared opening traversal duration;
-- earliest closing phase is the nominal closing reference;
-- ordinary one-pulse sync is valid only when the complete pulse support lies inside that interval.
+- the latest opening time is zero for a simultaneous opening; otherwise it is the declared opening travel time;
+- the earliest closing time is the nominal closing reference;
+- ordinary one-pulse sync is valid only if the whole pulse fits inside that interval.
 
-This rule is derived from exposure boundaries, not sensor data readout.
+This rule comes from the exposure edges, not from sensor readout.
 
-Front- and rear-curtain modes differ only in where the same pulse support is registered inside that valid interval. Their different relationship to subject motion/ambient trails must emerge from time-dependent scene-radiance integration rather than drawing a synthetic trail.
+Front-curtain and rear-curtain modes differ only in where the same pulse sits inside that valid interval. Their different look with moving subjects or ambient trails must come from integrating the time-varying scene radiance, not from drawing a synthetic trail.
 
-Flash duration and shutter duration remain independent. Extending the shutter can integrate more ambient scene time without proportionally increasing a fixed short flash pulse.
+Flash duration and shutter duration are independent. A longer shutter collects more ambient light; it does not make a fixed short flash pulse proportionally stronger.
 
-Ordinary sync never covers HSS. A moving-slit exposure with no whole-frame-open interval cannot be made ordinary-flash-compatible by relabeling a single pulse as HSS; high-speed sync is the separate quasi-continuous burst model of `resolveHighSpeedFlashSync()` (schema 0.2.0 sync profiles), see [Flash: guide number, TTL and high-speed sync](SCENE_SENSOR_TEMPORAL_EXPOSURE.md#flash-guide-number-ttl-and-high-speed-sync).
+**High-speed sync (HSS).** Ordinary sync never covers HSS. If a moving-slit exposure has no moment when the whole frame is open, relabelling a single pulse as HSS does not make it compatible. HSS is the separate quasi-continuous burst model in `resolveHighSpeedFlashSync()` (sync profile schema 0.2.0); see [Flash: guide number, TTL and high-speed sync](SCENE_SENSOR_TEMPORAL_EXPOSURE.md#flash-guide-number-ttl-and-high-speed-sync).
 
-Manual flash itself has no TTL; generic pre-flash TTL power is solved separately by `resolveTtlFlashExposure()` and applied to the manual profile. Recycle/thermal behavior, flash exposure lock, red-eye/modeling/AF-assist emissions and branded protocols remain excluded. Camera WB remains downstream interpretation and never changes the emitted flash spectrum.
+**TTL and exclusions.** Manual flash has no TTL (through-the-lens automatic flash metering). Generic pre-flash TTL power is solved separately by `resolveTtlFlashExposure()` and then applied to the manual profile. Not modelled: recycle and thermal behaviour, flash exposure lock, red-eye, modelling-light and AF-assist emissions, and brand-specific protocols. Camera white balance is a later interpretation step; it never changes the emitted flash spectrum.
 
 ### Generic illumination vignetting
 
-The engine exposes a generic rotationally symmetric **relative linear illumination** model:
+The engine provides a generic, rotationally symmetric model of **relative linear illumination** across the field:
 
 ```text
 T(rho) = 1 + r2*rho² + r4*rho⁴ + r6*rho⁶
 ```
 
-where `rho` is ideal image-plane field radius divided by the caller-declared physical normalization radius.
+`rho` is the ideal image-plane field radius divided by a physical normalisation radius that the caller declares. The optical axis is normalised so that `T(0) = 1`.
 
-The optical axis is normalized to `T(0) = 1`.
+The declared `maximumNormalizedRadius` is the range over which the model is valid. Photivra evaluates the polynomial at both ends and at every real interior extremum over that range. It rejects a profile that:
 
-The declared `maximumNormalizedRadius` is a scientific operating envelope. Photivra evaluates the polynomial endpoints and all real internal extrema over the full interval and rejects profiles that:
+- produces zero or negative throughput; or
+- exceeds the centre value of 1.
 
-- produce zero/negative throughput; or
-- exceed the center-normalized throughput of 1.
+The result is a multiplicative attenuation in linear light, plus the equivalent loss in stops (a positive number).
 
-The result is a linear-light multiplicative attenuation plus equivalent positive stop loss.
+This model is **not mechanical or pupil vignetting**. It does not clip the pupil and does not change the bokeh or PSF shape. It does not claim calibrated radiometry or the behaviour of any named lens.
 
-This slice is **not mechanical/pupil vignetting**. It does not clip the pupil or change bokeh/PSF shape. It also does not claim calibrated radiometry or named-lens behavior.
-
-In 2.0 the interior extrema are the real roots of `dT/ds = r2 + 2 r4 s + 3 r6 s²` (`s = rho²`), solved with the same scaled, cancellation-free quadratic form as the radial-distortion validator. Tests now exercise an `r6 ≠ 0` profile whose throughput dips below zero only mid-field (both ends are positive) and confirm it is rejected.
+In 2.0 the interior extrema are the real roots of `dT/ds = r2 + 2 r4 s + 3 r6 s²` (with `s = rho²`). They are solved with the same scaled quadratic formula, free of cancellation error, that the radial-distortion validator uses. A test covers an `r6 ≠ 0` profile whose throughput is positive at both ends but dips below zero mid-field, and confirms it is rejected.
 
 ### Physical natural and mechanical vignetting (2.0)
 
-`calculateNaturalVignetting()` offers two pupil-geometry models of relative illumination for an aberration-free lens:
+`calculateNaturalVignetting()` offers two models of relative illumination for an aberration-free lens, based on pupil geometry:
 
 - `cosine-fourth`: `E/E0 = cos⁴θ`, with `tan θ = h / z` for image height `h` and exit-pupil distance `z` (Slater, *Photographic Systems for Engineers*, 1980; Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., sec. 6.5).
-- `finite-lambertian-pupil`: the exact irradiance from a uniform Lambertian disk of radius `a` onto a parallel plane (Foote 1915, *Bull. Bureau of Standards* 12:583), `E = (πL/2)[1 − (z² + h² − a²)/√((z² + h² + a²)² − 4a²h²)]`, normalised by its on-axis value `πL a²/(z² + a²)`. It tends to `cos⁴θ` for a small pupil and is evaluated in a cancellation-free form.
+- `finite-lambertian-pupil`: the exact irradiance on a parallel plane from a uniform Lambertian (equally bright in all directions) disk of radius `a` (Foote 1915, *Bull. Bureau of Standards* 12:583):
+  `E = (πL/2)[1 − (z² + h² − a²)/√((z² + h² + a²)² − 4a²h²)]`,
+  normalised by its on-axis value `πL a²/(z² + a²)`. It approaches `cos⁴θ` for a small pupil. It is evaluated in a form free of cancellation error.
 
-`calculateMechanicalVignetting()` models optical (mechanical) vignetting and the cat's-eye pupil. Each clipping aperture is a circle referred to the entrance-pupil plane, displaced by `shiftPerTanFieldMm · tan θ` along the field azimuth. The open pupil is the intersection of the entrance pupil with every displaced circle (Kingslake & Johnson sec. 6.4; Smith, *Modern Optical Engineering*, 4th ed., sec. 6.3). One aperture uses the exact circle–circle lens area; any number of apertures returns the exact convex boundary sampled as a polygon (pupil-plane mm, +X right, +Y up) with its area and centroid. `combinedRelativeIllumination = cos⁴θ × open-area ratio` assumes an object at infinity and no pupil aberration. The polygon can be passed to `calculatePolygonPupilFraunhoferPsf()` or used as the `apertureMaskVerticesMm` of `createWavefrontPupilGrid()` (see [PSF foundation](PSF_FOUNDATION.md#cats-eye-pupil-and-arbitrary-polygon-diffraction-20)).
+`calculateMechanicalVignetting()` models mechanical (optical) vignetting and the cat's-eye pupil shape it produces.
 
-Apply at most one field-throughput model to a signal: these results are alternatives to, not additions on top of, a `calculateIlluminationVignetting()` profile or a supplied field-throughput result.
+- Each clipping aperture is a circle referred to the entrance-pupil plane. It is shifted by `shiftPerTanFieldMm · tan θ` along the field azimuth.
+- The open pupil is where the entrance pupil overlaps every shifted circle (Kingslake & Johnson sec. 6.4; Smith, *Modern Optical Engineering*, 4th ed., sec. 6.3).
+- With one aperture, the overlap area is computed exactly from the circle–circle lens formula. With any number of apertures, the exact convex boundary is returned as a sampled polygon (pupil-plane mm, +X right, +Y up), with its area and centroid.
+- `combinedRelativeIllumination = cos⁴θ × open-area ratio`. This assumes an object at infinity and no pupil aberration.
+
+You can pass the polygon to `calculatePolygonPupilFraunhoferPsf()`, or use it as the `apertureMaskVerticesMm` of `createWavefrontPupilGrid()` (see [PSF foundation](PSF_FOUNDATION.md#cats-eye-pupil-and-arbitrary-polygon-diffraction-20)).
+
+Apply at most one field-throughput model to a signal. These results replace a `calculateIlluminationVignetting()` profile or a supplied field-throughput result; they are not extra factors on top of them.
 
 ### Generic lateral chromatic aberration
 
-The standalone lateral-CA foundation uses the green channel as the reference field mapping.
+Lateral chromatic aberration (CA) is the colour fringing caused by different colours being imaged at slightly different sizes. This standalone model uses the green channel as the reference mapping.
 
-A shared base radial-distortion profile defines the common geometric lens mapping. Red and blue coefficient offsets are added to that base before each channel is mapped:
+A shared base radial-distortion profile defines the lens's common geometric mapping. Red and blue offsets are added to the base coefficients before each channel is mapped:
 
 ```text
 green coefficients = base
@@ -231,33 +248,36 @@ red coefficients   = base + red offset
 blue coefficients  = base + blue offset
 ```
 
-This keeps ordinary geometric distortion and lateral chromatic separation distinct while allowing one renderer pass to consume the combined per-channel mapping.
+This keeps ordinary distortion and colour separation distinct, while letting a renderer apply the combined per-channel mapping in one pass.
 
-The model deliberately does **not** represent CA as finished-image RGB blur. Forward mapping reports per-channel field coordinates and vector separation; inverse mapping reports the per-channel ideal source coordinate required for one distorted destination.
+The model does **not** represent CA as RGB blur on a finished image.
 
-All combined channel profiles share one physical normalization radius and operating envelope and must remain individually invertible.
+- Forward mapping reports each channel's field coordinates and the vector separation between channels.
+- Inverse mapping reports, for one distorted destination pixel, the ideal source coordinate each channel needs.
 
-The RGB labels are representative renderer channels only. The model does not define wavelengths, sensor CFA responses, longitudinal chromatic aberration, wavelength-dependent PSFs, or calibrated real-lens color behavior.
+All combined channel profiles share one physical normalisation radius and valid range, and each must stay invertible on its own.
+
+The red, green and blue labels are just representative renderer channels. The model does not define wavelengths, sensor colour-filter responses, longitudinal CA, wavelength-dependent PSFs or calibrated real-lens colour behaviour.
 
 ### Generic radial distortion
 
-The engine includes a standalone rotationally symmetric radial field-mapping approximation:
+The engine includes a standalone, rotationally symmetric approximation of radial distortion:
 
 ```text
 p_distorted = p_ideal × (1 + k1 r² + k2 r⁴ + k3 r⁶)
 ```
 
-where `r` is image-plane radius divided by a caller-declared physical normalization radius.
+`r` is the image-plane radius divided by a physical normalisation radius declared by the caller.
 
-The declared `maximumNormalizedRadius` is part of the scientific contract. Photivra checks the derivative of the radial mapping over that interval and rejects profiles that are not strictly one-to-one. This makes deterministic inverse destination-to-source sampling well-defined.
+The declared `maximumNormalizedRadius` is part of the contract. Photivra checks the slope of the radial mapping over that range and rejects any profile that is not strictly one-to-one. This guarantees that sampling backwards, from each destination pixel to its source, is well defined and deterministic.
 
-The model is centered on the optical axis and has no tangential/decentering terms; see Brown–Conrady below. Coefficients are generic inputs, not real-lens calibration data.
+The model is centred on the optical axis and has no tangential (decentering) terms; for those, see Brown–Conrady below. The coefficients are generic inputs, not calibration data for a real lens.
 
-The validator's degenerate double-root branch is covered by tests; a former `q === 0` branch was unreachable and has been removed (no output change).
+Tests cover the validator's degenerate double-root branch. A former `q === 0` branch could never be reached and was removed; this did not change any output.
 
 ### Brown–Conrady tangential distortion (2.0)
 
-`calculateBrownConradyDistortionMapping()` adds decentering terms `p1, p2` to the radial polynomial on normalized coordinates `(x, y)`, `r² = x² + y²`:
+`calculateBrownConradyDistortionMapping()` adds decentering terms `p1, p2` to the radial polynomial. It works on normalised coordinates `(x, y)` with `r² = x² + y²`:
 
 ```text
 x_d = x (1 + k1 r² + k2 r⁴ + k3 r⁶) + 2 p1 x y + p2 (r² + 2x²)
@@ -266,269 +286,306 @@ y_d = y (1 + k1 r² + k2 r⁴ + k3 r⁶) + p1 (r² + 2y²) + 2 p2 x y
 
 (Conrady 1919, *MNRAS* 79:384; Brown 1966, *Photogrammetric Engineering* 32:444; Brown 1971, *Photogramm. Eng.* 37:855.) The tangential part equals `r² P + 2 (P·u) u` with `P = (p2, p1)`, so `(p2, p1)` rotates with the image.
 
-Validity extends the radial contract: the radial part must be strictly monotonic over the envelope (the existing validator), the Jacobian determinant must be positive at a 64-ring × 256-azimuth polar sample of the envelope, and the mapped envelope boundary must be strictly star-shaped about the axis. A local diffeomorphism of a closed disk that is injective on its boundary is injective, so the inverse is single-valued; these conditions are checked at samples, not proven between them. `calculateInverseBrownConradyDistortionMapping()` uses damped Newton iteration seeded by the radial inverse and requires a normalized residual of `1e-12` inside the envelope. Thin-prism and anamorphic terms are not modeled.
+**Validity.** A profile is accepted only if all of these hold:
+
+- the radial part is strictly monotonic over the valid range (the existing validator);
+- the Jacobian determinant is positive at every point of a 64-ring × 256-azimuth polar sample of that range;
+- the mapped boundary of the range is strictly star-shaped about the axis.
+
+A smooth, locally invertible map of a closed disk that is one-to-one on its boundary is one-to-one everywhere, so the inverse has a single value. Note that these conditions are checked at the sample points, not proven between them.
+
+`calculateInverseBrownConradyDistortionMapping()` uses damped Newton iteration, starting from the radial inverse. It requires a normalised residual of `1e-12` inside the valid range. Thin-prism and anamorphic terms are not modelled.
 
 ### Declared-scale focus breathing
 
-The root engine exposes a generic focus-breathing projection approximation.
-
-For one selected focus state:
+Focus breathing is the change in framing as a lens focuses. The root engine offers a generic approximation of it. For one focus state:
 
 ```text
 effective projection distance
   = ideal thin-lens image distance × caller-declared breathing projection scale
 ```
 
-Scale `1` exactly preserves the existing thin-lens projection.
+A scale of `1` reproduces the thin-lens projection exactly.
 
-The model intentionally does not infer a focus-breathing curve. It represents focus-dependent framing/magnification only when the caller supplies the scale for that state. Physical focal length remains unchanged.
+The model never infers a breathing curve. It represents focus-dependent framing only when the caller supplies the scale for that focus state. The physical focal length does not change.
 
-This simplified scale does not model principal-plane movement, pupil magnification, distortion, aberrations, or a named commercial lens. Those require separate models and, for calibrated profiles, defensible provenance.
+This simple scale does not model principal-plane movement, pupil magnification, distortion, aberrations or any named commercial lens. Those need separate models and, for calibrated profiles, defensible provenance.
 
 ### Geometric focus breathing (2.0)
 
-`calculateGeometricFocusBreathing()` derives breathing from an explicitly declared ideal focusing geometry rather than a declared scale. The photographic focus distance `L` is measured subject-to-sensor, and `T = L − hiatus` (principal-plane separation, default 0):
+`calculateGeometricFocusBreathing()` derives breathing from a declared ideal focusing geometry, instead of from a declared scale. The photographic focus distance `L` is measured from subject to sensor. `T = L − hiatus`, where the hiatus is the separation between the principal planes (default 0).
 
-- `unit-focus`: the whole lens moves with constant focal length; `u + v = T`, `1/u + 1/v = 1/f`, so `v = 2fT / (T + √(T² − 4fT))` for `T ≥ 4f`. The field narrows as `v` grows; with zero hiatus it reproduces the focus-aware thin-lens field of view exactly.
-- `fixed-image-distance-internal-focus`: an idealised internal-focus lens keeps `v = f∞` and shortens its focal length to `f' = uv/(u + v)`; the angular field is unchanged and magnification is `f∞/u`.
+- `unit-focus`: the whole lens moves and its focal length stays constant. `u + v = T` and `1/u + 1/v = 1/f`, so `v = 2fT / (T + √(T² − 4fT))` for `T ≥ 4f`. The field narrows as `v` grows. With zero hiatus this reproduces the focus-aware thin-lens field of view exactly.
+- `fixed-image-distance-internal-focus`: an idealised internal-focus lens keeps `v = f∞` and shortens its focal length to `f' = uv/(u + v)`. The angular field does not change, and magnification is `f∞/u`.
 
-Both are paraxial with nodal points at the principal planes (Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., ch. 3; Ray, *Applied Photographic Optics*, 3rd ed., ch. 9 and 14). `equivalentBreathingProjectionScale` (exactly 1 for unit focus) can be passed to the declared-scale model with `focusDistanceM = objectDistanceMm / 1000`. Real internal-focus lenses also move their pupils and principal planes, so real breathing still needs a calibrated profile. The declared-scale model itself still never infers its scale.
+Both models are paraxial, with the nodal points at the principal planes (Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., ch. 3; Ray, *Applied Photographic Optics*, 3rd ed., ch. 9 and 14).
+
+You can pass `equivalentBreathingProjectionScale` (exactly 1 for unit focus) to the declared-scale model, with `focusDistanceM = objectDistanceMm / 1000`. Real internal-focus lenses also move their pupils and principal planes, so real breathing still needs a calibrated profile. The declared-scale model still never infers its scale.
 
 ### Lens geometry wiring contract review (2.0)
 
-The domain rules require an explicit contract review before distortion or projection models enter composed science. Brown–Conrady distortion and the non-rectilinear projections are wired in two places; this is the review.
+The domain rules require an explicit contract review before a distortion or projection model is used in composed (end-to-end) science. Brown–Conrady distortion and the non-rectilinear projections are wired into two places. This section is that review.
 
-1. **Ownership and single application.** Geometry is applied once per path: digital correction/warping through `prepareGeometricMapping()` (kinds `brown-conrady`, `projection-remap`, mapping schema 0.2.0), and physical capture through the environment `lensFieldMapping` (scene-ray query). Neither adds a second distortion stage elsewhere; the POC remains unchanged.
-2. **Defaults and identity.** Omitted options select the previous rectilinear, radial-only behaviour with unchanged model ids, versions and bytes. The existing hash locks (`native-environment-bit-identity`, `poc-projection-reuse`, production plan replay) pass unchanged, and new tests show identity mappings reproduce photo signals and RAW frames exactly.
-3. **Coordinates.** Sensor points are physical (distorted) +X right / +Y up after the explicit native Y inversion; distortion profiles keep their declared normalization radius and envelope; projection scales are declared, never inferred from lens identity.
-4. **Radiometry.** Distortion's area change is owned by the environment path as `1/det(d distorted/d ideal)`, applied exactly once and reported per query; the scene-to-sensor bridge still adds no cos⁴ term and field throughput remains caller-owned (a fisheye's natural falloff must be supplied there, not inferred).
-5. **Invertibility and validity.** Radial profiles keep the monotonic validator; Brown–Conrady profiles keep the sampled Jacobian/boundary validator; projection domains (image circle, horizon, poles) fail closed.
-6. **Focus.** Non-rectilinear projections use the focus-aware projection distance as mapping scale; this generalisation of the rectilinear focus-aware projection is an approximation, not a calibrated finite-focus fisheye model.
-7. **Unsupported combinations fail closed.** Ideal pupil rays and browser-native prepared sites reject a mapping; the production plan blocks requested distortion without a mapping and active distortion that was not requested.
-8. **Versions.** Geometric mapping schema/model 0.2.0 only when a new kind is present; environment photo-signal model 0.4.0 only with a mapping; new query model id `lens-mapped-sensor-environment-radiance-query`; production plan stays 0.7.0 with a new blocker code `missing-lens-field-mapping`.
+1. **Ownership and single application.** Each path applies geometry once:
+   - digital correction and warping through `prepareGeometricMapping()` (kinds `brown-conrady` and `projection-remap`, mapping schema 0.2.0);
+   - physical capture through the environment `lensFieldMapping` (a scene-ray query).
+
+   Neither adds a second distortion stage anywhere else. The POC (proof-of-concept simulation API) is unchanged.
+2. **Defaults and identity.** If the options are omitted you get the previous rectilinear, radial-only behaviour, with unchanged model ids, versions and output bytes. The existing hash locks (`native-environment-bit-identity`, `poc-projection-reuse`, production plan replay) still pass. New tests show that identity mappings reproduce photo signals and RAW frames exactly.
+3. **Coordinates.** Sensor points are physical (distorted) coordinates, +X right and +Y up, after the explicit native Y flip. Distortion profiles keep their declared normalisation radius and valid range. Projection scales are declared, never inferred from the lens identity.
+4. **Radiometry.** Distortion changes the area of each image patch. The environment path owns that change as `1/det(d distorted/d ideal)`, applies it exactly once and reports it for each query. The scene-to-sensor bridge still adds no cos⁴ term. Field throughput is still supplied by the caller: a fisheye's natural falloff must be provided there, not inferred.
+5. **Invertibility and validity.** Radial profiles keep the monotonic validator. Brown–Conrady profiles keep the sampled Jacobian and boundary validator. Projection domains (image circle, horizon, poles) fail closed, meaning out-of-domain input is rejected.
+6. **Focus.** Non-rectilinear projections use the focus-aware projection distance as their mapping scale. This extends the rectilinear focus-aware projection; it is an approximation, not a calibrated model of a fisheye at finite focus.
+7. **Unsupported combinations fail closed.** Ideal pupil rays and browser-native prepared sites reject a mapping. The production plan blocks a requested distortion that has no mapping, and an active distortion that was not requested.
+8. **Versions.** Geometric mapping schema and model 0.2.0 are used only when a new kind is present. The environment photo-signal model is 0.4.0 only when a mapping is used. The new query model id is `lens-mapped-sensor-environment-radiance-query`. The production plan stays at 0.7.0, with a new blocker code `missing-lens-field-mapping`.
 
 ### Thin-lens focus and depth of field
 
-The geometric depth-of-field model uses the exact thin-lens near/far limits with a caller-supplied acceptable circle of confusion `c`. With focal length `f`, f-number `N`, focus distance `s` and hyperfocal distance `H = f²/(Nc) + f`:
+The depth-of-field (DOF) model uses the exact thin-lens near and far limits, with an acceptable circle of confusion `c` supplied by the caller. With focal length `f`, f-number `N`, focus distance `s`, and hyperfocal distance `H = f²/(Nc) + f`:
 
 - near limit `= s(H − f)/(H + s − 2f)`;
-- far limit `= s(H − f)/(H − s)`, infinite (`null`) when `s ≥ H`.
+- far limit `= s(H − f)/(H − s)`. It is infinite (`null`) when `s ≥ H`.
 
-These solve `f²|s − d|/(N d (s − f)) = c`, the thin-lens defocus-circle diameter used by `calculateDefocusCircle()`, so the defocus circle at either returned limit equals `c` (Ray, *Applied Photographic Optics*). Model `thin-lens-depth-of-field` 1.1.0 replaced the earlier approximation `Hs/(H ± (s − f))`, which slightly misplaced both limits and returned a finite far limit when focused at `H`.
+These limits solve `f²|s − d|/(N d (s − f)) = c`. That expression is the thin-lens defocus-circle diameter used by `calculateDefocusCircle()`, so the defocus circle at either limit equals `c` exactly (Ray, *Applied Photographic Optics*). Model `thin-lens-depth-of-field` 1.1.0 replaced the earlier approximation `Hs/(H ± (s − f))`. The old formula slightly misplaced both limits, and returned a finite far limit when focused at `H`.
 
-The near limit lies beyond the focal length only when `H − f > f`, that is `c < f/N` (the aperture diameter). From package 2.0.0 a circle of confusion at or above `f/N` is rejected as a domain error instead of returning a near limit inside the focal length.
+The near limit is beyond the focal length only when `H − f > f`, that is, when `c < f/N` (the aperture diameter). From package 2.0.0, a circle of confusion at or above `f/N` is rejected as a domain error. Previously it returned a near limit inside the focal length.
 
-`calculateDefocusCircle()` (model `thin-lens-defocus-circle` 1.1.0, package 2.0.0) evaluates that closed form directly, grouped as `(f/N)·(|s − d|/d)·(f/(s − f))`. The earlier evaluation `D·|v_d − v_s|/v_d` subtracted two nearly equal image distances and lost relative accuracy when both planes are distant or close together (for example a relative error of about 2e-3 for focus at 1000 km and a subject 1 m farther, against an exact rational evaluation); the closed form is accurate to a few ulps there and cannot overflow for finite in-domain inputs.
+`calculateDefocusCircle()` (model `thin-lens-defocus-circle` 1.1.0, package 2.0.0) evaluates that closed form directly, grouped as `(f/N)·(|s − d|/d)·(f/(s − f))`. The earlier evaluation, `D·|v_d − v_s|/v_d`, subtracted two nearly equal image distances. It lost relative accuracy when both planes were far away or close together. For example, with focus at 1000 km and the subject 1 m farther, its relative error was about 2e-3 compared with an exact rational evaluation. The closed form is accurate to a few ulps (units in the last place) there, and cannot overflow for finite inputs within its domain.
 
-The circle-of-confusion criterion is a viewing/acceptability input, not a physical sensor threshold. The optional equivalent-viewing helper scales a caller-supplied reference criterion by sensor-diagonal ratio and is explicitly labeled an approximation.
+**The circle of confusion is a viewing choice.** It describes what blur is acceptable to a viewer; it is not a physical sensor threshold. The optional equivalent-viewing helper scales a reference criterion from the caller by the ratio of sensor diagonals. It is explicitly labelled an approximation.
 
-In composed POC capture mode, the equivalent-viewing helper uses the final retained physical image region that will be enlarged to the assumed final viewing size. Active capture, digital output crop, and centered subject framing can therefore change the viewing criterion; output pixel resolution alone cannot. This changes only the viewing/acceptability convention, not the physical optical blur. An explicit caller-supplied `circleOfConfusionMm` is never rescaled.
+In composed POC capture mode, the equivalent-viewing helper uses the final physical image region that will be enlarged to the assumed viewing size. Active capture, digital output crop and centred subject framing can therefore change the criterion; output pixel resolution alone cannot. This changes only the viewing convention, not the physical optical blur. An explicit `circleOfConfusionMm` from the caller is never rescaled.
 
-The model is not a macro calibration model and does not include diffraction, pupil magnification, aberrations, focus breathing, or lens-specific principal-plane behavior in its DOF criterion.
+The model is not a macro calibration model. Its DOF criterion does not include diffraction, pupil magnification, aberrations, focus breathing or lens-specific principal-plane behaviour.
 
 ### Focus-control state versus optical focus
 
 Focus control is a camera-control state machine, not a blur algorithm.
 
-The #104 layer resolves a target/control event into the existing #103 `FocusPlane`. Downstream thin-lens, defocus and PSF calculations therefore depend only on the resulting finite/infinity optical focus state, not on whether that state came from MF, AF-S, AF-C or focus lock.
+The focus-control layer turns a target or control event into a `FocusPlane`. Downstream thin-lens, defocus and PSF calculations depend only on the resulting optical focus state (finite or infinity). They do not care whether that state came from manual focus (MF), single autofocus (AF-S), continuous autofocus (AF-C) or focus lock.
 
-Finite autofocus target distance uses the same longitudinal camera-space/conjugate distance convention as #103. Off-axis points on one fronto-parallel plane therefore resolve to the same ideal focus distance; renderer ray length is not an autofocus distance.
+**Distance convention.** A finite autofocus target distance uses the same longitudinal (along-the-axis) camera-space distance as `FocusPlane`. Off-axis points on one flat plane facing the camera therefore resolve to the same ideal focus distance. A renderer's ray length is not an autofocus distance.
 
-The first autofocus actuator is an explicitly ideal instantaneous approximation. It supplies deterministic state semantics without modeling motor dynamics, AF sensor error, hunting, subject-recognition quality, low-light behavior or branded-camera performance.
+**Ideal actuator.** The first autofocus actuator is an explicitly ideal, instantaneous approximation. It gives deterministic state behaviour. It does not model motor dynamics, AF sensor error, hunting, subject-recognition quality, low-light behaviour or the performance of any branded camera.
 
-Single AF acquires once and holds. Continuous AF can consume time-ordered observations of one stable target identity. Target loss holds the last focus and requires an explicit reacquisition event; the engine never silently jumps to another subject.
+**Modes.**
 
-Focus lock freezes the resolved optical state independently from AE, metering and white balance. Release-priority policy is evaluated by a separate gate and cannot alter the optical focus calculation.
+- Single AF acquires focus once and holds it.
+- Continuous AF can follow time-ordered observations of one stable target.
+- If the target is lost, focus holds at its last position and needs an explicit reacquisition event. The engine never silently jumps to another subject.
+
+Focus lock freezes the optical state independently of auto exposure (AE), metering and white balance. The release-priority policy is evaluated by a separate gate and cannot change the optical focus calculation.
 
 ### Defocus circle
 
-Defocus is calculated geometrically by comparing the selected sensor plane for the focus distance with the ideal image plane for the subject distance and projecting an ideal circular entrance-pupil cone to the sensor.
+Defocus is computed geometrically. The model compares the sensor plane chosen for the focus distance with the ideal image plane for the subject distance. It then projects an ideal circular cone of light from the entrance pupil onto the sensor.
 
 ### Longitudinal chromatic aberration (2.0)
 
-`calculateLongitudinalChromaticFocus()` gives the wavelength-dependent focal length and the signed image-plane defocus at a sensor focused (at a reference wavelength) on `focusDistanceM`:
+Longitudinal chromatic aberration is when different wavelengths come to focus at different distances. `calculateLongitudinalChromaticFocus()` returns the focal length at a given wavelength, and the signed image-plane defocus for a sensor focused on `focusDistanceM` at a reference wavelength. Two models are available:
 
-- `thin-singlet-abbe`: an ideal thin singlet with two-term Cauchy dispersion `n(λ) = A + B/λ²` fitted exactly to `n_d` and `V_d = (n_d − 1)/(n_F − n_C)` (Hecht, *Optics*, 5th ed., sec. 3.5 and 6.3; Born & Wolf sec. 2.3), and lensmaker scaling `f(λ) = f_ref (n_ref − 1)/(n(λ) − 1)`, which gives the classical `f_C − f_F ≈ f/V`. Valid as an approximation over 360–830 nm. The d, F and C wavelengths (587.5618, 486.1327, 656.2725 nm) are standard spectral-line constants (ISO 7944).
-- `declared-focal-shift`: a caller-declared focal-shift table (for example an achromat's secondary spectrum), linearly interpolated and re-referenced to the reference wavelength, never extrapolated.
+- `thin-singlet-abbe`: an ideal thin single-element lens.
+  - Dispersion uses the two-term Cauchy formula `n(λ) = A + B/λ²`, fitted exactly to `n_d` and the Abbe number `V_d = (n_d − 1)/(n_F − n_C)` (Hecht, *Optics*, 5th ed., sec. 3.5 and 6.3; Born & Wolf sec. 2.3).
+  - Focal length scales by the lensmaker relation `f(λ) = f_ref (n_ref − 1)/(n(λ) − 1)`, which gives the classical `f_C − f_F ≈ f/V`.
+  - Valid as an approximation over 360–830 nm. The d, F and C wavelengths (587.5618, 486.1327, 656.2725 nm) are standard spectral-line constants (ISO 7944).
+- `declared-focal-shift`: a focal-shift table declared by the caller (for example an achromat's secondary spectrum). It is linearly interpolated, re-referenced to the reference wavelength, and never extrapolated.
 
-Defocus is sensor minus image distance; the geometric blur diameter `D|dz|/v(λ)` has the same thin-lens form as `calculateDefocusCircle()`, and the result carries the defocus wavefront `W020 = dz/(8N_w²)` and its Zernike Z4 coefficient so a complex-pupil PSF can be evaluated per wavelength. Lateral chromatic magnification remains the separate lateral-CA model.
+Defocus is the sensor distance minus the image distance. The geometric blur diameter `D|dz|/v(λ)` has the same thin-lens form as `calculateDefocusCircle()`. The result also carries the defocus wavefront `W020 = dz/(8N_w²)` and its Zernike Z4 coefficient, so a complex-pupil PSF can be evaluated per wavelength. Lateral chromatic magnification is still handled by the separate lateral-CA model.
 
 ### Polarizing front-of-lens filter (2.0)
 
-Front-of-lens filter schema `0.2.0` adds `kind: "linear-polarizer"` with principal transmittance `k1`, extinction ratio `k1/k2` and transmission-axis angle; `polarizationModeled` is `true` exactly for this kind. Light is described by linear Stokes parameters and filters compose in light-path order through linear-diattenuator Mueller matrices (Chipman, *Handbook of Optics* vol. I ch. 22, 3rd ed.; Goldstein, *Polarized Light*, 3rd ed.; Born & Wolf sec. 1.4.2):
+Front-of-lens filter schema `0.2.0` adds `kind: "linear-polarizer"`. It has a principal transmittance `k1`, an extinction ratio `k1/k2` and a transmission-axis angle. `polarizationModeled` is `true` for this kind only.
+
+Light is described by linear Stokes parameters. Filters combine in light-path order through linear-diattenuator Mueller matrices (Chipman, *Handbook of Optics* vol. I ch. 22, 3rd ed.; Goldstein, *Polarized Light*, 3rd ed.; Born & Wolf sec. 1.4.2):
 
 ```text
 T = (k1 + k2)/2 + (k1 − k2)/2 · P · cos 2(ψ − θ)
 ```
 
-for incident degree of linear polarization `P` at angle `ψ` and axis `θ`: Malus's law `k1 cos²(ψ − θ) + k2 sin²(ψ − θ)` for `P = 1`, and `(k1 + k2)/2` for unpolarized light. Callers may declare a partially polarized `incidentPolarization`; results report the transmitted state. Schema `0.1.0` profiles and compositions without a polarizer are unchanged (same factors and composition model). The scene-to-sensor bridge treats scene light as unpolarized. Circular polarization, retardance (the quarter-wave plate of a circular polarizer), angle-of-incidence dependence and depolarization are not modeled.
+Here `P` is the incident degree of linear polarization, `ψ` its angle and `θ` the filter axis. For `P = 1` this is Malus's law, `k1 cos²(ψ − θ) + k2 sin²(ψ − θ)`. For unpolarized light it is `(k1 + k2)/2`.
+
+- Callers may declare a partially polarized `incidentPolarization`; results report the transmitted state.
+- Schema `0.1.0` profiles, and compositions without a polarizer, are unchanged (same factors and composition model).
+- The scene-to-sensor bridge treats scene light as unpolarized.
+- Not modelled: circular polarization, retardance (the quarter-wave plate in a circular polarizer), dependence on angle of incidence, and depolarization.
 
 ### Atmospheric haze (2.0)
 
-`calculateAtmosphericHaze()` modifies scene radiance along one homogeneous line of sight with Koschmieder's model (Koschmieder 1924; Middleton, *Vision Through the Atmosphere*, 1952; McCartney, *Optics of the Atmosphere*, 1976):
+`calculateAtmosphericHaze()` changes scene radiance along one uniform line of sight using Koschmieder's model (Koschmieder 1924; Middleton, *Vision Through the Atmosphere*, 1952; McCartney, *Optics of the Atmosphere*, 1976):
 
 ```text
 L = L0 · t + L_air · (1 − t),   t = exp(−β(λ) d)
 β(λ) = β_R,ref (λ/λ_ref)^−4 + β_A,ref (λ/λ_ref)^−α
 ```
 
-with a Rayleigh term (exponent 4 by default, 3.5–4.5 accepted; Bucholtz 1995, *Appl. Opt.* 34:2765) and an Ångström aerosol term (Ångström 1929, *Geogr. Ann.* 11:156). Reference coefficients and the airlight radiance are caller inputs; none are built in. `calculateExtinctionFromVisibility()` uses `β = −ln ε / V` (ε = 0.02 Koschmieder, 0.05 WMO meteorological optical range). Sky gradients, multiple-scattering angular structure, absorption bands and slant paths are not modeled.
+- `L0` is the original radiance, `L_air` the airlight radiance, `t` the transmittance over distance `d`, and `β` the extinction coefficient.
+- The Rayleigh (molecular scattering) term has exponent 4 by default; 3.5–4.5 is accepted (Bucholtz 1995, *Appl. Opt.* 34:2765).
+- The Ångström term models aerosols (Ångström 1929, *Geogr. Ann.* 11:156).
+- Reference coefficients and the airlight radiance are inputs from the caller; none are built in.
+
+`calculateExtinctionFromVisibility()` uses `β = −ln ε / V`, with ε = 0.02 (Koschmieder) or 0.05 (WMO meteorological optical range).
+
+Not modelled: sky gradients, the angular structure of multiple scattering, absorption bands and slanted paths.
 
 ### Real-lens sampled PSF and complex-pupil propagation
 
-The #113 framework adds explicit combined primary-optical PSF representations without redefining the existing geometric-defocus or circular-Airy diagnostics.
+This framework adds explicit representations of the combined PSF of the main optics. It does not redefine the existing geometric-defocus or circular-Airy diagnostics.
 
-A sampled PSF is a full 2D unit-energy intensity distribution in image-plane metric coordinates. Regular-grid interpolation is bounded across focal length, focus state, aperture, field X/Y, wavelength and signed image-plane defocus. The engine never extrapolates beyond declared profile support.
+**Sampled PSF.** A sampled PSF is a full 2D intensity distribution with unit total energy, in metric image-plane coordinates. It can be interpolated on a regular grid across focal length, focus state, aperture, field X/Y, wavelength and signed image-plane defocus. The engine never extrapolates outside the profile's declared support.
 
-Field curvature and longitudinal chromatic focus are represented as field-/wavelength-dependent best-focus image-plane offsets. They do not modify distortion or lateral-CA coordinates.
+Field curvature and longitudinal chromatic focus are represented as best-focus image-plane offsets that depend on field position and wavelength. They do not change the distortion or lateral-CA coordinates.
 
-A complex pupil stores relative amplitude plus optical-path difference. The reference evaluator uses scalar Fraunhofer propagation:
+**Complex pupil.** A complex pupil stores relative amplitude plus optical path difference (OPD). The reference evaluator uses scalar Fraunhofer propagation:
 
 `PSF ∝ |FT{ A(x,y) exp(i 2π OPD(x,y)/λ) }|²`
 
-and then normalizes the sampled intensity to unit energy. Diffraction and aberration are therefore evaluated together in this path rather than composed as two unrelated image-space blur kernels.
+The sampled intensity is then normalised to unit energy. Diffraction and aberration are therefore evaluated together in this path, instead of being applied as two unrelated blur kernels.
 
-Mechanical pupil clipping may be represented in the pupil amplitude/PSF shape, but relative pupil throughput is an explicit separate factor. This prevents the normalized PSF from absorbing throughput that #110 would later apply again.
+**Throughput is separate.** Mechanical pupil clipping can appear in the pupil amplitude and the PSF shape. Relative pupil throughput, however, is always a separate explicit factor. This stops the normalised PSF from absorbing throughput that a later throughput stage would apply again.
 
-MTF magnitude alone cannot uniquely determine a PSF because phase is absent. Photivra therefore accepts MTF magnitude as diagnostic/validation data but never reconstructs a unique PSF from it.
+**MTF is diagnostic only.** MTF (modulation transfer function) magnitude cannot determine a unique PSF, because it carries no phase. Photivra accepts MTF magnitude as diagnostic or validation data, but never reconstructs a PSF from it.
 
-Lens PSF remains upstream of the sensor optical stack, sensor sampling and reconstruction. Stray light is also separate because ghosts and veiling glare are not ordinary primary-image PSF blur.
+The lens PSF comes before the sensor's optical stack, sensor sampling and reconstruction. Stray light is also separate: ghosts and veiling glare are not ordinary primary-image PSF blur.
 
 ### PSF/pupil foundation
 
-The engine now exposes a PSF/pupil foundation that evaluates existing geometric defocus and circular diffraction diagnostics in one explicit context while keeping the numerical contributions separate.
+The PSF/pupil foundation evaluates the existing geometric-defocus and circular-diffraction diagnostics in one explicit context, while keeping their numbers separate.
 
 The context declares:
 
-- physical image-plane field position;
-- a comparison-only field normalization radius;
-- focus and subject depth;
-- monochromatic wavelength basis;
-- ideal circular f-number-derived pupil size.
+- the physical field position on the image plane;
+- a field normalisation radius, used only for comparison;
+- focus distance and subject depth;
+- a single wavelength;
+- an ideal circular pupil sized from the f-number.
 
-The current foundation does **not** calculate a combined point-spread function or MTF. Defocus-circle diameter and Airy first-zero diameter are not added together or collapsed into one sharpness value.
+This foundation does **not** compute a combined PSF or MTF. The defocus-circle diameter and the Airy first-zero diameter are never added together or merged into one sharpness value.
 
-The dedicated ideal-polygon API evaluates on-axis non-circular diffraction density; the real-lens framework owns explicitly profiled pupil clipping, field curvature, aberration and bokeh. None is silently combined by the legacy diagnostic calculator. See [PSF and Pupil Foundation](PSF_FOUNDATION.md).
+The dedicated ideal-polygon API evaluates on-axis diffraction for non-circular apertures. The real-lens framework owns explicitly profiled pupil clipping, field curvature, aberration and bokeh. The legacy diagnostic calculator never silently combines any of these. See [PSF and Pupil Foundation](PSF_FOUNDATION.md).
 
-Illumination vignetting remains outside the PSF contribution list because it is currently modeled as throughput-only.
+Illumination vignetting is not in the PSF contribution list, because it is currently modelled as throughput only.
 
 ### Diffraction
 
-For an ideal circular aperture, first-zero Airy diameter is:
+For an ideal circular aperture, the diameter of the Airy disk to its first dark ring is:
 
 `d = 2.44 λ N`
 
-where `λ` is wavelength and `N` is f-number.
+where `λ` is the wavelength and `N` is the f-number.
 
-This is a monochromatic, ideal-circular-pupil diagnostic.
+This is a diagnostic for one wavelength and an ideal circular pupil.
 
-It is deliberately separate from regular-polygon aperture geometry used for bokeh/sunstar exploration. Supplying a polygon blade count does not convert the circular Airy result into a polygon-aperture diffraction PSF. Use `calculateIdealPolygonDiffractionPsf()` with an explicit physical equal-area pupil, propagation distance and wavelength for the ideal on-axis polygon model; arbitrary real diaphragms remain outside that model.
+It is kept apart from the regular-polygon aperture geometry used for bokeh and sunstars. Supplying a blade count does not turn the circular Airy result into a polygon-aperture diffraction PSF. For the ideal on-axis polygon model, use `calculateIdealPolygonDiffractionPsf()` with an explicit physical equal-area pupil, propagation distance and wavelength. Arbitrary real diaphragms are outside that model.
 
 ### Ideal diaphragm geometry and sunstar symmetry
 
-For a regular straight-edged diaphragm, the engine calculates normalized polygon vertices and idealized sunstar direction symmetry perpendicular to blade edges.
+For a regular diaphragm with straight blades, the engine computes the normalised polygon vertices. It also computes the ideal directions of the sunstar spikes, which run perpendicular to the blade edges.
 
-For even blade counts, opposite parallel edges produce overlapping opposite directions, yielding the same number of unique directions as blades.
+- **Even blade count:** opposite edges are parallel, so their spikes overlap. You get as many spike directions as blades.
+- **Odd blade count:** no edges are parallel, so you get twice as many spike directions as blades.
 
-For odd blade counts, there are no parallel opposite-edge pairs, yielding twice as many directions as blades.
-
-This is a geometry/orientation model only. It does not calculate diffraction intensity, wavelength-dependent star length, blade curvature, coatings, internal reflections, lens aberrations, sensor blooming, or a complete point-spread function.
+This is a geometry and orientation model only. It does not compute diffraction intensity, wavelength-dependent spike length, blade curvature, coatings, internal reflections, lens aberrations, sensor blooming or a complete PSF.
 
 ### Controlled camera shake
 
-Yaw and pitch angular velocity are integrated over shutter duration. Their angular displacement is projected to the image plane using the selected projection distance d: Δx = +d·tan(yaw·t), Δy = −d·tan(pitch·t). Signs follow the physical right-hand rule about camera +Y/+X (positive yaw turns the camera left, positive pitch tilts it up), the same convention as `calculateCameraRotationImageMapping()`.
+Yaw and pitch angular velocities are integrated over the shutter duration. The angular displacement is projected onto the image plane using the selected projection distance d:
 
-The current model returns one global image-plane vector. It does not compute the spatially varying optical flow that a real camera rotation produces away from the optical axis.
+- Δx = +d·tan(yaw·t)
+- Δy = −d·tan(pitch·t)
 
-Equivalent stabilization stops attenuate angular displacement by `2^-stops`; that attenuation is explicitly an educational approximation rather than a real IBIS/OIS or CIPA performance model.
+Signs follow the right-hand rule about camera +Y and +X: positive yaw turns the camera left, and positive pitch tilts it up. This is the same convention as `calculateCameraRotationImageMapping()`.
+
+This model returns one global image-plane vector. It does not compute the spatially varying optical flow that real camera rotation produces away from the optical axis.
+
+Equivalent stabilisation stops reduce the angular displacement by a factor of `2^-stops`. This is explicitly an educational approximation, not a real model of in-body (IBIS) or optical (OIS) stabilisation, or of CIPA test performance.
 
 ### Sensor stochastic readout and RAW boundary
 
-The #14 closure separates deterministic expectation calculations from stochastic realizations and from digital encoding.
+The sensor model keeps three things separate: deterministic expected values, random (stochastic) realisations, and digital encoding.
 
-Expected photo, dark and additional stored charge remain upstream scientific quantities. A seeded realization may sample photo/dark Poisson statistics and explicitly declared additional-component statistics without mutating those expectation APIs.
+**Expected values.** Expected photo charge, dark charge and additional stored charge stay upstream scientific quantities. A seeded realisation can sample Poisson statistics for photo and dark charge, plus explicitly declared statistics for additional components. It never modifies the expectation APIs.
 
-Electronic read noise is a downstream input-referred stochastic contribution and remains separate from photon/dark shot noise. Multiple declared RMS read-noise components are sampled independently; their metadata is not collapsed into a claim about physical circuit origin unless evidence says so.
+**Read noise.** Electronic read noise is a later, input-referred random contribution. It stays separate from photon and dark shot noise. Several declared RMS read-noise components are sampled independently. Their metadata is not merged into a claim about which physical circuit causes them, unless evidence supports that.
 
-The electronic chain preserves separate saturation domains:
+**Three saturation limits.** The electronic chain keeps these separate:
 
-1. physical charge-storage capacity;
-2. pre-ADC electron-equivalent saturation;
-3. ADC/digital code saturation.
+1. the physical charge-storage capacity;
+2. saturation in electron-equivalent units before the ADC (analog-to-digital converter);
+3. saturation of the ADC's digital codes.
 
-A scalar clamp at physical capacity is not a blooming model. Blooming requires spatial charge-transfer/adjacency and anti-blooming semantics.
+Clamping at the physical capacity is not a blooming model. Blooming needs spatial charge transfer between neighbours, and anti-blooming behaviour.
 
-Conversion gain is expressed as electrons per digital code for one explicitly selected operating regime. The engine does not infer that regime from ISO, CMOS/CCD family, capture-mode labels, or product tier.
+**Conversion gain** is expressed in electrons per digital code, for one explicitly selected operating regime. The engine does not infer that regime from ISO, the CMOS/CCD family, capture-mode labels or product tier.
 
-RAW codes retain absolute native sensor/CFA coordinates. Capture orientation and final output rotation do not rotate or re-phase the sensor mosaic.
+**RAW coordinates.** RAW codes keep absolute native sensor and CFA (colour filter array) coordinates. Capture orientation and final output rotation do not rotate the sensor mosaic or change its phase.
 
-The first reconstruction model is an explicit linear native-neighborhood transform tied to exact capture-mode and CFA identities. It is intentionally not a generic claim that a CFA name determines a demosaic algorithm. It also does not claim moiré/aliasing physics unless an adequate pre-sampling optical/scene spatial-frequency model exists.
+**Reconstruction.** The first reconstruction model is an explicit linear transform over native neighbourhoods. It is tied to an exact capture mode and CFA identity. It does not claim that a CFA name determines a demosaic algorithm. It also does not claim to model moiré or aliasing, unless an adequate model of optical and scene spatial frequencies before sampling exists.
 
 ### ISO/exposure-index and sensor-readout boundary
 
-ISO/exposure index is a camera control/reporting state, not a photon source.
+ISO (exposure index) is a camera control and reporting setting. It is not a source of photons.
 
-For fixed scene radiance, aperture, shutter duration, optical transmission and sensor collection geometry, changing ISO does not change the number of photons that arrived during the exposure. Accordingly, #7 never modifies upstream photon/photoelectron expectation or photon shot-noise statistics merely because a different ISO/EI was selected.
+With fixed scene radiance, aperture, shutter duration, optical transmission and sensor collection geometry, changing ISO does not change how many photons arrived during the exposure. So the ISO layer never changes the expected photon or photoelectron counts, or photon shot-noise statistics, just because a different ISO was selected.
 
-The detailed ISO capability contract distinguishes:
+The ISO capability contract distinguishes:
 
 - standard exposure-index settings;
-- expanded low/high reported settings;
-- Auto ISO eligibility/ranges;
-- optional capture-mode restrictions.
+- expanded low and high reported settings;
+- Auto ISO eligibility and ranges;
+- optional restrictions by capture mode.
 
 It does not infer physical gain, conversion gain, read noise or saturation from those numbers.
 
-When generic high-ISO behavior is needed, #7 maps an explicit ISO/capture-mode state to an explicit #14 readout regime. The selected regime—not the ISO number itself—contains the declared conversion gain, electronic read noise and downstream saturation/ADC behavior. This keeps piecewise or dual/multiple-gain behavior representable without smoothing it into a universal ISO→noise curve.
+When generic high-ISO behaviour is needed, the ISO layer maps an explicit ISO and capture-mode state to an explicit sensor readout regime. The selected regime, not the ISO number, holds the declared conversion gain, electronic read noise and downstream saturation and ADC behaviour. This keeps piecewise and dual- or multi-gain behaviour representable, instead of smoothing it into one universal ISO-to-noise curve.
 
-Good/Better/Best labels are convenience mappings to full signal-chain profile identities. They are not sensor equations and do not rank real cameras. Sensor size/resolution, photon shot noise, processed-image denoising/sharpening, and technology-family labels such as CMOS/CCD remain separate domains.
+Good/Better/Best labels are convenience names for complete signal-chain profiles. They are not sensor equations, and they do not rank real cameras. Sensor size and resolution, photon shot noise, denoising and sharpening of the processed image, and technology-family labels such as CMOS/CCD are all separate domains.
 
 ### Radiometry readiness boundary
 
-Absolute scene luminance or relative exposure alone is not enough to derive a defensible photon count.
+Absolute scene luminance, or relative exposure, is not enough on its own to derive a defensible photon count.
 
-Before a composed photon simulation, Photivra requires an explicit prerequisite package covering:
+Before a composed photon simulation, Photivra requires an explicit package of prerequisites covering:
 
-- scene spectral radiance or a documented spectral approximation;
+- scene spectral radiance, or a documented spectral approximation;
 - optical transmission;
-- pupil/vignetting behavior;
-- photosite collection-area semantics;
+- pupil and vignetting behaviour;
+- what the photosite collection area means;
 - exposure integration;
-- sensor spectral response / quantum efficiency;
-- evidence and uncertainty/limitation metadata for each component.
+- sensor spectral response / quantum efficiency (QE);
+- evidence, uncertainty and limitation metadata for each component.
 
-`assessRadiometryReadiness()` can classify a declared package as `not-ready`, `approximate-only`, or `calibrated-ready`. This classification validates the declared model/evidence structure; it does not prove that the calibration is scientifically correct and does not itself calculate photons.
+`assessRadiometryReadiness()` classifies a declared package as `not-ready`, `approximate-only` or `calibrated-ready`. It checks the structure of the declared models and evidence. It does not prove the calibration is scientifically correct, and it does not calculate photons.
 
-Geometric sample pitch is intentionally insufficient as a collection-area model. A profile must provide either an effective collection area or geometric cell area plus explicit fill factor.
+Geometric sample pitch is deliberately not accepted as a collection-area model. A profile must provide either an effective collection area, or a geometric cell area plus an explicit fill factor.
 
-Approximate inputs remain approximate even when every prerequisite category is present. A calibrated-ready declaration requires calibrated components with quantified uncertainty.
+Approximate inputs stay approximate even when every category is present. A `calibrated-ready` result needs calibrated components with quantified uncertainty.
 
-The composed POC continues to emit no photon/photoelectron/SNR output from scene settings. Low-level `calculatePhotoelectrons()` remains a separate primitive for callers that already possess a defensible incident-photon count and QE.
+The composed POC still produces no photon, photoelectron or SNR output from scene settings. The low-level `calculatePhotoelectrons()` is a separate primitive for callers who already have a defensible incident-photon count and QE.
 
 ## Image-formation domain boundary
 
 Future optical and sensor models must follow `getImageFormationContract()`.
 
-The contract intentionally avoids describing all image formation as independent serial post-processing. Some quantities are coupled:
+The contract deliberately does not describe image formation as a chain of independent post-processing steps. Some quantities are coupled:
 
 - focus-dependent projection and lens mapping;
 - wavelength-dependent field mapping and PSF basis;
 - pupil clipping, throughput, and bokeh/PSF shape;
-- time-varying scene/camera mapping and sensor readout schedule;
+- time-varying scene and camera mapping, and the sensor readout schedule;
 - native sensor sampling and reconstruction.
 
-Current analytical primitives remain valid and separately named. Adding a broader stage must not silently reinterpret existing focal length, defocus, diffraction, motion, crop, or sensor-sampling outputs.
+The existing analytical primitives stay valid and keep their names. Adding a broader stage must not silently reinterpret existing focal length, defocus, diffraction, motion, crop or sensor-sampling outputs.
 
-The static ordering contract retains broad foundation/reserved metadata. Those labels alone do not establish execution. Production plan 0.7.0 separately records actual bounded environment-route execution through sampling, photons, charge, ADC and reconstruction; broader unsupported models remain blocked.
+The static ordering contract keeps broad foundation and reserved metadata. Those labels alone do not mean a stage runs. Production plan 0.7.0 separately records which bounded environment-route stages actually run: sampling, photons, charge, ADC and reconstruction. Broader unsupported models stay blocked.
 
 ## Source provenance
 
-These implementations were written independently from established mathematical/physical relations. No third-party source code, calibration dataset, table, or model weight is incorporated by these scientific modules.
+These implementations were written independently from established mathematical and physical relations. These scientific modules contain no third-party source code, calibration datasets, tables or model weights.
 
-Public technical references may be used to understand or validate concepts, but their code, protected prose, tables, figures, or restricted measurement data are not copied unless separately licensed for that use. See [Scientific and Source Provenance](PROVENANCE.md).
+Public technical references may be used to understand or validate concepts. Their code, protected prose, tables, figures and restricted measurement data are not copied unless separately licensed for that use. See [Scientific and Source Provenance](PROVENANCE.md).
 
 ## Scope
 
-These models produce numerical indicators, not a universal "sharpness score." Sampling, defocus, diffraction, subject motion, and camera shake describe different physical effects and should not be directly added together without a justified image-formation model.
+These models produce numerical indicators, not a universal "sharpness score". Sampling, defocus, diffraction, subject motion and camera shake are different physical effects. Do not add them together without a justified image-formation model.
 
-Rendering and analysis clients should consume validated numerical outputs rather than silently introducing conflicting camera science.
+Rendering and analysis clients should use the validated numerical outputs, rather than quietly introducing their own conflicting camera science.

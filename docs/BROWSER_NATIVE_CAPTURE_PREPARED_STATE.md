@@ -3,6 +3,8 @@
 Status: **frozen prepared-execution contract for Photivra engine issue #233,
 deliverable 3**.
 
+**In plain terms.** A fast implementation of the browser-based capture (#224) will want to compute some things once and reuse them ("prepared state", such as parsed profiles or precomputed coefficients). This page says what may be reused, who owns it, how long it lives, and exactly when it must be thrown away. The rule is simple: reuse is allowed only when the reused value would be identical for every use. Terms such as Path A are defined in the [qualification envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md).
+
 This document defines the semantic prepared-state boundary for the browser-first
 dense-pupil native-capture work tracked by #224.
 

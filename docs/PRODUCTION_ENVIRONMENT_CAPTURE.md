@@ -1,131 +1,131 @@
 # Executed environment production capture
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Introduced at root API 0.116.0 and production plan 0.7.0, this adds a bounded source-to-RAW route
-inside the existing authoritative image-formation graph. Consumer manifest
-0.2.0 exposes the same immutable executed capture and processed-output results.
-At introduction, package 0.6.0, POC 0.20.0, capture snapshot 0.3.0 and the image-formation
-ordering contract 0.4.0 remain unchanged.
+This route lets a production plan actually run a capture, from the light source to RAW codes, inside the existing authoritative image-formation graph. It was introduced at root API 0.116.0 and production plan 0.7.0.
+
+- Consumer manifest 0.2.0 exposes the same immutable executed capture and processed-output results.
+- At introduction, package 0.6.0, POC 0.20.0, capture snapshot 0.3.0 and the image-formation ordering contract 0.4.0 did not change.
 
 ## Inputs and ownership
 
 `createProductionImageFormationPlan()` accepts `environmentCapture` with:
 
-- `capture`: the existing `SimulateEnvironmentSensorRawFrameInput`, including
-  a complete native frame, owned per-site sensor/readout profiles, shared scene
-  and optical state, exact local shutter schedule and synchronous evaluator;
-- optional `processing`: the existing processed-RAW policy, with
-  `reconstruction.rawFrame` omitted. The plan supplies its executed RAW frame.
+- `capture`: the existing `SimulateEnvironmentSensorRawFrameInput`. It includes a complete native frame, owned sensor and readout profiles for each site, shared scene and optical state, the exact local shutter schedule, and a synchronous evaluator.
+- optional `processing`: the existing processed-RAW policy, with `reconstruction.rawFrame` left out. The plan supplies the RAW frame it executed.
 
-The declaration cannot be combined with `processedOutput` or an independently
-declared `physicalSceneSample`. These are separate supported input routes,
-not interchangeable evidence of upstream execution.
+This declaration cannot be combined with `processedOutput`, or with an independently declared `physicalSceneSample`. These are separate supported input routes; one is not evidence that another's upstream work ran.
 
-The immutable snapshot must match capture/event identity, scene state/time,
-seed, aperture/shutter/ISO, resolved WB identity/gains and release focus. The
-prepared context additionally binds provider scene/profile, the complete
-optical bridge profile and selected physical focal length. Native raster,
-imaging area, orientation and the opening/closing schedule must match the
-temporal snapshot. This producer executes a full-native shutter schedule: an
-explicit temporal active rectangle must cover the full native raster. Cropped
-timing cannot be silently substituted for it; output/physical capture geometry
-keeps its separate downstream meaning. Motion and sample count must match
-its rotation declaration; omitted rotation authorizes only zero angular motion.
-Readout diagnostics remain independent of exposure timing.
+**Bindings that must match.**
 
-Requested stages are expanded from `getImageFormationContract()`. Renderer
-stage support, wavelength-resolved capability, sensor-domain support, inverse
-mapping, temporal sample budget and existing effect constraints must pass
-before provider code is invoked. The ADC stage must be requested, directly or
-through downstream dependencies. Known output crop/resampling incompatibilities
-also fail before provider calls, using the same envelope check as attached-RAW
-processing. Pixel-dependent reconstruction/correction checks still run on the
-actual realized RAW; preflight is not a proof of complete output readiness.
+- The immutable snapshot must match: capture and event identity, scene state and time, seed, aperture, shutter and ISO, resolved white-balance (WB) identity and gains, and release focus.
+- The prepared context also binds: the provider's scene and profile, the complete optical bridge profile, and the selected physical focal length.
+- Native raster, imaging area, orientation, and the opening and closing schedule must match the temporal snapshot.
 
-The provider receives owned frozen requests at each wavelength/local-time/PSF
-support node. Execution snapshots all capture data and optional output policy
-before invoking provider code. Callback mutation of the original caller objects
-cannot change execution or its post-capture policy. No function, file IO,
-network request, renderer installation or runtime dependency enters the plan's
-serialized representation.
+**Full-native timing.** This producer runs a shutter schedule over the full native sensor. An explicit temporal active rectangle must cover the whole native raster. Cropped timing cannot be quietly used instead. Output and physical capture geometry keep their own separate downstream meaning.
+
+**Motion.** Motion and sample count must match the rotation declaration. If rotation is omitted, only zero angular motion is allowed. Readout diagnostics stay independent of exposure timing.
+
+**Checks before any provider call.** Requested stages are expanded from `getImageFormationContract()`. All of these must pass before provider code runs:
+
+- renderer stage support;
+- wavelength-resolved capability;
+- sensor-domain support;
+- inverse mapping;
+- the temporal sample budget;
+- existing effect constraints;
+- the ADC stage must be requested, directly or through a downstream dependency;
+- known output crop and resampling incompatibilities, using the same check as attached-RAW processing.
+
+Checks that depend on pixels (reconstruction and correction) still run on the RAW actually produced. Passing the up-front checks does not prove the output will be complete.
+
+**Provider isolation.**
+
+- The provider receives owned, frozen requests at each wavelength, local time and PSF support node.
+- All capture data, and the optional output policy, are copied before any provider code runs. So a callback that changes the caller's original objects cannot change the execution or the post-capture policy.
+- No function, file IO, network request, renderer installation or runtime dependency enters the plan's serialised form.
 
 ## Execution and consumers
 
-The existing environment producer generates focus-aware inverse rays, invokes
-the supplied provider, evaluates optical throughput and optional local sampled
-PSF support, then applies the existing optical-stack/spatial/spectral response
-and temporal EQE integration. Existing dark-current, charge-completeness,
-capacity, seeded noise, signed readout and ADC APIs create native CFA codes.
-There is no alternate RAW producer, RGB-to-RAW conversion or new seed schedule.
+**What runs.** The existing environment producer:
 
-With complete declarations and a valid processing policy, all fourteen graph
-stages have executed bounded consumers. An explicitly omitted PSF is recorded
-as `modeled-zero` for the declared point-optics model, with its supplied evidence
-and limitation; it is not a physical assertion of zero lens blur. Unrequested
-stages remain omitted by fidelity. A failed source preflight leaves requested
-stages blocked rather than advertising execution.
+1. generates focus-aware inverse rays;
+2. calls the supplied provider;
+3. evaluates optical throughput, and optional local sampled-PSF support;
+4. applies the existing optical-stack, spatial and spectral response, and temporal EQE (external quantum efficiency) integration.
 
-`environmentCaptureResult` retains the full executed lineage and child results.
-`environmentCaptureRequestFingerprint` commits the capture data, excluding
-callback identity. The plan fingerprint includes that commitment, returned
-provider values, realized RAW and optional processing result. Replay requires
-the same inputs **and** provider responses. Different source results, even from
-the same callback, change plan identity. These FNV keys are not cryptographic
-integrity or provenance certificates.
+Then the existing dark-current, charge-completeness, capacity, seeded noise, signed readout and ADC APIs create native CFA (colour filter array) codes. There is no alternative RAW producer, no RGB-to-RAW conversion and no new seed schedule.
 
-Optional processing reuses `calculateProcessedSensorRaw()` on the exact returned
-frame: reconstruction, channel-basis color/WB once, selected native correction,
-physical orientation, digital crop and SDR rendering retain their existing
-order. Rendering changes do not rewrite physical capture, charge/noise or RAW.
-The resulting source frame can also feed the existing paired DNG/JPEG exporter;
-the plan itself performs no file serialization.
+**Stages.** With complete declarations and a valid processing policy, all fourteen graph stages run, each with a bounded consumer.
 
-`createProductionPlanConsumerManifest()` carries the same capture/output result
-references for interactive and reference consumers. Neither consumer may change
-seed, committed inputs, sample count or stage order. Existing manifests without
-the new optional execution fields retain their old data shape apart from the
-explicit manifest/plan versions.
+- An explicitly omitted PSF is recorded as `modeled-zero` for the declared point-optics model, with its evidence and limitation. It is not a physical claim that the lens has zero blur.
+- Stages that were not requested are omitted by fidelity.
+- If the source checks fail up front, requested stages stay blocked, rather than being reported as executed.
+
+**Identity and replay.**
+
+- `environmentCaptureResult` keeps the full executed lineage and the child results.
+- `environmentCaptureRequestFingerprint` commits the capture data, excluding the callback's identity.
+- The plan fingerprint includes that commitment, the values the provider returned, the realised RAW and the optional processing result.
+- Replaying needs the same inputs **and** the same provider responses. Different source results, even from the same callback, change the plan identity.
+- These FNV keys are not cryptographic integrity or provenance certificates.
+
+**Optional processing.** Processing reuses `calculateProcessedSensorRaw()` on the exact returned frame. The existing order is kept: reconstruction, channel-basis colour and WB (once), selected native correction, physical orientation, digital crop and SDR rendering. Rendering changes never rewrite the physical capture, charge, noise or RAW. The resulting source frame can also feed the existing paired DNG/JPEG exporter; the plan itself writes no files.
+
+**Consumers.** `createProductionPlanConsumerManifest()` carries the same capture and output result references for interactive and reference consumers. Neither consumer may change the seed, committed inputs, sample count or stage order. Existing manifests without the new optional execution fields keep their old data shape, apart from the explicit manifest and plan versions.
 
 ## Scientific envelope and remaining ownership
 
-This route preserves the existing adapter's limits: at most 4,096 native sites
-and 100,000 aggregate provider evaluations; one-to-one native CFA timing;
-opening-reference scene time zero; ideal focus-aware environment projection;
-constant-axis rotation; explicit unity field throughput; and optional
-destination-local sampled PSF. Continuous spectral density, source-plane and
-response-area bindings are mandatory. The output reference route keeps its
-explicit topology, reconstruction support and 1:1 output-crop constraints.
+**Limits.** This route keeps the existing adapter's limits:
 
-Execution is approximation-only. Supplied provider invocation does not verify
-physical transport, visibility, world pose/translation, calibration, convergence
-or global field-energy conservation. Child `providerTransportVerified`,
-`upstreamRadiometryVerified`, `producerOriginVerified` and standalone
-`productionPlanActivated` fields retain their original conservative meanings.
-The parent plan records what actually executed; it never upgrades those flags.
-Child evidence/limitations remain inspectable, and combined uncertainty remains
-unquantified rather than inferred from a count of successful stages.
+- at most 4,096 native sites;
+- at most 100,000 provider evaluations in total;
+- one-to-one native CFA timing;
+- scene time zero at the opening reference;
+- ideal focus-aware environment projection;
+- rotation about a constant axis;
+- explicit unity field throughput;
+- optional destination-local sampled PSF.
 
-Required unsupported effects or combinations still block. No wider scientific
-capability, supported megapixel limit or V1 deferral is approved by this route.
-The [32-item composition map](V1_COMPOSITION_MAP.md) retains the specific
-foundation/consumer/acceptance owners. Broader same-scene equipment-tier
-acceptance is #116/#119, final performance remeasurement is #43/#45, final
-science conformance is #131, and the exhaustive release documentation/source
-audit is #180. #165 C2PA remains post-V1.
+Continuous spectral density, and source-plane and response-area bindings, are required. The output reference route keeps its explicit topology, reconstruction support and 1:1 output-crop constraints.
+
+**Approximation only.** Calling the supplied provider does not verify physical transport, visibility, world pose or translation, calibration, convergence, or overall field-energy conservation.
+
+- Child flags `providerTransportVerified`, `upstreamRadiometryVerified`, `producerOriginVerified` and the standalone `productionPlanActivated` keep their original conservative meanings.
+- The parent plan records what actually ran; it never upgrades those flags.
+- Child evidence and limitations stay available to inspect.
+- Combined uncertainty stays unquantified. It is never inferred from how many stages succeeded.
+
+**Still blocked.** Required effects or combinations that are unsupported still block. This route does not approve any wider scientific capability, supported megapixel limit or V1 deferral.
+
+**Where other work lives.**
+
+- The [32-item composition map](V1_COMPOSITION_MAP.md) keeps the owners of each foundation, consumer and acceptance item.
+- Broader same-scene acceptance of equipment tiers: issues #116 and #119.
+- Final performance remeasurement: #43 and #45.
+- Final science conformance: #131.
+- The exhaustive release documentation and source audit: #180.
+- C2PA (#165) stays after V1.
 
 ## Migration and verification
 
-Consumers of serialized plans must recognize plan 0.7.0 and consumer manifest
-0.2.0. New fields are optional; existing attached-RAW and sample-only callers
-need no input migration. The current root API retains the additive
-`ProductionEnvironmentCaptureInput` type. The standalone environment producer
-and processed-output model versions, hashes and seed schedule are unchanged.
+**Migration.**
 
-`test/production-image-formation-plan.test.ts` covers complete graph execution,
-global/rolling shutter, sampled/omitted PSF, source-response replay, caller
-mutation, rejected context/event/profile/renderer bindings before callbacks,
-all four physical orientations with an output crop, incompatible resampling,
-resolved WB and selected correction with exact native RAW preservation.
-Existing SI-count, phase/support, noise/ADC, file-byte and correction suites
-remain the independent domain oracles.
+- Consumers of serialised plans must recognise plan 0.7.0 and consumer manifest 0.2.0.
+- The new fields are optional. Existing attached-RAW and sample-only callers need no input changes.
+- The current root API keeps the additional `ProductionEnvironmentCaptureInput` type.
+- The standalone environment producer and processed-output model versions, hashes and seed schedule are unchanged.
+
+**Tests.** `test/production-image-formation-plan.test.ts` covers:
+
+- complete graph execution;
+- global and rolling shutter;
+- sampled and omitted PSF;
+- replay of source responses;
+- callers changing their objects;
+- rejection of context, event, profile and renderer bindings before any callback;
+- all four physical orientations with an output crop;
+- incompatible resampling;
+- resolved WB, and selected correction, with the native RAW kept exactly.
+
+The existing suites for SI counts, phase and support, noise and ADC, file bytes and correction remain the independent references for each domain.

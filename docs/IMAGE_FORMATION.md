@@ -1,10 +1,14 @@
 # Image-Formation Contract
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Photivra's image-formation contract defines **scientific ownership, coordinate semantics, and dependency/coupling boundaries** for current and future camera effects.
+Photivra's image-formation contract says, for every current and future camera effect:
 
-It is not a claim that every stage is implemented, and it is not a requirement that renderers execute one literal serial filter chain.
+- which scientific domain **owns** it;
+- which **coordinate system** it uses;
+- what it **depends on** and what it is **coupled with**.
+
+It does not claim that every stage is implemented. It also does not require renderers to run one literal chain of filters in sequence.
 
 Use:
 
@@ -25,142 +29,162 @@ The contract groups image formation into six domains:
 5. **time-dependent exposure / readout**
 6. **native sensor sampling -> orientation -> output / display**
 
-These are scientific ownership domains. Some effects couple more than one domain.
+These domains say who owns what. Some effects involve more than one domain. Examples:
 
-Examples:
-
-- scene illumination, material optical response, geometry/visibility, emission, indirect transport, and time belong upstream in `scene-radiance-evaluation`; source metadata or RGB renderer values are not sensor input;
-- focus breathing changes projection/magnification and therefore couples lens mapping to scene projection;
-- lateral chromatic aberration is wavelength/channel-dependent field mapping and may share wavelength basis with the PSF model;
-- illumination vignetting is throughput-only;
-- mechanical/pupil vignetting can change both throughput and PSF/bokeh shape;
-- diffraction consumes the effective pupil and belongs to the PSF domain;
-- rolling readout couples native sensor timing to temporal integration;
-- camera rotation should be evaluable as a function of physical exposure time so global and rolling readout can consume the same motion model.
+- Scene illumination, the optical response of materials, geometry and visibility, emission, indirect light transport and time all belong upstream, in `scene-radiance-evaluation`. Source metadata and RGB renderer values are not sensor input.
+- Focus breathing changes projection and magnification, so it couples lens mapping to scene projection.
+- Lateral chromatic aberration is a field mapping that depends on wavelength or channel. It may share its wavelength basis with the PSF (point-spread function) model.
+- Illumination vignetting affects throughput only.
+- Mechanical (pupil) vignetting can change both throughput and the PSF/bokeh shape.
+- Diffraction depends on the effective pupil and belongs to the PSF domain.
+- Rolling readout couples native sensor timing to integration over time.
+- Camera rotation should be a function of physical exposure time, so that global and rolling readout can use the same motion model.
 
 ## Scene-radiance ownership
 
-`scene-radiance-evaluation` is a partial foundation between `scene-ray-projection` and `lens-field-pupil-evaluation`.
+`scene-radiance-evaluation` sits between `scene-ray-projection` and `lens-field-pupil-evaluation`. It is a partial foundation.
 
-Its authoritative quantity is **outgoing scene spectral radiance** produced from illumination, scene geometry/visibility, material response, emission, indirect transport, and physical time. The renderer-neutral scene request/result boundary supplies declared radiance samples; the production composer validates a bound sample and consumes #110 optical throughput. It does not execute a complete scene renderer or establish a measured radiance field.
+Its authoritative quantity is **outgoing scene spectral radiance**: the light leaving the scene, produced from illumination, geometry and visibility, material response, emission, indirect transport and physical time.
 
-The existing `SceneRadiometry` metadata remains separate. `absolute-luminance` is a photometric luminance anchor, not a wavelength-resolved radiance field. Likewise, a light-source SPD, RGB HDR environment, source irradiance, and sensor-plane spectral irradiance are different quantities and must not be substituted for one another.
+- The renderer-neutral scene request/result boundary supplies declared radiance samples.
+- The production composer validates a bound sample and applies optical throughput.
+- It does not run a complete scene renderer, and it does not establish a measured radiance field.
+
+The existing `SceneRadiometry` metadata stays separate. `absolute-luminance` is a photometric luminance anchor, not a radiance field resolved by wavelength. Likewise, these are all different quantities and must not be substituted for one another:
+
+- a light source's SPD (spectral power distribution);
+- an RGB HDR environment;
+- source irradiance;
+- spectral irradiance at the sensor plane.
 
 See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
 
-Shared spectral planning now distinguishes continuous support from discrete lines. Continuous scene/optics/sensor factors may share an explicit air/vacuum coverage intersection and breakpoint union. Delta-like line spectra remain wavelength-integrated measures and are summed without a dλ multiplier; they are never converted into synthetic continuous density merely to enter the continuous sensor quadrature path.
+**Continuous spectra and lines.** Shared spectral planning keeps continuous spectra apart from discrete spectral lines.
 
-Time-varying illumination now uses a separate temporal profile. Source waveforms are relative multipliers evaluated in physical seconds and must be explicitly registered to the capture `first-opening-boundary-phase` reference before flash/flicker can participate in exposure integration. The local exposure window—not total sensor data-readout duration—defines the integration interval. The temporal foundation returns multiplier/time measures only; source magnitude, material/visibility transport, outgoing radiance, optics, sensor response, metering and automatic exposure remain downstream/separate.
+- Continuous scene, optics and sensor factors can share an explicit coverage intersection (air or vacuum wavelengths) and a union of breakpoints.
+- Line spectra (delta-like) stay as measures already integrated over wavelength. They are summed without a dλ factor. They are never turned into a synthetic continuous density just so they can enter the continuous sensor quadrature path.
+
+**Time-varying illumination** uses a separate temporal profile.
+
+- Source waveforms are relative multipliers, evaluated in physical seconds.
+- Before flash or flicker can take part in exposure integration, the waveform must be explicitly registered to the capture's `first-opening-boundary-phase` reference.
+- The integration interval is the local exposure window, not the total sensor data-readout duration.
+- The temporal foundation returns only multipliers and time measures. Source magnitude, material and visibility transport, outgoing radiance, optics, sensor response, metering and automatic exposure are all separate, later steps.
 
 ## Coordinate spaces
 
-The contract explicitly distinguishes:
+The contract distinguishes these coordinate spaces:
 
-- `scene-metric` — scene/world metric coordinates;
-- `image-plane-metric` — optical-axis origin, +X right, +Y up, millimetres;
-- `native-sensor-physical` — optical-axis origin, +X right, +Y down, millimetres;
-- `native-raster` — top-left origin, +X right, +Y down, pixels;
-- `oriented-capture-raster` — explicit physical-orientation transform of native raster coordinates;
-- `output-raster` — digital crop/resampling result;
-- `display` — consumer/display coordinates, which are never authoritative camera-science coordinates.
+- `scene-metric`: scene/world metric coordinates.
+- `image-plane-metric`: origin on the optical axis, +X right, +Y up, millimetres.
+- `native-sensor-physical`: origin on the optical axis, +X right, +Y down, millimetres.
+- `native-raster`: origin at top left, +X right, +Y down, pixels.
+- `oriented-capture-raster`: native raster coordinates after an explicit physical-orientation transform.
+- `output-raster`: the result of digital crop and resampling.
+- `display`: consumer or display coordinates. These are never authoritative for camera science.
 
-Native sensor/raster coordinates remain invariant under physical camera orientation.
+Native sensor and raster coordinates do not change when the camera is physically rotated.
 
-Use `mapOrientedPhysicalUvToImagePlanePoint()` and
-`mapImagePlanePointToOrientedPhysicalUv()` when a renderer or integration
-boundary must cross between a normalized oriented physical raster region and
-the pre-orientation `image-plane-metric` space. These transforms explicitly
-undo/apply physical orientation and convert the capture contract's physical
-+Y-down basis to/from the optical image plane's +Y-up basis. They do not apply
-projection, distortion, crop, or lens equations, and asymmetric physical bounds
-remain asymmetric.
+**Crossing between oriented raster and image plane.** Use `mapOrientedPhysicalUvToImagePlanePoint()` and `mapImagePlanePointToOrientedPhysicalUv()` when a renderer or integration needs to move between a normalised region of the oriented physical raster and the `image-plane-metric` space before orientation. These transforms:
+
+- explicitly undo or apply the physical orientation;
+- convert between the capture contract's +Y-down physical basis and the optical image plane's +Y-up basis.
+
+They do not apply projection, distortion, crop or lens equations. Asymmetric physical bounds stay asymmetric.
 
 ## Partial ordering and coupling
 
-`requiredUpstreamStages` defines hard scientific dependencies.
+- `requiredUpstreamStages` lists hard scientific dependencies.
+- `coupledStages` lists interactions that must not be treated as independent post-processing steps.
 
-`coupledStages` identifies interactions that must not be treated as independent post-processes.
+The required-dependency graph has no cycles. Coupling can go both ways, because it describes shared scientific state, not execution order.
 
-The required-dependency graph is acyclic. Coupling may be bidirectional because it describes shared scientific state rather than execution order.
-
-An implementation may combine stages for performance only when the combination is mathematically equivalent and the public stage/effect semantics remain intact.
+An implementation may merge stages for performance only if the merged version is mathematically equivalent, and the public meaning of each stage and effect is unchanged.
 
 ## PSF contribution foundation
 
-The `field-wavelength-psf` stage has a dedicated public foundation documented in [PSF and Pupil Foundation](PSF_FOUNDATION.md).
+The `field-wavelength-psf` stage has its own public foundation, documented in [PSF and Pupil Foundation](PSF_FOUNDATION.md).
 
-Current implementation:
+Implemented:
 - geometric defocus-circle diagnostic;
 - ideal circular-pupil Airy first-zero diagnostic;
-- explicit field/depth/wavelength/pupil context.
+- explicit context for field position, depth, wavelength and pupil.
 
-Reserved contributions:
+Reserved:
 - non-circular diffraction;
 - mechanical pupil clipping;
 - field curvature;
-- field-dependent aberration;
-- field-dependent bokeh.
+- aberration that varies across the field;
+- bokeh that varies across the field.
 
-No combined PSF is currently calculated.
+No combined PSF is calculated yet.
 
 ## Temporal basis
 
-Physical time is measured in **seconds from exposure start**.
+Physical time is measured in **seconds from the start of exposure**.
 
-A normalized `[0,1]` shutter parameter may be derived for an algorithm, but it is not the authoritative time coordinate.
+An algorithm may derive a normalised `[0,1]` shutter parameter, but that is not the authoritative time coordinate.
 
 Exposure duration and sensor readout timing are independent:
 
-- global readout does not mean zero motion blur;
-- rolling readout changes when different native sensor locations are sampled/integrated;
-- native readout direction remains defined in native sensor coordinates even when the camera is physically rotated.
+- a global readout does not mean zero motion blur;
+- a rolling readout changes when different native sensor locations are sampled and integrated;
+- the native readout direction stays defined in native sensor coordinates, even when the camera is physically rotated.
 
-This allows later rolling-shutter work to consume the same time-parameterized camera-motion model used for global exposure.
+This lets rolling-shutter work use the same time-based camera-motion model as global exposure.
 
-The standalone `calculateSensorReadoutTiming()` foundation now supplies an invariant native-raster spatial readout phase schedule. Its first model is a caller-declared uniform-linear single-axis approximation with independently evidenced data-readout duration and rolling spatial skew. It does not define exposure windows or shutter-curtain motion, and it does not infer physical hardware readout lines from the effective native image raster.
+The timing primitives build on one another. Details are in [Motion and Signal Foundation](MOTION_AND_SIGNAL.md).
 
-The additive `assessReadoutExposureTimingLinkage()` layer can validate an explicitly evidenced normalized spatial-phase relationship between rolling readout and an electronic exposure boundary. It never infers absolute temporal synchronization; total data-readout duration is not a surrogate for exposure timing, and matching direction/span alone is insufficient evidence of a shared clock.
-
-The standalone `calculateCaptureExposureWindows()` foundation separately describes local opening/closing exposure boundaries. It uses the first opening-boundary phase as its explicit time reference, preserves independent nominal/opening/closing timing, validates positive local duration across the whole active rectangle, and keeps mechanical/EFCS/electronic actuator identity separate from timing. It does not automatically bind those exposure boundaries to sensor readout phase or to the existing camera-rotation time origin.
-
-The standalone `calculateCaptureRotationTrajectories()` bridge now explicitly binds that first opening-boundary phase to `t = 0` of the existing pure-camera-rotation model and evaluates stationary reference rays at local exposure start/end. It remains forward temporal geometry only: it does not consume sensor readout timing, solve the implicit rolling-shutter image warp, or integrate motion blur over the exposure interval.
-
-The additive `calculateCaptureRotationInverseMappings()` layer now supplies an instantaneous destination-to-reference mapping at a caller-selected phase within each local exposure window. Under the current pure-rotation model the inverse is analytic once destination location fixes local capture time, so no iterative solver is used. This remains pre-lens, pre-output temporal geometry and does not replace finite-exposure integration.
-
-The additive `calculateCaptureRotationTemporalQuadrature()` layer now supplies deterministic uniform-midpoint time nodes and separate normalized-average/seconds-valued temporal measures across each local exposure. It preserves the instantaneous inverse mapping as the geometry source of truth but does not itself integrate radiance, visibility, shutter transmission, sensor response, PSF, or output pixels.
+- **`calculateSensorReadoutTiming()`** gives a native-raster spatial readout phase schedule that does not depend on orientation. Its first model is a uniform-linear, single-axis approximation declared by the caller, with data-readout duration and rolling spatial skew each backed by separate evidence. It does not define exposure windows or shutter-curtain motion. It does not infer physical hardware readout lines from the effective native image raster.
+- **`assessReadoutExposureTimingLinkage()`** can validate an explicitly evidenced, normalised spatial-phase relationship between rolling readout and an electronic exposure edge. It never infers absolute time synchronisation. Total data-readout duration does not stand in for exposure timing, and matching direction or span alone is not enough evidence of a shared clock.
+- **`calculateCaptureExposureWindows()`** describes the local opening and closing exposure edges.
+  - Its explicit time reference is the first opening edge.
+  - It keeps nominal, opening and closing timing independent.
+  - It checks that the local duration is positive across the whole active rectangle.
+  - It keeps the actuator (mechanical, EFCS or electronic) separate from timing.
+  - It does not automatically bind the exposure edges to sensor readout phase, or to the camera-rotation time origin.
+- **`calculateCaptureRotationTrajectories()`** explicitly sets the first opening edge as `t = 0` of the pure camera-rotation model, and evaluates stationary reference rays at each local exposure start and end. It is forward temporal geometry only. It does not use sensor readout timing, does not solve the implicit rolling-shutter image warp, and does not integrate motion blur over the exposure.
+- **`calculateCaptureRotationInverseMappings()`** maps a destination to a reference ray at an instant, at a phase the caller chooses within each local exposure window. With pure rotation, once the destination location fixes the local capture time, the inverse is analytic, so no iterative solver is used. This is still geometry before the lens and before output; it does not replace integration over a finite exposure.
+- **`calculateCaptureRotationTemporalQuadrature()`** gives fixed uniform-midpoint time nodes across each local exposure, with separate measures for a normalised average and for an integral in seconds. The instantaneous inverse mapping stays the source of truth for geometry. This layer does not itself integrate radiance, visibility, shutter transmission, sensor response, PSF or output pixels.
 
 ## Production composition consumer
 
-The ownership graph is now consumed by a separate production-plan contract.
+A separate production-plan contract uses this ownership graph. The production planner:
 
-The production planner:
+- expands the required upstream stages from this graph;
+- keeps the coupled-stage metadata;
+- never creates a second, hidden stage order;
+- records modelled-zero, omitted, unsupported and blocked states explicitly;
+- keeps the renderer's capability declaration separate from scientific stage ownership.
 
-- expands required upstream stages from this graph;
-- preserves coupled-stage metadata;
-- never creates a second hidden stage order;
-- records modeled-zero, omitted, unsupported, and blocked states explicitly;
-- keeps renderer capability declaration separate from scientific stage ownership.
+The current plan schema `0.7.0` supports:
 
-Current plan schema `0.7.0` supports the physical sample path, attached-RAW processing and the bounded [executed environment capture](PRODUCTION_ENVIRONMENT_CAPTURE.md). Complete declared environment input can execute all fourteen graph stages through RAW and optional output. Sample-only and attachment-only routes preserve their missing upstream blockers; temporal geometry alone does not integrate radiance. See [processed output](PROCESSED_OUTPUT.md) for the attachment boundary. See [V1 composition and consumer map](V1_COMPOSITION_MAP.md) for current consumers and required handoffs.
+- the physical sample path;
+- processing of an attached RAW;
+- the bounded [executed environment capture](PRODUCTION_ENVIRONMENT_CAPTURE.md).
+
+With complete declared environment input, all fourteen graph stages can run, through RAW and optional output. Sample-only and attachment-only routes keep their missing upstream blockers. Temporal geometry alone does not integrate radiance.
+
+See [processed output](PROCESSED_OUTPUT.md) for the attachment boundary, and [V1 composition and consumer map](V1_COMPOSITION_MAP.md) for current consumers and required handoffs.
 
 See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
 
 ## Renderer semantics
 
-Renderer implementations may use a bounded real-time preview approximation or a higher-fidelity deterministic reference evaluation, but both must consume the same engine-owned scientific contract.
+A renderer may use a bounded real-time preview approximation, or a higher-fidelity deterministic reference evaluation. Both must use the same engine-owned scientific contract.
 
 For geometric warps:
 
 - destination samples are inverse-mapped to source locations;
-- premultiplied-alpha semantics are preserved;
-- scene depth/occlusion order is preserved across warps;
-- renderer backend choice may change implementation/fidelity, not model semantics.
+- premultiplied-alpha meaning is preserved;
+- scene depth and occlusion order are preserved across warps;
+- the choice of renderer backend may change implementation and fidelity, but not what the model means.
 
 ## Sensor ordering and standalone boundaries
 
-The static ordering registry 0.4.0 retains broad foundation/reserved maturity labels; these are not route-specific capability checks. Plan 0.7.0 records actual bounded execution and blockers. The standalone layers below explain each primitive’s ownership and do not negate the separate executed environment route.
+The static ordering registry 0.4.0 keeps broad "foundation" and "reserved" maturity labels. These are not capability checks for a specific route. Plan 0.7.0 records what actually runs, with its limits and blockers. The standalone layers below explain what each primitive owns; they do not contradict the separate executed environment route.
 
-The contract owns this sensor ordering. Individual descriptive profiles do not execute the whole path; the bounded environment production route explicitly composes supported terms:
+The contract owns this sensor ordering. Individual descriptive profiles do not run the whole path; the bounded environment production route explicitly combines the supported terms:
 
 ```text
 optical PSF
@@ -175,73 +199,133 @@ optical PSF
   -> display processing
 ```
 
-Temporal exposure/readout couples into the photosite/charge stages rather than acting as an unrelated display blur.
+Terms: OLPF is the optical low-pass (anti-aliasing) filter. CFA is the colour filter array. ADC is the analog-to-digital converter.
 
-The standalone capture-mode profile now describes acquisition sequence, per-frame effective sampling, optional inter-frame sensor offsets, reconstruction-stage labels, processed-image raster, and downstream dependencies. It does **not** implement the reserved CFA/photosite/reconstruction algorithms. A mode's processed raster remains upstream of physical orientation and final output crop/resampling and cannot redefine physical sensor geometry or FOV.
+Temporal exposure and readout feed into the photosite and charge stages. They do not act as an unrelated blur applied at display time.
 
-The standalone color-sampling topology profile now describes monochrome, arbitrary periodic mosaic phase/channel assignment, and layered color declarations with an explicitly unresolved spatial relationship. The periodic topology lives on a distinct native sensor sampling-site lattice rather than `NativeImageRaster`; no binding to effective image samples or physical photodiodes is inferred. This metadata foundation does not yet implement the reserved photosite/CFA sampling stage, spectral response, sparse site exceptions, RAW sampling, or reconstruction.
+The sensor primitives below each own one part of this chain. In order:
 
-The additive native-effective-raster/color-site binding now provides the missing structural bridge between capture-mode effective samples and monochrome/periodic topology. It requires evidence for the exact native raster relationship and grouped-mode phase, preserves full-frame absolute CFA phase, and reports compact pre-reconstruction source regions/channel counts. This still does **not** implement the reserved photosite/CFA sampling stage: no signal weights, spectral response, photons/electrons, RAW values, aliasing, or reconstruction are calculated.
+**Capture-mode profile.** Describes the acquisition sequence, effective sampling per frame, optional sensor offsets between frames, labels for reconstruction stages, the processed-image raster, and downstream dependencies. It does **not** implement the reserved CFA, photosite or reconstruction algorithms. A mode's processed raster stays upstream of physical orientation and the final output crop and resampling. It cannot redefine physical sensor geometry or FOV.
 
-The standalone sensor optical-stack profile now makes the upstream stack boundary explicit without claiming a complete stack response. Ordered physical component roles and microlens presence are descriptive. Effective anti-aliasing response is separately modeled as unknown, absent, present-but-unresolved, or a normalized native-physical point-splitting approximation. The resolver exposes only that AA spatial term; cover/filter transmission/refraction, microlens angular/collection behavior, wavelength/field/polarization dependence, and convolution with the lens PSF remain future work. The profile alone is not a complete optical-stack simulation. The production environment route consumes the supported explicit spatial/response bindings and records approximation limits.
+**Colour-sampling topology profile.** Describes monochrome sensors, any periodic mosaic (its phases and channel assignment), and layered colour declarations whose spatial relationship is explicitly unresolved. The periodic topology lives on its own lattice of native sensor sampling sites, not on `NativeImageRaster`. No binding to effective image samples or physical photodiodes is inferred. This metadata does not implement the reserved photosite/CFA sampling stage, spectral response, sparse site exceptions, RAW sampling or reconstruction.
 
-The standalone sensor sampling-aperture profile now supplies explicit native-physical registration for the color-site center lattice and a first geometric sensitive-region footprint. The rectangle is a normalized spatial-area averaging support plus a separately reported geometric area/fraction; it is **not** QE or radiometric collection efficiency. AA point splitting, microlens redirection, diffusion/crosstalk, spectral response, photons/electrons, and RAW values are still absent. This advances the geometry needed by the reserved `photosite-cfa-sampling` stage without claiming that stage is fully implemented.
+**Native-effective-raster / colour-site binding.** The structural bridge between capture-mode effective samples and the monochrome or periodic topology.
 
-The additive sensor spatial-quadrature layer now combines the resolved AA point-splitting term with the geometric aperture using deterministic native-physical midpoint nodes. AA is applied by inverse source lookup, the destination site's CFA channel remains fixed, and off-active-area pre-AA source support is preserved. The result is still a geometry/measure plan only: no optical field, spectral response, radiometry, temporal integration, RAW value, or reconstruction is calculated, so the `photosite-cfa-sampling` stage remains reserved.
+- It requires evidence for the exact native raster relationship and the grouped-mode phase.
+- It preserves the absolute full-frame CFA phase.
+- It reports compact source regions and channel counts before reconstruction.
 
-The additive spatial-sample reducer can now apply those weights to caller-supplied nonnegative linear relative values or physical irradiance. It does not turn a channel ID into spectral filtering, does not integrate over time/wavelength, and does not calculate photons, electrons or RAW codes. Consequently this is still a pre-response site sample and the full `photosite-cfa-sampling` stage remains reserved.
+It still does **not** implement the photosite/CFA sampling stage: no signal weights, spectral response, photons or electrons, RAW values, aliasing or reconstruction are calculated.
 
-The standalone sensor spectral-response profile now establishes explicit wavelength-dependent meaning for linked semantic channels. It can resolve effective external QE, effective A/W responsivity, or declared filter×detector-EQE at one wavelength while preserving response scope and reusable-data provenance. It performs no spectral irradiance integration, exposure-time integration, photon/electron conversion, or RAW reconstruction, so the complete `photosite-cfa-sampling` and downstream charge stages remain only partially founded/reserved.
+**Sensor optical-stack profile.** Makes the upstream stack boundary explicit without claiming a full stack response.
 
-The additive sensor spectral-quadrature plan supplies deterministic wavelength nodes and dλ measures without turning them into signal. Response knots and explicit caller breakpoints define segment boundaries, a maximum subinterval width bounds midpoint spacing, and the selected response scope/provenance remain visible. Sensor-response coverage is not treated as scene/optics coverage, response values are not applied, QE is not conflated with A/W responsivity, and continuous-density quadrature does not silently approximate discrete spectral lines.
+- The ordered physical component roles and the presence of microlenses are descriptive only.
+- The effective anti-aliasing (AA) response is modelled separately as one of: unknown, absent, present but unresolved, or a normalised native-physical point-splitting approximation.
+- The resolver exposes only that AA spatial term.
+- Future work: cover glass and filter transmission and refraction, microlens angular and collection behaviour, dependence on wavelength, field and polarisation, and convolution with the lens PSF.
 
-The shared spectral-coverage layer can now derive the sensor channel's usable range and interpolation knots and combine them with separately declared scene/optics/material coverage. This is planning metadata only. Discrete illumination lines use a separate integrated-line measure path and are not accepted as additional continuous quadrature breakpoints.
+The profile on its own is not a complete optical-stack simulation. The production environment route uses the supported explicit spatial and response bindings, and records the approximation limits.
 
-The additive spatio-spectral reducer now performs the first explicit spatial × wavelength measure composition for caller-supplied sensor-plane E_lambda(x,y) in W/m²/nm. It requires exact color-profile/channel linkage, retains every required edge/off-frame spatial source sample, caps the Cartesian product, and produces pre-response wavelength-integrated irradiance plus geometric-aperture incident flux.
+**Sensor sampling-aperture profile.** Gives explicit native-physical registration for the lattice of colour-site centres, and a first geometric footprint of the sensitive region.
 
-The additive response-application compatibility gate now checks whether that pre-response result is structurally eligible for a later spectral response. It requires exact response/color/aperture/stack linkage, source-plane compatibility with response scope, matching geometric-aperture normalization, explicit spatial response uniformity/separability, resolved wavelength basis, and compatible reference conditions or an explicit approximation. Full-site-cell and effective-collection-area normalizations remain blocked because the current reducer has not integrated those radiometric area bases.
+- The rectangle is a normalised area-averaging support, with its geometric area and fraction reported separately.
+- It is **not** QE (quantum efficiency) or radiometric collection efficiency.
+- AA point splitting, microlens redirection, diffusion and crosstalk, spectral response, photons and electrons, and RAW values are still absent.
 
-The additive response operating-range gate evaluates optical input against an evidence-backed linearity range with explicit wavelength applicability, reference conditions, uncertainty and nonlinearity criterion. It distinguishes broadband-total evidence from per-spectral-bin applicability and requires an explicit maximum bin width for the latter. Wavelength-dependent response conversion is authorized only when each spectral bin and the spatially reduced aperture satisfy the declared linearity model. Exposure characteristic-curve linearity, accumulated-charge/full-well saturation, conversion gain, readout electronics and ADC linearity remain downstream temporal/electrical contracts.
+This provides geometry for the reserved `photosite-cfa-sampling` stage, without claiming that stage is fully implemented.
 
-The photon-energy wavelength foundation resolves the physical energy-per-photon basis used by EQE conversion. Vacuum wavelengths use exact SI h and c. Air wavelengths must first be converted to vacuum wavelength through a sourced phase refractive index at the exact wavelength, with explicit atmospheric-condition compatibility; no implicit air≈vacuum shortcut is allowed.
+**Sensor spatial quadrature.** Combines the resolved AA point-splitting term with the geometric aperture, using fixed native-physical midpoint nodes.
 
-The EQE electron-rate foundation applies the photon-domain response conversion after all prior gates. It evaluates each wavelength-bin radiant-power contribution independently, divides by photon energy to obtain incident-photon rate, applies effective external QE through the authoritative spectral-response resolver, and sums expected generated-electron rates with compensated summation.
+- AA is applied by inverse source lookup.
+- The destination site's CFA channel stays fixed.
+- Source support outside the active area, before AA, is preserved.
 
-The sibling A/W responsivity foundation applies the current-domain response independently per wavelength bin and sums detector-terminal photocurrent magnitude. Its calibration is additionally bound to explicit detector bias and current-readout load conditions. This current is not treated as electron rate, accumulated charge, transimpedance voltage, or circuit-polarity truth.
+The result is still only a geometry and measure plan: no optical field, spectral response, radiometry, time integration, RAW value or reconstruction. So the `photosite-cfa-sampling` stage stays reserved.
 
-Both paths still stop before exposure-time integration, accumulated-charge/full-well behavior, stochastic noise, analog electronics, ADC/RAW and reconstruction.
+**Spatial-sample reducer.** Applies those weights to caller-supplied nonnegative linear relative values, or to physical irradiance. It does not turn a channel ID into spectral filtering, does not integrate over time or wavelength, and does not compute photons, electrons or RAW codes. The result is a site sample before any response is applied, so the full `photosite-cfa-sampling` stage stays reserved.
 
-The local sensor-rate/exposure binding carries each engine-produced response rate back to its exact color-sampling site, through an evidenced one-to-one native-effective-raster relationship, and into the authoritative local shutter-window schedule. This establishes which local time interval belongs to that rate but deliberately does not assume the rate is constant through the interval.
+**Sensor spectral-response profile.** Gives linked channels an explicit, wavelength-dependent meaning. At one wavelength it can resolve effective external QE, effective responsivity in A/W, or a declared filter × detector-EQE (external quantum efficiency). It keeps the response scope and the provenance of reusable data. It does no spectral irradiance integration, exposure-time integration, photon-to-electron conversion or RAW reconstruction. So the full `photosite-cfa-sampling` stage and the downstream charge stages are still only partly founded or reserved.
 
-The constant-rate temporal-integration foundation now permits rate × local-duration only under a stationarity declaration bound to the exact site/window. EQE rates produce fractional expected photon/electron counts; A/W current produces photocharge magnitude in coulombs without carrier inference.
+**Sensor spectral-quadrature plan.** Gives fixed wavelength nodes and dλ measures, without turning them into signal.
 
-The dark-current foundation adds pre-compensation thermally generated expected electrons to the EQE-side charge model using exact local exposure duration and explicit temperature applicability. It does not model black-level compensation, hot-pixel/defect excess, leakage/injection, dark-current nonuniformity unless separately evidenced, or dark-current shot-noise realization. A/W integrated charge is still not treated as stored pixel electrons.
+- Response knots and explicit caller breakpoints define the segment edges.
+- A maximum sub-interval width limits midpoint spacing.
+- The selected response scope and provenance stay visible.
+- Sensor-response coverage is not treated as scene or optics coverage. Response values are not applied. QE is not confused with A/W responsivity. Continuous-density quadrature does not silently approximate discrete spectral lines.
 
-The accumulated-charge completeness foundation combines photo, dark and explicitly incremental other stored-electron expectations only when all terms bind to one exact local exposure. Completeness is not inferred from missing components; an evidence-backed declaration must enumerate the supplied additional charge components and state that all material stored-electron contributors are accounted for.
+**Shared spectral coverage.** Derives the sensor channel's usable range and interpolation knots, and combines them with separately declared scene, optics and material coverage. This is planning metadata only. Discrete illumination lines use a separate integrated-line path; they are not accepted as extra continuous quadrature breakpoints.
 
-The physical charge-capacity foundation compares the complete expected stored-electron total with an evidence-backed storage limit. It remains an expectation-domain assessment: no stochastic saturation probability, clamp, post-capacity charge, overflow amount, anti-blooming or neighbor redistribution is modeled.
+**Spatio-spectral reducer.** The first explicit space × wavelength composition, for sensor-plane spectral irradiance E_lambda(x,y) supplied by the caller in W/m²/nm.
 
-The camera saturation-capacity foundation is separate: it compares dark-corrected photo-signal electron-equivalent expectation against a measured/calibrated camera response-chain capacity. Dark/other stored charge is not added to that signal-domain comparison, and physical full-well is not reused. The first camera-capacity contract does not identify whether analog electronics, ADC/digital clipping, or another stage is the actual limiter.
+- It requires exact linkage to the colour profile and channel.
+- It keeps every required spatial source sample, including those at edges and outside the frame.
+- It caps the size of the combined space × wavelength grid.
+- It produces wavelength-integrated irradiance (before response) and the incident flux on the geometric aperture.
 
-Stage-specific clipping transfer functions, stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream.
+**Response-application compatibility gate.** Checks whether that result is structurally eligible for a later spectral response. It requires:
+
+- exact linkage of response, colour profile, aperture and optical stack;
+- a source plane compatible with the response scope;
+- matching geometric-aperture normalisation;
+- explicit spatial uniformity or separability of the response;
+- a resolved wavelength basis;
+- compatible reference conditions, or an explicit approximation.
+
+Full-site-cell and effective-collection-area normalisations stay blocked, because the current reducer has not integrated over those area bases.
+
+**Response operating-range gate.** Checks optical input against an evidence-backed linearity range, with explicit wavelength applicability, reference conditions, uncertainty and a non-linearity criterion.
+
+- It distinguishes evidence for the broadband total from applicability per spectral bin. Per-bin applicability needs an explicit maximum bin width.
+- Wavelength-dependent response conversion is allowed only when every spectral bin, and the spatially reduced aperture, satisfy the declared linearity model.
+- Linearity of the exposure characteristic curve, saturation of accumulated charge (full well), conversion gain, readout electronics and ADC linearity are later temporal and electrical contracts.
+
+**Photon-energy wavelength foundation.** Resolves the energy per photon used by EQE conversion.
+
+- Vacuum wavelengths use exact SI h and c.
+- Air wavelengths must first be converted to vacuum, using a sourced phase refractive index at that exact wavelength, with compatible atmospheric conditions. The shortcut "air ≈ vacuum" is never applied implicitly.
+
+**EQE electron-rate foundation.** Applies the photon-domain response conversion after all earlier gates.
+
+1. Each wavelength bin's radiant-power contribution is evaluated separately.
+2. It is divided by photon energy to get the incident photon rate.
+3. Effective external QE is applied through the spectral-response resolver.
+4. The expected generated-electron rates are summed with compensated summation.
+
+**A/W responsivity foundation** (the sibling of the EQE path). Applies the current-domain response separately for each wavelength bin and sums the magnitude of the detector photocurrent. Its calibration is also bound to explicit detector bias and current-readout load conditions. This current is not treated as an electron rate, accumulated charge, transimpedance voltage or a statement about circuit polarity.
+
+Both paths still stop before exposure-time integration, accumulated charge and full well, random noise, analog electronics, ADC/RAW and reconstruction.
+
+**Local sensor-rate / exposure binding.** Carries each response rate the engine produced back to its exact colour-sampling site (through an evidenced one-to-one native-effective-raster relationship), and into the local shutter-window schedule. This says which local time interval belongs to that rate. It deliberately does not assume the rate stays constant during the interval.
+
+**Constant-rate time integration.** Allows rate × local duration only under a stationarity declaration bound to the exact site and window. EQE rates give fractional expected photon and electron counts. A/W current gives photocharge magnitude in coulombs, without inferring carriers.
+
+**Dark current.** Adds thermally generated expected electrons (before any compensation) to the EQE-side charge model, using the exact local exposure duration and explicit temperature applicability. It does not model black-level compensation, hot-pixel or defect excess, leakage or injection, dark-current non-uniformity (unless separately evidenced), or the random realisation of dark-current shot noise. Integrated A/W charge is still not treated as stored pixel electrons.
+
+**Accumulated-charge completeness.** Combines photo, dark and explicitly incremental other stored-electron expectations, only when all of them are bound to one exact local exposure. Completeness is never inferred from missing components. An evidence-backed declaration must list the additional charge components supplied, and state that every material contributor to stored electrons is accounted for.
+
+**Physical charge capacity.** Compares the complete expected stored-electron total with an evidence-backed storage limit. It is an assessment of expected values only. It does not model the probability of random saturation, clamping, charge beyond capacity, overflow amount, anti-blooming or redistribution to neighbours.
+
+**Camera saturation capacity** (separate from physical capacity). Compares the expected dark-corrected photo signal, in electron-equivalents, against a measured or calibrated capacity of the camera's response chain. Dark and other stored charge are not added to this signal comparison, and the physical full well is not reused. The first camera-capacity contract does not say whether the analog electronics, the ADC or digital clipping, or some other stage is the actual limit.
+
+Stage-specific clipping transfer functions, random noise, analog electronics, ADC/RAW and reconstruction come later.
 
 ## Current implementation status
 
-Each stage is labeled:
+Each stage is labelled:
 
-- `existing-foundation` — the root engine already contains the relevant foundation;
-- `partial-foundation` — some low-level science exists, but the full stage contract is not implemented; spatial camera rotation in the temporal domain plus declared-scale focus breathing, radial distortion, RGB-channel lateral CA, and illumination throughput in the lens-field domain are current examples;
-- `reserved-contract` — ordering/ownership is reserved for future work only.
+- `existing-foundation`: the root engine already contains the relevant foundation.
+- `partial-foundation`: some low-level science exists, but the full stage contract is not implemented. Current examples: spatial camera rotation in the temporal domain; and declared-scale focus breathing, radial distortion, RGB-channel lateral chromatic aberration and illumination throughput in the lens-field domain.
+- `reserved-contract`: the ordering and ownership are reserved for future work only.
 
-Do not infer capabilities from a stage merely because it is present in the contract.
+Do not assume a stage works just because it appears in the contract.
 
 ## Test Fixture relationship
 
-External consumer fixtures may provide browser regression targets; engine implementation and independent conformance remain the scientific source of truth.
+External consumer fixtures can provide browser regression targets. The engine implementation and independent conformance tests remain the scientific source of truth.
 
-Engine analytical/invariant tests establish model correctness. Test Fixture images provide secondary integration and renderer evidence.
+Engine analytical and invariant tests establish that models are correct. Test Fixture images provide secondary evidence for integration and rendering.
 
 In particular:
 
-- the LDR/sRGB optics target may verify deterministic field/channel mapping behavior;
-- it does not establish spectral lens calibration, MTF, RAW/CFA truth, HDR radiometry, or real-lens performance.
+- the LDR/sRGB optics target can verify deterministic field and channel mapping behaviour;
+- it does not establish spectral lens calibration, MTF, RAW/CFA truth, HDR radiometry or real-lens performance.

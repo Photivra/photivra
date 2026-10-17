@@ -2,13 +2,21 @@
 
 Status: **frozen qualification scope for Photivra engine issue #233, phase-1 deliverable 1**.
 
+**In plain terms.** Issue #224 is about simulating a full-resolution ("native") RAW capture in a web browser, while tracing many rays across the lens opening ("dense pupil") so that depth of field and partial occlusion come out physically correct. Before that work can be called correct ("qualified"), the project has to say exactly which scenes, cameras and processing stages it must handle. This page fixes ("freezes") that scope. It is one of the governing contracts written under issue #233; the others are linked below.
+
 This document freezes the source, camera, and image-formation stage envelope used to
 qualify the browser-first dense-pupil native-capture work tracked by #224.
 
-It is a **qualification contract**, not a new public API, a new renderer, a package
-release, or a claim that the listed full-native cases already pass. Runtime behavior
-remains unchanged until separately reviewed implementation work satisfies this
+It is a **qualification contract**. It is not a new public API, a new renderer or a package
+release, and it does not claim that the listed full-native cases already pass. Runtime behaviour
+stays unchanged until separately reviewed implementation work satisfies this
 contract.
+
+Terms used across these contracts:
+
+- **Path A:** making the already approved calculation faster, without changing its maths.
+- **Path B:** using a different numerical method for the same physical quantity (see the [Path-B gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md)).
+- **Fail closed:** reject the request as unsupported, rather than return a weaker or guessed result.
 
 The governing rule is:
 
