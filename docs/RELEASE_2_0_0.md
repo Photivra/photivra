@@ -209,6 +209,15 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
   - Never claimed bit-identical.
 - **Evidence in the repository:** `test/image-kernel-accelerator.test.ts` (fake device), `test/webgpu/conformance.webgpu.ts` (real device, repository-only).
 
+### WebGPU sensor stage and temporal exposure sum (#277)
+
+- **Model and version:** packed sensor RAW schema 0.1.0 (noise model `photivra-native-raw-noise` 0.4.0, unchanged); temporal exposure sum schema 0.1.0; new execution label `exact-except-flagged-sites`.
+- **Accepted science and sources:**
+  - Sensor stage: no new science. It is the per-site producer's model on typed arrays, bit-identical to `calculateNativeRawSite` (tested).
+  - Exposure as the time integral of the rate over each site's window (EMVA 1288 Release 4.0 Linear §2; CIPA DC-004 §5.5; both free). Motion blur as a superposition of displaced images (Szeliski 2022, free from the author). Rolling shutter as row-dependent windows (Meingast, Geyer & Sastry, arXiv:cs/0503076, free).
+  - Bilinear sub-site shifts, rigid translation and caller-owned quadrature weights are labelled approximations.
+- **Evidence in the repository:** `test/packed-sensor-raw.test.ts`, `test/temporal-exposure-sum.test.ts` (fake device), `test/webgpu/stages.webgpu.ts` (real device, repository-only; SwiftShader: no unflagged site differed, and temporal error stayed within its bound). No hardware-GPU timings were measured.
+
 ### Native RAW DNG (#307)
 
 - **Model and version:** `NATIVE_RAW_DNG_SCHEMA_VERSION` 1.0.0.
@@ -410,7 +419,14 @@ Work that is known and deliberately left for later:
 - **#307 follow-ups:** real-camera DNG interoperability is not claimed (LibRaw decodes the files; no editor review yet); sharing the colour-tag code with the paired export.
 - **#275:** planning once per CFA phase; worker parallelism; a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF).
 - **#276:** consistency between error classes; freezing result envelopes (a deep freeze costs every result on hot paths).
-- **#277 and follow-ups from #304:** hardware-GPU conformance runs and CI wiring, kernel sampling from `LensPsfProfile`, GPU luminance tone curves.
+- **#277 and follow-ups from #304:**
+  - scene radiance on the GPU and the batched provider API;
+  - the per-fixture rollout, with method-error comparisons against the per-site engine;
+  - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
+  - hardware-GPU conformance runs and CI wiring;
+  - kernel sampling from `LensPsfProfile`;
+  - fixed-pattern noise and additional charge components in the GPU sensor stage;
+  - GPU luminance tone curves.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.
 - **Motion follow-ups from #297:** derived rolling exposure schedules in tier presets; time-varying angular velocity (rolling-shutter wobble).
 
