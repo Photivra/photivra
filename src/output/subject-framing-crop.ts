@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Calculates the same-aspect-ratio crop needed for a subject to occupy a requested fraction of frame
- * height. This calculation assumes a centered/positionable crop with enough spatial margin around the
- * subject. It does not validate subject position against image edges.
+ * Subject framing: how much to crop (keeping the aspect ratio) so a subject fills a chosen share
+ * of the frame height.
  * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -49,12 +47,11 @@ export interface SubjectFramingCrop {
 }
 
 /**
- * Calculates the same-aspect-ratio crop needed for a subject to occupy a
- * requested fraction of frame height.
+ * Calculates the crop (keeping the aspect ratio) that makes a subject fill a
+ * requested fraction of the frame height.
  *
- * This calculation assumes a centered/positionable crop with enough spatial
- * margin around the subject. It does not validate subject position against
- * image edges.
+ * It assumes the crop can be centred or moved freely, with enough room around
+ * the subject. It does not check the subject's position against the image edges.
  */
 export function calculateSubjectFramingCrop(
   input: CalculateSubjectFramingCropInput
@@ -81,12 +78,12 @@ export function calculateSubjectFramingCrop(
       ? 1
       : input.pixelHeight / requestedCropHeight;
 
-  // Height is the constrained axis, computed directly from the requested crop
-  // height rather than through H / (H / requested), whose rounding could drop a
-  // pixel. It is the largest whole-pixel height within the requested crop (so
-  // the subject fills at least the target fraction), but never fewer pixels
-  // than the subject needs, so rounding alone never clips the subject. Width
-  // follows from that integer height and the source aspect ratio.
+  // Height is the limiting axis. Compute it straight from the requested crop
+  // height, not through H / (H / requested), whose rounding could lose a pixel.
+  // It is the largest whole-pixel height within the requested crop, so the
+  // subject fills at least the target fraction. It is never smaller than the
+  // subject, so rounding alone never clips the subject. Width follows from that
+  // integer height and the source aspect ratio.
   const pixelHeight =
     cropFactor === 1
       ? input.pixelHeight
