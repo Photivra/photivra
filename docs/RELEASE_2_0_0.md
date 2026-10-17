@@ -472,7 +472,7 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 
 | Gate | Result |
 | --- | --- |
-| Base before this update | `34f687da64e177a194fde8be0f25f681f282f1f1` (#328). Its pull-request CI passed on every job, including the licence scan; push CI on `main`: [CI run 832](https://github.com/Photivra/photivra/actions/runs/39042289305) and [Native performance run 90](https://github.com/Photivra/photivra/actions/runs/39042289319). |
+| Base before this update | `34f687da64e177a194fde8be0f25f681f282f1f1` (#328). Its pull-request CI passed on every job, including the licence scan; push CI on `main` passed: [CI run 832](https://github.com/Photivra/photivra/actions/runs/39042289305) (all `verify` jobs on Node 22.13.0, lts/-1, lts/* and current, coverage, licence scan, macOS hash locks) and [Native performance run 90](https://github.com/Photivra/photivra/actions/runs/39042289319). |
 | GitHub CI on this update's PR (all jobs, all Node versions, licence scan, macOS hash locks) | Recorded on the PR. |
 | GitHub CI on `main` after merge | To check before tagging. |
 
