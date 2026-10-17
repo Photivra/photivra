@@ -281,7 +281,12 @@ export interface SimulateCaptureResult {
     /** Physical size of the framed scene plane, metres. */
     framedWidthM: number;
     framedHeightM: number;
-    /** SHA-256 of the canonical scene description, recorded as the capture source digest. */
+    /**
+     * SHA-256 of the canonical scene description, recorded as the capture source digest. Caller spectra (a
+     * `spectrum` or `daylight` illuminant, chart reflectance spectra) are part of the description: tabulated
+     * data exactly, function spectra sampled at 1 nm over 380-780 nm, plus the daylight basis datasetId.
+     * The body of a caller scene's evaluate function is not hashed.
+     */
     sourceSha256: string;
   };
   diagnostics: {

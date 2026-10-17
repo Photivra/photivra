@@ -17,7 +17,7 @@
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputKeys, requireInputObject } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys, requireInputObject } from "../core/record-validation.js";
 import { parseManualFlashProfile, type ManualFlashProfile } from "./flash.js";
 import {
   meterRelativeExposure,
@@ -164,6 +164,10 @@ function sameZones(a: ExposureMeteringSampleSet, b: ExposureMeteringSampleSet): 
   }
   a.samples.forEach((sample, index) => {
     const other = b.samples[index]!;
+    requireInputObject(sample, "ambientSampleSet.samples[" + index + "]");
+    requireInputObject(other, "preFlashSampleSet.samples[" + index + "]");
+    requireInputObject(sample.positionOrientedCaptureUv, "ambientSampleSet.samples[" + index + "].positionOrientedCaptureUv");
+    requireInputObject(other.positionOrientedCaptureUv, "preFlashSampleSet.samples[" + index + "].positionOrientedCaptureUv");
     if (sample.sampleId !== other.sampleId || sample.areaWeight !== other.areaWeight ||
       sample.positionOrientedCaptureUv.u !== other.positionOrientedCaptureUv.u ||
       sample.positionOrientedCaptureUv.v !== other.positionOrientedCaptureUv.v) {
@@ -190,6 +194,10 @@ export function resolveTtlFlashExposure(input: ResolveTtlFlashExposureInput): Ca
   requireInputKeys(input, "resolveTtlFlashExposure", ["meteringProfile", "ambientSampleSet", "preFlashSampleSet", "preFlashPowerFraction", "ambientScaleToMainExposure", "flashExposureCompensationStops", "minimumPowerFraction", "syncEnergyFactor", "guideNumber"]);
   requireInputObject(input.ambientSampleSet, "resolveTtlFlashExposure ambientSampleSet");
   requireInputObject(input.preFlashSampleSet, "resolveTtlFlashExposure preFlashSampleSet");
+  if (input.guideNumber !== undefined) {
+    requireInputObject(input.guideNumber, "resolveTtlFlashExposure guideNumber");
+    rejectUnknownFields(input.guideNumber, ["fullPowerGuideNumberMetersIso100", "iso", "apertureFNumber"], "resolveTtlFlashExposure guideNumber");
+  }
   if (!Array.isArray(input.ambientSampleSet.samples) || !Array.isArray(input.preFlashSampleSet.samples)) {
     throw new InvalidConfigurationError("TTL sample sets must contain sample arrays.");
   }

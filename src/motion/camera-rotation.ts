@@ -29,7 +29,21 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys, requireInputObject } from "../core/record-validation.js";
+
+/** Checks the nested objects of a rotation-mapping input before any of their fields are read. */
+function requireRotationMappingSubObjects(input: {
+  imagePointMm: unknown; angularVelocityRadPerSec: unknown; samplingPitchMicrometers?: unknown;
+}): void {
+  requireInputObject(input.imagePointMm, "imagePointMm");
+  rejectUnknownFields(input.imagePointMm as object, ["x", "y"], "imagePointMm");
+  requireInputObject(input.angularVelocityRadPerSec, "angularVelocityRadPerSec");
+  rejectUnknownFields(input.angularVelocityRadPerSec as object, ["pitch", "yaw", "roll"], "angularVelocityRadPerSec");
+  if (input.samplingPitchMicrometers !== undefined) {
+    requireInputObject(input.samplingPitchMicrometers, "samplingPitchMicrometers");
+    rejectUnknownFields(input.samplingPitchMicrometers as object, ["x", "y"], "samplingPitchMicrometers");
+  }
+}
 
 /**
  * Camera angular velocity in radians per second about the exposure-start
@@ -329,6 +343,7 @@ export function calculateCameraRotationImageMapping(
 ): CalculationResult<CameraRotationImageMapping> {
   requireInputKeys(input, "calculateCameraRotationImageMapping", ["focalLengthMm", "imagePointMm", "timeSecondsFromExposureStart", "angularVelocityRadPerSec", "focusDistanceM", "samplingPitchMicrometers"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
+  requireRotationMappingSubObjects(input);
   requireFinite("imagePointMm.x", input.imagePointMm.x);
   requireFinite("imagePointMm.y", input.imagePointMm.y);
   requireNonNegativeFinite(
@@ -481,6 +496,7 @@ export function calculateInverseCameraRotationImageMapping(
 ): CalculationResult<InverseCameraRotationImageMapping> {
   requireInputKeys(input, "calculateInverseCameraRotationImageMapping", ["focalLengthMm", "imagePointMm", "timeSecondsFromExposureStart", "angularVelocityRadPerSec", "focusDistanceM", "samplingPitchMicrometers"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
+  requireRotationMappingSubObjects(input);
   requireFinite("imagePointMm.x", input.imagePointMm.x);
   requireFinite("imagePointMm.y", input.imagePointMm.y);
   requireNonNegativeFinite(

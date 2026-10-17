@@ -35,7 +35,7 @@ import type {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
+import { requireInputKeys, requireInputObject, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1572,6 +1572,13 @@ function indexExposureWindows(
   timing:
     ResolvedCaptureModeTiming
 ): ExposureWindowIndex {
+  requireInputObject(timing, "timing");
+  requireInputObject(timing.exposureWindows, "timing.exposureWindows");
+  if (!Array.isArray(timing.exposureWindows.samples)) throw new InvalidConfigurationError("timing.exposureWindows.samples must be an array.");
+  timing.exposureWindows.samples.forEach((sample, index) => {
+    requireInputObject(sample, "timing.exposureWindows.samples[" + index + "]");
+    requireInputObject(sample.pointNative, "timing.exposureWindows.samples[" + index + "].pointNative");
+  });
   const byX =
     new Map<
       unknown,
@@ -1660,6 +1667,7 @@ export function calculateStabilizedCaptureTemporalSamples(
     CalculateStabilizedCaptureTemporalSamplesInput
 ): CalculationResult<StabilizedCaptureTemporalSamples> {
   requireInputKeys(input, "calculateStabilizedCaptureTemporalSamples", ["disturbance", "profile", "captureKind", "timing", "samplePointsNative", "temporalSampleCount"]);
+  requireInputObject(input.timing, "timing");
   const disturbance =
     parseStabilizationDisturbanceTrajectory(
       input.disturbance
@@ -1691,6 +1699,7 @@ export function calculateStabilizedCaptureTemporalSamples(
       "samplePointsNative must be a non-empty array."
     );
   }
+  input.samplePointsNative.forEach((point, index) => requireInputObject(point, "samplePointsNative[" + index + "]"));
 
   const totalNodeCount =
     input.temporalSampleCount *

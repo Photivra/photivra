@@ -161,6 +161,7 @@ function requireFiniteVector(
   value: Vector3,
   path: string
 ): Vector3 {
+  requireInputObject(value, path);
   for (
     const axis of
     ["x", "y", "z"] as const
@@ -253,6 +254,7 @@ function localExposureForPoint(
   point:
     RasterPoint
 ): ResolvedCaptureModeTiming["exposureWindows"]["samples"][number] {
+  requireInputObject(point, "destinationPointNative");
   const matches =
     timing.exposureWindows.samples.filter(
       (sample) =>
@@ -284,6 +286,14 @@ export function calculateCaptureTranslationParallaxTemporalQuadrature(
 ): CalculationResult<CaptureTranslationParallaxTemporalQuadrature> {
   requireInputKeys(input, "calculateCaptureTranslationParallaxTemporalQuadrature", ["timing", "imagingArea", "focalLengthMm", "focusDistanceM", "orientation", "cameraTranslationVelocityMps", "temporalSampleCount", "sceneSamples"]);
   requireInputObject(input.imagingArea, "imagingArea");
+  requireInputObject(input.timing, "timing");
+  requireInputObject(input.timing.nativeRaster, "timing.nativeRaster");
+  requireInputObject(input.timing.exposureWindows, "timing.exposureWindows");
+  if (!Array.isArray(input.timing.exposureWindows.samples)) throw new InvalidConfigurationError("timing.exposureWindows.samples must be an array.");
+  input.timing.exposureWindows.samples.forEach((sample, index) => {
+    requireInputObject(sample, "timing.exposureWindows.samples[" + index + "]");
+    requireInputObject(sample.pointNative, "timing.exposureWindows.samples[" + index + "].pointNative");
+  });
   requirePositiveFinite(
     "imagingArea.widthMm",
     input.imagingArea.widthMm
@@ -312,6 +322,7 @@ export function calculateCaptureTranslationParallaxTemporalQuadrature(
     );
   }
 
+  input.sceneSamples.forEach((sample, index) => requireInputObject(sample, "sceneSamples[" + index + "]"));
   const ids =
     input.sceneSamples.map(
       (sample) =>

@@ -8,6 +8,7 @@ import {
   type ExposureBoundarySchedule,
   type SourcedCaptureTimingSeconds
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 type PhotivraOwnedEvidence = readonly [
   {
@@ -445,5 +446,18 @@ describe("capture rotation exposure trajectories", () => {
         samplePointsNative: [{ x: 2500, y: 3000 }]
       })
     ).toThrow("activeCaptureRect edge-coordinate bounds");
+  });
+});
+
+describe("capture rotation trajectories reject a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of a valid request", async () => {
+    const input = { imagingArea, nativeRaster, shutterMechanism: "electronic", nominalExposureDurationSeconds: secondsFact(0.01, "test:nominal"),
+      opening: scanned("top-to-bottom", 0.004, "test:opening"), closing: scanned("top-to-bottom", 0.004, "test:closing"), focalLengthMm: 50,
+      angularVelocityRadPerSec: { pitch: 0, yaw: 0.1, roll: 0 }, samplePointsNative: [{ x: 3000, y: 2000 }] };
+    const call = (value: unknown): unknown => calculateCaptureRotationTrajectories(value as never);
+    expect(() => call(input)).not.toThrow();
+    const { probedPaths, escaped } = await probeSubObjects(call, input);
+    expect(probedPaths).toBeGreaterThan(5);
+    expect(escaped).toEqual([]);
   });
 });

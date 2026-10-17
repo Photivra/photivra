@@ -25,7 +25,9 @@ import {
 import { portableHypot } from "../core/portable-math.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
 import type { Vector3 } from "../schema/scene.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys, requireInputObject } from "../core/record-validation.js";
+
+const VECTOR3_FIELDS = ["x", "y", "z"] as const;
 
 export interface CalculateProjectedMotionBlurInput {
   /** Lens focal length in millimetres. */
@@ -51,6 +53,8 @@ export interface ProjectedMotionBlur {
 }
 
 function requireFiniteVector3(name: string, value: Vector3): void {
+  requireInputObject(value, name);
+  rejectUnknownFields(value, VECTOR3_FIELDS, name);
   for (const component of ["x", "y", "z"] as const) {
     if (!Number.isFinite(value[component])) {
       throw new InvalidScientificInputError(

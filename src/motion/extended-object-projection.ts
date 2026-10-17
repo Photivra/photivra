@@ -34,7 +34,7 @@ import type {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, requireInputObject } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface ExtendedObjectMetricPoint {
@@ -263,6 +263,7 @@ function requireFiniteVector(
   value: Vector3,
   path: string
 ): Vector3 {
+  requireInputObject(value, path);
   for (
     const axis of
     ["x", "y", "z"] as const
@@ -406,6 +407,7 @@ function validateUniquePoints<T extends ExtendedObjectMetricPoint>(
           "points[" +
           index +
           "]";
+        requireInputObject(point, path);
         const pointId =
           requireNonEmptyString(
             point.pointId,
@@ -540,6 +542,7 @@ function validatePlanarDeclaration(
   ) {
     return null;
   }
+  requireInputObject(declaration, "frontoparallelPlane");
   if (
     declaration.kind !==
     "fronto-parallel-planar-patch"
@@ -839,6 +842,14 @@ function localExposureForPoint(
   point:
     RasterPoint
 ): ResolvedCaptureModeTiming["exposureWindows"]["samples"][number] {
+  requireInputObject(timing, "timing");
+  requireInputObject(timing.exposureWindows, "timing.exposureWindows");
+  if (!Array.isArray(timing.exposureWindows.samples)) throw new InvalidConfigurationError("timing.exposureWindows.samples must be an array.");
+  timing.exposureWindows.samples.forEach((sample, index) => {
+    requireInputObject(sample, "timing.exposureWindows.samples[" + index + "]");
+    requireInputObject(sample.pointNative, "timing.exposureWindows.samples[" + index + "].pointNative");
+  });
+  requireInputObject(point, "destinationPointNative");
   const matches =
     timing.exposureWindows.samples.filter(
       (sample) =>

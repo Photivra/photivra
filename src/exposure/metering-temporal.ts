@@ -26,7 +26,7 @@ import {
 import type {
   SceneRadianceDerivedExposureMeteringSampleSet
 } from "./metering-scene-radiance.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, requireInputObject } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 const NORMALIZED_WEIGHT_TOLERANCE =
@@ -208,6 +208,7 @@ export function meterSceneRadianceTemporalExposure(
       "highlight-priority is a spatial quantile, not a linear signal mean; temporal averaging of snapshot quantiles is not defined by this model."
     );
   }
+  requireInputObject(input.policy, "policy");
   if (
     input.policy.kind !==
     "weighted-time-average"
@@ -235,6 +236,17 @@ export function meterSceneRadianceTemporalExposure(
     );
   }
 
+  input.temporalSamples.forEach((entry, index) => {
+    const path = "temporalSamples[" + index + "]";
+    requireInputObject(entry, path);
+    const sampleSet = entry.sampleSet;
+    requireInputObject(sampleSet, path + ".sampleSet");
+    requireInputObject(sampleSet.sourceContext, path + ".sampleSet.sourceContext");
+    requireInputObject(sampleSet.sourceContext.temporal, path + ".sampleSet.sourceContext.temporal");
+    requireInputObject(sampleSet.captureGeometry, path + ".sampleSet.captureGeometry");
+    requireInputObject(sampleSet.captureGeometry.orientedCapture, path + ".sampleSet.captureGeometry.orientedCapture");
+    requireInputObject(sampleSet.captureGeometry.activeCapture, path + ".sampleSet.captureGeometry.activeCapture");
+  });
   const firstSampleSet =
     input.temporalSamples[0]!
       .sampleSet;

@@ -12,6 +12,7 @@ import {
   type ExposureBoundarySchedule,
   type SourcedCaptureTimingSeconds
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 type PhotivraOwnedEvidence = readonly [
   {
@@ -408,5 +409,16 @@ describe("capture rotation instantaneous inverse mapping", () => {
         )
       ])
     );
+  });
+});
+
+describe("capture rotation inverse mappings reject a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of a valid request", async () => {
+    const input = { ...baseInput(), samplePointsNative: [{ x: 3000, y: 1000 }, { x: 3000, y: 3000 }] };
+    const call = (value: unknown): unknown => calculateCaptureRotationInverseMappings(value as never);
+    expect(() => call(input)).not.toThrow();
+    const { probedPaths, escaped } = await probeSubObjects(call, input);
+    expect(probedPaths).toBeGreaterThan(5);
+    expect(escaped).toEqual([]);
   });
 });

@@ -13,6 +13,7 @@ import {
   type StabilizationDisturbanceTrajectory,
   type StabilizationSystemProfile
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -1049,5 +1050,17 @@ describe("stabilization closeout fail-closed boundaries", () => {
     ).toThrow(
       "temporalSampleCount"
     );
+  });
+});
+
+describe("capture-local stabilization rejects a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of a valid request", async () => {
+    const input = { disturbance: trajectory(), profile: profile(), captureKind: "still", timing: timing(),
+      samplePointsNative: [{ x: 50, y: 25 }, { x: 50, y: 75 }], temporalSampleCount: 2 };
+    const call = (value: unknown): unknown => calculateStabilizedCaptureTemporalSamples(value as never);
+    expect(() => call(input)).not.toThrow();
+    const { probedPaths, escaped } = await probeSubObjects(call, input, { maximumDepth: 4 });
+    expect(probedPaths).toBeGreaterThan(5);
+    expect(escaped).toEqual([]);
   });
 });
