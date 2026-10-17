@@ -1,18 +1,18 @@
 # Local POC Simulation API
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Photivra includes a minimal Node HTTP transport for proof-of-concept development and integration testing.
+Photivra includes a minimal Node HTTP server for proof-of-concept (POC) development and integration testing.
 
-It is **not** the recommended production runtime. Browser applications can consume the root `@photivra/engine` scientific surface directly; the production Photivra architecture is intended to keep the simulation math client-side rather than expose this unauthenticated POC server to the public internet.
+It is **not** the recommended production runtime. Browser applications can call the root `@photivra/engine` functions directly. The production Photivra design keeps the simulation maths in the client, rather than exposing this unauthenticated POC server to the public internet.
 
 ## Repository and package boundary
 
-`@photivra/engine` publishes only the runtime-neutral scientific/calculation surface.
+`@photivra/engine` publishes only the scientific and calculation functions, which run in any JavaScript runtime.
 
-The Node HTTP transport remains in this GitHub repository under `src/api` as contributor/development tooling. It is **not** exported by the package and `dist/api` is explicitly excluded from the npm tarball.
+The Node HTTP server stays in this GitHub repository, under `src/api`, as tooling for contributors and development. The package does **not** export it, and `dist/api` is explicitly left out of the npm tarball.
 
-The HTTP layer adds request parsing, CORS response headers, routing, and serialization. It does not add camera-science equations.
+The HTTP layer adds request parsing, CORS response headers, routing and serialisation. It adds no camera-science equations.
 
 ## Build and run from a repository checkout
 
@@ -22,7 +22,7 @@ npm run build
 node dist/api/poc-api-cli.js
 ```
 
-This command is a repository-development workflow. Installing `@photivra/engine` from npm does not install or expose the POC HTTP server.
+This works only from a repository checkout. Installing `@photivra/engine` from npm does not install or expose the POC HTTP server.
 
 Defaults:
 
@@ -36,15 +36,24 @@ Overrides:
 - `PHOTIVRA_API_PORT`;
 - `PHOTIVRA_ALLOWED_ORIGIN`.
 
-The server is unauthenticated and therefore binds only to loopback by default. Setting `PHOTIVRA_API_HOST` to a non-loopback address exposes it beyond the local machine and is outside the security model supplied by this repository.
+The server has no authentication, so by default it listens only on loopback (this machine). Setting `PHOTIVRA_API_HOST` to a non-loopback address exposes it to other machines. That is outside the security model this repository provides.
 
-CORS is a browser policy, **not** authentication or authorization. Non-browser clients can call an exposed endpoint regardless of its CORS header.
+CORS is a browser policy, **not** authentication or authorisation. Non-browser clients can call an exposed endpoint whatever its CORS header says.
 
-The server accepts request bodies up to 64 KiB. It does not provide production rate limiting, authentication, quotas, reverse-proxy hardening, or abuse controls.
+The server accepts request bodies up to 64 KiB. It has no production rate limiting, authentication, quotas, reverse-proxy hardening or abuse controls.
 
 ## Contract version 1.0.0
 
-Package 2.0.0 sets `POC_SIMULATION_API_VERSION` to `1.0.0` (from `0.20.0`) because the response changed: exact thin-lens depth-of-field limits, a circle of confusion at or above the aperture diameter rejected, the stable closed-form defocus diameter, whole-pixel crop rounding (crop model 2.0.0), the physical right-hand camera-shake sign convention with quarter-turn rejection, and a crop factor and sensor diagonal computed only from correctly rounded operations (see [numerical correctness](NUMERICAL_CORRECTNESS.md#cross-engine-determinism)). Request fields are unchanged; the transport adds the magnitude envelope and the 422 status below.
+Package 2.0.0 sets `POC_SIMULATION_API_VERSION` to `1.0.0` (from `0.20.0`) because the response changed:
+
+- exact thin-lens depth-of-field limits;
+- a circle of confusion at or above the aperture diameter is rejected;
+- the numerically stable closed-form defocus diameter;
+- whole-pixel crop rounding (crop model 2.0.0);
+- the physical right-hand sign convention for camera shake, with quarter-turn rejection;
+- crop factor and sensor diagonal computed only from correctly rounded operations (see [numerical correctness](NUMERICAL_CORRECTNESS.md#cross-engine-determinism)).
+
+Request fields are unchanged. The transport adds the magnitude limits and the 422 status described below.
 
 ## Health
 
@@ -66,32 +75,32 @@ Example:
 
 Requests must use `Content-Type: application/json`.
 
-All physical quantities use explicit units in their property names.
+Every physical quantity has its unit in the property name.
 
-The POC transport reports the composed simulation contract version, not the root library `ENGINE_API_VERSION`. The current composed contract is exposed as `POC_SIMULATION_API_VERSION`.
+The POC server reports the version of the composed simulation contract (`POC_SIMULATION_API_VERSION`), not the root library's `ENGINE_API_VERSION`.
 
-POC simulation API 0.20 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
+Since POC simulation API 0.20, projection uses the selected focus plane. The response includes a `projection` block with the ideal thin-lens image distance, the scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion and camera-shake projection all use that same projection plane.
 
 ### Sensor/capture composition in POC API 0.20
 
-POC simulation API 0.20 begins composing the standalone sensor/capture foundation **additively**.
+POC simulation API 0.20 started using the standalone sensor/capture model, as an **addition** to the existing behaviour.
 
-The existing request remains valid. New callers may opt into staged capture geometry with a `capture` object containing:
+Existing requests are still valid. New callers can opt in to staged capture geometry with a `capture` object containing:
 
 - physical `orientation`;
 - optional native `activeCaptureRect`;
 - optional oriented `outputCropRect`;
 - optional final `outputRaster`.
 
-Compatibility rules are intentionally strict:
+The compatibility rules are deliberately strict:
 
-- legacy `crop.factor` remains available for existing callers;
-- when `capture` is supplied, legacy `crop.factor` must be `1` so two crop models are not silently stacked;
-- legacy top-level `subjectCrop` response semantics remain unchanged when staged capture is absent;
-- with staged capture, subject framing is reported under `capture.subjectFraming` and is applied after declared output crop/resampling;
-- equivalent-viewing CoC in staged capture is based on the final retained physical image region used for viewing, including subject framing when present; output pixel count alone does not change it.
+- legacy `crop.factor` is still available for existing callers;
+- when `capture` is supplied, legacy `crop.factor` must be `1`, so two crop models are never silently stacked;
+- without staged capture, the legacy top-level `subjectCrop` response means exactly what it did before;
+- with staged capture, subject framing is reported under `capture.subjectFraming`, and is applied after the declared output crop and resampling;
+- with staged capture, the equivalent-viewing CoC (circle of confusion) is based on the final physical image region kept for viewing, including subject framing if present. Output pixel count alone does not change it.
 
-The response keeps existing full-sensor/native-vector fields intact and adds an optional `capture` block with:
+The response keeps the existing full-sensor and native-vector fields unchanged, and adds an optional `capture` block with:
 
 - resolved native/active/oriented/output geometry, including final retained physical bounds;
 - active-capture and final-output FOV, including asymmetric bounds for off-center capture/output crop;
@@ -101,9 +110,9 @@ The response keeps existing full-sensor/native-vector fields intact and adds an 
 - explicit native-raster, oriented-capture, and final-output motion-vector diagnostics;
 - corresponding native-raster/oriented/output camera-shake vectors when camera shake is requested.
 
-Final digital/output crop does not redefine physical focal length or active-capture 35 mm equivalence. Physical `lens.focalLengthMm` remains the optical input.
+The final digital (output) crop does not change the physical focal length or the 35 mm equivalence of the active capture. The physical `lens.focalLengthMm` stays the optical input.
 
-Sensor architecture metadata and radiometry-readiness profiles remain standalone foundations and are not yet composed into the POC.
+Sensor architecture metadata and radiometry-readiness profiles are still standalone, and are not yet used by the POC.
 
 ### Required request groups
 
@@ -152,9 +161,9 @@ This remains ideal paraxial geometry, not a real-lens focus-breathing calibratio
 
 ### Sensor and staged capture geometry
 
-The `sensor` response now includes the shared `SensorGeometryMetrics` result in addition to the backwards-compatible representative pitch fields. This exposes physical imaging-area crop factor, exact native-raster megapixels, and independent X/Y geometric sample pitch without treating sample pitch as photosite collection area.
+The `sensor` response includes the shared `SensorGeometryMetrics` result, as well as the backwards-compatible representative pitch fields. This gives the crop factor of the physical imaging area, exact native-raster megapixels, and separate X and Y geometric sample pitch. Sample pitch is not treated as photosite collection area.
 
-When the opt-in `capture` request is present, the response additionally exposes the staged geometry pipeline:
+When the opt-in `capture` request is present, the response also shows the staged geometry pipeline:
 
 ```text
 native physical imaging area + native raster
@@ -170,9 +179,9 @@ digital/output crop
 final output raster
 ```
 
-Native sensor coordinates remain invariant under orientation. Active-capture FOV is calculated from the physical retained area, including off-center asymmetric angular bounds.
+Native sensor coordinates do not change with orientation. Active-capture FOV is computed from the physical area kept, including asymmetric angular bounds for an off-centre area.
 
-Legacy projected-motion/camera-shake X/Y values use the existing image-plane basis (+X right, +Y up). Capture raster coordinates use +X right, +Y down. The capture diagnostics therefore expose the explicit conversion to `nativeRasterDeltaPixels` before rotating to `orientedCaptureDeltaPixels` and scaling to `outputDeltaPixels`; legacy fields remain unchanged.
+Legacy projected-motion and camera-shake X/Y values use the existing image-plane axes (+X right, +Y up). Capture raster coordinates use +X right, +Y down. So the capture diagnostics show each step explicitly: conversion to `nativeRasterDeltaPixels`, rotation to `orientedCaptureDeltaPixels`, then scaling to `outputDeltaPixels`. Legacy fields are unchanged.
 
 ### Legacy crop
 
@@ -189,14 +198,13 @@ The framing calculation assumes the crop can be positioned around the subject; i
 
 ### Sensor sampling
 
-The response exposes horizontal and vertical geometric sampling pitch plus their relative difference. The composed POC still uses the backwards-compatible horizontal pitch as its representative scalar for blur/sampling calculations and therefore rejects sensor geometry whose X/Y pitch differs by more than 1%. This prevents silent directional error until the composed POC becomes fully axis-aware.
+The response shows horizontal and vertical geometric sampling pitch, and their relative difference. The composed POC still uses the backwards-compatible horizontal pitch as its single representative value for blur and sampling calculations. So it rejects sensor geometry whose X and Y pitch differ by more than 1%. This prevents a hidden direction-dependent error until the composed POC handles each axis separately.
 
 ### Subject/object sampling
 
+When physical subject or object dimensions are supplied, their projected sizes are returned in sensor millimetres and pixels, using the focus-aware projection plane.
 
-When physical subject/object dimensions are supplied, projected dimensions are returned in sensor millimetres and pixels using the focus-aware projection plane.
-
-These values can drive pre-authored asset/detail selection without moving projection math into a renderer.
+A client can use these values to pick pre-made assets or levels of detail, without moving projection maths into a renderer.
 
 ### Defocus
 
@@ -204,15 +212,15 @@ Named defocus samples return ideal geometric blur-circle diameters in sensor mil
 
 ### Subject motion
 
-Primary and named motion samples return representative-point sensor-plane displacement in millimetres and pixels, including signed x/y components.
+The primary and named motion samples return how far one representative point moves on the sensor plane, in millimetres and pixels, with signed x/y components.
 
-The model assumes constant world-space linear velocity. It can represent depth-direction motion of the representative point but does not model extended-object scale blur, rotation, acceleration, deformation, or occlusion changes.
+The model assumes constant linear velocity in the world. It can represent the point moving toward or away from the camera. It does not model the scale blur of an extended object, rotation, acceleration, deformation or occlusion changes.
 
 ### Camera shake
 
-When supplied, camera shake returns unstabilized and stabilized global image-plane vectors.
+When requested, camera shake returns global image-plane vectors without and with stabilisation.
 
-Yaw/pitch projection uses the selected focus-aware projection distance. Positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm` (changed in engine 2.0.0; earlier versions returned positive `deltaYmm`). Equivalent stabilization stops attenuate angular displacement by `2^-stops` and are explicitly labeled an approximation.
+Yaw and pitch are projected with the selected focus-aware projection distance. Positive yaw (camera turns left) gives positive `deltaXmm`. Positive pitch (camera tilts up) gives negative `deltaYmm`; this changed in engine 2.0.0, and earlier versions returned positive `deltaYmm`. Equivalent stabilisation stops reduce the angular displacement by `2^-stops`, and are explicitly labelled an approximation.
 
 The result is not a CIPA DC-011 measurement, real-camera stabilization rating, or spatially varying rotational optical-flow model.
 
@@ -226,17 +234,17 @@ Polygon aperture geometry does not convert the circular Airy result into a polyg
 
 ### Focus criterion
 
-For cross-format comparisons, the equivalent-viewing helper scales a caller-supplied reference CoC by the diagonal of the physical image region assumed to be enlarged to the final viewing size.
+To compare formats, the equivalent-viewing helper scales a reference CoC from the caller by the diagonal of the physical image region that is assumed to be enlarged to the final viewing size.
 
-Legacy requests continue to use the full physical sensor. In staged capture mode the target is the final physical region retained by active capture + output crop and, when requested, centered subject framing. Changing only the encoded output raster does not change this viewing criterion.
+Legacy requests still use the full physical sensor. In staged capture mode, the region is what remains after active capture and output crop, plus centred subject framing if requested. Changing only the encoded output raster does not change this criterion.
 
-This remains explicitly a viewing approximation, not a physical lens/sensor blur threshold. An explicit caller-supplied `circleOfConfusionMm` is never changed by crop or output geometry.
+This is explicitly a viewing approximation, not a physical lens or sensor blur threshold. An explicit `circleOfConfusionMm` from the caller is never changed by crop or output geometry.
 
 ### Primary-subject diagnostics
 
-When requested with the needed subject inputs, diagnostics report sampling, defocus, circular-pupil diffraction, optional named subject-motion path, and optional stabilized camera-shake path side by side.
+When requested, with the subject inputs they need, diagnostics report these side by side: sampling, defocus, circular-pupil diffraction, an optional named subject-motion path, and an optional stabilised camera-shake path.
 
-They are intentionally **not** collapsed into one sharpness score because these quantities describe different physical effects.
+They are deliberately **not** combined into one sharpness score, because they describe different physical effects.
 
 ### Provenance
 
@@ -249,11 +257,16 @@ Component provenance identifies which parts are calculated versus approximate.
 
 ## Validation and errors
 
-Decoded HTTP JSON is structurally checked for required object/array/string/finite-number/vector shapes before simulation.
+Before simulating, the server checks the shape of the decoded JSON: required objects, arrays, strings, finite numbers and vectors.
 
-That parser does not duplicate every scientific domain/range rule. Scientific modules remain responsible for constraints such as positive dimensions, physically valid distances, blade-count bounds, and crop limits.
+That parser does not repeat every scientific range rule. The scientific modules still enforce constraints such as positive dimensions, physically valid distances, blade-count limits and crop limits.
 
-The parser also applies a transport magnitude envelope to the two fields whose finite but extreme values otherwise overflow inside the simulation: `lens.aperture` may not exceed 10000 or be a positive value below 0.01, and `focus.focusDistanceM` may not exceed 1e9 m or be a positive value below 1e-9 m. Values outside it return 400. The envelope is a request guard, not a scientific domain; zero and negative values are still rejected by the calculation modules.
+The parser also limits the size of the two fields whose finite but extreme values would otherwise overflow inside the simulation:
+
+- `lens.aperture` may not exceed 10000, or be a positive value below 0.01;
+- `focus.focusDistanceM` may not exceed 1e9 m, or be a positive value below 1e-9 m.
+
+Values outside these limits return 400. The limits are a request guard, not a scientific domain; the calculation modules still reject zero and negative values.
 
 Current transport responses include:
 
@@ -266,13 +279,13 @@ Current transport responses include:
 - `422` (`SIMULATION_RESULT_OUT_OF_RANGE`): a structurally valid request whose finite values drive a result outside the finite numeric range (`InvalidScientificResultError`); the engine-authored message is returned;
 - `500` (`INTERNAL_ERROR`): any other failure, with the fixed message `Internal simulation error.`; internal error text is never returned.
 
-400 messages are engine-authored validation diagnostics intended for local development and should not be treated as a hardened public error contract.
+400 messages are validation diagnostics written by the engine for local development. Do not treat them as a hardened public error contract.
 
 ## Reusable repository module
 
-Within this repository, `src/api/server.ts` exports an unbound `createPocApiServer` constructor for tests and trusted development composition.
+In this repository, `src/api/server.ts` exports `createPocApiServer`, a constructor that does not start listening. It is for tests and trusted development setups.
 
-It is repository-internal development tooling rather than a supported npm subpath. Importing the module in repository tests does not start a listener; the CLI entrypoint is responsible for binding the configured host/port.
+It is internal development tooling, not a supported npm subpath. Importing the module in tests does not open a port; the CLI entry point binds the configured host and port.
 
 ## Important limitations
 
@@ -284,4 +297,4 @@ It is repository-internal development tooling rather than a supported npm subpat
 - No calibration database.
 - No real-camera/lens claims.
 - ISO is an exposure/gain setting, not a noise shortcut.
-- Photon/noise primitives exist in the root library, but calibrated photon/noise output is intentionally absent from the composed POC until the radiometric/spectral/optical/sensor prerequisites are defensible.
+- Photon and noise primitives exist in the root library, but the composed POC deliberately produces no calibrated photon or noise output. That will stay so until the radiometric, spectral, optical and sensor prerequisites are defensible.
