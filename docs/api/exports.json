@@ -913,6 +913,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateNativeRawRowBands",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateNaturalVignetting",
       "source": "src/optics/pupil-vignetting.ts",
       "kind": "runtime"
@@ -1968,6 +1973,11 @@
       "kind": "type"
     },
     {
+      "name": "composeNativeEnvironmentRawPartitions",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "composeRelativeErrorBounds",
       "source": "src/gpu/image-kernel-execution.ts",
       "kind": "runtime"
@@ -2175,6 +2185,11 @@
     {
       "name": "createNativeCaptureSdrTask",
       "source": "src/output/native-capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createNativeEnvironmentRawPartitionTask",
+      "source": "src/capture/native-environment-raw.ts",
       "kind": "runtime"
     },
     {
@@ -4128,12 +4143,27 @@
       "kind": "type"
     },
     {
+      "name": "NativeEnvironmentRadianceQuery",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeEnvironmentRawInput",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
     },
     {
       "name": "NativeEnvironmentRawOutput",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawPartition",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawPartitionTask",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
     },
@@ -4225,6 +4255,11 @@
     {
       "name": "NativeRawProvider",
       "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawRowBand",
+      "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
     },
     {

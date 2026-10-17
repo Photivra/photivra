@@ -20,6 +20,8 @@ on:
       - "test/helpers/eqe-response-fixture.ts"
       - "scripts/benchmark-image-formation.mjs"
       - "scripts/benchmark-native-capture-sdr.mjs"
+      - "scripts/benchmark-native-environment.mjs"
+      - "scripts/benchmark-native-environment-workers.mjs"
       - "scripts/assess-browser-native-full-event.mjs"
       - "scripts/profile-native-reference-path.mjs"
       - "scripts/qualify-browser-native-progressive.mjs"
@@ -45,6 +47,8 @@ on:
       - "test/helpers/eqe-response-fixture.ts"
       - "scripts/benchmark-image-formation.mjs"
       - "scripts/benchmark-native-capture-sdr.mjs"
+      - "scripts/benchmark-native-environment.mjs"
+      - "scripts/benchmark-native-environment-workers.mjs"
       - "scripts/assess-browser-native-full-event.mjs"
       - "scripts/profile-native-reference-path.mjs"
       - "scripts/qualify-browser-native-progressive.mjs"
@@ -92,6 +96,12 @@ jobs:
 
       - name: Measure bounded native SDR execution
         run: node --expose-gc scripts/benchmark-native-capture-sdr.mjs
+
+      - name: Measure native environment RAW through simulateCapture
+        run: node --expose-gc scripts/benchmark-native-environment.mjs
+
+      - name: Measure row-band partitions in worker threads (merged RAW must match)
+        run: node --expose-gc scripts/benchmark-native-environment-workers.mjs
 
       - name: Verify frozen full-native Path-A work obstruction without executing giant events
         run: npm run assess:native-full-event

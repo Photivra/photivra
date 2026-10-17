@@ -419,12 +419,12 @@ These committed records are dated evidence tied to outputs from before 2.0.0. Th
 
 Work that is known and deliberately left for later:
 
-- **#305 follow-ups:** lean coverage for sampled-PSF and lens-mapped sites; a provably identical fast path for provider-result validation; lean sensor-stage reuse.
+- **#305 follow-ups:** a provably identical fast path for provider-result validation; lean sensor-stage reuse.
 - **#307 follow-ups:** real-camera DNG interoperability is not claimed (LibRaw decodes the files; no editor review yet); sharing the colour-tag code with the paired export.
-- **#275:** planning once per CFA phase; worker parallelism; a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF).
+- **#275:** a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF); parallel execution inside `simulateCapture()` (the engine-level row-band partitions are done).
 - **#276 follow-up:** the `parse*()` versioned-record parsers and 13 record-taking functions still drop unknown top-level fields instead of rejecting them (each schema needs its own review, and this changes which stored records parse). Result values are frozen only at their top level (a deep freeze measured about 3× on hot scalar calls).
 - **#277 and follow-ups from #304:**
-  - scene radiance on the GPU and the batched provider API;
+  - scene radiance on the GPU (the CPU batched provider API now exists);
   - the per-fixture rollout, with method-error comparisons against the per-site engine;
   - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
   - hardware-GPU conformance runs and CI wiring;

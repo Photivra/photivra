@@ -198,14 +198,21 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`calculateNativeRawRowBands`](api/capture-native-environment-raw.md#calculatenativerawrowbands) | Runtime |
+| [`composeNativeEnvironmentRawPartitions`](api/capture-native-environment-raw.md#composenativeenvironmentrawpartitions) | Runtime |
+| [`createNativeEnvironmentRawPartitionTask`](api/capture-native-environment-raw.md#createnativeenvironmentrawpartitiontask) | Runtime |
 | [`createNativeEnvironmentRawTask`](api/capture-native-environment-raw.md#createnativeenvironmentrawtask) | Runtime |
 | [`createNativeEnvironmentSensorStageTask`](api/capture-native-environment-raw.md#createnativeenvironmentsensorstagetask) | Runtime |
 | [`NativeEnvironmentPhotoTile`](api/capture-native-environment-raw.md#nativeenvironmentphototile) | Type |
+| [`NativeEnvironmentRadianceQuery`](api/capture-native-environment-raw.md#nativeenvironmentradiancequery) | Type |
 | [`NativeEnvironmentRawInput`](api/capture-native-environment-raw.md#nativeenvironmentrawinput) | Type |
 | [`NativeEnvironmentRawOutput`](api/capture-native-environment-raw.md#nativeenvironmentrawoutput) | Type |
+| [`NativeEnvironmentRawPartition`](api/capture-native-environment-raw.md#nativeenvironmentrawpartition) | Type |
+| [`NativeEnvironmentRawPartitionTask`](api/capture-native-environment-raw.md#nativeenvironmentrawpartitiontask) | Type |
 | [`NativeEnvironmentRawProvider`](api/capture-native-environment-raw.md#nativeenvironmentrawprovider) | Type |
 | [`NativeEnvironmentRawTask`](api/capture-native-environment-raw.md#nativeenvironmentrawtask) | Type |
 | [`NativeEnvironmentRawTile`](api/capture-native-environment-raw.md#nativeenvironmentrawtile) | Type |
+| [`NativeRawRowBand`](api/capture-native-environment-raw.md#nativerawrowband) | Type |
 
 ## capture/native-raw-development.ts
 

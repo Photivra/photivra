@@ -262,6 +262,49 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
   return { owned, sceneBindings, fieldThroughputEvidence, spatialQuadrature, spectralQuadrature, instants, count, focus };
 }
 
+/** Aperture queries already built for a batched provider, keyed by the planned ray; each is used once. */
+const PREBUILT_APERTURE_QUERIES = new WeakMap<object, { base: object; request: SceneRadianceEvaluationRequest; apertureRay: SensorApertureRay }>();
+
+/**
+ * Internal: the frozen provider request and frozen private ray copy of one ideal-pupil query (sample ID suffix "-a"
+ * and the pupil index, reversed ray direction). If prebuildApertureRadianceQuery already built this query for a batch,
+ * the same objects are returned once, so the batch and the executor share them; otherwise new ones are built.
+ */
+export function apertureRadianceQuery(base: SceneRadianceEvaluationRequest, ray: SensorApertureRay):
+  { request: SceneRadianceEvaluationRequest; apertureRay: SensorApertureRay } {
+  const prebuilt = PREBUILT_APERTURE_QUERIES.get(ray);
+  if (prebuilt !== undefined && prebuilt.base === base) {
+    PREBUILT_APERTURE_QUERIES.delete(ray);
+    return { request: prebuilt.request, apertureRay: prebuilt.apertureRay };
+  }
+  return { request: freezeOwnedData({ ...base, sampleId: base.sampleId+"-a"+ray.pupilSampleIndex,
+    target: { kind: "environment-direction" as const, outgoingDirectionUnitVector: {
+      x: -ray.directionUnitVector.x, y: -ray.directionUnitVector.y, z: -ray.directionUnitVector.z } } }),
+  apertureRay: freezeOwnedData(copyRay(ray)) };
+}
+/**
+ * A private copy of an engine-computed ray: plain records of numbers, copied key by key in the same order, so it
+ * equals what structuredClone returns for this data (a 2.0 performance change: structuredClone dominated pupil runs).
+ */
+function copyRay(ray: SensorApertureRay): SensorApertureRay {
+  const copy = (value: unknown): unknown => {
+    if (typeof value !== "object" || value === null) return value;
+    if (Array.isArray(value)) return value.map(copy);
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value)) out[key] = copy((value as Record<string, unknown>)[key]);
+    return out;
+  };
+  return copy(ray) as SensorApertureRay;
+}
+/** Internal: builds a pupil query for a batched provider and keeps it for the executor's apertureRadianceQuery call. */
+export function prebuildApertureRadianceQuery(base: SceneRadianceEvaluationRequest, ray: SensorApertureRay):
+  { request: SceneRadianceEvaluationRequest; apertureRay: SensorApertureRay } {
+  PREBUILT_APERTURE_QUERIES.delete(ray);
+  const query = apertureRadianceQuery(base, ray);
+  PREBUILT_APERTURE_QUERIES.set(ray, { base, ...query });
+  return query;
+}
+
 /** Deep-freezes a planned provider request once, so execution can hand the same immutable request to supplied code. */
 function freezePlannedRequest<T extends { value: { request: object } }>(query: T): T {
   freezeOwnedData(query.value.request);
@@ -291,13 +334,8 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
       const support: readonly (SensorApertureRay | undefined)[] = tap.apertureRays ?? [undefined];
       for (const ray of support) {
         // Planned requests are deep-frozen once at plan time (freezePlannedRequest); no per-evaluation clone.
-        const baseRequest = tap.request;
-        const request = ray === undefined ? baseRequest : freezeOwnedData({
-          ...baseRequest, sampleId: baseRequest.sampleId+"-a"+ray.pupilSampleIndex,
-          target: {kind:"environment-direction" as const,outgoingDirectionUnitVector:{
-            x:-ray.directionUnitVector.x,y:-ray.directionUnitVector.y,z:-ray.directionUnitVector.z}}
-        });
-        const apertureRay = ray === undefined ? undefined : freezeOwnedData(structuredClone(ray));
+        const query = ray === undefined ? undefined : apertureRadianceQuery(tap.request, ray);
+        const request = query === undefined ? tap.request : query.request, apertureRay = query?.apertureRay;
         const result = parseSceneRadianceEvaluationResult(apertureRay === undefined ? evaluate(request) : evaluateAperture!(request,apertureRay));
         const bindings = validateSceneRadianceEvaluationBindings({ ...plan.sceneBindings, request, result });
         const optics = calculateSceneRadianceToSensorIrradiance({ ...owned.optics, sceneRadianceRequest: request,
