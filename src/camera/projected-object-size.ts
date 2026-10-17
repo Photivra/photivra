@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates the projected size of a fronto-parallel object plane. Without focusDistanceM, the
- * function preserves ideal pinhole projection using nominal focal length. With focusDistanceM, it
- * projects to the ideal thin-lens sensor plane selected by that focus distance.
+ * Projected size, on the sensor, of a flat object that faces the camera (fronto-parallel).
+ * - Without focusDistanceM, it uses ideal pinhole projection with the nominal focal length.
+ * - With focusDistanceM, it projects onto the ideal thin-lens sensor plane for that focus distance.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -40,11 +40,12 @@ export interface ProjectedObjectSize {
 }
 
 /**
- * Calculates the projected size of a fronto-parallel object plane.
+ * Calculates the projected size of a flat object that faces the camera
+ * (fronto-parallel).
  *
- * Without focusDistanceM, the function preserves ideal pinhole projection
- * using nominal focal length. With focusDistanceM, it projects to the ideal
- * thin-lens sensor plane selected by that focus distance.
+ * Without focusDistanceM, it uses ideal pinhole projection with the nominal
+ * focal length. With focusDistanceM, it projects onto the ideal thin-lens
+ * sensor plane for that focus distance.
  *
  * @param input Lens, object-size, distance, optional focus, and optional pixel-pitch inputs.
  * @returns Projected object dimensions at the sensor plane.

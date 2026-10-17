@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates rectilinear angular field of view as 2 * atan(sensorDimension / (2 *
- * projectionDistance)). Without focusDistanceM, projectionDistance is nominal focal length for
- * backwards-compatible infinity-focus/pinhole behavior. With focusDistanceM, projectionDistance is the
- * ideal Gaussian thin-lens image distance for that focus plane. Neither mode models real-lens focus
- * breathing or distortion.
- * Calculates an asymmetric rectilinear FOV span from signed sensor-plane bounds relative to the
- * optical axis. This is required for off-center active sensor crops where the optical axis is not at
- * the center of the retained rectangle.
+ * Angular field of view (FOV) for a rectilinear lens.
+ *
+ * The symmetric FOV is 2 * atan(sensorDimension / (2 * projectionDistance)).
+ * - Without focusDistanceM, projectionDistance is the nominal focal length. This keeps the older
+ *   infinity-focus (pinhole) behaviour.
+ * - With focusDistanceM, projectionDistance is the ideal Gaussian thin-lens image distance for that
+ *   focus plane.
+ * Neither mode models real-lens focus breathing or distortion.
+ *
+ * The module also gives an asymmetric FOV span from signed sensor-plane bounds measured from the
+ * optical axis. Off-centre sensor crops need this, because the optical axis is not at the centre of
+ * the kept rectangle.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -42,9 +46,9 @@ export interface CalculateFieldOfViewInput {
    */
   focusDistanceM?: number;
   /**
-   * Ideal projection model. Omitted or `"rectilinear"` keeps the rectilinear behaviour (and model
-   * ids) unchanged. Non-rectilinear models use the focal length as the mapping scale and do not
-   * accept focusDistanceM.
+   * Ideal projection model. Omit it or pass `"rectilinear"` to keep the rectilinear behaviour and
+   * model ids. Other models use the focal length as the mapping scale and do not accept
+   * focusDistanceM.
    */
   projectionModel?: LensProjectionModel;
 }
@@ -151,11 +155,11 @@ function fieldOfViewAssumptions(focusAware: boolean): readonly string[] {
 }
 
 /**
- * Calculates rectilinear angular field of view as
+ * Calculates the rectilinear angular field of view as
  * 2 * atan(sensorDimension / (2 * projectionDistance)).
  *
- * Without focusDistanceM, projectionDistance is nominal focal length for
- * backwards-compatible infinity-focus/pinhole behavior. With focusDistanceM,
+ * Without focusDistanceM, projectionDistance is the nominal focal length. This
+ * keeps the older infinity-focus (pinhole) behaviour. With focusDistanceM,
  * projectionDistance is the ideal Gaussian thin-lens image distance for that
  * focus plane.
  *
@@ -205,11 +209,11 @@ export function calculateFieldOfView(
 }
 
 /**
- * Calculates an asymmetric rectilinear FOV span from signed sensor-plane
- * bounds relative to the optical axis.
+ * Calculates an asymmetric rectilinear field-of-view span from signed
+ * sensor-plane bounds measured from the optical axis.
  *
- * This is required for off-center active sensor crops where the optical axis
- * is not at the center of the retained rectangle.
+ * Use it for off-centre sensor crops, where the optical axis is not at the
+ * centre of the kept rectangle.
  */
 export function calculateFieldOfViewBounds(
   input: CalculateFieldOfViewBoundsInput
