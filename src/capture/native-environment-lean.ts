@@ -23,7 +23,8 @@
  *   and the lean results must be bit-identical (Object.is) before any other site uses the template. A mismatch
  *   disables the template and its sites run the full path.
  *
- * Sampled-PSF environments are not lean-eligible and always run the full path.
+ * Sampled-PSF environments and environments that declare a lensFieldMapping (even an identity one) are not
+ * lean-eligible and always run the full path.
  * @see docs/NATIVE_RAW_AND_PRINT.md for the invariance argument and limits.
  */
 
@@ -515,7 +516,8 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
   };
   return {
     plan(environment, index) {
-      if (!enabled || (plainChild(environment, "psf")?.kind !== "not-applied")) return undefined;
+      // Sampled PSFs and lens field mappings (projection/distortion with an area factor) always run the full path.
+      if (!enabled || plainChild(environment, "psf")?.kind !== "not-applied" || "lensFieldMapping" in (environment as object)) return undefined;
       const phase = phaseOf(index);
       let t: Template | undefined;
       try {
