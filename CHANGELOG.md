@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.0 — unreleased (prepared October 17, 2026)
+## 2.1.0 — published October 17, 2026
 
 A minor release: additive, opt-in capture options for diffraction, AHD demosaicing and an optical anti-aliasing filter, per-run cost diagnostics and a measured cost table, and a fix for cancelling captures in Web Workers (#331–#333). Captures that use none of the new options are byte-identical to 2.0.0. Root exports grow from 1,668 to 1,677 symbols; none is removed.
 
