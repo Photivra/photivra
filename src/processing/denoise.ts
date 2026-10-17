@@ -4,14 +4,15 @@
  * Image-domain denoising, sharpening and synthetic film grain on linear or developed RGB:
  * - Bilateral filter (Tomasi & Manduchi, ICCV 1998): Gaussian spatial and Gaussian range weights,
  *   range distance Euclidean over the three channels of the supplied data.
- * - Non-local means (Buades, Coll & Morel, CVPR 2005): weights exp(−max(d² − 2σ², 0)/h²) with d² the
- *   mean squared difference of (2f+1)² patches over all channels (the uniform-patch form with the
- *   known-noise offset of Buades et al., IPOL 2011; σ = 0 gives the 2005 form with a uniform patch
- *   kernel); the centre pixel takes the largest weight of its search window.
+ * - Non-local means (Buades, Coll & Morel, CVPR 2005): weights exp(−max(d² − 2σ², 0)/h²), where d² is
+ *   the mean squared difference of (2f+1)² patches over all channels. This is the uniform-patch form
+ *   with the known-noise offset from Buades et al., IPOL 2011; σ = 0 gives the 2005 form with a
+ *   uniform patch kernel. The centre pixel gets the largest weight in its search window.
  * - Unsharp masking: out = in + amount·(in − G_σ ⊗ in) where |in − G_σ ⊗ in| > threshold.
  * - Synthetic film grain: an aesthetic, deterministic, signal-dependent texture. It is NOT a physical
  *   film model (no silver-halide grain statistics, dye clouds or film characteristic curve).
- * Noise in linear RAW-derived data is signal dependent; these filters use one global parameter set.
+ * Noise in linear RAW-derived data depends on the signal level, but these filters use one global set of
+ * parameters.
  * @see docs/PROCESSING.md for equations, sources and limits.
  */
 
@@ -172,7 +173,7 @@ export function createUnsharpMaskTask(input: UnsharpMaskInput, provider: Process
   });
 }
 
-/** Stream id of synthetic grain draws; distinct from every RAW charge/read/fixed-pattern stream. */
+/** Random-stream id for synthetic grain. Different from every RAW charge, read-noise and fixed-pattern stream. */
 export const SYNTHETIC_FILM_GRAIN_STREAM_ID = 64 as const;
 
 export interface SyntheticFilmGrainInput {
@@ -197,10 +198,13 @@ export interface SyntheticFilmGrainOutput extends ProcessedRgbImage {
 }
 
 /**
- * Adds deterministic synthetic grain: unit-variance Gaussian white noise per pixel (seeded per absolute
- * pixel index, so tiling never changes it), optionally correlated by a Gaussian of σ = grain size and
- * renormalized to unit variance, scaled by a(v) = intensity·2√(v(1 − v)) (zero at black and white,
- * `intensity` at mid-grey) and clipped to [0, 1]. Labelled synthetic/aesthetic; never a film model.
+ * Adds deterministic synthetic grain:
+ * 1. Unit-variance Gaussian white noise per pixel. It is seeded by the absolute pixel index, so tiling
+ *    never changes it.
+ * 2. Optionally blurred by a Gaussian with σ = grain size, then renormalized to unit variance.
+ * 3. Scaled by a(v) = intensity·2√(v(1 − v)): zero at black and white, `intensity` at mid-grey.
+ * 4. Clipped to [0, 1].
+ * It is labelled synthetic and aesthetic. It is never a film model.
  */
 export function createSyntheticFilmGrainTask(input: SyntheticFilmGrainInput, provider: ProcessingProvider): ProcessingTask<SyntheticFilmGrainOutput> {
   const r = requireOptions(input, ["image", "seedUint32", "intensity", "grainSizePixels", "mode", "maximumWorkingBytes"], "createSyntheticFilmGrainTask input");

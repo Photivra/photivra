@@ -1,24 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Panorama stitching from known camera rotations (no feature matching). The reference frame is the
- * camera frame of rotation zero (+X right, +Y up, +Z forward, the engine camera basis). Each frame's
- * rotation uses the engine's physical pitch/yaw/roll right-hand convention (`applyPhysicalCameraRotation`,
- * one axis-angle vector, camera → reference). A canvas pixel's direction is
+ * Panorama stitching from known camera rotations. There is no feature matching.
+ *
+ * The reference frame is the camera frame at zero rotation (+X right, +Y up, +Z forward: the engine's
+ * camera axes). Each frame's rotation uses the engine's physical pitch/yaw/roll right-hand convention
+ * (`applyPhysicalCameraRotation`, one axis-angle vector, camera → reference).
+ *
+ * Projection: a canvas pixel's direction is
  *   equirectangular: d = (cos φ sin θ, sin φ, cos φ cos θ),
  *   cylindrical:     d ∝ (sin θ, h, cos θ) with h = tan φ linear in rows,
- * with θ (longitude) increasing to the right and φ upward (Szeliski 2006, §2–3). It is projected into
- * each frame rectilinearly, x = c_x + f·c_x'/c_z', y = c_y − f·c_y'/c_z' (raster +Y down, pixel centres
- * at i + 0.5) and sampled bilinearly. Frames are pure-rotation (no parallax) and distortion-free.
- * Exposure compensation solves Brown & Lowe (IJCV 2007) gain compensation: minimize
+ * with θ (longitude) increasing to the right and φ upward (Szeliski 2006, §2–3). The direction is
+ * projected into each frame rectilinearly, x = c_x + f·c_x'/c_z', y = c_y − f·c_y'/c_z' (raster +Y
+ * down, pixel centres at i + 0.5), and sampled bilinearly. Frames are assumed to be pure rotations (no
+ * parallax) with no distortion.
+ *
+ * Exposure compensation uses Brown & Lowe (IJCV 2007) gain compensation: minimize
  *   Σ_{i<j} N_ij [(g_i Ī_ij − g_j Ī_ji)²/σ_N² + ((1 − g_i)² + (1 − g_j)²)/(2σ_g²)]
  *   (the paper's ½ΣΣ over ordered pairs)
- * over gains g (a linear system), with Ī_ij the mean intensity of frame i in its overlap with j,
- * normalized by the mean of all overlap means. Blending is feathered (weights falling linearly from the
- * frame centre to its edges, Brown & Lowe 2007) or multi-band (Burt & Adelson 1983b: Laplacian pyramids
- * of each warped frame blended with Gaussian pyramids of its binary max-weight mask; each frame's Gaussian
- * levels are normalized by those of its coverage mask — normalized convolution, Knutsson & Westin 1993 —
- * so the zero fill outside a frame does not darken the blend).
+ * over the gains g (a linear system). Ī_ij is the mean intensity of frame i where it overlaps frame j,
+ * normalized by the mean of all overlap means.
+ *
+ * Blending is one of:
+ * - feathered: weights fall linearly from the frame centre to its edges (Brown & Lowe 2007);
+ * - multi-band (Burt & Adelson 1983b): Laplacian pyramids of each warped frame are blended with
+ *   Gaussian pyramids of its binary max-weight mask. Each frame's Gaussian levels are divided by those
+ *   of its coverage mask (normalized convolution, Knutsson & Westin 1993), so the zero fill outside a
+ *   frame does not darken the blend.
  * @see docs/PROCESSING.md for equations, sources and limits.
  */
 
@@ -66,7 +74,7 @@ export interface PanoramaInput {
   /** Gain prior σ_g; default 0.1. */
   gainPriorSigma?: number;
   /** Multi-band pyramid levels; default min(4, auto). Coarse bands wider than the frame overlap mix
-   * differently-normalized low frequencies, so keep 2^(levels−1) well below the overlap width. */
+   * low frequencies that were normalized differently, so keep 2^(levels−1) well below the overlap width. */
   pyramidLevels?: number;
   maximumWorkingBytes?: number;
 }
