@@ -150,6 +150,8 @@ A clipped pupil can change:
 
 The #113 profiles therefore keep `relativePupilThroughputFactor` separate from the normalized PSF kernel. The throughput factor belongs in the optical-throughput path (including #110 integration) and must be applied exactly once.
 
+An interpolated throughput factor is the same weighted blend as the kernel. Because the blend is a convex combination it cannot mathematically exceed its largest node value, but its floating-point weights can sum to a few ulps above 1, so nodes that all declare exactly 1 could interpolate to 1 + 2⁻⁵². A blended value above 1 that lies within 8·ε·(node count)·max(1, largest node) of the largest contributing node is that rounding and resolves to the largest node value (at most 1). Every value that already lay in [0, 1] is returned unchanged, and node values above 1 are still rejected when the profile is parsed.
+
 The existing illumination-vignetting primitive remains a separate throughput-only approximation; it does not become pupil clipping automatically. The 2.0 mechanical-vignetting model computes the clipped pupil shape and its area ratio explicitly; apply its throughput once, in place of (not in addition to) another field-throughput model.
 
 ## MTF boundary

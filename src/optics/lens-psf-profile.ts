@@ -1926,13 +1926,23 @@ export function resolveLensSampledPsf(
         node
           .bestFocusImagePlaneOffsetMicrometers
     );
-  const throughput =
+  // A multilinear blend is a convex combination, so it cannot exceed its largest node value; its
+  // floating-point weights, however, can sum to a few ulps above 1. A result above 1 that lies within
+  // 8·ε·(node count)·max of the largest node is that rounding and is clamped to the largest node value
+  // (≤ 1, so the result is again a declared value). Results that were already within [0, 1] are unchanged.
+  const blended =
     weightedScalar(
       weighted,
       (node) =>
         node
           .relativePupilThroughputFactor
     );
+  const largestThroughput = Math.max(...weighted.map((entry) => entry.node.relativePupilThroughputFactor));
+  const throughput =
+    blended > 1 && largestThroughput <= 1 &&
+    blended - largestThroughput <= 8 * Number.EPSILON * weighted.length * Math.max(1, largestThroughput)
+      ? largestThroughput
+      : blended;
   if (
     !Number.isFinite(
       bestFocus

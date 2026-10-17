@@ -126,7 +126,7 @@ function facadePsf(): NonNullable<NonNullable<SimulateCaptureOptions["lens"]>["p
     reconstructionIncluded: false, strayLightIncluded: false, axes, evidence, limitations: ["Synthetic binomial kernel for a facade test."],
     nodes: axes.fieldXmm.flatMap((x) => axes.fieldYmm.flatMap((y) => axes.wavelengthNm.map((nm) => ({ nodeId: "n-" + x + "-" + y + "-" + nm,
       coordinate: { focalLengthMm: 50, focusDiopters: 0.2, apertureFNumber: 8, fieldXmm: x, fieldYmm: y, wavelengthNm: nm, signedDefocusImagePlaneMicrometers: 0 },
-      kernel, bestFocusImagePlaneOffsetMicrometers: 0, relativePupilThroughputFactor: 0.9, evidence, uncertainty: { kind: "not-quantified" as const, limitation: "Synthetic." } })))) };
+      kernel, bestFocusImagePlaneOffsetMicrometers: 0, relativePupilThroughputFactor: 1, evidence, uncertainty: { kind: "not-quantified" as const, limitation: "Synthetic." } })))) };
   return { kind: "sampled-local", configuration: { psf: { profile, focalLengthMm: 50, focus: { kind: "finite", distanceM: 5 }, apertureFNumber: 8, signedDefocusImagePlaneMicrometers: 0 },
     psfWavelengthBasis: { value: "vacuum", evidence }, spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Synthetic local kernel." } } };
 }
