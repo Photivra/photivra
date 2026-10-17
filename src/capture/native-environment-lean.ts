@@ -33,7 +33,7 @@ import type { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSig
   EnvironmentApertureRadianceEvaluator } from "../sensor/environment-photo-signal.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
-import { parseSceneRadianceEvaluationRequest, parseSceneRadianceEvaluationResult, validateSceneRadianceEvaluationBindings,
+import { parseSceneRadianceEvaluationResult, validateSceneRadianceEvaluationBindings,
   type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { calculateSceneRadianceToSensorIrradiance } from "../optics/scene-to-sensor-irradiance.js";
 import { calculateSensorApertureRays, type SensorApertureRay } from "../optics/sensor-aperture-rays.js";
@@ -66,6 +66,8 @@ const REDUCTION_TOLERANCE = 1e-10;
 
 /** Disables the lean executor process-wide (internal; tests compare both paths). */
 let leanDisabled = false;
+/** Internal counters of lean work (tests assert the lean path actually runs). Not a root export. */
+export const nativeEnvironmentLeanStatistics = { plannedSites: 0, executedSites: 0, sensorSites: 0 };
 export function setNativeEnvironmentLeanExecutionEnabled(enabled: boolean): void { leanDisabled = !enabled; }
 
 function isPlainRecord(value: object): boolean {
@@ -299,11 +301,18 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
         const rx = pd * (reference.x / reference.z), ry = pd * (reference.y / reference.z);
         const length = Math.hypot(rx, ry, pd);
         const ray = { x: rx / length, y: ry / length, z: pd / length };
-        const request = freezeOwnedData(parseSceneRadianceEvaluationRequest({ schemaVersion: "0.1.0",
-          sampleId: `${id}-t${ti}-n${gi}-p0`, providerProfileId: base.providerProfileId, sceneId: base.sceneId,
-          illuminationProfileId: base.illuminationProfileId, materialResponseProfileId: base.materialResponseProfileId,
-          wavelengthNanometers: k.wavelengths[s], wavelengthBasis: base.wavelengthBasis, timeSecondsFromExposureStart: time,
-          target: { kind: "environment-direction", outgoingDirectionUnitVector: { x: -ray.x, y: -ray.y, z: -ray.z } } }));
+        // parseSceneRadianceEvaluationRequest output, built directly: every other field is a template constant already
+        // parsed for the template site, the sample ID is a public opaque ID (trim-invariant) and the time is checked
+        // above, so only the unit-direction check of parseUnitDirection depends on this site.
+        const direction = { x: -ray.x, y: -ray.y, z: -ray.z };
+        if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y) || !Number.isFinite(direction.z)) return undefined;
+        const norm = Math.hypot(direction.x, direction.y, direction.z);
+        if (!Number.isFinite(norm) || Math.abs(norm - 1) > 1e-9) return undefined;
+        const request = Object.freeze({ schemaVersion: "0.1.0" as const, sampleId: `${id}-t${ti}-n${gi}-p0`, providerProfileId: base.providerProfileId,
+          sceneId: base.sceneId, illuminationProfileId: base.illuminationProfileId, materialResponseProfileId: base.materialResponseProfileId,
+          target: Object.freeze({ kind: "environment-direction" as const, outgoingDirectionUnitVector: Object.freeze(direction) }),
+          timeSecondsFromExposureStart: time, wavelengthNanometers: k.wavelengths[s]!,
+          wavelengthBasis: base.wavelengthBasis as SceneRadianceEvaluationRequest["wavelengthBasis"] });
         const f = fields[p]!;
         taps.push({ request, sourcePointImagePlaneMm: imagePointMm, fieldThroughput: f.value, fieldFactor: f.factor, fieldValid: f.valid,
           ...(apertureRays === undefined ? {} : { apertureRays }) });
@@ -515,7 +524,7 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
     return (y % frame.repeatHeight) * frame.repeatWidth + (x % frame.repeatWidth);
   };
   return {
-    plan(environment, index) {
+    plan(environment, index): LeanEnvironmentPlan | "candidate" | undefined {
       // Sampled PSFs and lens field mappings (projection/distortion with an area factor) always run the full path.
       if (!enabled || plainChild(environment, "psf")?.kind !== "not-applied" || "lensFieldMapping" in (environment as object)) return undefined;
       const phase = phaseOf(index);
@@ -527,9 +536,11 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
       }
       if (!t) return templates.length < MAXIMUM_TEMPLATES ? "candidate" : undefined;
       if (t.disabled || !t.consts || t.executionVerified === false) return undefined;
-      return geometry(t, t.consts, frame, environment, index);
+      const leanPlan = geometry(t, t.consts, frame, environment, index);
+      if (leanPlan) nativeEnvironmentLeanStatistics.plannedSites++;
+      return leanPlan;
     },
-    admitCandidate(environment, index, plan) {
+    admitCandidate(environment, index, plan): void {
       const template: Template = { environment, phase: phaseOf(index), disabled: true };
       templates.push(template);
       candidates.set(index, template);
@@ -542,8 +553,8 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         // An ineligible template leaves its sites on the full path.
       }
     },
-    isCandidate(index) { return candidates.has(index); },
-    verifyCandidate(index, plan, result) {
+    isCandidate(index): boolean { return candidates.has(index); },
+    verifyCandidate(index, plan, result): void {
       const t = candidates.get(index);
       if (!t) return;
       candidates.delete(index);
@@ -558,7 +569,7 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         // Unverified: sites of this template run the full path.
       }
     },
-    execute(plan, evaluate, aperture) {
+    execute(plan, evaluate, aperture): SensorEqeTemporalPhotoSignal | undefined {
       const t = plan.template, c = t.execution, k = t.consts;
       if (t.executionVerified !== true || !c || !k) return undefined;
       const environment = plan.owned, optics = (environment as unknown as Rec).optics;
@@ -594,6 +605,7 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         values.push(v);
         times.push(instant.time);
       }
+      nativeEnvironmentLeanStatistics.executedSites++;
       return photo(k, c, values, environment, plan.site, plan.start, plan.end, plan.duration, times) ??
         createSensorEqeTemporalPhotoSignal(fullPhotoInput(k, values, environment, times)).value.photoSignal;
     }
@@ -786,6 +798,7 @@ export function createNativeEnvironmentSensorLean(frame: NativeEnvironmentLeanFr
       },
       compute(handle, index, seed, timing): NativeRawLeanOutput {
         const h = handles.get(handle)!, out = leanSensorSite(h.template, h, index, seed);
+        if (out) nativeEnvironmentLeanStatistics.sensorSites++;
         if (out) return { rawCode: out.rawCode, blackLevelCode: out.blackLevelCode, digitalSaturationCode: out.digitalSaturationCode, flags: out.flags, whiteCode: out.whiteCode };
         // A compute-phase check failed: the full path computes (and throws) exactly as it would have.
         const parsed = parseNativeRawProducerSite(composeNativeEnvironmentSensorSite(h.site, h.photo), index, producerFrame, timing);
