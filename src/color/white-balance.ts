@@ -17,7 +17,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 import {
   calculateChromaticityFromCorrelatedColorTemperature,
   type PlanckianLocusModel,
@@ -221,7 +221,11 @@ export interface CreateLockedWhiteBalanceStateInput {
   sourceState: ResolvedWhiteBalanceState;
 }
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (
     typeof value !== "object" ||
     value === null ||
@@ -229,6 +233,7 @@ function requireRecord(value: unknown, path: string): UnknownRecord {
   ) {
     throw new InvalidConfigurationError(path + " must be an object.");
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -272,7 +277,7 @@ function parseChannelGains(
   value: unknown,
   path: string
 ): WhiteBalanceChannelGains {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["red", "green", "blue"]);
   return {
     red: requirePositiveFinite(record.red, path + ".red"),
     green: requirePositiveFinite(record.green, path + ".green"),
@@ -309,8 +314,8 @@ function parsePreset(
   value: unknown,
   path: string
 ): WhiteBalancePresetDefinition {
-  const record = requireRecord(value, path);
-  const gainsFact = requireRecord(record.channelGains, path + ".channelGains");
+  const record = requireRecord(value, path, ["channelGains", "limitations", "presetId", "label", "nominalColorTemperatureKelvin", "nominalTint"]);
+  const gainsFact = requireRecord(record.channelGains, path + ".channelGains", ["value", "evidence"]);
   const limitations = parseOptionalLimitations(
     record.limitations,
     path + ".limitations"
@@ -371,10 +376,10 @@ function parseAwbPolicy(
   value: unknown,
   path: string
 ): WhiteBalanceAwbPolicy {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["correctionStrength", "limitations", "policyId", "intent"]);
   const strengthFact = requireRecord(
     record.correctionStrength,
-    path + ".correctionStrength"
+    path + ".correctionStrength", ["value", "evidence"]
   );
   const limitations = parseOptionalLimitations(
     record.limitations,
@@ -407,7 +412,7 @@ function parseAwbPolicy(
 export function parseWhiteBalanceProfile(
   value: unknown
 ): WhiteBalanceProfile {
-  const record = requireRecord(value, "whiteBalanceProfile");
+  const record = requireRecord(value, "whiteBalanceProfile", ["schemaVersion", "scientificStatus", "inputDomain", "presets", "awbPolicies", "profileId", "profileVersion", "evidence", "limitations"]);
 
   if (record.schemaVersion !== WHITE_BALANCE_PROFILE_SCHEMA_VERSION) {
     throw new InvalidConfigurationError(
@@ -1054,12 +1059,12 @@ function parseResolvedWhiteBalanceMeasurement(
   ResolvedWhiteBalanceState["measurement"]
 > {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["weightedMeanPreWbSignal", "imageStateId", "usableSampleCount", "rejectedClippedSampleCount"]);
   const mean =
     requireRecord(
       record.weightedMeanPreWbSignal,
       path +
-        ".weightedMeanPreWbSignal"
+        ".weightedMeanPreWbSignal", ["red", "green", "blue"]
     );
 
   return {
@@ -1108,7 +1113,7 @@ function parseResolvedColorTemperature(
   value: unknown,
   path: string
 ): ResolvedColorTemperatureWhiteBalance {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["whiteLocus", "tintInterpretation", "planckianLocusModel", "adoptedWhiteChromaticity", "intentId", "colorTemperatureKelvin", "tint", "cameraNeutralRgb"]);
   if (record.whiteLocus !== "planckian" && record.whiteLocus !== "cie-daylight") {
     throw new InvalidConfigurationError(path + ".whiteLocus is invalid.");
   }
@@ -1121,7 +1126,7 @@ function parseResolvedColorTemperature(
   ) {
     throw new InvalidConfigurationError(path + ".planckianLocusModel is invalid.");
   }
-  const white = requireRecord(record.adoptedWhiteChromaticity, path + ".adoptedWhiteChromaticity");
+  const white = requireRecord(record.adoptedWhiteChromaticity, path + ".adoptedWhiteChromaticity", ["x", "y"]);
   return {
     intentId: requireNonEmptyString(record.intentId, path + ".intentId"),
     colorTemperatureKelvin: requirePositiveFinite(record.colorTemperatureKelvin, path + ".colorTemperatureKelvin"),
@@ -1151,7 +1156,7 @@ export function parseResolvedWhiteBalanceState(
   const record =
     requireRecord(
       value,
-      "resolvedWhiteBalanceState"
+      "resolvedWhiteBalanceState", ["version", "inputDomain", "source", "locked", "sourceProfile", "awbPolicy", "measurement", "colorTemperature", "presetId", "sourceStateId", "stateId", "channelGains", "limitations", "trueIlluminantMetadataUsed", "sceneIlluminationModified", "rawCaptureDestructivelyModified", "physicalExposureModified", "focusModified"]
     );
 
   if (
@@ -1219,7 +1224,7 @@ export function parseResolvedWhiteBalanceState(
           const profile =
             requireRecord(
               record.sourceProfile,
-              "resolvedWhiteBalanceState.sourceProfile"
+              "resolvedWhiteBalanceState.sourceProfile", ["profileId", "profileVersion"]
             );
           return {
             profileId:
@@ -1242,7 +1247,7 @@ export function parseResolvedWhiteBalanceState(
           const policy =
             requireRecord(
               record.awbPolicy,
-              "resolvedWhiteBalanceState.awbPolicy"
+              "resolvedWhiteBalanceState.awbPolicy", ["policyId", "intent", "correctionStrength"]
             );
           return {
             policyId:

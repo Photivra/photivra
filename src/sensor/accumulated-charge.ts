@@ -37,7 +37,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -213,7 +213,8 @@ function addCompensated(
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -224,6 +225,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -294,7 +296,8 @@ function parseUncertainty(
   path: string
 ): SensorSpectralResponseUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     const fraction =
@@ -411,7 +414,7 @@ export function parseSensorAdditionalStoredChargeComponent(
 ): SensorAdditionalStoredChargeComponent {
   const record = requireRecord(
     value,
-    "sensorAdditionalStoredCharge"
+    "sensorAdditionalStoredCharge", ["kind", "accountingMeaning", "site", "timeReference", "startOffsetSecondsFromOpeningReference", "endOffsetSecondsFromOpeningReference", "bindingId", "scientificStatus", "uncertainty", "componentId", "colorSamplingProfileId", "channelId", "expectedElectronCount", "evidence"]
   );
 
   const kinds =
@@ -444,7 +447,7 @@ export function parseSensorAdditionalStoredChargeComponent(
 
   const site = requireRecord(
     record.site,
-    "sensorAdditionalStoredCharge.site"
+    "sensorAdditionalStoredCharge.site", ["x", "y"]
   );
   const window =
     parseWindowIdentity(
@@ -539,7 +542,7 @@ export function parseSensorAccumulatedChargeCompletenessProfile(
 ): SensorAccumulatedChargeCompletenessProfile {
   const record = requireRecord(
     value,
-    "sensorAccumulatedChargeCompleteness"
+    "sensorAccumulatedChargeCompleteness", ["schemaVersion", "coverageMeaning", "site", "timeReference", "startOffsetSecondsFromOpeningReference", "endOffsetSecondsFromOpeningReference", "bindingId", "scientificStatus", "limitation", "includedAdditionalComponentIds", "profileId", "colorSamplingProfileId", "channelId", "darkCurrentProfileId", "evidence"]
   );
   if (
     record.schemaVersion !== "0.1.0"
@@ -559,7 +562,7 @@ export function parseSensorAccumulatedChargeCompletenessProfile(
 
   const site = requireRecord(
     record.site,
-    "sensorAccumulatedChargeCompleteness.site"
+    "sensorAccumulatedChargeCompleteness.site", ["x", "y"]
   );
   const window =
     parseWindowIdentity(

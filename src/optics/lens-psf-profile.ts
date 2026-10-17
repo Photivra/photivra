@@ -32,7 +32,7 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "./focus-state.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -307,7 +307,8 @@ type AxisKey =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -318,6 +319,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -454,7 +456,8 @@ function parseUncertainty(
   path: string
 ): LensPsfUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
   if (record.kind === "relative") {
     return {
       kind: "relative",
@@ -589,7 +592,7 @@ function parseKernel(
   path: string
 ): LensPsfKernel {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["widthSamples", "heightSamples", "centerSampleX", "centerSampleY", "normalizedIntensity", "samplePitchMicrometersX", "samplePitchMicrometersY"]);
   const widthSamples =
     requirePositiveSafeInteger(
       record.widthSamples,
@@ -702,7 +705,7 @@ function parseAxes(
   const record =
     requireRecord(
       value,
-      "lensPsfProfile.axes"
+      "lensPsfProfile.axes", ["focalLengthMm", "focusDiopters", "apertureFNumber", "fieldXmm", "fieldYmm", "wavelengthNm", "signedDefocusImagePlaneMicrometers"]
     );
   return {
     focalLengthMm:
@@ -761,7 +764,7 @@ function parseCoordinate(
   path: string
 ): LensSampledPsfGridCoordinate {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["focalLengthMm", "focusDiopters", "apertureFNumber", "fieldXmm", "fieldYmm", "wavelengthNm", "signedDefocusImagePlaneMicrometers"]);
   return {
     focalLengthMm:
       requirePositiveFinite(
@@ -863,7 +866,7 @@ function parseNode(
     index +
     "]";
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["coordinate", "uncertainty", "nodeId", "kernel", "bestFocusImagePlaneOffsetMicrometers", "relativePupilThroughputFactor", "evidence"]);
   const coordinate =
     parseCoordinate(
       record.coordinate,
@@ -1028,7 +1031,7 @@ export function parseLensSampledPsfProfile(
   const record =
     requireRecord(
       value,
-      "lensPsfProfile"
+      "lensPsfProfile", ["schemaVersion", "opticalDomain", "coordinateSystem", "fieldAxes", "kernelEnergyNormalization", "interpolation", "throughputOwnership", "sensorOpticalStackIncluded", "sensorSamplingIncluded", "reconstructionIncluded", "strayLightIncluded", "scientificStatus", "responseIncludes", "axes", "nodes", "profileId", "profileVersion", "evidence", "limitations"]
     );
   if (
     record.schemaVersion !==
@@ -1094,7 +1097,7 @@ export function parseLensSampledPsfProfile(
   const response =
     requireRecord(
       record.responseIncludes,
-      "lensPsfProfile.responseIncludes"
+      "lensPsfProfile.responseIncludes", ["diffraction", "aberration", "defocus", "pupilClippingShape"]
     );
   for (
     const key of [
@@ -2099,7 +2102,7 @@ export function parseLensMtfDiagnosticProfile(
   const record =
     requireRecord(
       value,
-      "lensMtfProfile"
+      "lensMtfProfile", ["schemaVersion", "opticalDomain", "phaseInformationAvailable", "magnitudeMeaning", "samples", "fieldPointMm", "wavelengthNm", "profileId", "profileVersion", "focalLengthMm", "focus", "apertureFNumber", "evidence", "limitations"]
     );
   if (
     record.schemaVersion !==
@@ -2146,7 +2149,7 @@ export function parseLensMtfDiagnosticProfile(
         const sample =
           requireRecord(
             entry,
-            path
+            path, ["spatialFrequencyCyclesPerMm", "sagittalMagnitude", "tangentialMagnitude"]
           );
         const frequency =
           requireNonNegativeFinite(
@@ -2188,7 +2191,7 @@ export function parseLensMtfDiagnosticProfile(
   const field =
     requireRecord(
       record.fieldPointMm,
-      "lensMtfProfile.fieldPointMm"
+      "lensMtfProfile.fieldPointMm", ["x", "y"]
     );
   const wavelength =
     record.wavelengthNm ===

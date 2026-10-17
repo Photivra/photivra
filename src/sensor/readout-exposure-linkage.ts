@@ -26,6 +26,8 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import type { RasterPoint, RasterRect } from "../output/capture-geometry.js";
 import {
   calculateCaptureExposureWindows,
+  parseBoundarySchedule,
+  parseSecondsFact,
   type CalculateCaptureExposureWindowsInput,
   type ExposureBoundarySchedule,
   type UniformLinearExposureBoundarySchedule,
@@ -40,7 +42,7 @@ import {
   type SourcedSensorTimingSeconds
 } from "./readout-timing.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type ReadoutExposureBoundaryId = "opening" | "closing";
@@ -160,10 +162,15 @@ const PHASE_ORIENTATIONS =
     "reversed"
   ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(path + " must be an object.");
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -171,7 +178,7 @@ function parseSpatialLink(
   value: unknown,
   path: string
 ): ReadoutExposureBoundarySpatialLink {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["boundary", "phaseOrientation", "evidence"]);
 
   if (
     typeof record.boundary !== "string" ||
@@ -202,7 +209,7 @@ function parseSpatialLink(
 function parseLinkageDeclaration(
   value: unknown
 ): ReadoutExposureTimingLinkageDeclaration {
-  const record = requireRecord(value, "linkage");
+  const record = requireRecord(value, "linkage", ["kind", "links"]);
 
   if (record.kind === "unlinked") {
     if (record.links !== undefined) {
@@ -495,7 +502,14 @@ export interface ElectronicRollingShutterExposureSchedule {
 export function createRollingShutterCaptureExposureSchedule(
   schedule: ElectronicRollingShutterExposureSchedule
 ): Pick<CalculateCaptureExposureWindowsInput, "shutterMechanism" | "nominalExposureDurationSeconds" | "opening" | "closing"> {
-  requireRecord(schedule, "rollingShutterSchedule");
+  // 2.0.0: the whole schedule is checked, so an unknown field at any level is rejected.
+  const record = requireRecord(schedule, "rollingShutterSchedule", ["modelId", "modelVersion", "shutterMechanism",
+    "nominalExposureDurationSeconds", "opening", "closing", "linkage", "lineScanSkewSeconds", "localExposureDurationSeconds",
+    "limitations"]);
+  parseSecondsFact(record.nominalExposureDurationSeconds, "rollingShutterSchedule.nominalExposureDurationSeconds");
+  parseBoundarySchedule(record.opening, "rollingShutterSchedule.opening");
+  parseBoundarySchedule(record.closing, "rollingShutterSchedule.closing");
+  if (record.linkage !== undefined) parseLinkageDeclaration(record.linkage);
   return structuredClone({ shutterMechanism: schedule.shutterMechanism,
     nominalExposureDurationSeconds: schedule.nominalExposureDurationSeconds,
     opening: schedule.opening, closing: schedule.closing });
@@ -526,8 +540,9 @@ export function resolveElectronicRollingShutterExposureSchedule(
   input: ResolveElectronicRollingShutterExposureScheduleInput
 ): ElectronicRollingShutterExposureSchedule {
   requireInputKeys(input, "resolveElectronicRollingShutterExposureSchedule", ["readout", "nominalExposureDurationSeconds", "linkageEvidence"]);
-  const record = requireRecord(input, "rollingShutter");
-  const readout = requireRecord(record.readout, "rollingShutter.readout");
+  // The input keys are checked above; calculateSensorReadoutTiming checks the readout's own fields.
+  const record = requireRecord(input, "rollingShutter", null);
+  const readout = requireRecord(record.readout, "rollingShutter.readout", null);
   if (readout.readoutMode !== "rolling") {
     throw new InvalidScientificInputError(
       "An electronic rolling-shutter exposure schedule requires a rolling sensor readout declaration."

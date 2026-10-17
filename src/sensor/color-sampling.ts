@@ -19,7 +19,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -146,7 +146,8 @@ export interface ResolvedColorSamplingSite {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -157,6 +158,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -238,7 +240,7 @@ function parseLayout(
   value: unknown,
   path: string
 ): SensorColorSamplingLayout {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["kind", "repeatWidthSites", "repeatHeightSites", "siteChannelIds", "anchor", "layerChannelIds", "spatialSamplingRelationship", "channelId"]);
 
   if (record.kind === "monochrome") {
     if (
@@ -379,7 +381,7 @@ export function parseSensorColorSamplingProfile(
 ): SensorColorSamplingProfile {
   const profile = requireRecord(
     value,
-    "sensorColorSampling"
+    "sensorColorSampling", ["schemaVersion", "layout", "coordinateSystem", "profileId", "evidence"]
   );
 
   if (profile.schemaVersion !== "0.1.0") {

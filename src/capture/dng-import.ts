@@ -116,7 +116,7 @@ function limit(value: number | undefined, fallback: number, max: number, name: s
  */
 export function parseDngRawImage(input: DngImportInput): ImportedDngRaw {
   if (input === null || typeof input !== "object") fail("input must be an object.");
-  for (const key of Object.keys(input)) if (!["bytes", "maximumPixels", "maximumIfds"].includes(key)) fail("unknown input field.");
+  for (const key of Object.keys(input)) if (!["bytes", "maximumPixels", "maximumIfds"].includes(key)) fail(`unknown input field. Unknown field ${JSON.stringify(key)}.`);
   const bytes = input.bytes;
   if (!(bytes instanceof Uint8Array)) fail("bytes must be a Uint8Array.");
   const maximumPixels = limit(input.maximumPixels, DNG_IMPORT_LIMITS.defaultMaximumPixels, DNG_IMPORT_LIMITS.maximumPixels, "maximumPixels");

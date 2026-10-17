@@ -27,7 +27,7 @@ import type {
   SceneIlluminationProfile,
   SceneIlluminationUncertainty
 } from "./illumination.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS, requireFixedFieldsWhenPresent } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -208,7 +208,8 @@ export interface SceneIlluminationTemporalExposureIntegration {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -219,6 +220,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -332,8 +334,9 @@ function parseUncertainty(
 ): SceneIlluminationUncertainty {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
   if (record.kind === "relative") {
     return {
       kind: "relative",
@@ -369,8 +372,9 @@ function parseRegistrationUncertainty(
 ): SceneIlluminationTemporalRegistrationUncertainty {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", { "absolute-seconds": ["kind", "plusMinusSeconds", "basis"], "not-quantified": ["kind", "limitation"] }, path);
   if (
     record.kind ===
     "absolute-seconds"
@@ -425,7 +429,7 @@ function parseWaveformSamples(
       path + "[" + index + "]";
     const sample = requireRecord(
       entry,
-      samplePath
+      samplePath, ["timeSecondsFromWaveformReference", "relativeMagnitudeMultiplier"]
     );
     const time =
       requireNonNegativeFinite(
@@ -455,14 +459,20 @@ function parseWaveformSamples(
   });
 }
 
+const WAVEFORM_BASE_FIELDS = ["kind", "waveformId", "timeUnit", "scientificStatus", "uncertainty", "evidence", "interpolation", "samples"] as const;
+
 function parseWaveform(
   value: unknown,
   path: string
 ): SceneIlluminationTemporalWaveform {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", {
+    "aperiodic-relative-multiplier": [...WAVEFORM_BASE_FIELDS, "outsideSupportBehavior"],
+    "periodic-relative-multiplier": [...WAVEFORM_BASE_FIELDS, "periodSeconds", "endpointContinuityRequired"]
+  }, path);
   if (record.timeUnit !== "s") {
     throw new InvalidConfigurationError(
       path + '.timeUnit must be "s".'
@@ -621,7 +631,7 @@ function parseSourceBinding(
 ): SceneIlluminationTemporalSourceBinding {
   const record = requireRecord(
     value,
-    path
+    path, ["captureTimeReference", "scientificStatus", "timingUncertainty", "bindingId", "sourceId", "waveformId", "waveformTimeZeroSecondsFromCaptureReference", "evidence"]
   );
   if (
     record.captureTimeReference !==
@@ -688,6 +698,12 @@ function parseSourceBinding(
   };
 }
 
+/** Fixed flags the parser writes; a parsed profile may carry them back in unchanged. */
+const TEMPORAL_PROFILE_FIXED_FIELDS = {
+  baseIlluminationProfileRemainsAuthoritative: true, sensorReadoutTimingUsedAsExposureTiming: false,
+  automaticExposurePolicyIncluded: false
+} as const;
+
 /**
  * Parses a time-varying illumination profile that sits on top of one existing
  * illumination profile.
@@ -700,8 +716,9 @@ export function parseSceneIlluminationTemporalProfile(
 ): SceneIlluminationTemporalProfile {
   const record = requireRecord(
     value,
-    "sceneIlluminationTemporalProfile"
+    "sceneIlluminationTemporalProfile", ["schemaVersion", "waveforms", "sourceBindings", "profileId", "sceneId", "illuminationProfileId", "evidence", ...Object.keys(TEMPORAL_PROFILE_FIXED_FIELDS)]
   );
+  requireFixedFieldsWhenPresent(record, TEMPORAL_PROFILE_FIXED_FIELDS, "sceneIlluminationTemporalProfile");
   if (
     record.schemaVersion !==
     SCENE_ILLUMINATION_TEMPORAL_PROFILE_SCHEMA_VERSION

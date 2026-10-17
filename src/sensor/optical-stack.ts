@@ -13,6 +13,7 @@
  * limits.
  */
 
+import { rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
@@ -155,7 +156,8 @@ const COMPONENT_ROLES = new Set<SensorOpticalStackComponentRole>([
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -166,6 +168,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -230,7 +233,7 @@ function parseOrderedComponents(
   const components = value.map((entry, index) => {
     const record = requireRecord(
       entry,
-      path + "[" + index + "]"
+      path + "[" + index + "]", ["componentId", "roles", "evidence"]
     );
 
     return {
@@ -289,11 +292,11 @@ function parsePointSplitComponents(
   const components = value.map((entry, index) => {
     const record = requireRecord(
       entry,
-      path + "[" + index + "]"
+      path + "[" + index + "]", ["offsetMicrometers", "normalizedWeight"]
     );
     const offset = requireRecord(
       record.offsetMicrometers,
-      path + "[" + index + "].offsetMicrometers"
+      path + "[" + index + "].offsetMicrometers", ["x", "y"]
     );
     const normalizedWeight = requireFiniteNumber(
       record.normalizedWeight,
@@ -353,7 +356,7 @@ function parseAntiAliasingResponse(
   value: unknown,
   path: string
 ): SensorEffectiveAntiAliasingSpatialResponse {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["kind", "coordinateSystem", "scope", "components", "evidence"]);
 
   if (
     record.kind === "absent" ||
@@ -427,7 +430,7 @@ function parseMicrolens(
   value: unknown,
   path: string
 ): SensorMicrolensDeclaration {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["presence", "opticalEffectModel", "evidence"]);
 
   if (
     record.presence !== "present" &&
@@ -473,7 +476,7 @@ export function parseSensorOpticalStackProfile(
 ): SensorOpticalStackProfile {
   const profile = requireRecord(
     value,
-    "sensorOpticalStack"
+    "sensorOpticalStack", ["schemaVersion", "orderedComponents", "effectiveAntiAliasingSpatialResponse", "microlens", "profileId", "evidence"]
   );
 
   if (profile.schemaVersion !== "0.1.0") {

@@ -39,7 +39,7 @@ import {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -265,7 +265,8 @@ const ORDINARY_SYNC_MODES =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -276,6 +277,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -381,7 +383,7 @@ function parsePulseSamples(
       const record =
         requireRecord(
           entry,
-          samplePath
+          samplePath, ["timeSecondsFromWaveformReference", "relativeMagnitudeMultiplier"]
         );
       const time =
         requireFinite(
@@ -561,7 +563,7 @@ export function parseManualFlashProfile(
   const record =
     requireRecord(
       value,
-      "manualFlashProfile"
+      "manualFlashProfile", ["schemaVersion", "pulse", "outputControl", "profileId", "profileVersion", "sourceTemplate", "evidence", "limitations", "ttlModeled", "highSpeedSyncModeled", "recycleBehaviorModeled", "redEyePreflashModeled", "modelingLightModeled", "afAssistModeled"]
     );
   if (
     record.schemaVersion !==
@@ -595,7 +597,7 @@ export function parseManualFlashProfile(
   const pulse =
     requireRecord(
       record.pulse,
-      "manualFlashProfile.pulse"
+      "manualFlashProfile.pulse", ["supportDurationSeconds", "scientificStatus", "interpolation", "normalization", "waveformId", "samples", "evidence", "limitations"]
     );
   const supportDurationSeconds =
     requirePositiveFinite(
@@ -618,7 +620,7 @@ export function parseManualFlashProfile(
   const output =
     requireRecord(
       record.outputControl,
-      "manualFlashProfile.outputControl"
+      "manualFlashProfile.outputControl", ["kind", "flashExposureCompensationStops", "scale"]
     );
   if (
     output.kind !==
@@ -732,7 +734,7 @@ export function parseFlashSyncCapabilityProfile(
   const record =
     requireRecord(
       value,
-      "flashSyncCapabilityProfile"
+      "flashSyncCapabilityProfile", ["schemaVersion", "highSpeedSyncSupported", "ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed", "highSpeedSync", "supportedOrdinarySyncModes", "profileId", "profileVersion", "captureModeId", "timingProfileId", "evidence", "limitations"]
     );
   if (
     record.schemaVersion !==
@@ -770,7 +772,7 @@ export function parseFlashSyncCapabilityProfile(
   if (record.highSpeedSyncSupported === true) {
     const hss = requireRecord(
       record.highSpeedSync,
-      "flashSyncCapabilityProfile.highSpeedSync"
+      "flashSyncCapabilityProfile.highSpeedSync", ["burstEnergyFractionOfFullPulse", "evidence"]
     );
     const fraction = requirePositiveFinite(
       hss.burstEnergyFractionOfFullPulse,

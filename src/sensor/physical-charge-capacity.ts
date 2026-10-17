@@ -29,7 +29,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -161,7 +161,8 @@ export interface SensorPhysicalChargeCapacityAssessment {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -172,6 +173,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -259,7 +261,8 @@ function parseUncertainty(
   path: string
 ): SensorSpectralResponseUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
   if (record.kind === "relative") {
     const fraction =
       requireFinite(
@@ -303,12 +306,13 @@ function parseSiteApplicability(
 ): SensorPhysicalChargeCapacitySiteApplicability {
   const record = requireRecord(
     value,
-    "sensorPhysicalChargeCapacity.siteApplicability"
+    "sensorPhysicalChargeCapacity.siteApplicability", null
   );
+  rejectUnknownVariantFields(record, "kind", { "exact-site": ["kind", "site"], "uniform-site-capacity-approximation": ["kind", "limitation", "evidence"] }, "sensorPhysicalChargeCapacity.siteApplicability");
   if (record.kind === "exact-site") {
     const site = requireRecord(
       record.site,
-      "sensorPhysicalChargeCapacity.siteApplicability.site"
+      "sensorPhysicalChargeCapacity.siteApplicability.site", ["x", "y"]
     );
     return {
       kind: "exact-site",
@@ -352,8 +356,9 @@ function parseTemperatureApplicability(
 ): SensorPhysicalChargeCapacityTemperatureApplicability {
   const record = requireRecord(
     value,
-    "sensorPhysicalChargeCapacity.temperatureApplicability"
+    "sensorPhysicalChargeCapacity.temperatureApplicability", null
   );
+  rejectUnknownVariantFields(record, "kind", { "exact-reference-temperature": ["kind", "temperatureC"], "not-modeled": ["kind", "limitation", "evidence"] }, "sensorPhysicalChargeCapacity.temperatureApplicability");
   if (
     record.kind ===
       "exact-reference-temperature"
@@ -403,7 +408,7 @@ export function parseSensorPhysicalChargeCapacityProfile(
 ): SensorPhysicalChargeCapacityProfile {
   const record = requireRecord(
     value,
-    "sensorPhysicalChargeCapacity"
+    "sensorPhysicalChargeCapacity", ["schemaVersion", "capacityMeaning", "scientificStatus", "uncertainty", "siteApplicability", "temperatureApplicability", "operatingState", "profileId", "colorSamplingProfileId", "channelId", "capacityElectrons", "evidence"]
   );
   if (
     record.schemaVersion !== "0.1.0"
@@ -480,7 +485,7 @@ export function parseSensorPhysicalChargeCapacityProfile(
   const state =
     requireRecord(
       record.operatingState,
-      "sensorPhysicalChargeCapacity.operatingState"
+      "sensorPhysicalChargeCapacity.operatingState", ["stateId", "evidence"]
     );
 
   return {

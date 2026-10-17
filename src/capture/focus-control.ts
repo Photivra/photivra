@@ -22,7 +22,7 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "../optics/focus-state.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -261,7 +261,8 @@ const TARGET_LOSS_REASONS =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -272,6 +273,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -432,7 +434,7 @@ export function parseFocusControlProfile(
   const record =
     requireRecord(
       value,
-      "focusControlProfile"
+      "focusControlProfile", ["schemaVersion", "scientificStatus", "actuator", "continuousTargetLossPolicy", "profileId", "profileVersion", "supportedModes", "supportedReleasePriorities", "evidence", "limitations"]
     );
 
   if (
@@ -457,7 +459,7 @@ export function parseFocusControlProfile(
   const actuator =
     requireRecord(
       record.actuator,
-      "focusControlProfile.actuator"
+      "focusControlProfile.actuator", ["kind", "evidence"]
     );
   if (
     actuator.kind !==

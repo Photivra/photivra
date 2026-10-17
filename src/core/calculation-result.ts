@@ -10,7 +10,7 @@
  */
 
 import { InvalidScientificResultError } from "./validation.js";
-import { requireInputObject } from "./record-validation.js";
+import { rejectUnknownFields, requireInputObject } from "./record-validation.js";
 
 /**
  * Scientific provenance labels used throughout the public API.
@@ -166,6 +166,8 @@ function validateConfidence(
   if (confidence === undefined) {
     return;
   }
+  requireInputObject(confidence, `Calculation quality field ${path}`);
+  rejectUnknownFields(confidence, ["level", "basis"], `calculationQuality.${path}`);
 
   if (
     !Number.isFinite(confidence.level) ||
@@ -179,11 +181,20 @@ function validateConfidence(
   requireNonEmptyString(`${path}.basis`, confidence.basis);
 }
 
+const UNCERTAINTY_BASE_KEYS = ["kind", "quantityPath", "source", "confidence", "note"] as const;
+const ABSOLUTE_UNCERTAINTY_KEYS: readonly string[] = [...UNCERTAINTY_BASE_KEYS, "plusMinus", "unit"];
+const RELATIVE_UNCERTAINTY_KEYS: readonly string[] = [...UNCERTAINTY_BASE_KEYS, "fraction"];
+
 function validateUncertaintyEstimate(
   estimate: UncertaintyEstimate,
   index: number
 ): void {
   const path = `uncertainty[${index}]`;
+  requireInputObject(estimate, `Calculation quality field ${path}`);
+  if (estimate.kind === "absolute" || estimate.kind === "relative") {
+    rejectUnknownFields(estimate, estimate.kind === "absolute" ? ABSOLUTE_UNCERTAINTY_KEYS : RELATIVE_UNCERTAINTY_KEYS,
+      `calculationQuality.${path}`);
+  }
   requireNonEmptyString(`${path}.quantityPath`, estimate.quantityPath);
   if (!UNCERTAINTY_SOURCES.has(estimate.source as UncertaintySource)) {
     throw new InvalidScientificResultError(
@@ -217,6 +228,8 @@ function validateValidRange(
   index: number
 ): void {
   const path = `validRanges[${index}]`;
+  requireInputObject(range, `Calculation quality field ${path}`);
+  rejectUnknownFields(range, ["parameterPath", "unit", "minimum", "maximum", "note"], `calculationQuality.${path}`);
   requireNonEmptyString(`${path}.parameterPath`, range.parameterPath);
   requireNonEmptyString(`${path}.unit`, range.unit);
 
@@ -262,6 +275,7 @@ export function validateCalculationQuality(
     return;
   }
   requireInputObject(quality, "validateCalculationQuality input");
+  rejectUnknownFields(quality, ["uncertainty", "validRanges", "notes"], "calculationQuality");
 
   if (quality.uncertainty !== undefined) {
     if (quality.uncertainty.length === 0) {

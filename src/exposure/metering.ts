@@ -28,7 +28,7 @@ import type {
   NormalizedRasterUv,
   ResolvedCaptureGeometry
 } from "../output/capture-geometry.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -201,7 +201,8 @@ export interface MeterRelativeExposureInput {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -212,6 +213,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -284,7 +286,7 @@ function parseUv(
 ): NormalizedRasterUv {
   const record = requireRecord(
     value,
-    path
+    path, ["u", "v"]
   );
   const u = requireFinite(
     record.u,
@@ -341,8 +343,15 @@ function parsePolicy(
 ): ExposureMeteringPolicy {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", {
+    "multi-zone-uniform": ["kind"],
+    "center-weighted-radial": ["kind", "edgeWeight", "exponent"],
+    spot: ["kind", "centerOrientedCaptureUv", "radiusFractionOfCaptureDiagonal"],
+    "highlight-weighted": ["kind", "minimumWeightFraction", "exponent"],
+    "highlight-priority": ["kind", "highlightPercentile", "saturationRelativeSignal", "headroomStops"]
+  }, path);
 
   if (
     record.kind ===
@@ -543,7 +552,7 @@ export function parseExposureMeteringProfile(
 ): ExposureMeteringProfile {
   const record = requireRecord(
     value,
-    "exposureMeteringProfile"
+    "exposureMeteringProfile", ["schemaVersion", "scientificStatus", "inputDomain", "captureRegion", "target", "policy", "profileId", "evidence", "limitations"]
   );
 
   if (
@@ -583,7 +592,7 @@ export function parseExposureMeteringProfile(
 
   const target = requireRecord(
     record.target,
-    "exposureMeteringProfile.target"
+    "exposureMeteringProfile.target", ["kind", "targetRelativeSignal", "evidence"]
   );
   if (
     target.kind !==

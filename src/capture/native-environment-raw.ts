@@ -15,7 +15,7 @@ import { composeNativeEnvironmentSensorSite, createNativeEnvironmentOpticalStage
   parseNativeEnvironmentOpticalStageRetention, type NativeEnvironmentOpticalStage, type NativeEnvironmentOpticalStageRetention,
   type NativeEnvironmentSensorStageInput, type NativeEnvironmentSensorStageProvider } from "./native-environment-optical-stage.js";
 import { parseEvidenceList } from "../core/evidence-provenance.js";
-import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
+import { rejectUnknownFields, requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -349,6 +349,8 @@ export interface NativeRawRowBand { y: number; height: number }
  * `count`. Use one band per worker with createNativeEnvironmentRawPartitionTask.
  */
 export function calculateNativeRawRowBands(plan:Pick<NativeRawPlan,"exposure">,count:number):NativeRawRowBand[] {
+  if(plan!==null&&typeof plan==="object")rejectUnknownFields(plan,["schemaVersion","exposure","frame","exposureWindow","pixelCount","outputBytes","tileCount",
+    "tileWidth","upstreamRadiometryVerified","seedSchedule"],"Native RAW plan");
   const height=plan?.exposure?.geometry?.nativeRaster?.pixelHeight;
   if(typeof height!=="number"||!Number.isSafeInteger(height)||height<1)throw new InvalidConfigurationError("Native RAW partitioning requires a native RAW plan.");
   if(typeof count!=="number"||!Number.isSafeInteger(count)||count<1||count>1024)throw new InvalidConfigurationError("Native RAW partition count must be an integer from 1 to 1024.");
