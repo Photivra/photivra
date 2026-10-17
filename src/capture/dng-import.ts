@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Browser-safe reader for DNG and TIFF-EP CFA raw files. Independently written from the published
- * TIFF 6.0 tag definitions, the Adobe Digital Negative (DNG) Specification 1.7.1.0 and the Exif 2.32/3.0
- * CFAPattern definition (CIPA DC-008; the TIFF/EP tags are also specified in ISO 12234-2); no third-party reader source. It returns the stored raw codes plus the metadata that the
- * engine's RAW development path needs (CFA pattern, black/white levels, active area, default crop,
- * colour matrices, as-shot neutral, calibration illuminants, orientation). It never applies
- * linearization, black subtraction, white balance, demosaicing or colour transforms.
+ * Browser-safe reader for DNG and TIFF-EP raw files with a CFA (colour filter array) mosaic.
  *
- * Untrusted input: every offset, count, IFD chain, strip/tile table and decoded size is validated
- * against the buffer and explicit limits before allocation. IFD loops, aliasing IFDs, oversized
- * frames and over-long tag arrays fail with `InvalidConfigurationError`.
+ * It was written independently from the published TIFF 6.0 tag definitions, the Adobe Digital
+ * Negative (DNG) Specification 1.7.1.0 and the Exif 2.32/3.0 CFAPattern definition (CIPA DC-008;
+ * the TIFF/EP tags are also specified in ISO 12234-2). No third-party reader source was used.
+ *
+ * It returns the stored raw codes plus the metadata the engine's RAW development needs: CFA
+ * pattern, black and white levels, active area, default crop, colour matrices, as-shot neutral,
+ * calibration illuminants and orientation. It never applies linearization, black subtraction,
+ * white balance, demosaicing or colour transforms.
+ *
+ * Input is untrusted. Every offset, count, IFD (image file directory) chain, strip or tile table
+ * and decoded size is checked against the buffer and explicit limits before allocation. IFD loops,
+ * IFDs that alias each other, oversized frames and over-long tag arrays fail with
+ * `InvalidConfigurationError`.
  * @see docs/IMPORT_AND_PNG.md for supported subsets and limits.
  */
 
@@ -18,16 +23,16 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseLosslessJpeg } from "./lossless-jpeg.js";
 
 export const DNG_IMPORT_SCHEMA_VERSION = "1.0.0" as const;
-/** Upper bound for `maximumPixels`; 200 MP of 16-bit codes is 400 MB. */
+/** Upper bound for `maximumPixels`. 200 MP (megapixels) of 16-bit codes is 400 MB. */
 export const DNG_IMPORT_LIMITS = Object.freeze({ defaultMaximumPixels: 64_000_000, maximumPixels: 200_000_000, defaultMaximumIfds: 64, maximumIfds: 1024 });
 export interface DngImportInput {
   bytes: Uint8Array;
-  /** Pixel (width x height) cap checked before any decode allocation. Default 64 000 000, at most 200 000 000. */
+  /** Pixel-count limit (width x height), checked before any decode allocation. Default 64 000 000, at most 200 000 000. */
   maximumPixels?: number;
   /** Total IFDs (main chain plus SubIFDs) visited. Default 64, at most 1024. */
   maximumIfds?: number;
 }
-/** Repeating CFA pattern; origin is the top-left corner of `activeArea` (DNG 1.7.1.0, PhotometricInterpretation). */
+/** Repeating CFA pattern. Its origin is the top-left corner of `activeArea` (DNG 1.7.1.0, PhotometricInterpretation). */
 export interface ImportedDngCfa {
   repeatRows: number;
   repeatColumns: number;
@@ -36,7 +41,7 @@ export interface ImportedDngCfa {
   /** CFAPlaneColor: 0 red, 1 green, 2 blue, 3 cyan, 4 magenta, 5 yellow, 6 white. Default [0, 1, 2]. */
   planeColors: number[];
 }
-/** Zero-light level pattern (BlackLevel, BlackLevelRepeatDim, BlackLevelDeltaH/V); origin is the active-area top-left. */
+/** Black level (the code for zero light) pattern, from BlackLevel, BlackLevelRepeatDim and BlackLevelDeltaH/V. Origin is the active-area top-left. */
 export interface ImportedDngBlackLevel {
   repeatRows: number;
   repeatColumns: number;
@@ -319,7 +324,7 @@ function unpack(data: Uint8Array, rowSamples: number, rows: number, bits: number
       const a = data[base + i * 2]!, b = data[base + i * 2 + 1]!;
       out[o + i] = little ? a | (b << 8) : (a << 8) | b;
     } else {
-      // MSB-first bit accumulator: at most bits + 7 <= 23 pending bits, well inside 32-bit integer range.
+      // Bit accumulator, most significant bit first. At most bits + 7 <= 23 bits are pending, well within 32-bit integer range.
       let accumulator = 0, pending = 0, next = base;
       const mask = (1 << bits) - 1;
       for (let i = 0; i < rowSamples; i++) {

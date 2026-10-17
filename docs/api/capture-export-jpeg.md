@@ -4,10 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## EXPORT_JPEG_ENCODER_ID
 
-Identifies the exact byte behaviour of the baseline encoder. Version 2 (engine 2.0.0) uses the fixed
-cosine table below instead of runtime `Math.cos` and rounds quantized coefficients half away from zero.
-Relative to version 1, bytes can differ only where a coefficient's pre-rounding value was within about
-one ulp of a half-integer, or was exactly a negative half-integer; the repository corpus is unchanged.
+Identifies the exact byte output of the baseline encoder.
+
+Version 2 (engine 2.0.0) uses the fixed cosine table below instead of runtime `Math.cos`, and rounds
+quantized coefficients half away from zero. Compared with version 1, bytes can differ only where a
+coefficient before rounding was within about one ULP (unit in the last place) of a half-integer, or
+was exactly a negative half-integer. The repository's test images are unchanged.
 
 ```ts
 EXPORT_JPEG_ENCODER_ID = "photivra-baseline-jpeg-444-v2" as const

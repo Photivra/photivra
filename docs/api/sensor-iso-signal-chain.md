@@ -128,12 +128,10 @@ export interface GenericIsoStandardRegimeBand {
 
 ## parseGenericIsoSignalChainPresetCatalog
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-The selected ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark
-shot-noise expectations remain upstream; regime gain, read noise and clipping are separately
-declared. Generic tier labels do not calibrate or rank commercial equipment.
+Generic tier labels in the catalogue do not calibrate or rank real cameras.
 
 ```ts
 export function parseGenericIsoSignalChainPresetCatalog(
@@ -145,12 +143,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseGenericIsoSignalChainProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-The selected ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark
-shot-noise expectations remain upstream; regime gain, read noise and clipping are separately
-declared. Generic tier labels do not calibrate or rank commercial equipment.
+The profile binds each ISO and capture-mode state to an explicit readout regime, whose gain,
+read noise and clipping are declared separately.
 
 ```ts
 export function parseGenericIsoSignalChainProfile(
@@ -198,12 +195,8 @@ export interface ResolvedGenericIsoSignalChain {
 
 ## resolveGenericIsoSignalChain
 
-Select the explicit readout regime bound to the resolved ISO and capture-mode state; do not derive
-gain/noise from an ISO number.
-
-The selected ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark
-shot-noise expectations remain upstream; regime gain, read noise and clipping are separately
-declared. Generic tier labels do not calibrate or rank commercial equipment.
+Picks the explicit readout regime bound to the resolved ISO and capture-mode state. Gain and noise
+are never derived from the ISO number.
 
 ```ts
 export function resolveGenericIsoSignalChain(
@@ -234,12 +227,10 @@ export interface ResolveGenericIsoSignalChainInput {
 
 ## resolveGenericIsoSignalChainPreset
 
-Select a generic catalog preset and return its explicit profile binding without claiming
-manufacturer calibration.
+Picks a generic preset from the catalogue and returns the signal-chain profile it uses. It makes
+no claim of manufacturer calibration.
 
-The selected ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark
-shot-noise expectations remain upstream; regime gain, read noise and clipping are separately
-declared. Generic tier labels do not calibrate or rank commercial equipment.
+Generic tier labels do not calibrate or rank real cameras.
 
 ```ts
 export function resolveGenericIsoSignalChainPreset(

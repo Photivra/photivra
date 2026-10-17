@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses untrusted descriptive sensor-architecture metadata. Schema 0.2.0 remains accepted and returns
- * a 0.2.0 profile unchanged in semantic identity. Schema 0.3.0 adds optional evidence-backed CMOS/CCD
- * technology-family metadata. Unknown facts should be omitted instead of inferred. The parser
- * validates structure, supported vocabulary, and field-level evidence only; it does not verify that a
- * cited real-world claim is factually true and technology family does not activate hidden physics.
+ * Sensor architecture: descriptive metadata about a sensor's hardware (such as CMOS or CCD, and its
+ * readout capabilities), each fact backed by evidence.
+ *
+ * This metadata describes; it does not switch on any physics. The parser checks structure, allowed
+ * values and per-field evidence. It does not check that a cited real-world claim is true.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -52,9 +51,9 @@ interface SensorArchitectureProfileBase {
   illumination?: SourcedSensorArchitectureFact<SensorIlluminationArchitecture>;
   integration?: SourcedSensorArchitectureFact<SensorIntegrationArchitecture>;
   /**
-   * Hardware readout capabilities, not the readout mode selected for one
-   * capture. Each capability carries its own evidence because different
-   * readout modes may be documented by different sources.
+   * Readout modes the hardware supports, not the mode chosen for one capture.
+   * Each capability has its own evidence, because different readout modes may
+   * be documented by different sources.
    */
   readoutCapabilities?: readonly SourcedSensorArchitectureFact<SensorReadoutArchitecture>[];
   colorSamplingFamily?: SourcedSensorArchitectureFact<SensorColorSamplingFamily>;
@@ -63,8 +62,8 @@ interface SensorArchitectureProfileBase {
 /**
  * Legacy sensor-architecture schema.
  *
- * Schema 0.2.0 remains accepted and is preserved exactly when parsed. It does
- * not support technologyFamily; omission remains unknown/unasserted.
+ * Schema 0.2.0 is still accepted and kept exactly as parsed. It has no
+ * technologyFamily field; leaving it out means "unknown, not stated".
  */
 export interface SensorArchitectureProfileV0_2
   extends SensorArchitectureProfileBase {
@@ -73,17 +72,17 @@ export interface SensorArchitectureProfileV0_2
 }
 
 /**
- * Current descriptive sensor hardware/capability metadata.
+ * Current descriptive metadata about the sensor hardware and its capabilities.
  *
- * Omitted properties mean unknown/unasserted. These fields are not scientific
- * effect switches: no architecture value changes noise, dynamic range, FOV,
- * crop factor, exposure, readout timing, or sampling without a separate
- * downstream model that explicitly consumes that fact.
+ * An omitted property means "unknown, not stated". These fields do not switch
+ * on scientific effects. No architecture value changes noise, dynamic range,
+ * field of view, crop factor, exposure, readout timing or sampling unless a
+ * separate downstream model explicitly uses that fact.
  */
 export interface SensorArchitectureProfileV0_3
   extends SensorArchitectureProfileBase {
   schemaVersion: typeof SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION;
-  /** Coarse detector technology identity only; never a performance switch. */
+  /** Broad detector technology (for example CMOS or CCD) only. It never changes performance. */
   technologyFamily?: SourcedSensorArchitectureFact<SensorTechnologyFamily>;
 }
 
@@ -231,14 +230,13 @@ function parseSharedArchitectureFields(
 /**
  * Parses untrusted descriptive sensor-architecture metadata.
  *
- * Schema 0.2.0 remains accepted and returns a 0.2.0 profile unchanged in
- * semantic identity. Schema 0.3.0 adds optional evidence-backed CMOS/CCD
- * technology-family metadata. Unknown facts should be omitted instead of
- * inferred.
+ * Schema 0.2.0 is still accepted and returns a 0.2.0 profile with the same
+ * meaning. Schema 0.3.0 adds an optional, evidence-backed technology family
+ * (CMOS or CCD). Leave out facts you do not know rather than guessing them.
  *
- * The parser validates structure, supported vocabulary, and field-level
- * evidence only; it does not verify that a cited real-world claim is
- * factually true and technology family does not activate hidden physics.
+ * The parser checks structure, allowed values and per-field evidence only. It
+ * does not check that a cited real-world claim is true, and the technology
+ * family does not switch on any hidden physics.
  *
  * @param value Unknown external data.
  * @returns Validated sensor architecture profile preserving input schema identity.

@@ -27,7 +27,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface LosslessJpegLimits {
-  /** Maximum width x height x components accepted before allocating output. */
+  /** Largest width x height x components accepted. Checked before output is allocated. */
   maximumSamples: number;
   /**
    * DNG files with DNGVersion below 1.1.0.0 store 16 extra bits after the SSSS = 16 difference category
@@ -39,8 +39,8 @@ export interface LosslessJpegLimits {
 
 ## parseLosslessJpeg
 
-Decode one lossless JPEG stream. Every length, count and table index is validated against the
-buffer; output allocation happens only after the declared size passes `limits.maximumSamples`.
+Decodes one lossless JPEG stream. Every length, count and table index is checked against the
+buffer. Output is allocated only after the declared size passes `limits.maximumSamples`.
 
 ```ts
 export function parseLosslessJpeg(bytes: Uint8Array, limits: LosslessJpegLimits): LosslessJpegImage;

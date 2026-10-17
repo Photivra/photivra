@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Repository-internal #249 engine-owned source-radiance contract.
+ * Internal source-radiance model for the browser-native reference executor.
  *
- * The #224 qualification source is self-contained: geometry selects the visible
- * opaque primitive and that primitive owns explicit outgoing spectral-radiance
- * values at the committed wavelength nodes. No arbitrary source callback is part
- * of this optimized reference path.
+ * The test scene is self-contained. Geometry picks the visible opaque primitive, and that
+ * primitive carries explicit outgoing spectral-radiance values at the committed wavelength
+ * nodes. This optimized reference path accepts no arbitrary source callback.
+ * @see docs/BROWSER_NATIVE_CAPTURE_ENVELOPE.md
  */
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import {
@@ -237,11 +237,10 @@ export function prepareBrowserNativeReferenceSource(
 }
 
 /**
- * Resolve visible-primitive radiance at an exact committed wavelength node.
+ * Returns the visible primitive's radiance at one exact committed wavelength node.
  *
- * No interpolation is performed in this first source contract. If a future
- * source representation requires interpolation, its mathematical semantics and
- * error contract must be governed explicitly rather than inferred here.
+ * There is no interpolation. If a future source format needs interpolation, its
+ * maths and error bounds must be defined explicitly, not guessed here.
  */
 export function evaluateBrowserNativeReferenceSource(
   source: PreparedBrowserNativeReferenceSource,

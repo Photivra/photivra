@@ -37,8 +37,8 @@ export interface CancelReleaseSequenceInput {
 
 ## createCancelledReleaseSequence
 
-Produces an explicit cancelled sequence state without mutating the scheduled
-source sequence or leaving the completed/omitted frame boundary ambiguous.
+Returns a cancelled copy of a sequence. The original scheduled sequence is not
+changed, and it is always clear which frames were completed and which were dropped.
 
 ```ts
 export function createCancelledReleaseSequence(
@@ -215,11 +215,10 @@ export interface ResolvedReleaseSequence {
 
 ## resolveReleaseSequence
 
-Resolves one deterministic logical still-release sequence.
+Resolves one deterministic still-release sequence.
 
-Sensor capture-mode internals remain separate. This function schedules
-logical exposures only and never uses render speed/frame rate as capture
-timing.
+It schedules logical exposures only; how the sensor captures each one is
+handled elsewhere. Render speed or frame rate is never used as capture timing.
 
 ```ts
 export function resolveReleaseSequence(

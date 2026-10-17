@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Fail-closed parser; no default workflow, time, creator, physical-device or file lineage claims.
- * Projects known capture metadata once for both future writers; never encodes or verifies image data.
+ * Shared metadata for a RAW + JPEG pair exported from one simulated capture: IDs, capture time,
+ * creator and the engine version.
+ *
+ * The parser rejects anything missing or invalid; it never fills in a default workflow, time,
+ * creator, physical device or file history. The metadata is computed once for both file writers.
+ * It never encodes or checks image data.
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -14,20 +17,20 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "./simulated-capture.js";
 
 export const CAPTURE_EXPORT_METADATA_SCHEMA_VERSION = "0.1.0" as const;
-/** Non-generative workflows only; sampled/AI/composite media need a separate reviewed policy. */
+/** Only non-generative workflows. Sampled, AI-generated or composite media would need a separate, reviewed policy. */
 export type CaptureExportWorkflow = "human-directed-non-generative" | "fully-procedural-non-generative";
-/** Caller-owned resource and saved-incarnation UUIDs; no random IDs or wall clock in the engine. */
+/** Resource and saved-file UUIDs supplied by the caller. The engine never makes random IDs or reads the clock. */
 export interface CaptureExportArtifactIdentity { documentId: string; instanceId: string }
-/** Metadata-only pairing input. CaptureID must already be a non-nil UUID on the committed capture. */
+/** Input for pairing metadata only. The committed capture must already have a non-nil UUID as its CaptureID. */
 export interface CaptureExportMetadataInput {
   capture: SimulatedCapture;
   workflow: CaptureExportWorkflow;
-  /** Explicit capture-event UTC timestamp, exactly YYYY-MM-DDTHH:mm:ss.sssZ; never scene time. */
+  /** UTC time of the capture event, exactly YYYY-MM-DDTHH:mm:ss.sssZ. It is never scene time. */
   capturedAtUtc: string;
   raw: CaptureExportArtifactIdentity;
   jpeg: CaptureExportArtifactIdentity;
 }
-/** Shared semantic values, not packed EXIF/DNG tags or an XMP packet. */
+/** The shared values, before they are packed into EXIF or DNG tags or an XMP packet. */
 export interface CaptureExportSharedMetadata {
   captureId: string;
   capturedAtUtc: string;
@@ -36,7 +39,7 @@ export interface CaptureExportSharedMetadata {
   simulatedCapture: true;
   make: "Photivra";
   model: "Photivra Virtual Camera";
-  /** Explicitly the captured engine API version, not a claim of an npm distribution version. */
+  /** The engine API version that made the capture. It does not claim to be an npm package version. */
   software: string;
   creatorTool: string;
   engineApiVersion: string;
@@ -52,7 +55,7 @@ export interface CaptureExportSharedMetadata {
   whiteBalanceIntent: SimulatedCapture["whiteBalanceIntent"];
   models: SimulatedCapture["models"];
 }
-/** Equal shared metadata and distinct resource IDs do not prove RAW/JPEG pixel derivation. */
+/** Matching metadata and distinct resource IDs do not prove that the JPEG pixels came from the RAW. */
 export interface CaptureExportMetadataPair {
   schemaVersion: typeof CAPTURE_EXPORT_METADATA_SCHEMA_VERSION;
   shared: CaptureExportSharedMetadata;
@@ -73,7 +76,7 @@ function artifact(value: unknown): CaptureExportArtifactIdentity {
   const r = object(value, ["documentId", "instanceId"]);
   return { documentId: uuid(r.documentId), instanceId: uuid(r.instanceId) };
 }
-/** Fail-closed parser; no default workflow, time, creator, physical-device or file lineage claims. */
+/** Strict parser. It rejects missing values and never fills in a default workflow, time, creator, physical device or file history. */
 export function parseCaptureExportMetadataInput(value: unknown): CaptureExportMetadataInput {
   const r = object(value, ["capture", "workflow", "capturedAtUtc", "raw", "jpeg"]);
   const capture = parseSimulatedCapture(r.capture);
@@ -89,7 +92,7 @@ export function parseCaptureExportMetadataInput(value: unknown): CaptureExportMe
   if (new Set(ids).size !== ids.length) throw new InvalidConfigurationError("Capture, resource and incarnation IDs must be distinct.");
   return { capture, workflow: r.workflow, capturedAtUtc: r.capturedAtUtc, raw, jpeg };
 }
-/** Projects known capture metadata once for both future writers; never encodes or verifies image data. */
+/** Builds the known capture metadata once, for both the RAW and JPEG writers. It never encodes or checks image data. */
 export function createCaptureExportMetadataPair(input: CaptureExportMetadataInput): CaptureExportMetadataPair {
   const v = parseCaptureExportMetadataInput(input), c = v.capture;
   const software = "Photivra " + c.engineApiVersion;

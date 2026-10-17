@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Bounded decoder for lossless Huffman JPEG (ITU-T T.81 | ISO/IEC 10918-1, Annex H, process 14, SOF3),
- * the variant DNG uses for Compression = 7 raw data. Independently written from the published standard;
- * no third-party decoder source. Browser-safe: plain typed arrays, no IO.
+ * Size-limited decoder for lossless Huffman JPEG (ITU-T T.81 | ISO/IEC 10918-1, Annex H, process 14,
+ * SOF3), the variant DNG uses for Compression = 7 raw data. Written independently from the published
+ * standard, with no third-party decoder source. Browser-safe: plain typed arrays, no I/O.
  *
  * Supported: one SOF3 frame, precision 2..16, 1..4 components with 1x1 sampling, one interleaved scan
  * over all components, predictors 1..7, point transform, DRI restart intervals, 0xFF00 byte stuffing.
@@ -26,7 +26,7 @@ export interface LosslessJpegImage {
   samples: Uint16Array;
 }
 export interface LosslessJpegLimits {
-  /** Maximum width x height x components accepted before allocating output. */
+  /** Largest width x height x components accepted. Checked before output is allocated. */
   maximumSamples: number;
   /**
    * DNG files with DNGVersion below 1.1.0.0 store 16 extra bits after the SSSS = 16 difference category
@@ -53,8 +53,8 @@ function buildTable(counts: Uint8Array, values: Uint8Array): HuffmanTable {
 }
 
 /**
- * Decode one lossless JPEG stream. Every length, count and table index is validated against the
- * buffer; output allocation happens only after the declared size passes `limits.maximumSamples`.
+ * Decodes one lossless JPEG stream. Every length, count and table index is checked against the
+ * buffer. Output is allocated only after the declared size passes `limits.maximumSamples`.
  */
 export function parseLosslessJpeg(bytes: Uint8Array, limits: LosslessJpegLimits): LosslessJpegImage {
   if (!(bytes instanceof Uint8Array)) fail("input must be a Uint8Array.");
@@ -129,7 +129,7 @@ function decodeScan(bytes: Uint8Array, start: number, frame: { precision: number
   const out = new Uint16Array(width * height * nf), modulus = 65536, valueLimit = 1 << (precision - pt);
   let p = start, buffer = 0, bits = 0, padding = 0;
   const fill = (): void => {
-    // Load one byte; 0xFF00 is a stuffed 0xFF. Any other marker ends the entropy data: further reads are zero padding.
+    // Load one byte. 0xFF00 is a stuffed 0xFF. Any other marker ends the entropy-coded data; later reads return zero padding.
     let byte = 0;
     if (p < bytes.length && bytes[p] !== 0xff) byte = bytes[p++]!;
     else if (p + 1 < bytes.length && bytes[p] === 0xff && bytes[p + 1] === 0x00) { byte = 0xff; p += 2; }

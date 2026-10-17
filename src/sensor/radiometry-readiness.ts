@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses untrusted radiometry-prerequisite metadata. This validates structure and provenance; it
- * cannot prove that a cited calibration/evidence claim is scientifically true.
- * Assesses whether the declared prerequisites are sufficient for a nominal photon estimate and,
- * separately, for a calibrated photon claim. This assessment does not enable composed photon/noise
- * output.
+ * Radiometry readiness: checks whether the declared prerequisites are enough for a nominal photon
+ * estimate and, separately, for a calibrated photon claim.
+ *
+ * The parser checks structure and provenance. It cannot prove that a cited calibration or evidence
+ * claim is true. Passing this check does not switch on composed photon or noise output.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -151,8 +150,8 @@ export interface RadiometryReadinessAssessment {
   approximateRequirements: readonly RadiometryRequirementId[];
   unquantifiedUncertaintyRequirements: readonly RadiometryRequirementId[];
   /**
-   * This assessment never enables composed photon/noise output by itself.
-   * Integration remains an explicit later product/engine decision.
+   * Always false: this assessment never switches on composed photon or noise
+   * output by itself. Doing so is a separate, explicit later decision.
    */
   composedPhotonOutputEnabled: false;
 }
@@ -555,10 +554,10 @@ function parseRequirement(
 }
 
 /**
- * Parses untrusted radiometry-prerequisite metadata.
+ * Parses untrusted metadata about radiometry prerequisites.
  *
- * This validates structure and provenance; it cannot prove that a cited
- * calibration/evidence claim is scientifically true.
+ * It checks structure and provenance. It cannot prove that a cited calibration
+ * or evidence claim is scientifically true.
  */
 export function parseRadiometryReadinessProfile(
   value: unknown
@@ -595,10 +594,10 @@ export function parseRadiometryReadinessProfile(
 }
 
 /**
- * Assesses whether the declared prerequisites are sufficient for a nominal
- * photon estimate and, separately, for a calibrated photon claim.
+ * Checks whether the declared prerequisites are enough for a nominal photon
+ * estimate and, separately, for a calibrated photon claim.
  *
- * This assessment does not enable composed photon/noise output.
+ * It does not switch on composed photon or noise output.
  */
 export function assessRadiometryReadiness(
   profile: RadiometryReadinessProfile

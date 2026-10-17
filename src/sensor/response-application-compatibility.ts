@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Response application
- * checks exact profile/channel, source plane, incident-area basis, spatial uniformity and reference
- * conditions. Structural compatibility alone does not authorize signal conversion; per-bin
- * operating-range validity and the typed EQE/A-W path are separate gates.
- * Assess whether exact source-plane, area, profile/channel and reference-condition bindings permit the
- * selected response application path. Response application checks exact profile/channel, source plane,
- * incident-area basis, spatial uniformity and reference conditions. Structural compatibility alone
- * does not authorize signal conversion; per-bin operating-range validity and the typed EQE/A-W path
- * are separate gates.
+ * Response application compatibility: checks that a measured sensor response can be applied to this
+ * light input.
+ *
+ * It checks the exact profile and channel, the plane where the input light is measured (source
+ * plane), the area the response refers to, spatial uniformity and the reference conditions of the
+ * measurement. Passing this check alone does not allow converting light to signal. The per-bin
+ * operating-range check and the EQE or A/W conversion are separate steps.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -387,16 +383,15 @@ function parseReferenceConditionPolicy(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
- * Response application checks exact profile/channel, source plane, incident-area basis, spatial
- * uniformity and reference conditions. Structural compatibility alone does not authorize signal
- * conversion; per-bin operating-range validity and the typed EQE/A-W path are separate gates.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorResponseApplicationProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The profile states the source plane, incident-area basis, spatial uniformity and reference
+ * conditions under which a response applies.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorResponseApplicationProfile(
   value: unknown
@@ -598,16 +593,15 @@ function validateReductionBoundary(
 }
 
 /**
- * Assess whether exact source-plane, area, profile/channel and reference-condition bindings permit the
- * selected response application path.
+ * Checks whether the source plane, area, profile, channel and reference conditions allow the
+ * selected way of applying the response.
  *
- * Response application checks exact profile/channel, source plane, incident-area basis, spatial
- * uniformity and reference conditions. Structural compatibility alone does not authorize signal
- * conversion; per-bin operating-range validity and the typed EQE/A-W path are separate gates.
- * @param input - AssessSensorResponseApplicationCompatibilityInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorResponseApplicationCompatibilityAssessment>. Read structured blockers before consuming an authorization.
+ * Passing this alone does not allow converting light to signal. The per-bin operating-range check
+ * and the EQE or A/W conversion are separate steps.
+ * @param input - The input; see `AssessSensorResponseApplicationCompatibilityInput` for its fields, units and coordinates.
+ * @returns The assessment. Read its structured blockers before acting on an authorization.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function assessSensorResponseApplicationCompatibility(
   input:

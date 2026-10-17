@@ -4,13 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## assessSensorResponseOperatingRange
 
-Assess every declared spectral-bin input against operating applicability and superposition before
-authorizing instantaneous response conversion.
+Checks every declared spectral-bin input against the operating range and the superposition
+requirement, before any instantaneous response conversion is allowed.
 
-Operating-range assessment preserves incident power versus irradiance, wavelength support, reference
-conditions and declared nonlinearity criterion. Per-bin conversion requires spectral-bin
-applicability and spatial linear superposition. Valid mean input must not conceal an invalid bright
-local sub-aperture.
+Each bin must be in range, and spatial linear superposition must hold. A valid average must not
+hide a part of the aperture that is too bright.
 
 ```ts
 export function assessSensorResponseOperatingRange(
@@ -38,13 +36,11 @@ export interface AssessSensorResponseOperatingRangeInput {
 
 ## parseSensorResponseOperatingRangeProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Operating-range assessment preserves incident power versus irradiance, wavelength support, reference
-conditions and declared nonlinearity criterion. Per-bin conversion requires spectral-bin
-applicability and spatial linear superposition. Valid mean input must not conceal an invalid bright
-local sub-aperture.
+The profile states the input quantity (incident power or irradiance), wavelength coverage,
+reference conditions and non-linearity criterion of the calibrated operating range.
 
 ```ts
 export function parseSensorResponseOperatingRangeProfile(
@@ -219,15 +215,15 @@ export interface SensorResponseOperatingRangeProfile {
   linearityCriterion:
     SensorResponseLinearityCriterion;
   /**
-   * Optional for backward compatibility. Omission parses as not-established
-   * and blocks new response-rate authorization.
+   * Optional for backward compatibility. If omitted, it parses as "not
+   * established", which blocks new response-rate conversions.
    */
   spatialLinearityModel?:
     SensorResponseOperatingSpatialLinearityModel;
   /**
-   * Optional for backward compatibility. Omission means the calibration only
-   * establishes a broadband-integrated operating range and cannot authorize
-   * wavelength-by-wavelength response conversion.
+   * Optional for backward compatibility. If omitted, the calibration only
+   * establishes an operating range for broadband (wavelength-integrated) input,
+   * and cannot allow wavelength-by-wavelength response conversion.
    */
   spectralInputModel?:
     SensorResponseOperatingSpectralInputModel;

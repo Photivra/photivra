@@ -4,10 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## ENGINE_API_VERSION
 
-Version of the public root-engine release, aligned with the npm package since 1.0.1.
-New captures and plans record this creator identity; archived records retain theirs.
-POC, schema and model contracts keep their independent versions.
-Release checks enforce equality with package.json and the packed distribution.
+Version of the engine release. Since 1.0.1 it equals the npm package version.
+
+New captures and plans record this version as their creator. Archived records keep the
+version they were made with. Proof-of-concept (POC), schema and model contracts have their
+own versions. Release checks confirm it matches package.json and the packed package.
 
 ```ts
 ENGINE_API_VERSION = "2.0.0" as const

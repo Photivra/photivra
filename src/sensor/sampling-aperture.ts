@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses physical registration of the color-site lattice plus a first geometric
- * photosensitive-aperture model. Site-center pitch/origin are explicit facts and are never derived
- * from NativeImageRaster. The rectangle, when resolved, is a geometric sensitive region only. It does
- * not include microlens redirection, charge diffusion, electrical crosstalk, QE, throughput, spectral
- * response, or an effective radiometric collection area.
- * Resolves one geometric sampling aperture in native sensor physical space. The result provides a
- * normalized uniform-area spatial averaging footprint for future image sampling, plus its geometric
- * physical area/fill-fraction diagnostics. It deliberately does not promote that geometric area into
- * radiometric collection efficiency or physical photodiode truth.
+ * Sampling aperture: where the colour-sampling sites sit physically on the sensor, and the
+ * light-sensitive area of each site as a simple geometric shape.
+ *
+ * Site pitch and origin are declared facts, never derived from NativeImageRaster. The sensitive
+ * region, when known, is a plain geometric rectangle. It does not include microlens effects, charge
+ * diffusion, electrical crosstalk, QE (quantum efficiency), throughput, spectral response or an
+ * effective light-collection area.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -41,14 +38,13 @@ type UnknownRecord = Record<string, unknown>;
 export interface SensorSiteCenterLatticeRegistration {
   kind: "regular-rectangular-site-center-lattice";
   coordinateSystem: "native-sensor-physical";
-  /** Horizontal site-center pitch in micrometres. */
+  /** Horizontal centre-to-centre site spacing (pitch) in micrometres. */
   pitchXMicrometers: number;
-  /** Vertical site-center pitch in micrometres. */
+  /** Vertical centre-to-centre site spacing (pitch) in micrometres. */
   pitchYMicrometers: number;
   /**
-   * First site center relative to the imaging area's physical top-left edge.
-   *
-   * +X right, +Y down. Units: micrometres.
+   * Centre of the first site, measured from the imaging area's physical
+   * top-left corner. +X right, +Y down. Units: micrometres.
    */
   firstSiteCenterFromImagingAreaTopLeftMicrometers: {
     x: number;
@@ -60,19 +56,18 @@ export interface SensorSiteCenterLatticeRegistration {
 export type SensorGeometricSensitiveAperture =
   | {
       /**
-       * The physical/light-sensitive spatial aperture is known to matter but
-       * its geometry is not defensibly resolved.
+       * The light-sensitive area is known to matter, but its shape is not
+       * known well enough to use.
        */
       kind: "unresolved";
       evidence: readonly EvidenceProvenance[];
     }
   | {
       /**
-       * First geometric sensitive-region approximation.
+       * A simple approximation of the sensitive area as a rectangle.
        *
-       * This rectangle is constrained to remain inside one regular lattice
-       * cell, so neighboring geometric sensitive regions do not overlap in
-       * schema 0.1.0.
+       * The rectangle must stay inside one grid cell, so neighbouring
+       * sensitive areas never overlap in schema 0.1.0.
        */
       kind: "uniform-axis-aligned-rectangle";
       widthMicrometers: number;
@@ -158,7 +153,7 @@ export interface ResolvedSensorSamplingAperture {
       "none-by-model";
   };
   /**
-   * Hard scientific boundaries.
+   * Fixed statements of what this result does not establish.
    */
   sitePitchDerivedFromNativeImageRaster: false;
   apertureDerivedFromSitePitch: false;
@@ -416,14 +411,13 @@ function parseGeometricSensitiveAperture(
 }
 
 /**
- * Parses physical registration of the color-site lattice plus a first geometric
- * photosensitive-aperture model.
+ * Parses where the colour-sampling sites sit physically, plus a simple geometric
+ * model of each site's light-sensitive area.
  *
- * Site-center pitch/origin are explicit facts and are never derived from
- * NativeImageRaster. The rectangle, when resolved, is a geometric sensitive
- * region only. It does not include microlens redirection, charge diffusion,
- * electrical crosstalk, QE, throughput, spectral response, or an effective
- * radiometric collection area.
+ * Site pitch and origin are declared facts, never derived from NativeImageRaster.
+ * The rectangle, when given, is a geometric sensitive region only. It does not
+ * include microlens effects, charge diffusion, electrical crosstalk, QE,
+ * throughput, spectral response or an effective light-collection area.
  */
 export function parseSensorSamplingApertureProfile(
   value: unknown
@@ -509,12 +503,12 @@ function requirePositiveImagingArea(
 }
 
 /**
- * Resolves one geometric sampling aperture in native sensor physical space.
+ * Resolves one site's geometric sampling aperture in native sensor physical space.
  *
- * The result provides a normalized uniform-area spatial averaging footprint for
- * future image sampling, plus its geometric physical area/fill-fraction
- * diagnostics. It deliberately does not promote that geometric area into
- * radiometric collection efficiency or physical photodiode truth.
+ * The result is a normalized footprint that averages evenly over its area, for
+ * image sampling, plus its physical area and fill fraction. That geometric area
+ * is deliberately not treated as light-collection efficiency or as the true
+ * photodiode shape.
  */
 export function resolveSensorSamplingAperture(
   input: ResolveSensorSamplingApertureInput

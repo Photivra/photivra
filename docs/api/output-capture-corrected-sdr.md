@@ -4,7 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateCaptureCorrectedSdr
 
-Bounded committed capture → color/WB → native correction → oriented output view → SDR. No physical stage activation.
+Runs a bounded committed capture through colour/WB → native lens correction → oriented output
+view → SDR. No physical simulation stage is run.
 
 ```ts
 export function calculateCaptureCorrectedSdr(input: CaptureCorrectedSdrInput): CalculationResult<CaptureCorrectedSdrResult>;
@@ -22,14 +23,15 @@ CAPTURE_CORRECTED_SDR_SCHEMA_VERSION = "0.1.0" as const
 
 ## CaptureCorrectedSdrInput
 
-Explicit native-optical correction binding. Body/lens/mode identities remain producer declarations.
+Input: a capture plus an explicit lens-correction choice in native optical coordinates. Camera
+body, lens and mode identities are taken as the capture producer declared them.
 
 ```ts
 export interface CaptureCorrectedSdrInput extends CaptureSdrInput {
   correction: {
     profile: GenericLensCorrectionProfile;
     state: OpticalProfileState;
-    /** Native optical +X right/+Y up, RGB basis after the selected color/WB operation. */
+    /** Native optical coordinates (+X right, +Y up), in the RGB space after the selected colour/WB step. */
     coordinateFrame: "native-optical-linear-srgb-d65";
     selections: Readonly<Record<string, "on" | "off" | "auto">>;
     selectionKind: ResolvedLensCorrectionPlan["selectionKind"];
@@ -45,7 +47,7 @@ export interface CaptureCorrectedSdrInput extends CaptureSdrInput {
 
 ## CaptureCorrectedSdrResult
 
-Derived output view, never a replacement for the committed capture's physical geometry.
+A derived output view. It never replaces the committed capture's physical geometry.
 
 ```ts
 export interface CaptureCorrectedSdrResult extends Omit<CaptureSdrResult, "schemaVersion"> {
@@ -54,7 +56,7 @@ export interface CaptureCorrectedSdrResult extends Omit<CaptureSdrResult, "schem
   plan: CalculationResult<ResolvedLensCorrectionPlan>;
   correction: ReturnType<typeof calculateLensCorrectedCapture>;
   projection: ReturnType<typeof calculateFieldOfView>;
-  /** Oriented full-output support; child correction plans retain native optical coordinates. */
+  /** Valid-source mask over the full oriented output. The nested correction plans still use native optical coordinates. */
   validSourceMask: readonly boolean[];
   outputView: { imageStateId: string; rect: RasterRect; pixelWidth: number; pixelHeight: number; samples: readonly number[] };
 }
@@ -62,7 +64,8 @@ export interface CaptureCorrectedSdrResult extends Omit<CaptureSdrResult, "schem
 
 ## parseCaptureCorrectedSdrInput
 
-Strict boundary; execution also checks capture optics, native raster binding and source history.
+Strictly parses untrusted input. Running the calculation also checks the capture's optics,
+native pixel-grid binding and source history.
 
 ```ts
 export function parseCaptureCorrectedSdrInput(input: unknown): CaptureCorrectedSdrInput;

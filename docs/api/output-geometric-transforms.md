@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## AffineGeometricTransform
 
-Explicit destination-to-source affine map, including rotation/shear/offset.
+Explicit destination-to-source affine map, which can include rotation, shear and offset.
 
 ```ts
 export interface AffineGeometricTransform extends TransformIdentity {
@@ -16,7 +16,7 @@ export interface AffineGeometricTransform extends TransformIdentity {
 
 ## BrownConradyGeometricTransform
 
-Schema 0.2.0: correction samples Brown-Conrady distorted data at the mapped ideal destination.
+Schema 0.2.0: Brown-Conrady distortion. A correction reads the distorted data at the position mapped from each ideal destination point.
 
 ```ts
 export interface BrownConradyGeometricTransform extends TransformIdentity {
@@ -27,7 +27,7 @@ export interface BrownConradyGeometricTransform extends TransformIdentity {
 
 ## calculateComposedGeometricMapping
 
-Authoritative display-to-capture map and full local directional derivatives.
+Maps a display point to the capture, with the full local derivatives in each direction.
 
 ```ts
 export function calculateComposedGeometricMapping(input: {
@@ -39,7 +39,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateForwardGeometricMapping
 
-Capture-to-display bridge for focus, metering and overlays; reverses the same maps.
+Maps a capture point to the display, for focus, metering and overlays. It inverts the same maps.
 
 ```ts
 export function calculateForwardGeometricMapping(input: {
@@ -51,7 +51,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateGeometricResampling
 
-Samples an already-formed scalar image once; null output marks missing source support.
+Resamples an already-formed single-channel image once. A null output sample marks missing source data.
 
 ```ts
 export function calculateGeometricResampling(input: {
@@ -63,14 +63,14 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateGeometricSamplingPlan
 
-Resolves one joint validity/crop/AA plan after composing compatible inverse maps.
+Composes compatible inverse maps, then resolves one shared plan for validity, crop and anti-aliasing (AA).
 
 ```ts
 export function calculateGeometricSamplingPlan(input: {
   mapping: PreparedGeometricMapping; sourceRaster: GeometricRaster; destinationRaster: GeometricRaster;
   resampler: GeometricResampler; physicalProjectionDistanceMm: number;
   /**
-   * Ideal projection of the physical source (captured) raster for the reported angles. Omitted or
+   * Ideal projection of the captured (source) image, used for the reported angles. Omitted or
    * "rectilinear" keeps the existing atan(mm / projection distance) angles exactly.
    */
   sourceProjectionModel?: LensProjectionModel;
@@ -93,7 +93,7 @@ export type DigitalGeometricTransform =
 
 ## GeometricImageDomain
 
-Domains are barriers: only contiguous equal-domain maps share a resample.
+A domain change separates maps: only adjacent maps in the same domain share one resampling pass.
 
 ```ts
 export type GeometricImageDomain = "raw-channel" | "reconstructed-linear" | "processed-output";
@@ -101,7 +101,7 @@ export type GeometricImageDomain = "raw-channel" | "reconstructed-linear" | "pro
 
 ## GeometricJacobian
 
-Row-major derivative d(source mm)/d(destination mm).
+Jacobian (derivative) d(source mm)/d(destination mm), in row-major order.
 
 ```ts
 export type GeometricJacobian = readonly [number, number, number, number];
@@ -135,7 +135,7 @@ export interface GeometricProjectionDeclaration {
 
 ## GeometricRaster
 
-Regular pixel centers on the optical plane: +X right, +Y up; row order down.
+A regular grid of pixel centres on the optical plane: +X right, +Y up; rows run top to bottom.
 
 ```ts
 export interface GeometricRaster {
@@ -148,7 +148,7 @@ export interface GeometricRaster {
 
 ## GeometricResampler
 
-Resampler identity is independent of mapping. Prefiltering is a caller obligation.
+The resampling filter, chosen independently of the mapping. Any prefiltering (anti-aliasing) is the caller's job.
 
 ```ts
 export interface GeometricResampler {
@@ -170,21 +170,21 @@ export interface GeometricSamplingPlan {
   destinationRaster: GeometricRaster;
   resampler: GeometricResampler;
   points: readonly GeometricMappingPoint[];
-  /** Includes exact center-domain support for the selected filter; no edge extension. */
+  /** True where the selected filter has full source support around the pixel centre. Edges are not extended. */
   validSourceMask: readonly boolean[];
-  /** Largest all-valid axis-aligned pixel rectangle, half-open. Null if empty. */
+  /** Largest axis-aligned rectangle of valid pixels (half-open). Null if there is none. */
   jointCrop: { x: number; y: number; width: number; height: number } | null;
   requiresPrefilter: boolean;
   canResample: boolean;
   physicalCapturedFovDegrees: { horizontal: number; vertical: number };
-  /** Envelope of mapped pixel-center rays retained by the joint crop, not edge FOV. */
+  /** Angular extent of the mapped pixel-centre rays kept by the joint crop. It is not the edge-to-edge FOV. */
   retainedSampleRayEnvelopeDegrees: { minX: number; maxX: number; minY: number; maxY: number } | null;
 }
 ```
 
 ## parseDigitalGeometricTransform
 
-Parses strict transform data, rejecting unknown semantics and noninvertible profiles.
+Strictly parses transform data. Unknown kinds or fields and profiles that cannot be inverted are rejected.
 
 ```ts
 export function parseDigitalGeometricTransform(value: unknown): DigitalGeometricTransform;
@@ -194,11 +194,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## PreparedGeometricMapping
 
-Serializable prepared state. Maps are applied in listed destination-to-source order.
+Serializable prepared mapping. Maps are applied in the listed order, from destination towards source.
 
 ```ts
 export interface PreparedGeometricMapping {
-  /** 0.1.0 when only affine/radial kinds are used; 0.2.0 when a 2.0 kind is present. */
+  /** 0.1.0 when only affine and radial kinds are used; 0.2.0 when a kind added in 2.0 is present. */
   schemaVersion: "0.1.0" | "0.2.0";
   frameTimeSeconds: number;
   transforms: readonly DigitalGeometricTransform[];
@@ -209,7 +209,7 @@ export interface PreparedGeometricMapping {
 
 ## prepareGeometricMapping
 
-Prepares deterministic still/frame geometry; time changes require another preparation.
+Prepares a deterministic mapping for one still or frame. A change in time needs a new preparation.
 
 ```ts
 export function prepareGeometricMapping(input: {
@@ -221,8 +221,9 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## ProjectionRemapGeometricTransform
 
-Schema 0.2.0: destination point -> scene direction (destination projection) -> source point
-(source projection). Purpose must be "projection".
+Schema 0.2.0: change of projection. Each destination point becomes a scene direction (using
+the destination projection), then a source point (using the source projection). Purpose must
+be "projection".
 
 ```ts
 export interface ProjectionRemapGeometricTransform extends TransformIdentity {
@@ -234,7 +235,7 @@ export interface ProjectionRemapGeometricTransform extends TransformIdentity {
 
 ## RadialGeometricTransform
 
-Correction samples physical distorted data at the mapped ideal destination.
+Radial distortion. A correction reads the physically distorted data at the position mapped from each ideal (undistorted) destination point.
 
 ```ts
 export interface RadialGeometricTransform extends TransformIdentity {

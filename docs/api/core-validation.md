@@ -19,8 +19,8 @@ export class InvalidScientificInputError extends RangeError {
 
 ## InvalidScientificResultError
 
-Error thrown when a scientific calculation would return a non-finite
-numeric value that is unsafe for JSON and downstream consumers.
+Error thrown when a calculation would return a non-finite number (NaN or ±Infinity).
+Such values cannot be stored in JSON and break downstream consumers.
 
 ```ts
 export class InvalidScientificResultError extends RangeError {

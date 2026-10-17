@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateEnvironmentSensorPhotoSignal
 
-Generate, evaluate and integrate one site's actual local midpoint environment support.
+Plans, queries the provider and integrates the photo signal for one site, at the site's own midpoint sample positions.
 
 ```ts
 export function calculateEnvironmentSensorPhotoSignal(input: CalculateEnvironmentSensorPhotoSignalInput): CalculationResult<EnvironmentSensorPhotoSignal>;
@@ -26,15 +26,16 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
   motion: Pick<CalculateSensorEnvironmentRadianceQueryInput,
     "angularVelocityRadPerSec" | "timeReference" | "environmentDirectionConvention">;
   temporalSampleCount: number;
-  /** Optional ideal geometric DOF/visibility support; cannot combine with a sampled PSF. */
+  /** Optional ideal circular pupil, for geometric depth of field (DOF) and visibility. Cannot be combined with a sampled PSF. */
   pupil?: IdealCircularPupil;
   /**
-   * Optional 2.0 lens field mapping (projection model and radial/Brown-Conrady distortion) for the
-   * scene-ray query; its distortion area factor is applied to irradiance exactly once. Omitted keeps
-   * the ideal rectilinear, distortion-free path unchanged. Not combinable with `pupil`.
+   * Optional lens field mapping (added in 2.0): a projection model and radial or Brown-Conrady
+   * distortion for the scene-ray query. Its distortion area factor is applied to irradiance exactly
+   * once. If omitted, the ideal rectilinear, distortion-free path is unchanged. Cannot be combined
+   * with `pupil`.
    */
   lensFieldMapping?: EnvironmentLensFieldMapping;
-  /** Explicit source-field attenuation, applied once before PSF redistribution. */
+  /** Explicit attenuation across the field (such as vignetting), applied once before the PSF spreads the light. */
   fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
     kind: "radial-illumination-vignetting"; profile: IlluminationVignettingProfile;
     evidence: readonly EvidenceProvenance[]; limitation: string;
@@ -44,7 +45,7 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
     configuration: Pick<CalculateSensorPsfIrradianceQuadratureInput, "psf" | "psfWavelengthBasis" | "spatialModel">;
   };
   evaluateRadiance: EnvironmentRadianceEvaluator;
-  /** Required with pupil; origin-aware scene intersections cannot use direction-only code. */
+  /** Required with `pupil`: rays start at different points on the aperture, so a direction-only function cannot be used. */
   evaluateApertureRadiance?: EnvironmentApertureRadianceEvaluator;
 }
 ```
@@ -59,7 +60,7 @@ export type EnvironmentApertureRadianceEvaluator = (request: Readonly<SceneRadia
 
 ## EnvironmentRadianceEvaluator
 
-Supplied synchronous code executes locally. Invocation does not prove physical transport.
+Caller-supplied synchronous radiance function, run locally. Calling it does not prove its light transport is physical.
 
 ```ts
 export type EnvironmentRadianceEvaluator = (request: Readonly<SceneRadianceEvaluationRequest>) => SceneRadianceEvaluationResult;

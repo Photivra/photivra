@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Rate times duration
- * is allowed only by explicit stationarity bound to the exact site and local shutter interval. EQE
- * integrates to expected photons/electrons; A/W integrates current magnitude to coulombs without an
- * implicit carrier mapping. Counts remain fractional expectations before stochastic sampling.
- * Integrates one explicitly stationary response-rate result over its exact bound local exposure
- * window. This function is intentionally limited to the constant-rate approximation. It does not
- * sample or integrate a time-varying signal.
+ * Constant-rate exposure: multiplies a sensor response rate by the exposure time.
+ *
+ * This shortcut (rate × duration) is allowed only when the caller declares the rate constant
+ * (stationary) for this exact site and local shutter interval. With EQE (external quantum
+ * efficiency) the result is expected photons and electrons. With A/W responsivity it is charge in
+ * coulombs, with no assumed conversion to electrons. Counts stay fractional expected values, before
+ * any random sampling. Time-varying signals are not handled here.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -228,17 +226,15 @@ function requireFinite(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
- * Rate times duration is allowed only by explicit stationarity bound to the exact site and local
- * shutter interval. EQE integrates to expected photons/electrons; A/W integrates current magnitude to
- * coulombs without an implicit carrier mapping. Counts remain fractional expectations before
- * stochastic sampling.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorRateTemporalStationarityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The profile declares that a rate is constant (stationary) for an exact site and local shutter
+ * interval, which is what allows rate × duration.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorRateTemporalStationarityProfile(
   value: unknown
@@ -623,11 +619,12 @@ function requireNonNegativeFiniteRate(
 }
 
 /**
- * Integrates one explicitly stationary response-rate result over its exact
- * bound local exposure window.
+ * Integrates one response rate, declared constant, over its exact local
+ * exposure window.
  *
- * This function is intentionally limited to the constant-rate approximation.
- * It does not sample or integrate a time-varying signal.
+ * This is the constant-rate approximation only. It does not sample or
+ * integrate a time-varying signal. EQE rates give expected photons and
+ * electrons; A/W rates give coulombs. Counts stay fractional.
  */
 export function integrateStationarySensorRateOverLocalExposure(
   input:

@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## parseRawFrameReconstructionInput
 
-Revalidates committed RAW codes/geometry and complete phase dispatch; no external plane may supply output values.
+Revalidates the committed RAW codes and geometry and checks that every CFA phase has a kernel. No external image plane can supply output values.
 
 ```ts
 export function parseRawFrameReconstructionInput(value: unknown): RawFrameReconstructionInput;
@@ -22,7 +22,7 @@ RAW_FRAME_RECONSTRUCTION_SCHEMA_VERSION = "0.1.0" as const
 
 ## RawFrameReconstruction
 
-Traceable virtual sensor-channel values, not colorimetric RGB or a rendered photograph.
+Traceable sensor-channel values. Not colorimetric RGB and not a rendered photograph.
 
 ```ts
 export interface RawFrameReconstruction {
@@ -36,10 +36,10 @@ export interface RawFrameReconstruction {
     pixelWidth: number;
     pixelHeight: number;
     channelIds: readonly string[];
-    /** Interleaved native-region row-major values; black-subtracted normalization, signed. */
+    /** Interleaved values over the native region, row-major. Black-subtracted and normalized; can be negative. */
     samples: readonly number[];
   };
-  /** Child envelopes and exact weighted RAW contributions, in matching native-region row-major order. */
+  /** Per-pixel result envelopes and the exact weighted RAW contributions, in the same row-major order. */
   pixels: readonly CalculationResult<SensorRawReconstructedPixel>[];
   lineage: "engine-reconstructed-from-attached-raw";
   producerOriginVerified: false;
@@ -54,7 +54,7 @@ export interface RawFrameReconstruction {
 
 ## RawFrameReconstructionInput
 
-Bounded reference handoff; region coordinates stay in the full native sensor frame.
+Input to the bounded reference reconstruction. Region coordinates are in the full native sensor frame.
 
 ```ts
 export interface RawFrameReconstructionInput {
@@ -66,7 +66,7 @@ export interface RawFrameReconstructionInput {
 
 ## RawFrameReconstructionPhaseProfile
 
-Kernel selection is explicit per absolute native CFA repeat phase, not guessed from channel names.
+A kernel is chosen explicitly for each absolute native CFA repeat phase, not guessed from channel names.
 
 ```ts
 export interface RawFrameReconstructionPhaseProfile {
@@ -78,7 +78,7 @@ export interface RawFrameReconstructionPhaseProfile {
 
 ## resolveRawFrameReconstruction
 
-Delegates each pixel to #14's explicit linear reconstruction using only the attached native RAW samples.
+Computes each pixel with the sensor module's explicit linear reconstruction, using only the attached native RAW samples.
 
 ```ts
 export function resolveRawFrameReconstruction(input: RawFrameReconstructionInput): CalculationResult<RawFrameReconstruction>;

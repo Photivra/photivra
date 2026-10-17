@@ -4,13 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## composeSensorAccumulatedCharge
 
-Compose photo, independently evaluated dark and explicitly incremental charge by exact local
-exposure identity, retaining completeness assessment before capacity/noise.
+Adds photo charge, separately computed dark charge and any explicitly declared extra charge for
+one exact local exposure, and keeps the completeness assessment. Capacity and noise come later.
 
-Photo, dark and explicitly incremental stored-electron components must share the exact
-site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
-consequence of an empty component array. Expected stored charge remains distinct from a stochastic
-realization or nonlinear full-well clamp.
+All parts must belong to the exact same site, colour channel and local shutter event. The
+result is the expected charge, separate from a random realization or the full-well clamp.
 
 ```ts
 export function composeSensorAccumulatedCharge(
@@ -72,13 +70,11 @@ export type ComposeSensorPhotoAccumulatedChargeInput = ComposeSensorAccumulatedC
 
 ## parseSensorAccumulatedChargeCompletenessProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted completeness profile and returns it normalized. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Photo, dark and explicitly incremental stored-electron components must share the exact
-site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
-consequence of an empty component array. Expected stored charge remains distinct from a stochastic
-realization or nonlinear full-well clamp.
+Completeness is a declaration backed by evidence. An empty list of components does not
+mean the charge accounting is complete.
 
 ```ts
 export function parseSensorAccumulatedChargeCompletenessProfile(
@@ -90,13 +86,9 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseSensorAdditionalStoredChargeComponent
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
-
-Photo, dark and explicitly incremental stored-electron components must share the exact
-site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
-consequence of an empty component array. Expected stored charge remains distinct from a stochastic
-realization or nonlinear full-well clamp.
+Validates an untrusted additional stored-charge component (charge other than photo and dark
+charge, declared explicitly as an addition) and returns it normalized. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
 ```ts
 export function parseSensorAdditionalStoredChargeComponent(

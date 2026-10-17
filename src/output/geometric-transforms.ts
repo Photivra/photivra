@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses strict transform data, rejecting unknown semantics and noninvertible profiles.
- * Prepares deterministic still/frame geometry; time changes require another preparation.
- * Transform kinds: `affine` and `radial` (schema 0.1.0, unchanged) plus, from mapping schema 0.2.0,
- * `brown-conrady` (radial + tangential distortion) and `projection-remap` (ideal projection change,
- * for example fisheye capture to a rectilinear or equirectangular view). A mapping that uses only the
- * 0.1.0 kinds keeps schema/model version 0.1.0 and identical output.
+ * Geometric image transforms (warps) such as distortion correction and projection changes, and
+ * a resampler that applies them.
+ *
+ * A mapping goes from destination (output) points to source (captured) points. Preparing a
+ * mapping fixes it for one still or frame; a change in time needs a new preparation.
+ *
+ * Transform kinds:
+ * - `affine` and `radial` (schema 0.1.0, unchanged).
+ * - From mapping schema 0.2.0: `brown-conrady` (radial plus tangential lens distortion) and
+ *   `projection-remap` (a change of ideal projection, for example fisheye capture to a
+ *   rectilinear or equirectangular view).
+ *
+ * A mapping that uses only 0.1.0 kinds keeps schema and model version 0.1.0 and gives identical output.
  * @see docs/DIGITAL_OPTICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and
  * support limits.
  */
@@ -29,9 +35,9 @@ import {
   type LensProjectionModel
 } from "../camera/lens-projection.js";
 
-/** Domains are barriers: only contiguous equal-domain maps share a resample. */
+/** A domain change separates maps: only adjacent maps in the same domain share one resampling pass. */
 export type GeometricImageDomain = "raw-channel" | "reconstructed-linear" | "processed-output";
-/** Row-major derivative d(source mm)/d(destination mm). */
+/** Jacobian (derivative) d(source mm)/d(destination mm), in row-major order. */
 export type GeometricJacobian = readonly [number, number, number, number];
 interface TransformIdentity {
   id: string;
@@ -39,18 +45,18 @@ interface TransformIdentity {
   domain: GeometricImageDomain;
   purpose: "distortion" | "breathing" | "digital-stabilization" | "orientation-crop" | "lateral-ca" | "projection";
 }
-/** Explicit destination-to-source affine map, including rotation/shear/offset. */
+/** Explicit destination-to-source affine map, which can include rotation, shear and offset. */
 export interface AffineGeometricTransform extends TransformIdentity {
   kind: "affine";
   matrix: GeometricJacobian;
   offsetMm: LensFieldPointMm;
 }
-/** Correction samples physical distorted data at the mapped ideal destination. */
+/** Radial distortion. A correction reads the physically distorted data at the position mapped from each ideal (undistorted) destination point. */
 export interface RadialGeometricTransform extends TransformIdentity {
   kind: "radial";
   profile: RadialDistortionProfile;
 }
-/** Schema 0.2.0: correction samples Brown-Conrady distorted data at the mapped ideal destination. */
+/** Schema 0.2.0: Brown-Conrady distortion. A correction reads the distorted data at the position mapped from each ideal destination point. */
 export interface BrownConradyGeometricTransform extends TransformIdentity {
   kind: "brown-conrady";
   profile: BrownConradyDistortionProfile;
@@ -61,8 +67,9 @@ export interface GeometricProjectionDeclaration {
   focalLengthMm: number;
 }
 /**
- * Schema 0.2.0: destination point -> scene direction (destination projection) -> source point
- * (source projection). Purpose must be "projection".
+ * Schema 0.2.0: change of projection. Each destination point becomes a scene direction (using
+ * the destination projection), then a source point (using the source projection). Purpose must
+ * be "projection".
  */
 export interface ProjectionRemapGeometricTransform extends TransformIdentity {
   kind: "projection-remap";
@@ -74,23 +81,23 @@ export type DigitalGeometricTransform =
   | RadialGeometricTransform
   | BrownConradyGeometricTransform
   | ProjectionRemapGeometricTransform;
-/** Serializable prepared state. Maps are applied in listed destination-to-source order. */
+/** Serializable prepared mapping. Maps are applied in the listed order, from destination towards source. */
 export interface PreparedGeometricMapping {
-  /** 0.1.0 when only affine/radial kinds are used; 0.2.0 when a 2.0 kind is present. */
+  /** 0.1.0 when only affine and radial kinds are used; 0.2.0 when a kind added in 2.0 is present. */
   schemaVersion: "0.1.0" | "0.2.0";
   frameTimeSeconds: number;
   transforms: readonly DigitalGeometricTransform[];
   semanticKey: string;
   groups: readonly { domain: GeometricImageDomain; componentIds: readonly string[] }[];
 }
-/** Regular pixel centers on the optical plane: +X right, +Y up; row order down. */
+/** A regular grid of pixel centres on the optical plane: +X right, +Y up; rows run top to bottom. */
 export interface GeometricRaster {
   width: number;
   height: number;
   centerMm: LensFieldPointMm;
   pitchMm: number;
 }
-/** Resampler identity is independent of mapping. Prefiltering is a caller obligation. */
+/** The resampling filter, chosen independently of the mapping. Any prefiltering (anti-aliasing) is the caller's job. */
 export interface GeometricResampler {
   id: string;
   version: string;
@@ -111,14 +118,14 @@ export interface GeometricSamplingPlan {
   destinationRaster: GeometricRaster;
   resampler: GeometricResampler;
   points: readonly GeometricMappingPoint[];
-  /** Includes exact center-domain support for the selected filter; no edge extension. */
+  /** True where the selected filter has full source support around the pixel centre. Edges are not extended. */
   validSourceMask: readonly boolean[];
-  /** Largest all-valid axis-aligned pixel rectangle, half-open. Null if empty. */
+  /** Largest axis-aligned rectangle of valid pixels (half-open). Null if there is none. */
   jointCrop: { x: number; y: number; width: number; height: number } | null;
   requiresPrefilter: boolean;
   canResample: boolean;
   physicalCapturedFovDegrees: { horizontal: number; vertical: number };
-  /** Envelope of mapped pixel-center rays retained by the joint crop, not edge FOV. */
+  /** Angular extent of the mapped pixel-centre rays kept by the joint crop. It is not the edge-to-edge FOV. */
   retainedSampleRayEnvelopeDegrees: { minX: number; maxX: number; minY: number; maxY: number } | null;
 }
 
@@ -139,7 +146,7 @@ function inverse(m: GeometricJacobian): GeometricJacobian {
 function affine(p: LensFieldPointMm, m: GeometricJacobian, o: LensFieldPointMm): LensFieldPointMm {
   return { x: m[0]*p.x+m[1]*p.y+o.x, y: m[2]*p.x+m[3]*p.y+o.y };
 }
-/** Parses strict transform data, rejecting unknown semantics and noninvertible profiles. */
+/** Strictly parses transform data. Unknown kinds or fields and profiles that cannot be inverted are rejected. */
 export function parseDigitalGeometricTransform(value: unknown): DigitalGeometricTransform {
   const r = record(value, ["id", "version", "domain", "purpose", "kind", "matrix", "offsetMm", "profile",
     "destinationProjection", "sourceProjection"]);
@@ -193,7 +200,7 @@ export function parseDigitalGeometricTransform(value: unknown): DigitalGeometric
   return { ...identity, kind, profile };
 }
 
-/** Prepares deterministic still/frame geometry; time changes require another preparation. */
+/** Prepares a deterministic mapping for one still or frame. A change in time needs a new preparation. */
 export function prepareGeometricMapping(input: {
   transforms: readonly DigitalGeometricTransform[]; frameTimeSeconds: number;
 }): CalculationResult<PreparedGeometricMapping> {
@@ -214,7 +221,7 @@ export function prepareGeometricMapping(input: {
   "composed-digital-geometry", version, ["Explicit inverse maps; incompatible domains require separate image stages", "No physical PSF, photon or noise-history recalculation"]);
 }
 
-/** Authoritative display-to-capture map and full local directional derivatives. */
+/** Maps a display point to the capture, with the full local derivatives in each direction. */
 export function calculateComposedGeometricMapping(input: {
   mapping: PreparedGeometricMapping; destinationPointMm: LensFieldPointMm;
 }): CalculationResult<GeometricMappingPoint> {
@@ -223,7 +230,7 @@ export function calculateComposedGeometricMapping(input: {
   return calculatePreparedGeometricMappingPoint(mapping, input.destinationPointMm);
 }
 
-/** Call-local parsed/copy-owned mapping only; never accepts external prepared state. */
+/** Only a mapping parsed and copied within this call; prepared state from outside is never accepted. */
 const VALIDATED_BROWN_CONRADY = new WeakMap<BrownConradyGeometricTransform, ValidatedBrownConradyDistortionProfile>();
 /** Validates a parsed transform's profile once per prepared mapping (the transform object is call-local). */
 function validatedBrownConrady(t: BrownConradyGeometricTransform): ValidatedBrownConradyDistortionProfile {
@@ -242,7 +249,7 @@ function calculatePreparedGeometricMappingPoint(
   for (const t of mapping.transforms) {
     let local: GeometricJacobian;
     if (t.kind === "affine") {
-      // Preserve independent result arrays when one mapping serves many points.
+      // Give each point its own result arrays when one mapping serves many points.
       local = [...t.matrix];
       p = affine(p, local, t.offsetMm);
     } else if (t.kind === "brown-conrady") {
@@ -265,7 +272,8 @@ function calculatePreparedGeometricMappingPoint(
     j = multiply(local, j);
     components.push({ id: t.id, sourcePointMm: { ...p }, jacobian: local });
   }
-  // Singular values via the symmetric J^T J eigenproblem. det/smax avoids cancellation at smin.
+  // Singular values from the eigenvalues of the symmetric matrix JᵀJ. Computing the smaller one as
+  // det/smax avoids cancellation error.
   const a = j[0]*j[0]+j[2]*j[2], b = j[0]*j[1]+j[2]*j[3], c = j[1]*j[1]+j[3]*j[3];
   const maximum = Math.sqrt((a+c+Math.hypot(a-c, 2*b))/2);
   const det = determinant(j), minimum = Math.abs(det)/maximum;
@@ -274,7 +282,7 @@ function calculatePreparedGeometricMappingPoint(
   "composed-digital-geometry-point", "0.1.0", ["Jacobian warps already-formed blur and noise; it creates no captured detail"]);
 }
 
-/** Capture-to-display bridge for focus, metering and overlays; reverses the same maps. */
+/** Maps a capture point to the display, for focus, metering and overlays. It inverts the same maps. */
 export function calculateForwardGeometricMapping(input: {
   mapping: PreparedGeometricMapping; sourcePointMm: LensFieldPointMm;
 }): CalculationResult<LensFieldPointMm> {
@@ -338,12 +346,12 @@ export function calculateValidSourceCrop(mask: readonly boolean[], width: number
   return best;
 }
 
-/** Resolves one joint validity/crop/AA plan after composing compatible inverse maps. */
+/** Composes compatible inverse maps, then resolves one shared plan for validity, crop and anti-aliasing (AA). */
 export function calculateGeometricSamplingPlan(input: {
   mapping: PreparedGeometricMapping; sourceRaster: GeometricRaster; destinationRaster: GeometricRaster;
   resampler: GeometricResampler; physicalProjectionDistanceMm: number;
   /**
-   * Ideal projection of the physical source (captured) raster for the reported angles. Omitted or
+   * Ideal projection of the captured (source) image, used for the reported angles. Omitted or
    * "rectilinear" keeps the existing atan(mm / projection distance) angles exactly.
    */
   sourceProjectionModel?: LensProjectionModel;
@@ -383,7 +391,7 @@ export function calculateGeometricSamplingPlan(input: {
   "joint-geometric-sampling-plan", "0.1.0", ["Mask and crop are exact for this pixel-center lattice/filter, not continuous between-pixel support", "Compression requires explicitly source-prefiltered data; this API does not implement that prefilter", "No temporal trajectory crop guarantee"]);
 }
 
-/** Samples an already-formed scalar image once; null output marks missing source support. */
+/** Resamples an already-formed single-channel image once. A null output sample marks missing source data. */
 export function calculateGeometricResampling(input: {
   plan: GeometricSamplingPlan; sourceSamples: readonly number[];
 }): CalculationResult<{ samples: readonly (number | null)[]; resamplePasses: 1; resampler: GeometricResampler }> {
@@ -397,7 +405,7 @@ export function calculateGeometricResampling(input: {
     const q = pixelCoordinate(plan.sourceRaster, p.sourcePointMm), width = plan.sourceRaster.width;
     if (plan.resampler.filter === "nearest") return source[Math.round(q.y)*width+Math.round(q.x)]!;
     const x = Math.floor(q.x), y = Math.floor(q.y), dx = q.x-x, dy = q.y-y;
-    // Exact boundary centers need no nonexistent neighbor; no border extension occurs.
+    // A centre exactly on the boundary needs no missing neighbour. The border is never extended.
     const x1 = dx === 0 ? x : x+1, y1 = dy === 0 ? y : y+1;
     return (1-dy)*((1-dx)*source[y*width+x]!+dx*source[y*width+x1]!) +
       dy*((1-dx)*source[y1*width+x]!+dx*source[y1*width+x1]!);

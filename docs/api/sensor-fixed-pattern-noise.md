@@ -4,15 +4,16 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorFixedPatternSite
 
-Evaluate the deterministic fixed-pattern values of one absolute colour-sampling site.
+Computes the fixed-pattern values of one absolute colour-sampling site.
 
 - PRNU gain g = max(0, 1 + σ_PRNU·z₁);
 - hot pixel when u < f_hot, then dark factor d = m_hot; otherwise d = max(0, 1 + σ_DSNU·z₂);
 - row offset σ_row·z(row y), column offset σ_col·z(column x), in input-referred electrons.
 
-z are unit normals and u a uniform, each from its own MurmurHash3-seeded stream of
-(sensorInstanceSeed, x, y, stream). Row values use x = 0 and column values y = 0 so a whole row or
-column shares one value. The zero truncation biases the mean factor by less than 1e-6 for σ ≤ 0.2.
+Each z is a standard normal value and u a uniform value, each from its own stream hashed with
+MurmurHash3 from (sensorInstanceSeed, x, y, stream). Row values use x = 0 and column values y = 0,
+so a whole row or column shares one value. Cutting negative factors off at zero shifts the mean
+factor by less than 1e-6 for σ ≤ 0.2.
 
 ```ts
 export function calculateSensorFixedPatternSite(input: {
@@ -24,9 +25,9 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseSensorFixedPatternNoiseProfile
 
-Validate an untrusted fixed-pattern noise declaration. Unknown keys, out-of-range parameters and
-missing evidence fail closed. PRNU and DSNU relative standard deviations are limited to 0.5 and 5,
-the hot-pixel multiplier to 1–1e6.
+Validates an untrusted fixed-pattern noise profile. Unknown keys, out-of-range parameters and
+missing evidence are rejected. The PRNU and DSNU relative standard deviations are limited to 0.5
+and 5, and the hot-pixel multiplier to 1–1e6.
 
 ```ts
 export function parseSensorFixedPatternNoiseProfile(value: unknown): SensorFixedPatternNoiseProfile;
@@ -59,10 +60,10 @@ standard deviation, fraction or RMS disables that component.
 export interface SensorFixedPatternNoiseProfile {
   schemaVersion: typeof SENSOR_FIXED_PATTERN_NOISE_PROFILE_SCHEMA_VERSION;
   profileId: string;
-  /** Colour-sampling lattice whose absolute site coordinates index the pattern. */
+  /** The colour-sampling grid whose absolute site coordinates index the pattern. */
   colorSamplingProfileId: string;
   scientificStatus: "approximation";
-  /** Sensor-instance identity, independent from every per-capture temporal seed. */
+  /** Identifies the physical sensor. Independent of every per-capture noise seed. */
   sensorInstanceSeedUint32: number;
   /** EMVA 1288 PRNU: spatial standard deviation of the photo response divided by its mean. */
   photoResponseNonUniformity: { relativeStandardDeviation: EvidenceBackedFact<number> };
@@ -70,9 +71,9 @@ export interface SensorFixedPatternNoiseProfile {
   darkSignalNonUniformity: { relativeStandardDeviation: EvidenceBackedFact<number> };
   /** Fraction of sites whose dark-current rate is the population mean times the multiplier. */
   hotPixels: { siteFraction: EvidenceBackedFact<number>; darkCurrentMultiplier: EvidenceBackedFact<number> };
-  /** Static per-row input-referred readout offset, normal with zero mean. */
+  /** Fixed readout offset per row, in input-referred electrons, normally distributed with zero mean. */
   rowOffset: { rmsElectrons: EvidenceBackedFact<number> };
-  /** Static per-column input-referred readout offset, normal with zero mean. */
+  /** Fixed readout offset per column, in input-referred electrons, normally distributed with zero mean. */
   columnOffset: { rmsElectrons: EvidenceBackedFact<number> };
   patternDistribution: "normal-factors-truncated-at-zero";
   evidence: readonly EvidenceProvenance[];

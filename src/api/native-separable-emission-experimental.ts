@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Bounded source-radiance → optical/EQE → native packed RAW execution. */
+/**
+ * Experimental: runs scene radiance → optics → EQE (external quantum efficiency) → native
+ * packed RAW, within fixed work budgets.
+ */
 import { calculateNativeRawPlan, createNativeRawTask, type NativeRawInput, type NativeRawOutput,
   type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "../capture/native-raw.js";
 import { planEnvironmentRawSite, type SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
@@ -17,7 +20,7 @@ import {planSeparableEmissionPhotoSignal,executeSeparableEmissionPhotoSignal,typ
 export interface NativeEnvironmentRawInput {
   raw: NativeRawInput;
   sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"];
-  /** Full-event admission budget; maximum 2 billion calls. No convergence is inferred. */
+  /** Budget of provider calls for the whole capture, checked before work starts; at most 2 billion. Staying within it does not imply convergence. */
   maximumProviderEvaluations: number;
 }
 export interface NativeEnvironmentRawTile extends NativeRawTileRequest {
@@ -28,7 +31,7 @@ export interface NativeEnvironmentRawProvider {
   readTile(request: Readonly<NativeRawTileRequest>,signal:AbortSignal):Promise<NativeEnvironmentRawTile>;
   evaluateRadiance: SimulateEnvironmentSensorRawFrameInput["evaluateRadiance"];
   evaluateApertureRadiance?: SimulateEnvironmentSensorRawFrameInput["evaluateApertureRadiance"];
-  /** Optional bounded diagnostic observer; counts are expectation values before any noise/clamp/ADC. */
+  /** Optional, bounded diagnostic callback. Counts are expected values before any noise, clipping or ADC (analogue-to-digital conversion). */
   observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>,signal:AbortSignal):void|Promise<void>;
   yieldControl(signal:AbortSignal):Promise<void>;
 }
@@ -50,7 +53,7 @@ export interface NativeEnvironmentRawTask extends Omit<NativeRawTask,"takeOutput
 function canonical(value:unknown):string {
   return stringifyCanonicalJson(value,{undefinedObjectProperties:"omit",nonFiniteNumberMessage:"Invalid native scene binding.",unsupportedValueMessage:"Invalid native scene binding."});
 }
-/** Repository-only prototype. Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. */
+/** Repository-only prototype. Every tile is planned and checked against the budgets before any radiance callback runs. No partial output is returned. */
 export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask {
   return createNativeEnvironmentRawTaskInternal(input,provider);
 }
@@ -121,13 +124,13 @@ function createNativeEnvironmentRawTaskInternal(input:NativeEnvironmentRawInput,
   };
 }
 
-/** Experimental additive source contract; legacy task/caps and production activation are unchanged. */
+/** Experimental source contract added alongside the existing one. The existing task, its limits and production activation are unchanged. */
 export interface ExperimentalNativeSeparableEmissionInput {
  raw:NativeRawInput;
  sceneBinding:NativeEnvironmentRawInput["sceneBinding"];
  contract:SeparableEmissionContract;
  maximumGeometryEvaluations:number;
- /** Explicit scalar spectral work, not hidden inside geometry callback count. Draft ceiling: 4 billion. */
+ /** Budget for scalar spectral work, counted separately from geometry callbacks. Draft limit: 4 billion. */
  maximumSpectralCompositions:number;
 }
 export interface ExperimentalNativeSeparableEmissionProvider extends Omit<NativeEnvironmentRawProvider,"evaluateRadiance"|"evaluateApertureRadiance"> {
@@ -145,9 +148,10 @@ export interface ExperimentalNativeSeparableEmissionTask extends Omit<NativeEnvi
  };
 }
 /**
- * Repository-only draft native route. Reuses bounded tile scheduling, immutable RAW,
- * host yields, cancellation and all existing optical/sensor reducers. Separate budgets
- * are explicit; the 2-billion legacy provider and 100000 logical tile caps are unchanged.
+ * Repository-only draft of the native RAW route for separable emission. It reuses the
+ * existing bounded tile scheduling, immutable RAW output, host yields, cancellation and
+ * all optical and sensor reducers. Its budgets are separate and explicit. The existing
+ * limits (2 billion provider calls, 100000 logical tiles) are unchanged.
  */
 export function createExperimentalNativeSeparableEmissionTask(input:ExperimentalNativeSeparableEmissionInput,provider:ExperimentalNativeSeparableEmissionProvider):ExperimentalNativeSeparableEmissionTask {
  requireAllowlistedRecord(input,["raw","sceneBinding","contract","maximumGeometryEvaluations","maximumSpectralCompositions"],"Invalid experimental native emission input.");

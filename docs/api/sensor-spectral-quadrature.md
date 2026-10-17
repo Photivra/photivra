@@ -4,26 +4,24 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorSpectralQuadrature
 
-Builds deterministic wavelength quadrature nodes for one exact sensor
-response channel without applying the response to a source spectrum.
+Builds deterministic wavelength sample points for one exact sensor response
+channel. It does not apply the response to any spectrum.
 
-The requested wavelength range must lie fully inside the response channel's
-declared usable range. Response-curve knots and optional caller-provided
-continuous-spectrum/optics breakpoints partition that range. Each segment is
-then subdivided so no midpoint subinterval exceeds
+The requested range must lie fully inside the channel's declared usable
+range. The response curve's breakpoints, plus any caller-supplied breakpoints
+from the source spectrum or optics, split that range into segments. Each
+segment is then subdivided so no midpoint subinterval is wider than
 maximumSubintervalWidthNanometers.
 
-wavelengthMeasureNanometers is d-lambda in nanometres. It is not a
-dimensionless response weight. Future integration must use a source spectral
-density expressed per nanometre or explicitly convert units before
-multiplying by this measure.
+wavelengthMeasureNanometers is dλ in nanometres, not a dimensionless response
+weight. Multiply it only by a spectral density per nanometre, or convert
+units explicitly first.
 
-This function deliberately does not apply QE or A/W responsivity. Those
-representations have different compatible downstream signal domains: QE is
-photon-to-electron efficiency, while A/W responsivity relates incident
-radiant power to electrical current. A later versioned composition must also
-match responseScope to the source plane and collection-area semantics before
-integrating any signal.
+QE and A/W responsivity are deliberately not applied. They lead to different
+signals: QE is photon-to-electron efficiency, while A/W responsivity relates
+incident radiant power to electrical current. A later step must also match
+responseScope to the source plane and collection area before integrating any
+signal.
 
 ```ts
 export function calculateSensorSpectralQuadrature(
@@ -45,27 +43,27 @@ export interface CalculateSensorSpectralQuadratureInput {
   channelId: string;
   wavelengthBasis: SpectralWavelengthBasis;
   /**
-   * Explicit wavelength interval to sample. This API validates the interval
-   * against sensor-response support only; it does not establish scene-spectrum
-   * or optical-transmission coverage.
+   * Wavelength interval to sample. It is checked only against the range the
+   * sensor response supports, not against scene-spectrum or optical-transmission
+   * coverage.
    */
   wavelengthRangeNanometers:
     SensorSpectralWavelengthRangeNanometers;
   /**
-   * Hard upper bound on each midpoint subinterval width.
+   * Strict upper limit on the width of each midpoint subinterval.
    *
-   * Response knots and optional additional breakpoints split the requested
-   * range first; each resulting segment is then subdivided until every
-   * subinterval is no wider than this value.
+   * Response breakpoints and any additional breakpoints split the requested
+   * range first. Each segment is then subdivided until every subinterval is
+   * no wider than this value.
    */
   maximumSubintervalWidthNanometers: number;
   /**
    * Optional strictly increasing wavelength breakpoints from other continuous
-   * spectral factors, such as scene spectral-density or optical-transmission
-   * interpolation knots. Values must lie strictly inside the requested range.
+   * spectral inputs, such as the interpolation points of a scene spectrum or of
+   * optical transmission. Values must be strictly inside the requested range.
    *
-   * These coordinates do not assert that those external factors are actually
-   * available or valid over the requested range.
+   * Passing them does not claim those other inputs are available or valid over
+   * the requested range.
    */
   additionalBreakpointsNanometers?:
     readonly number[];
@@ -103,7 +101,7 @@ export interface SensorSpectralQuadrature {
   segmentBoundarySource:
     "requested-range-plus-response-knots-plus-optional-additional-breakpoints";
   /**
-   * Ordered unique segment boundaries, including requested range endpoints.
+   * Sorted, unique segment boundaries, including the ends of the requested range.
    */
   segmentBoundariesNanometers:
     readonly number[];
@@ -122,7 +120,7 @@ export interface SensorSpectralQuadrature {
       readonly (readonly EvidenceProvenance[])[];
   };
   /**
-   * Hard scientific boundaries.
+   * Fixed statements of what this result does not include.
    */
   responseValuesIncluded: false;
   responseApplicationPerformed: false;
@@ -158,16 +156,16 @@ export interface SensorSpectralQuadratureNode {
    */
   wavelengthNanometers: number;
   /**
-   * d-lambda represented by this node. Units: nm.
+   * dλ (wavelength width) this node stands for. Units: nm.
    *
-   * This is wavelength measure only. It is not response-weighted throughput,
-   * photon count, radiant energy, current, or a dimensionless probability.
+   * It is only a wavelength width. It is not response-weighted throughput,
+   * a photon count, radiant energy, current or a dimensionless probability.
    */
   wavelengthMeasureNanometers: number;
   /**
-   * Dimensionless wavelength measure normalized by the requested range width.
+   * The wavelength width divided by the requested range width (dimensionless).
    *
-   * This may be useful for averages, but it is not a sensor-response weight.
+   * Useful for averages, but it is not a sensor-response weight.
    */
   normalizedWavelengthWeight: number;
 }

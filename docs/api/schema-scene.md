@@ -22,8 +22,8 @@ export type SceneCapability =
 
 Versioned, renderer-independent description of a curated synthetic scene.
 
-Asset locations are intentionally not part of this scientific schema;
-callers may bind the metadata to their own asset systems separately.
+Asset locations are deliberately left out of this scientific schema. Callers
+can link the metadata to their own asset systems.
 
 ```ts
 export interface SceneDefinition {
@@ -73,18 +73,18 @@ Describes how scene-linear image values relate to physical light.
 export type SceneRadiometry =
   | {
       /**
-       * Relative linear values preserve light ratios but are not absolutely
-       * calibrated for photon-count calculations.
+       * Relative linear values keep light ratios correct but have no absolute
+       * calibration, so they cannot be used to compute photon counts.
        */
       kind: "relative-linear";
       referenceValue: number;
     }
   | {
       /**
-       * Scene package includes an absolute luminance anchor that can support
-       * calibrated photometric exposure work. Luminance alone is not
-       * sufficient to derive photon counts; photon simulation additionally
-       * requires defensible spectral and optical calibration.
+       * The scene package includes an absolute luminance reference, which can
+       * support calibrated photometric exposure work. Luminance alone cannot give
+       * photon counts. Simulating photons also needs defensible spectral and
+       * optical calibration.
        */
       kind: "absolute-luminance";
       referenceValue: number;

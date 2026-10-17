@@ -4,9 +4,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateLensCorrectedCapture
 
-Executes bounded reconstructed-linear corrections on already sampled RGB channels.
-Compatible common geometry plus channel CA is sampled once per channel.
-A gain between geometry components or incompatible domains requires an external staged consumer.
+Applies bounded corrections to RGB channels that are already sampled and linear.
+Compatible shared geometry and per-channel CA are combined, so each channel is resampled once.
+A gain between geometry components, or incompatible domains, needs a separate staged caller.
 
 ```ts
 export function calculateLensCorrectedCapture(input: {
@@ -18,10 +18,10 @@ export function calculateLensCorrectedCapture(input: {
   application: ResolvedLensCorrectionPlan["application"];
   channels: Readonly<Record<LensCorrectionChannel, readonly (number | null)[]>>;
   samplingPlans: Partial<Record<LensCorrectionChannel, GeometricSamplingPlan>>;
-  /** Intersection across all channel footprints, before crop; no missing colors fabricated. */
+  /** Area valid in every channel, before cropping. Missing colours are never made up. */
   validSourceMask: readonly boolean[];
   jointCrop: GeometricSamplingPlan["jointCrop"];
-  /** Gain-stage clipping events before joint support/crop; repeated stages count separately. */
+  /** Clipping events in gain stages, before the shared valid-area crop. Each stage is counted separately. */
   illuminationClippingEventCount: number;
 }>;
 ```
@@ -30,7 +30,8 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculatePeripheralIlluminationCorrection
 
-Applies scalar post-capture gain and reports pre-clip variance; no photon/SNR history rewrite.
+Applies a gain after capture and reports the variance before clipping. It does not rewrite
+the photon or SNR (signal-to-noise ratio) history of the capture.
 
 ```ts
 export function calculatePeripheralIlluminationCorrection(input: {
@@ -43,7 +44,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## GenericLensCorrectionProfile
 
-Exact generic system binding, with components in authoritative application order.
+A correction profile for one exact lens-and-camera system. Components are listed in the order they are applied.
 
 ```ts
 export interface GenericLensCorrectionProfile {
@@ -58,7 +59,7 @@ export interface GenericLensCorrectionProfile {
 
 ## GeometricLensCorrection
 
-A separately declared correction map may deliberately retain physical distortion.
+A distortion correction map, declared separately. It may deliberately leave some physical distortion in place.
 
 ```ts
 export interface GeometricLensCorrection extends CorrectionComponentIdentity {
@@ -69,7 +70,7 @@ export interface GeometricLensCorrection extends CorrectionComponentIdentity {
 
 ## IlluminationLensCorrection
 
-Post-capture scalar gain; strength 0..1 leaves explicit residual falloff.
+Vignetting correction as a gain applied after capture. A strength below 1 deliberately leaves some falloff. Range 0..1.
 
 ```ts
 export interface IlluminationLensCorrection extends CorrectionComponentIdentity {
@@ -81,7 +82,7 @@ export interface IlluminationLensCorrection extends CorrectionComponentIdentity 
 
 ## LateralCaLensCorrection
 
-Channel registration only, not longitudinal CA or color shading.
+Lateral CA: shifts colour channels into register. It does not correct longitudinal CA or colour shading.
 
 ```ts
 export interface LateralCaLensCorrection extends CorrectionComponentIdentity {
@@ -92,7 +93,7 @@ export interface LateralCaLensCorrection extends CorrectionComponentIdentity {
 
 ## LensCorrectionCapture
 
-Immutable capture identity accompanies downstream channels for meaningful On/Off comparisons.
+The fixed capture identity travels with the output channels, so On/Off comparisons use the same capture.
 
 ```ts
 export interface LensCorrectionCapture {
@@ -123,7 +124,7 @@ export type LensCorrectionComponent = GeometricLensCorrection | LateralCaLensCor
 
 ## parseGenericLensCorrectionProfile
 
-Strict parser for generic system corrections; no extrapolation or restoration claim.
+Strictly parses a generic correction profile. It does not extrapolate and makes no claim to restore lost detail.
 
 ```ts
 export function parseGenericLensCorrectionProfile(value: unknown): GenericLensCorrectionProfile;
@@ -142,14 +143,15 @@ export interface ResolvedLensCorrectionPlan {
   selectionKind: "camera-selectable" | "reference-bypass";
   components: readonly { component: LensCorrectionComponent; enabled: boolean;
     reason: "selected" | "default" | "mandatory" | "stabilization-dependency" | "component-dependency" | "reference-bypass" }[];
-  /** RAW-like intent remains metadata only in this first foundation. */
+  /** For now, a RAW-like intent is recorded as metadata only. */
   application: "metadata-only" | "bake-downstream";
 }
 ```
 
 ## resolveLensCorrectionPlan
 
-Resolves independent camera states, explicit dependencies, RAW intent and educational bypass.
+Decides which corrections apply for a camera state. It accounts for per-component settings,
+explicit dependencies between components, RAW intent and the educational "corrections off" bypass.
 
 ```ts
 export function resolveLensCorrectionPlan(input: {

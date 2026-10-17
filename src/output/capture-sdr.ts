@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates the capture and explicit color/render choices at an untrusted boundary.
- * Bounded capture → explicit color/WB → SDR adapter. No resampling, correction, physical exposure,
- * metering, external IO or production-plan activation occurs.
+ * SDR (standard dynamic range) output from a simulated capture: capture → explicit colour and
+ * white balance (WB) → SDR rendering.
+ *
+ * It does no resampling, lens correction, physical exposure, metering or external I/O, and it
+ * does not run the production image-formation plan.
  * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -18,7 +19,7 @@ import { calculateCaptureColorTransform, parseCaptureColorTransformInput, LINEAR
 import { calculateSdrRendering, parseSdrRenderingProfile, type SdrRenderingProfile, type SdrRenderingResult } from "./sdr-rendering.js";
 
 export const CAPTURE_SDR_SCHEMA_VERSION = "0.1.0" as const;
-/** Select an existing RGB state or explicitly derive one; never estimate WB here. */
+/** Either select an existing RGB image state or derive one explicitly. White balance is never estimated here. */
 export interface CaptureSdrInput {
   capture: SimulatedCapture;
   sourcePlaneId: string;
@@ -30,7 +31,7 @@ export interface CaptureSdrInput {
   };
   profile: SdrRenderingProfile;
 }
-/** Keeps source capture history, optional color derivation and SDR diagnostics distinct. */
+/** Result. The source capture history, the optional colour derivation and the SDR diagnostics are kept separate. */
 export interface CaptureSdrResult {
   schemaVersion: typeof CAPTURE_SDR_SCHEMA_VERSION;
   captureId: string;
@@ -47,7 +48,7 @@ export interface CaptureSdrResult {
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
   return requireAllowlistedRecord(value, keys, "Invalid capture-SDR fields.");
 }
-/** Validates the capture and explicit color/render choices at an untrusted boundary. */
+/** Validates untrusted input: the capture and the explicit colour and rendering choices. */
 export function parseCaptureSdrInput(value: unknown): CaptureSdrInput {
   const r = object(value, ["capture", "sourcePlaneId", "color", "profile"]);
   const capture = parseSimulatedCapture(r.capture);
@@ -66,8 +67,10 @@ export function parseCaptureSdrInput(value: unknown): CaptureSdrInput {
   return { capture, sourcePlaneId: r.sourcePlaneId, color, profile: parseSdrRenderingProfile(r.profile) };
 }
 /**
- * Bounded capture → explicit color/WB → SDR adapter. No resampling, correction,
- * physical exposure, metering, external IO or production-plan activation occurs.
+ * Renders a bounded capture to SDR via an explicit colour/WB step.
+ *
+ * No resampling, lens correction, physical exposure, metering or external I/O
+ * happens, and the production image-formation plan is not run.
  */
 export function prepareCaptureSdrSource(input: CaptureSdrInput): {
   value: CaptureSdrInput; source: CaptureLinearPlane; plane: CaptureLinearPlane;
@@ -88,7 +91,7 @@ export function prepareCaptureSdrSource(input: CaptureSdrInput): {
       (plane.whiteBalanceApplication === "not-applicable" && value.capture.whiteBalanceIntent !== null)) {
     throw new InvalidConfigurationError("Capture-SDR requires exact linear-sRGB/D65 and resolved WB; intent is not application.");
   }
-  // The derived color parser guarantees inline storage; no external source reaches this point.
+  // The derived-colour parser guarantees inline storage, so no external source reaches this point.
   if (plane.storage.kind !== "inline-float64") throw new InvalidConfigurationError("Inline RGB required.");
   const applied = plane.whiteBalanceApplication !== "not-applicable";
   return { value, source, plane, color, applied };

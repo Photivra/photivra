@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * The legacy SceneConfiguration describes the POC subject and representative constant motion. It
- * is not a spectral scene-radiance provider, surface visibility solver or physical illumination
- * transport model. Keep that simpler request contract separate from production scene/provider
- * bindings.
+ * The legacy SceneConfiguration: the proof-of-concept (POC) subject and its representative
+ * constant motion, plus the curated scene description types.
+ *
+ * It is not a spectral scene-radiance provider, a surface visibility solver or a physical
+ * light-transport model. Keep this simpler request contract separate from the production
+ * scene and provider types.
  * @see docs/RELEASE_1_0.md and the corresponding domain guide.
  */
 
@@ -23,18 +25,18 @@ export interface Vector3 {
 export type SceneRadiometry =
   | {
       /**
-       * Relative linear values preserve light ratios but are not absolutely
-       * calibrated for photon-count calculations.
+       * Relative linear values keep light ratios correct but have no absolute
+       * calibration, so they cannot be used to compute photon counts.
        */
       kind: "relative-linear";
       referenceValue: number;
     }
   | {
       /**
-       * Scene package includes an absolute luminance anchor that can support
-       * calibrated photometric exposure work. Luminance alone is not
-       * sufficient to derive photon counts; photon simulation additionally
-       * requires defensible spectral and optical calibration.
+       * The scene package includes an absolute luminance reference, which can
+       * support calibrated photometric exposure work. Luminance alone cannot give
+       * photon counts. Simulating photons also needs defensible spectral and
+       * optical calibration.
        */
       kind: "absolute-luminance";
       referenceValue: number;
@@ -79,8 +81,8 @@ export type SceneCapability =
 /**
  * Versioned, renderer-independent description of a curated synthetic scene.
  *
- * Asset locations are intentionally not part of this scientific schema;
- * callers may bind the metadata to their own asset systems separately.
+ * Asset locations are deliberately left out of this scientific schema. Callers
+ * can link the metadata to their own asset systems.
  */
 export interface SceneDefinition {
   schemaVersion: string;

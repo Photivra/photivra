@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculatePrintContrastReference
 
-Estimate the restricted published-model threshold; no individual invisibility claim.
+Estimates the detection threshold from the published model, within its limited range. It does not claim that detail is invisible to any particular person.
 
 ```ts
 export function calculatePrintContrastReference(value: PrintContrastReferenceInput): CalculationResult<PrintContrastReference>;
@@ -14,7 +14,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parsePrintContrastReferenceInput
 
-Strictly parse/copy explicit reference conditions; no defaults infer an observer.
+Strictly parses and copies the explicit reference conditions. No defaults are filled in to imply an observer.
 
 ```ts
 export function parsePrintContrastReferenceInput(value: unknown): PrintContrastReferenceInput;
@@ -32,7 +32,7 @@ PRINT_CONTRAST_REFERENCE_MODEL_VERSION = "0.1.0" as const
 
 ## PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION
 
-Exact MIT-licensed numerical-model source, not a local calibration identity.
+Identifies the exact MIT-licensed model source. It is not a local calibration.
 
 ```ts
 PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION = "f4b0b722af83001d7af979281e06ca642d36e4e8" as const
@@ -62,21 +62,21 @@ export interface PrintContrastReference {
 
 ## PrintContrastReferenceInput
 
-Narrow reference stimulus, separate from any measured photographic ROI.
-Positive but out-of-domain quantities return unsupported rather than extrapolation.
+The narrow reference stimulus. It is separate from any measured photographic region of interest (ROI).
+Positive values outside the model's range return "unsupported" instead of being extrapolated.
 
 ```ts
 export interface PrintContrastReferenceInput {
   referenceId: string;
   stimulus: "static-neutral-d65-gabor";
   observer: "published-binocular-natural-pupil-reference";
-  /** Uniform D65 background/carrier mean; not the average of a finite photographic ROI. */
+  /** Mean luminance of the uniform D65 background and grating. Not the average of a photographic ROI. */
   meanLuminanceCdPerSquareMeter: number;
   spatialFrequencyCyclesPerDegree: number;
   gaussianEnvelopeSigmaDegrees: number;
   temporalFrequencyHz: number;
   eccentricityDegrees: number;
-  /** Neutral carrier fractional amplitude before the Gaussian envelope; not arbitrary ROI extrema. */
+  /** Fractional amplitude of the neutral grating before the Gaussian envelope. Not taken from ROI minimum and maximum values. */
   modulationMichelson: number;
 }
 ```

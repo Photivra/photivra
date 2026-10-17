@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Compose declared scene radiance through paraxial optics and instantaneous EQE at every exact local
- * shutter midpoint. Light is never averaged before response validity. No projection, renderer, PSF,
- * charge/noise or production stage executes.
+ * Photo signal for one site over one exposure, starting from declared scene radiance: paraxial
+ * (small-angle) optics, then the EQE (external quantum efficiency) response, at every exact local
+ * shutter midpoint time.
+ *
+ * Light is never averaged before the response checks. No projection, renderer, PSF (point-spread
+ * function), charge, noise or production stage runs.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -19,13 +21,13 @@ import { calculateSensorSpectralQuadrature } from "./spectral-quadrature.js";
 import { bindSensorTemporalSamples } from "./temporal-sample-binding.js";
 import { requireInputObject } from "../core/record-validation.js";
 
-/** Declared physical scene radiance at every spatial/wavelength/local-shutter midpoint. */
+/** Input: declared physical scene radiance at every spatial position, wavelength and local shutter midpoint time. */
 export interface CalculateSceneSensorEqeTemporalExposureInput {
-  /** One destination site, response and local shutter event; no stationarity declaration. */
+  /** One destination site, its response and one local shutter event. No constant-rate declaration is needed. */
   sensor: Omit<CalculateSensorEqeTemporalExposureInput, "samples">;
   sceneBindings: CalculateSceneToSensorIrradianceQuadratureInput["sceneBindings"];
   optics: CalculateSceneToSensorIrradianceQuadratureInput["optics"];
-  /** Explicitly binds scene query seconds to the shutter's first-opening boundary. */
+  /** States that scene query times are seconds from the shutter's first opening boundary. */
   timeReference: "first-opening-boundary-phase";
   samples: readonly {
     temporalSampleIndex: number;
@@ -34,7 +36,7 @@ export interface CalculateSceneSensorEqeTemporalExposureInput {
   }[];
 }
 
-/** Child optical and sensor envelopes retain approximation/evidence independently. */
+/** Result. The optical and sensor results each keep their own approximation labels and evidence. */
 export interface SceneSensorEqeTemporalExposure {
   sourcePlane: "sensor-package-incident";
   sourceTargetProjectionVerified: false;
@@ -49,9 +51,10 @@ export interface SceneSensorEqeTemporalExposure {
 }
 
 /**
- * Compose declared scene radiance through paraxial optics and instantaneous EQE
- * at every exact local shutter midpoint. Light is never averaged before response
- * validity. No projection, renderer, PSF, charge/noise or production stage executes.
+ * Runs declared scene radiance through paraxial optics and the instantaneous EQE
+ * response at every exact local shutter midpoint time. Light is never averaged
+ * before the response checks. No projection, renderer, PSF, charge, noise or
+ * production stage runs.
  */
 export function calculateSceneSensorEqeTemporalExposure(
   input: CalculateSceneSensorEqeTemporalExposureInput
@@ -63,7 +66,7 @@ export function calculateSceneSensorEqeTemporalExposure(
   if (input.sensor.responseApplication.sourcePlane.value !== "sensor-package-incident") {
     throw new InvalidScientificInputError("Scene optical output requires a sensor-package-incident response application.");
   }
-  // Bound total declared work before any per-instant optical calculation.
+  // Check the total declared work against its limit before any per-instant optical calculation.
   const ordered = bindSensorTemporalSamples(input.samples, sample => sample.sceneSamples);
   const spatialQuadrature = calculateSensorSpatialSamplingQuadrature({ ...input.sensor.spatialSampling,
     colorSamplingProfile: input.sensor.colorSamplingProfile,

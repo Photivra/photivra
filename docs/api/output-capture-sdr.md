@@ -22,7 +22,7 @@ CAPTURE_SDR_SCHEMA_VERSION = "0.1.0" as const
 
 ## CaptureSdrInput
 
-Select an existing RGB state or explicitly derive one; never estimate WB here.
+Either select an existing RGB image state or derive one explicitly. White balance is never estimated here.
 
 ```ts
 export interface CaptureSdrInput {
@@ -40,7 +40,7 @@ export interface CaptureSdrInput {
 
 ## CaptureSdrResult
 
-Keeps source capture history, optional color derivation and SDR diagnostics distinct.
+Result. The source capture history, the optional colour derivation and the SDR diagnostics are kept separate.
 
 ```ts
 export interface CaptureSdrResult {
@@ -60,7 +60,7 @@ export interface CaptureSdrResult {
 
 ## parseCaptureSdrInput
 
-Validates the capture and explicit color/render choices at an untrusted boundary.
+Validates untrusted input: the capture and the explicit colour and rendering choices.
 
 ```ts
 export function parseCaptureSdrInput(value: unknown): CaptureSdrInput;

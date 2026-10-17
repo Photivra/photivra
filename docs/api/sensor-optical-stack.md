@@ -9,16 +9,16 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface AntiAliasingPointSplitComponent {
   /**
-   * Native sensor physical offset from the nominal landing point.
-   * +X right, +Y down. Units: micrometres.
+   * Physical offset on the native sensor from where the light would otherwise
+   * land. +X right, +Y down. Units: micrometres.
    */
   offsetMicrometers: {
     x: number;
     y: number;
   };
   /**
-   * Dimensionless normalized spatial weight. Point-splitting kernels describe
-   * spatial redistribution only; total stack throughput is outside this field.
+   * Normalized weight (dimensionless). A point-splitting kernel only describes
+   * where the light goes; the stack's total throughput is not part of it.
    */
   normalizedWeight: number;
 }
@@ -26,18 +26,17 @@ export interface AntiAliasingPointSplitComponent {
 
 ## parseSensorOpticalStackProfile
 
-Parses descriptive sensor optical-stack metadata plus an optional explicitly
-declared effective anti-aliasing spatial response.
+Parses descriptive sensor optical-stack metadata, plus an optional explicitly
+declared anti-aliasing (AA) spatial response.
 
-Unknown facts are omitted instead of inferred. Physical component presence
-is intentionally separate from effective anti-aliasing response so the
-schema can represent cancellation/neutralization designs without claiming
-the physical assembly is absent.
+Leave out unknown facts rather than guessing them. Physical presence of a
+component is separate from the net AA response, so the schema can describe
+designs that cancel the AA effect without claiming the hardware is missing.
 
-Cover/filter-stack and microlens presence do not create optical effects in
-schema 0.1.0. Thickness, refractive index, spectral transmission, angular
-acceptance, focus shift and microlens collection behavior require later
-explicit models/calibration.
+In schema 0.1.0, cover glass, filters and microlenses create no optical
+effect. Thickness, refractive index, spectral transmission, angle of
+acceptance, focus shift and microlens collection need later explicit models
+or calibration.
 
 ```ts
 export function parseSensorOpticalStackProfile(
@@ -49,15 +48,15 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## resolveAntiAliasingSpatialKernel
 
-Resolves only the effective anti-aliasing spatial kernel.
+Resolves only the anti-aliasing (AA) spatial kernel.
 
-This is not a whole optical-stack PSF. Cover/filter transmission, refraction,
-microlens behavior, field/wavelength/polarization dependence, and total
-throughput remain excluded.
+This is not the PSF (point-spread function) of the whole optical stack. Cover
+glass and filter transmission, refraction, microlens behaviour, dependence on
+field position, wavelength or polarization, and total throughput are excluded.
 
-A documented absent effective anti-aliasing response resolves to an identity
-component at zero offset. An unknown response (field omitted) or a
-present-but-unresolved response fails closed.
+A documented absent AA response gives a single component with weight 1 at zero
+offset (no blur). An unknown response (field omitted) or one that is present
+but unspecified is rejected.
 
 ```ts
 export function resolveAntiAliasingSpatialKernel(
@@ -103,25 +102,24 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export type SensorEffectiveAntiAliasingSpatialResponse =
   | {
       /**
-       * Documented absence/cancellation of intentional anti-aliasing spatial
-       * splitting. This does not mean the whole sensor stack is optically
-       * identity.
+       * Documented absence (or cancellation) of deliberate AA splitting. It does
+       * not mean the rest of the sensor stack has no optical effect.
        */
       kind: "absent";
       evidence: readonly EvidenceProvenance[];
     }
   | {
       /**
-       * An effective anti-aliasing response is known to exist, but its spatial
-       * response is not defensibly specified.
+       * An AA effect is known to exist, but its spatial response is not
+       * specified well enough to use.
        */
       kind: "present-unresolved";
       evidence: readonly EvidenceProvenance[];
     }
   | {
       /**
-       * Generic normalized point-splitting approximation in native sensor
-       * physical coordinates.
+       * Generic approximation: each point is split into weighted copies at
+       * offsets in native sensor physical coordinates.
        */
       kind: "normalized-point-splitting-kernel";
       evidence: readonly EvidenceProvenance[];
@@ -141,8 +139,8 @@ export interface SensorMicrolensDeclaration {
   presence: "present" | "absent";
   evidence: readonly EvidenceProvenance[];
   /**
-   * Presence alone does not establish an angular, spectral, fill-factor, or
-   * collection-efficiency model.
+   * Being present does not establish any model of angle, spectrum, fill factor
+   * or collection efficiency.
    */
   opticalEffectModel: "unresolved";
 }
@@ -156,8 +154,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface SensorOpticalStackComponent {
   componentId: string;
   /**
-   * Roles may be combined because one physical element can provide multiple
-   * optical/filter functions.
+   * A component can have several roles, because one physical element can do
+   * more than one optical or filtering job.
    */
   roles: readonly SensorOpticalStackComponentRole[];
   evidence: readonly EvidenceProvenance[];
@@ -189,22 +187,21 @@ export interface SensorOpticalStackProfile {
   profileId: string;
   evidence: readonly EvidenceProvenance[];
   /**
-   * Ordered from incident-light side toward the sensor.
+   * In order from the side light enters towards the sensor.
    *
    * These components are descriptive metadata only. Their presence does not
-   * create transmission, focus-shift, aberration, or spectral effects.
+   * create transmission, focus-shift, aberration or spectral effects.
    */
   orderedComponents?: readonly SensorOpticalStackComponent[];
   /**
-   * Omitted means unknown/unasserted.
+   * Omitted means "unknown, not stated".
    *
-   * This is intentionally separate from physical component presence so a
-   * stack can contain low-pass-related hardware while its net effective
-   * anti-aliasing response is absent/cancelled.
+   * This is separate from which components are present, so a stack can
+   * contain low-pass hardware while its net AA effect is absent or cancelled.
    */
   effectiveAntiAliasingSpatialResponse?: SensorEffectiveAntiAliasingSpatialResponse;
   /**
-   * Omitted means unknown/unasserted.
+   * Omitted means "unknown, not stated".
    */
   microlens?: SensorMicrolensDeclaration;
 }

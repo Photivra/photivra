@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Recompute exact midpoint count sums; declarations do not prove source truth.
- * Re-evaluate physical input at every time before committing an owned compact photo signal. Detailed
- * child evidence/uncertainty stays in the returned exposure diagnostics. This does not establish
- * renderer/source execution.
+ * Time-resolved photo signal: a compact record of the expected photon and electron counts for one site
+ * over one exposure, with the rate at each midpoint time.
+ *
+ * Creating it re-evaluates the physical input at every time. Parsing it recomputes the midpoint sums
+ * exactly. Neither proves the light source is correct.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -19,7 +19,7 @@ import { freezeOwnedData } from "../core/owned-data.js";
 import type { SensorEqeExposureIntegration } from "./constant-rate-temporal-integration.js";
 import { calculateSensorEqeTemporalExposure, type CalculateSensorEqeTemporalExposureInput } from "./eqe-temporal-exposure.js";
 
-/** Compact untreated photo expectation; temporal identity is not stationarity evidence. */
+/** Compact expected photo signal, before any processing. Being tied to a time window is not evidence that the light was constant. */
 export interface SensorEqeTemporalPhotoSignal extends Omit<SensorEqeExposureIntegration,
   "kind" | "stationarityProfileId" | "stationarityStatus" | "integrationMethod" | "timeStationarityEstablished" |
   "timeVaryingSignalIntegrated" | "incidentPhotonRatePerSecond" | "expectedGeneratedElectronRatePerSecond" | "componentEvidence"> {
@@ -59,7 +59,7 @@ function finite(value: unknown, nonnegative = true): number {
   }
   return value;
 }
-/** Recompute exact midpoint count sums; declarations do not prove source truth. */
+/** Parses a time-resolved photo signal and recomputes its midpoint sums exactly. Declarations do not prove the source is correct. */
 export function parseSensorEqeTemporalPhotoSignal(value: unknown): SensorEqeTemporalPhotoSignal {
   const r = record(value, [...trueFields, ...falseFields, "kind", "temporalIntegrationId", "colorSamplingProfileId", "channelId", "site",
     "bindingId", "timeReference", "startOffsetSecondsFromOpeningReference", "endOffsetSecondsFromOpeningReference",
@@ -107,9 +107,9 @@ export function parseSensorEqeTemporalPhotoSignal(value: unknown): SensorEqeTemp
 }
 
 /**
- * Re-evaluate physical input at every time before committing an owned compact
- * photo signal. Detailed child evidence/uncertainty stays in the returned
- * exposure diagnostics. This does not establish renderer/source execution.
+ * Re-evaluates the physical input at every time, then commits a compact photo
+ * signal. Detailed per-step evidence and uncertainty stay in the returned
+ * exposure diagnostics. This does not show that a renderer or source actually ran.
  */
 export function createSensorEqeTemporalPhotoSignal(input: {
   temporalIntegrationId: string;

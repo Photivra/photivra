@@ -2,28 +2,30 @@
 // This product includes DNG technology under license by Adobe.
 
 /**
- * Module boundary and integration notes.
- * Serializes a packed native RAW (`NativeRawOutput`, from the native RAW or native environment RAW tasks)
- * to a lossless, uncompressed 16-bit CFA DNG. It describes only what the packed RAW and the caller's
- * declared colour profile and noise model contain; it never claims a linear-master source or a
- * developed image. The tag layout reuses the TIFF/DNG writers of the paired photographic export
- * (`packExportTiff`, DNG 1.4 tags, Adobe DNG Specification 1.7.1.0):
+ * Writes a packed native RAW (`NativeRawOutput`, from the native RAW or native environment RAW tasks) as a
+ * lossless, uncompressed 16-bit DNG with a CFA (colour filter array) mosaic.
+ *
+ * The file describes only what the packed RAW, the caller's declared colour profile and noise model
+ * contain. It never claims a linear float master as its source, or a developed image. The tag layout reuses
+ * the TIFF/DNG writers of the paired photographic export (`packExportTiff`, DNG 1.4 tags, Adobe DNG
+ * Specification 1.7.1.0):
  *
  * - CFA geometry: CFARepeatPatternDim 2×2, CFAPattern and BlackLevel phases relative to the ActiveArea
  *   origin (DNG applies them to the stage-2, ActiveArea-cropped image); DefaultCropOrigin/Size are the
  *   capture's oriented output crop mapped back to stored (native) coordinates; Orientation from the capture.
- * - Levels: BlackLevel per 2×2 phase (the packed per-site black levels must repeat with the CFA tile);
- *   WhiteLevel is the smallest per-phase effective white code, so no channel is reported unsaturated
- *   above its own saturation point. Saturation flags of sites whose code lies below WhiteLevel cannot be
- *   represented in DNG; they are counted in `unrepresentedSaturationFlagCount`.
+ * - Levels: BlackLevel per 2×2 phase (the packed per-site black levels must repeat with the CFA tile).
+ *   WhiteLevel is the smallest per-phase effective white code, so no channel is reported as unsaturated
+ *   above its own saturation point. DNG cannot represent a saturation flag on a site whose code is below
+ *   WhiteLevel; such sites are counted in `unrepresentedSaturationFlagCount`.
  * - Colour: ColorMatrix1 = (camera→XYZ)⁻¹ with CalibrationIlluminant1 D65 (21), ForwardMatrix1 =
  *   Bradford(D65→D50)·M·diag(w), AnalogBalance 1, AsShotNeutral from the capture's white-balance intent
  *   (the same operator native development uses), BaselineExposure as declared (default 0).
  * - Noise: NoiseProfile (51041) per CFA plane, var(x) = S·x + O for x = (code − black)/(WhiteLevel − black),
  *   S = 1/(G·span), O = (σ_read²/G² + 1/12)/span², written only when the caller supplies each channel's
- *   output-referred conversion gain G (electrons per code) and read noise σ_read (electrons). Poisson
- *   photo/dark shot noise, Gaussian read noise and uniform quantization only (an approximation; PRNU,
- *   DSNU and fixed-pattern noise are not included).
+ *   output-referred conversion gain G (electrons per code) and read noise σ_read (electrons). The model
+ *   covers only Poisson photo and dark shot noise, Gaussian read noise and uniform quantization. It is an
+ *   approximation: PRNU (photo-response non-uniformity), DSNU (dark-signal non-uniformity) and other
+ *   fixed-pattern noise are not included.
  * @see docs/NATIVE_RAW_AND_PRINT.md for the tag table, limits and the round trip through parseDngRawImage.
  */
 
@@ -51,15 +53,15 @@ export interface NativeRawDngChannelNoise {
   readNoiseRmsElectrons: number;
 }
 export interface SerializeNativeRawDngInput {
-  /** Packed native RAW; read, never consumed or modified. */
+  /** Packed native RAW. It is read, never taken over or modified. */
   raw: NativeRawOutput;
-  /** Declared camera→XYZ (D65) profile bound to the RAW's CFA, the same profile native development uses. */
+  /** Declared camera→XYZ (D65) colour profile for the RAW's CFA. Native development uses the same profile. */
   colorProfile: ExportSensorColorProfile;
-  /** Optional NoiseProfile parameters by channel id; omitted means no NoiseProfile tag. */
+  /** Optional NoiseProfile parameters by channel ID. If omitted, no NoiseProfile tag is written. */
   noise?: Readonly<Record<string, NativeRawDngChannelNoise>>;
-  /** BaselineExposure in EV. Default 0 (the RAW white level maps to display white, as in native development). */
+  /** BaselineExposure in EV (exposure value stops). Default 0: the RAW white level maps to display white, as in native development. */
   baselineExposureEv?: number;
-  /** Optional capture-event UTC time, exactly YYYY-MM-DDTHH:mm:ss.sssZ; omitted means no date tags (the engine invents no wall clock). */
+  /** Optional UTC time of the capture, exactly YYYY-MM-DDTHH:mm:ss.sssZ. If omitted, no date tags are written; the engine never makes up a clock time. */
   capturedAtUtc?: string;
 }
 export interface NativeRawDng {
@@ -100,8 +102,8 @@ function stored(tag: ReturnType<typeof rationals>): number[] {
 const ORIENTATION = { landscape: 1, "portrait-clockwise": 6, "landscape-inverted": 3, "portrait-counter-clockwise": 8 } as const;
 
 /**
- * Serializes packed native RAW codes to a lossless uncompressed CFA DNG (see the module notes for every
- * tag and its source). The input arrays are copied before the first await.
+ * Writes packed native RAW codes as a lossless, uncompressed CFA DNG. The module notes list every tag and
+ * where its value comes from. The input arrays are copied before the first await.
  */
 export async function serializeNativeRawDng(input: SerializeNativeRawDngInput): Promise<NativeRawDng> {
   const r = requireAllowlistedRecord(input, ["raw", "colorProfile", "noise", "baselineExposureEv", "capturedAtUtc"], "Invalid native RAW DNG input.");
@@ -125,7 +127,7 @@ export async function serializeNativeRawDng(input: SerializeNativeRawDngInput): 
   // Copy before any await: the caller keeps ownership of the packed arrays.
   const codes = raw.codes.slice(), blacks = raw.blackLevels.slice(), flags = raw.saturationFlags.slice(), whiteByPhase = Array.from(raw.effectiveSaturationCodes);
 
-  // Levels per active-relative phase; the black tile must repeat exactly.
+  // Levels per CFA phase, relative to the active area. The black-level tile must repeat exactly.
   const blackLevels: number[] = [], cfaPattern: number[] = [], whites: number[] = [], phaseChannel: string[] = [];
   for (let py = 0; py < 2; py++) for (let px = 0; px < 2; px++) {
     const ax = (active.x + px) % 2, ay = (active.y + py) % 2;

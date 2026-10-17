@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Bounded linear-region processing differences and repeat-capture statistics.
+/** Statistics on a region of linear image data: how processing changed it, and how it varies across repeated captures.
  * @see docs/PRINT_REGION_STATISTICS.md for the model, protocol and exclusions.
  */
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
@@ -13,12 +13,12 @@ import { parsePrintDetailSource, parsePrintDetailRegion, MAX_PRINT_DETAIL_REGION
 import { resolveCaptureGeometry } from "./capture-geometry.js";
 import { calculatePrintPlan, parsePrintPlanInput, type PrintPlan, type PrintPlanInput } from "./print-plan.js";
 
-/** Independent of the root distribution and coherent-detail protocol. */
+/** Version of this protocol. Independent of the package version and of the print-detail protocol. */
 export const PRINT_REGION_STATISTICS_MODEL_VERSION = "0.1.0" as const;
-/** Maximum scalar samples across every frame/reference in one request. */
+/** Maximum number of single-channel samples across all frames and references in one request. */
 export const MAX_PRINT_REGION_STATISTICS_SAMPLES = MAX_PRINT_DETAIL_REGION_SAMPLES;
 
-/** Exact, unwarped scalar linear ROI; sample and hash verification remains external. */
+/** An exact, unwarped, single-channel linear region of interest (ROI). Checking the samples and their hash is up to the caller. */
 export interface PrintRegionRaster {
   print: PrintPlanInput;
   source: PrintDetailSource;
@@ -26,7 +26,7 @@ export interface PrintRegionRaster {
   samples: readonly number[];
 }
 
-/** Compare identical sample sites through processing, without mixing noise draws.
+/** Compares the same sample sites before and after processing, from the same noise draw.
  * A known range is a declared reference signal range, never a clipping threshold.
  */
 export interface PrintRegionDifferenceInput {
@@ -38,8 +38,8 @@ export interface PrintRegionDifferenceInput {
   referenceRange: { lowerRelativeLuminance: number; upperRelativeLuminance: number } | null;
 }
 
-/** Sample statistics at registered sites over independently acquired repeats.
- * Stationarity/independence are declarations; a single frame is never a noise ensemble.
+/** Statistics at aligned sites across separately acquired repeat captures.
+ * Stationarity and independence are declared by the caller. A single frame is never treated as a noise sample set.
  */
 export interface PrintRegionNoiseInput {
   assessmentId: string;
@@ -53,7 +53,7 @@ export interface PrintRegionDifferenceMeasurement {
   meanSignedDifferenceRelativeLuminance: number;
   rmsDifferenceRelativeLuminance: number;
   maximumAbsoluteDifferenceRelativeLuminance: number;
-  /** Null unless the caller supplied a reference range; not a halo classifier. */
+  /** Null unless the caller supplied a reference range. It does not classify halos. */
   rangeExcursions: {
     beforeBelowRangeCount: number;
     beforeAboveRangeCount: number;
@@ -73,12 +73,12 @@ export interface PrintRegionNoiseMeasurement {
   /** Mean of per-site sample variances with n-1 denominator, in squared linear units. */
   meanTemporalSampleVarianceRelativeLuminanceSquared: number;
   temporalRmsRelativeLuminance: number;
-  /** Separately retained so scene texture/fixed pattern is not relabelled temporal noise. */
+  /** Kept separate so scene texture and fixed-pattern variation are not mislabelled as temporal noise. */
   perSiteMeansRelativeLuminance: readonly number[];
   perSiteSampleVariancesRelativeLuminanceSquared: readonly number[];
 }
 
-/** Measurements remain diagnostic. No physical-noise calibration or print verdict. */
+/** The measurements are diagnostics only. They are not a physical noise calibration or a print verdict. */
 export interface PrintRegionStatisticsAssessment<TInput, TMeasurement> {
   assessmentId: string;
   engineApiVersion: string;
@@ -112,7 +112,7 @@ function parseRaster(v: unknown): PrintRegionRaster {
   return { print: parsePrintPlanInput(r.print), source, region, samples };
 }
 
-/** Parse/copy an untrusted paired scalar ROI request. */
+/** Parses and copies an untrusted request that pairs two single-channel ROIs. */
 export function parsePrintRegionDifferenceInput(v: unknown): PrintRegionDifferenceInput {
   const r = record(v, ["assessmentId", "before", "after", "purpose", "realizationPolicy", "referenceRange"]);
   const before = parseRaster(r.before), after = parseRaster(r.after);
@@ -128,7 +128,7 @@ export function parsePrintRegionDifferenceInput(v: unknown): PrintRegionDifferen
     realizationPolicy: choice(r.realizationPolicy, ["same-noise-realization", "deterministic-reference"]) };
 }
 
-/** Parse/copy an untrusted repeat-capture ensemble with a total scalar work bound. */
+/** Parses and copies an untrusted set of repeat captures, with a limit on the total number of samples. */
 export function parsePrintRegionNoiseInput(v: unknown): PrintRegionNoiseInput {
   const r = record(v, ["assessmentId", "ensembleId", "stationarySceneId", "repeatPolicy", "frames"]);
   if (!Array.isArray(r.frames) || r.frames.length < 2 || r.frames.length > 256) throw new InvalidConfigurationError("Print noise statistics require 2 to 256 repeat frames.");
@@ -158,8 +158,8 @@ function applicability(frame: PrintRegionRaster): string[] {
   if (frame.source.stage === "native-retained-linear" && (raster.pixelWidth !== crop.width || raster.pixelHeight !== crop.height)) reasons.push("native-representation-raster-mismatch");
   return reasons;
 }
-// Parsed records have canonical field order; the comparison deliberately retains every
-// geometry/region/print condition, while allowing acquisition/processing identities to differ.
+// Parsed records have a fixed field order. The comparison requires every geometry, region and
+// print condition to match, but lets acquisition and processing identities differ.
 function registrationKey(frame: PrintRegionRaster): string {
   return JSON.stringify({ geometry: frame.print.source.kind === "native-retained" ? frame.print.source.geometry : null,
     print: { ...frame.print, source: null }, raster: frame.source.raster, region: frame.region });
@@ -202,7 +202,7 @@ function finiteMean(values: readonly number[]): number | null {
   return Number.isFinite(mean) ? mean : null;
 }
 
-/** Measure registered processing changes; residual is not automatically compression/noise. */
+/** Measures how processing changed aligned samples. The residual is not automatically compression or noise. */
 export function calculatePrintRegionDifference(value: PrintRegionDifferenceInput): CalculationResult<PrintRegionStatisticsAssessment<PrintRegionDifferenceInput, PrintRegionDifferenceMeasurement>> {
   const input = parsePrintRegionDifferenceInput(value), { before, after } = input;
   const result = base<PrintRegionDifferenceInput, PrintRegionDifferenceMeasurement>(input.assessmentId, input, after);
@@ -250,7 +250,7 @@ export function calculatePrintRegionDifference(value: PrintRegionDifferenceInput
   result.status = "diagnostic-only"; result.measurement = measurement; return finish(result);
 }
 
-/** Measure n-1 per-site temporal sample variance, independently of scene spatial texture. */
+/** Measures the sample variance over time at each site (n-1 denominator), separately from spatial scene texture. */
 export function calculatePrintRegionNoise(value: PrintRegionNoiseInput): CalculationResult<PrintRegionStatisticsAssessment<PrintRegionNoiseInput, PrintRegionNoiseMeasurement>> {
   const input = parsePrintRegionNoiseInput(value), first = input.frames[0]!;
   const result = base<PrintRegionNoiseInput, PrintRegionNoiseMeasurement>(input.assessmentId, input, first);
@@ -282,8 +282,8 @@ export function calculatePrintRegionNoise(value: PrintRegionNoiseInput): Calcula
       if (raw !== 0 && offset === 0) { result.status = "unsupported"; result.blockers.push("noise-dynamic-range-unsupported"); return finish(result); }
       offsets.push(offset); meanSum.add(offset / frameCount);
     }
-    // Center in the offset domain: rounding a restored large DC mean must not inflate
-    // variance when the mathematical mean lies between adjacent binary64 values.
+    // Centre the values while still offset. Otherwise rounding a large restored mean (DC level)
+    // could inflate the variance when the true mean falls between two adjacent doubles.
     const meanOffset = meanSum.value, mean = subnormalMeanTerms ? normalizedMeanSum.value * scale : rawMeanSum.value;
     let norm = 0;
     for (const offset of offsets) norm = Math.hypot(norm, offset - meanOffset);

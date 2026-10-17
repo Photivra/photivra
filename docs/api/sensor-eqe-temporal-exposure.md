@@ -4,10 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorEqeTemporalExposure
 
-Evaluate response validity and EQE independently at each declared shutter
-midpoint, then sum rates times seconds. This is quadrature, not a stationarity
-claim or convergence proof. Shared profile/geometry state prevents combining
-rates from different sites or shutter events. No renderer executes here.
+Runs the response checks and EQE conversion separately at each declared
+midpoint time, then sums rate × time step. This is numerical quadrature. It does
+not claim the light is constant or prove convergence. Shared profile and
+geometry stop rates from different sites or shutter events being mixed. No
+renderer runs here.
 
 ```ts
 export function calculateSensorEqeTemporalExposure(
@@ -19,17 +20,17 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## CalculateSensorEqeTemporalExposureInput
 
-Shared response/site/shutter state, with separately evaluated physical light at each time.
+Input: shared response, site and shutter settings, plus the light evaluated separately at each time.
 
 ```ts
 export interface CalculateSensorEqeTemporalExposureInput
   extends Omit<CalculateSensorEqeLocalExposureInput, "irradianceSamples" | "stationarityProfile"> {
-  /** Complete uniform-midpoint coverage; array order is not temporal identity. */
+  /** One sample for every uniform midpoint time. Array order does not define which time a sample is. */
   samples: readonly {
     temporalSampleIndex: number;
-    /** Seconds on the shutter's first-opening-boundary-phase reference. */
+    /** Seconds from the shutter's reference time (the first opening boundary). */
     timeSecondsFromOpeningReference: number;
-    /** Complete W/m²/nm Cartesian irradiance coverage for this instant. */
+    /** Irradiance in W/m²/nm at every spatial × spectral node, for this instant. */
     irradianceSamples: CalculateSensorEqeLocalExposureInput["irradianceSamples"];
   }[];
 }
@@ -37,7 +38,7 @@ export interface CalculateSensorEqeTemporalExposureInput
 
 ## SensorEqeTemporalExposure
 
-Nonstationary photo expectation, deliberately distinct from stationary RAW producer inputs.
+Expected photo signal with light that varies over time. Kept separate from the constant-rate inputs of the RAW producer.
 
 ```ts
 export interface SensorEqeTemporalExposure {
@@ -61,7 +62,7 @@ export interface SensorEqeTemporalExposure {
   physicalFullWellAssessmentAuthorized: false;
   shotNoiseApplied: false;
   rawCodeValueProduced: false;
-  /** Canonical order, seconds-valued integration measures and independent child evidence. */
+  /** Samples in canonical order, each with its time step in seconds and its own evidence. */
   samples: readonly {
     temporalSampleIndex: number;
     timeSecondsFromOpeningReference: number;

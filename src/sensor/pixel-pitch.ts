@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Calculates horizontal pixel pitch from active sensor width and pixel count.
+ * Pixel pitch: the horizontal centre-to-centre spacing of pixels, from the active sensor width and
+ * the pixel count.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
