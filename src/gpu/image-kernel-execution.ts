@@ -14,6 +14,9 @@
  * See docs/WEBGPU.md.
  */
 
+import { requireInputObject } from "../core/record-validation.js";
+import { InvalidScientificInputError } from "../core/validation.js";
+
 /** Requested or actual execution backend. */
 export type ImageKernelBackend = "cpu-reference" | "webgpu-f32";
 
@@ -126,8 +129,12 @@ export function integerCodeBound(maximum: number, linearAbsoluteBound: number): 
  */
 export function composeRelativeErrorBounds(first: ImageKernelRelativeErrorBound, second: ImageKernelRelativeErrorBound,
   secondWeightSum: number): ImageKernelRelativeErrorBound {
+  requireInputObject(first, "composeRelativeErrorBounds first bound");
+  requireInputObject(second, "composeRelativeErrorBounds second bound");
   for (const v of [first.relative, first.absolute, second.relative, second.absolute, secondWeightSum]) {
-    if (!(v >= 0 && v <= Number.MAX_VALUE)) throw new RangeError("Error bounds and weight sums must be finite and non-negative.");
+    if (!(typeof v === "number" && v >= 0 && v <= Number.MAX_VALUE)) {
+      throw new InvalidScientificInputError("Error bounds and weight sums must be finite and non-negative.");
+    }
   }
   return { kind: "relative-to-reference", relative: first.relative + second.relative + first.relative * second.relative,
     absolute: second.absolute + secondWeightSum * first.absolute * (1 + second.relative) };
