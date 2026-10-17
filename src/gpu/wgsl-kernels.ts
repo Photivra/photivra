@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * First-party WGSL compute kernels for the `webgpu-f32` image-kernel backend. Each kernel evaluates the
- * same equations, in the same operation order, as its float64 CPU reference:
+ * The project's own WGSL (WebGPU shader language) compute kernels for the `webgpu-f32` image-kernel
+ * backend. Each kernel evaluates the same equations, in the same order, as its float64 CPU reference:
  * - SDR: `calculateSdrRendering` / native capture SDR (exposure → tone → gamut → sRGB → nearest-ties-up);
  * - RAW development: `createNativeRawDevelopmentTask` (CFA kernel sums → WB gains → camera→XYZ →
  *   XYZ→linear sRGB → SDR);
  * - irradiance convolution: `convolveIrradianceRows` (source-indexed isoplanatic-patch gather).
- * Uniform layouts are mirrored by the host packers in image-kernel-accelerator.ts.
+ * The host packers in image-kernel-accelerator.ts use matching uniform layouts.
  */
 
 /** Counter slots shared by the SDR-producing kernels. */
@@ -89,11 +89,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(local_invocation
 `;
 
 /**
- * Packed native RAW development of one output-row band; one invocation per output pixel. `normalized`
- * holds the host's float64 site values rounded once to float32: exactly 1 for a saturated site (flagged
- * or at/above its phase white level), otherwise (code − black)/(white − black) ≤ 1 − 1/65535, so a
- * saturated contributing site is recognised exactly. Highlight handling mirrors
- * `prepareSensorColorDevelopment` (clip at the smallest applied gain, or the declared neutral blend).
+ * Packed native RAW development of one band of output rows; one invocation per output pixel.
+ * `normalized` holds the host's float64 site values, rounded once to float32. A saturated site
+ * (flagged, or at or above its phase white level) is exactly 1. Any other site is
+ * (code − black)/(white − black) ≤ 1 − 1/65535. So a saturated contributing site is recognised exactly.
+ * Highlight handling matches `prepareSensorColorDevelopment` (clip at the smallest applied gain, or the
+ * declared neutral blend).
  */
 export const RAW_DEVELOPMENT_WGSL = /* wgsl */ `
 struct Params {

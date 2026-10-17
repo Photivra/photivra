@@ -1,28 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Ideal lens projection (mapping) functions between a scene direction and an image-plane point.
- * A radial projection maps the field angle theta (angle from the optical axis) to image radius r:
+ * Ideal lens projection (mapping) functions. They convert between a scene direction and a point on the
+ * image plane.
+ *
+ * A radial projection maps the field angle theta (the angle from the optical axis) to the image
+ * radius r:
  *   rectilinear       r = f tan(theta)          (gnomonic / pinhole)
  *   equidistant       r = f theta               ("f-theta" fisheye)
  *   equisolid-angle   r = 2 f sin(theta / 2)    (equal-area fisheye)
  *   stereographic     r = 2 f tan(theta / 2)    (conformal fisheye)
  *   orthographic      r = f sin(theta)
- * The azimuth of the image point equals the azimuth of the direction about the optical axis, so
- * every radial projection is rotationally symmetric. Equirectangular (spherical, cylindrical
- * equidistant) is not radial: x = f * longitude, y = f * latitude, where f is the image distance per
- * radian.
+ * The image point keeps the direction's azimuth about the optical axis, so every radial projection is
+ * rotationally symmetric. Equirectangular (spherical, or cylindrical equidistant) is not radial:
+ * x = f * longitude, y = f * latitude, where f is the image distance per radian.
+ *
  * Sources: Miyamoto 1964 (JOSA 54:1060, fish-eye projection functions); Kingslake 1989 (A History of
  * the Photographic Lens, ch. on fish-eye lenses); Ray 2002 (Applied Photographic Optics, 3rd ed.,
  * ch. 6 and 47); Kannala & Brandt 2006 (IEEE TPAMI 28:1335, generic camera model listing these
  * projections); Snyder 1987 (Map Projections - A Working Manual, USGS PP 1395) for the equirectangular
- * and stereographic projections. These are ideal mapping functions; real fisheye lenses deviate and
+ * and stereographic projections.
+ *
+ * These are ideal mapping functions. Real fisheye lenses deviate from them. Modelling a real lens
  * would need a calibrated polynomial (for example Kannala-Brandt) with defensible provenance.
+ *
  * Camera frame: +X right, +Y up, +Z along the optical axis toward the scene. Image-plane coordinates
  * use the same non-inverted +X right / +Y up convention as the rest of the engine.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -140,7 +145,7 @@ export interface LensProjectionFieldOfViewBounds {
 
 const HALF_PI = Math.PI / 2;
 
-/** Fail-closed runtime parser for the projection discriminator. */
+/** Runtime parser for the projection discriminator. Rejects (fails closed on) unknown values. */
 export function parseLensProjectionModel(
   value: unknown
 ): LensProjectionModel {
@@ -171,9 +176,9 @@ function requireFinite(name: string, value: unknown): number {
 }
 
 /**
- * Largest field angle (radians) a radial model maps, and whether that limit is attainable.
- * Rectilinear, stereographic and equidistant/equisolid exclude the limit (infinite radius or an
- * undefined azimuth for the backward direction); orthographic attains 90 degrees.
+ * Largest field angle (radians) a radial model maps, and whether the model can reach it.
+ * Rectilinear, stereographic, equidistant and equisolid exclude the limit: the radius there is
+ * infinite, or the azimuth of the backward direction is undefined. Orthographic reaches 90 degrees.
  */
 function radialFieldAngleLimit(model: RadialLensProjectionModel): {
   radians: number;
@@ -328,8 +333,8 @@ export function calculateLensProjectionImagePoint(
 
 /**
  * Inverse-maps one image-plane point to its unit camera-frame scene direction under the declared
- * projection model. Points outside the model's image circle (or outside +/-pi longitude and
- * +/-pi/2 latitude for equirectangular) are rejected.
+ * projection model. It rejects points outside the model's image circle. For equirectangular, it
+ * rejects points outside +/-pi longitude and +/-pi/2 latitude.
  */
 export function calculateLensProjectionDirection(
   input: CalculateLensProjectionDirectionInput
@@ -384,9 +389,9 @@ function signedAxisAngle(
  * Angular field of view across a centred sensor dimension along one axis through the optical
  * axis: 2 * theta(d / 2) for radial models and d / f for equirectangular.
  *
- * For equirectangular the result is the longitude span when the dimension is horizontal and the
- * latitude span when it is vertical. Sensor dimensions larger than a fisheye's image circle are
- * rejected rather than clipped.
+ * For equirectangular, the result is the longitude span for a horizontal dimension and the latitude
+ * span for a vertical one. A sensor dimension larger than a fisheye's image circle is rejected, not
+ * clipped.
  */
 export function calculateLensProjectionFieldOfView(
   input: CalculateLensProjectionFieldOfViewInput

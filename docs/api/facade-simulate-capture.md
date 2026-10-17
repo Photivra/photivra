@@ -13,7 +13,7 @@ SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * METER_CALIBRATION_K * DEFAU
 
 ## SIMULATE_CAPTURE_FACADE_VERSION
 
-Version of the facade's request construction; changes whenever the same input builds a different request.
+Version of how the facade builds requests. It changes whenever the same input would build a different request.
 
 ```ts
 SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const
@@ -46,8 +46,9 @@ export interface SimulateCaptureAssumption {
 
 ## SimulateCaptureBorderHandling
 
-`margin` renders the kernel reach as extra native sites around the output; `mirror` renders exactly the
-output and reads reflect-101 images of the missing border sites (CFA-consistency validated).
+`margin` renders extra native sites around the output, as far as the kernel reaches. `mirror` renders
+exactly the output and reads mirrored (reflect-101) copies of the missing border sites. Mirroring is
+checked to keep the CFA (colour filter array) pattern consistent.
 
 ```ts
 export type SimulateCaptureBorderHandling = "margin" | "mirror";
@@ -55,10 +56,14 @@ export type SimulateCaptureBorderHandling = "margin" | "mirror";
 
 ## SimulateCaptureColorEncoding
 
-PNG colour encoding. `srgb` is the developed sRGB output. The others convert the developed linear
-colour (camera → XYZ → linear sRGB/D65, unclipped) through CIE XYZ into the target primaries:
-`display-p3` (SMPTE EG 432-1 primaries, sRGB transfer), `rec2020` (ITU-R BT.2020 primaries and OETF),
-`rec2100-pq` / `rec2100-hlg` (BT.2020 primaries, SMPTE ST 2084 PQ / ARIB STD-B67 HLG, 16-bit full range).
+PNG colour encoding. `srgb` is the developed sRGB output. The others take the developed linear
+colour (camera → XYZ → linear sRGB/D65, unclipped) and convert it through CIE XYZ into the target
+primaries:
+- `display-p3`: Display P3 primaries (W3C CSS Color 4 `display-p3`; also SMPTE EG 432-1) with the
+  sRGB transfer function;
+- `rec2020`: ITU-R BT.2020 primaries and OETF;
+- `rec2100-pq` / `rec2100-hlg`: BT.2020 primaries with ITU-R BT.2100 PQ (also SMPTE ST 2084) or
+  BT.2100 HLG (also ARIB STD-B67), 16-bit full range.
 
 ```ts
 export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "rec2100-pq" | "rec2100-hlg";
@@ -100,7 +105,7 @@ export interface SimulateCaptureMotion {
   angularVelocityRadPerSec?: { pitch?: number; yaw?: number; roll?: number };
   /** Default "global". `rolling` derives the exposure schedule from the body's rolling readout declaration. */
   shutter?: "global" | "rolling";
-  /** Rolling only: first-to-last line skew over the simulated frame, s. Default: the body's declared readout skew. */
+  /** Rolling shutter only: time from the first to the last line over the simulated frame, in s. Default: the body's declared readout skew. */
   rollingShutterSkewSeconds?: number;
 }
 ```
@@ -160,7 +165,7 @@ export interface SimulateCaptureOptions {
     format?: SimulateCaptureOutputFormat;
     /** Default "identity". */
     toneCurve?: SdrToneCurve;
-    /** Required by the luminance tone curves (see `SdrToneCurveParameters`); the facade invents none. */
+    /** Required by the luminance tone curves (see `SdrToneCurveParameters`). The facade does not make one up. */
     toneCurveParameters?: SdrToneCurveParameters;
     /** Default "clip". */
     highlightMode?: RawHighlightMode;
@@ -235,7 +240,7 @@ export interface SimulateCaptureResult {
     width: number;
     height: number;
     format: SimulateCaptureOutputFormat;
-    /** Interleaved RGB, row-major from the top-left; sRGB-encoded (W3C CSS Color 4 sRGB; also IEC 61966-2-1) unless `colorEncoding` says otherwise. */
+    /** Interleaved RGB, row by row from the top-left. sRGB-encoded (W3C CSS Color 4 sRGB; also IEC 61966-2-1) unless `colorEncoding` says otherwise. */
     samples: Uint8Array | Uint16Array;
     /** Baseline JPEG bytes when format is "jpeg". */
     jpeg?: Uint8Array;

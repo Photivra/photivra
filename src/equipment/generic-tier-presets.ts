@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Exact-version catalog; no hidden latest alias and no sensor-size default.
- * Match lens tier by default; cross-tier combinations remain normal supported selections.
- * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Generic tier presets: a catalog of exact preset versions for bodies and lenses.
+ *
+ * There is no hidden "latest" alias and no default sensor size. By default the lens tier matches the
+ * body tier, but mixing tiers is a normal, supported choice.
+ * @see docs/GENERIC_TIER_PRESETS.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { freezeOwnedData } from "../core/owned-data.js";
@@ -48,7 +49,7 @@ const catalog = freezeOwnedData(GENERIC_TIER_ASSETS);
 function preset(tier: GenericEquipmentTier): GenericEquipmentTierPreset {
   return catalog.find((p) => p.tier === tier)!;
 }
-/** Exact-version catalog; no hidden latest alias and no sensor-size default. */
+/** Catalog of exact versions. No hidden "latest" alias and no default sensor size. */
 export function resolveGenericEquipmentTierCatalog(input: { presetVersion: string }): readonly GenericEquipmentTierPreset[] {
   const r = record(input, ["presetVersion"]);
   if (r.presetVersion !== GENERIC_EQUIPMENT_TIER_PRESET_VERSION) throw new InvalidConfigurationError("Unknown equipment preset version; historical definitions may not silently fall back.");
@@ -61,7 +62,7 @@ function bodyReferences(p: GenericEquipmentTierPreset): GenericEquipmentTierProf
     .concat([...b.readout, b.readoutTiming, b.rollingReadoutTiming, b.fixedPatternNoise, ...b.metering]
       .map((a) => ({ profileId: a.assetId, profileVersion: a.assetVersion })));
 }
-/** Match lens tier by default; cross-tier combinations remain normal supported selections. */
+/** The lens tier matches the body tier by default. Mixing tiers is a normal, supported choice. */
 export function createGenericEquipmentTierSelection(input: {
   presetVersion: string; bodyTier: GenericEquipmentTier; lensTier?: GenericEquipmentTier;
 }): GenericEquipmentTierSelection {
@@ -74,7 +75,7 @@ export function createGenericEquipmentTierSelection(input: {
     profileReferences: [...bodyReferences(body), { profileId: lens.lens.exposure.profileId, profileVersion: lens.lens.exposure.profileVersion }, ...lens.lens.profileReferences],
     sensorFormatSelectedByTier: false, scientificTierMultiplierApplied: false });
 }
-/** Reject stale/missing/retuned profile versions on saved simulations rather than selecting today's defaults. */
+/** On a saved simulation, rejects profile versions that are stale, missing or retuned, instead of picking today's defaults. */
 export function parseGenericEquipmentTierSelection(value: unknown): GenericEquipmentTierSelection {
   const r = record(value, ["schemaVersion", "presetVersion", "bodyTier", "lensTier", "bodyPresetId", "lensPresetId", "profileReferences",
     "sensorFormatSelectedByTier", "scientificTierMultiplierApplied"]);
@@ -89,7 +90,7 @@ export function parseGenericEquipmentTierSelection(value: unknown): GenericEquip
   }
   return expected;
 }
-/** Bind the finite matched-reference optical slice to one exact generic selected state, without extrapolation. */
+/** Ties the finite matched-reference optical data to one exact generic selected state. Never extrapolates. */
 export function resolveGenericEquipmentTierLensProfiles(input: { selection: GenericEquipmentTierSelection; state: OpticalProfileState }): ResolvedGenericTierLensProfiles {
   const request = record(input, ["selection", "state"]), selection = parseGenericEquipmentTierSelection(request.selection), state = parseOpticalProfileState(request.state);
   const b = preset(selection.bodyTier), l = preset(selection.lensTier), a = l.lens.matchedReference;

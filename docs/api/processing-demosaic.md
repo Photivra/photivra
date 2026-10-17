@@ -12,8 +12,9 @@ export interface AhdDemosaicInput {
   /** CFA channel ids of the red, green and blue sites; output order is red, green, blue. */
   channelRoles: { red: string; green: string; blue: string };
   /**
-   * Camera-linear RGB → CIE XYZ used only for the homogeneity metric (CIELAB). Default: the sRGB/D65
-   * matrix, i.e. the plane is treated as linear sRGB for the metric. Output values are never transformed.
+   * Camera-linear RGB → CIE XYZ, used only for the homogeneity metric (in CIELAB). Default: the
+   * sRGB/D65 matrix, so the plane is treated as linear sRGB for the metric. Output values are never
+   * transformed.
    */
   cameraToXyz?: ColorMatrix3x3;
   maximumWorkingBytes?: number;
@@ -88,12 +89,14 @@ Adaptive homogeneity-directed (AHD) demosaicing after Hirakawa & Parks, IEEE TIP
    [−1/4, 1/2, 1/2, 1/2, −1/4] (bilinear green plus the own-channel second difference);
 2. red and blue are filled from bilinearly interpolated colour differences (R−G, B−G) against each
    directional green, giving two full-colour candidates;
-3. both candidates are converted to CIELAB; at each pixel the homogeneity is the number of 4-neighbours
-   within adaptive luminance and chrominance tolerances ε_L, ε_C (the smaller of the two directions'
-   largest along-direction differences);
-4. homogeneity is summed over 3×3 and the more homogeneous candidate is chosen (ties average both).
-The paper's optional iterative median artifact-reduction step is not applied. Mirror (reflect-101)
-borders keep Bayer channel identity. Non-linear: output is not a linear function of the mosaic.
+3. both candidates are converted to CIELAB. At each pixel, the homogeneity is the number of
+   4-neighbours within adaptive luminance and chrominance tolerances ε_L, ε_C. Each tolerance is the
+   smaller of the two directions' largest differences along their own direction;
+4. homogeneity is summed over 3×3, and the more homogeneous candidate is chosen (a tie averages
+   both).
+The paper's optional iterative median step for reducing artifacts is not applied. Mirrored
+(reflect-101) borders keep each site's Bayer channel. The method is non-linear: the output is not a
+linear function of the mosaic.
 
 ```ts
 export function createAhdDemosaicTask(input: AhdDemosaicInput, provider: ProcessingProvider): ProcessingTask<AhdDemosaicOutput>;
@@ -103,10 +106,12 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createCfaPlaneReconstructionTask
 
-Executes explicit per-phase linear reconstruction kernels over a typed CFA plane. With `mirror`
-borders a site outside the plane is read at its reflect-101 image, which is accepted only when it
-keeps the CFA channel (always true for 2×2 Bayer); `reject` fails closed like the reference
-resolver. Values are linear and signed; no clamping, white balance or colour transform is applied.
+Runs explicit linear reconstruction kernels, one per CFA phase, over a typed CFA plane.
+- With `mirror` borders, a site outside the plane is read from its mirrored (reflect-101) position.
+  This is accepted only if the mirrored site has the same CFA channel, which is always true for a
+  2×2 Bayer pattern.
+- With `reject`, out-of-plane reads throw (fail closed), like the reference resolver.
+Values are linear and signed. No clamping, white balance or colour transform is applied.
 
 ```ts
 export function createCfaPlaneReconstructionTask(input: CfaPlaneReconstructionInput, provider: ProcessingProvider): ProcessingTask<CfaPlaneReconstructionOutput>;

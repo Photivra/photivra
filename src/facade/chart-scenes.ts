@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Engine-authored procedural test charts for the capture facade. Every chart is a planar, Lambertian
- * reflectance pattern defined analytically in normalized frame coordinates; no third-party chart data
- * (for example ColorChecker reflectances) is bundled. Coloured patches take caller-supplied spectra.
+ * Procedural test charts for the capture facade, written for this engine. Every chart is a flat,
+ * Lambertian (matte) reflectance pattern, defined by formulas in normalized frame coordinates. No
+ * third-party chart data (for example ColorChecker reflectances) is bundled. Coloured patches use
+ * spectra that the caller supplies.
  *
  * Frame coordinates: `u` runs from -1 (left edge of the framed chart) to +1 (right edge); `v` points up
  * and has the same scale, so it runs from -aspect to +aspect where aspect = height/width of the frame.
  * The facade places the chart perpendicular to the optical axis at the subject distance and sizes it so
  * that this rectangle exactly fills the active capture (see `SimulateCaptureResult.assumptions`).
  *
- * The slanted edge follows the slanted-edge geometry described by P. D. Burns, "Slanted-Edge MTF for Digital
- * Camera and Scanner Analysis", IS&T PICS 2000 (free from imaging.org; also ISO 12233) (a near-vertical edge rotated by
- * a few degrees, 5 degrees by default, with a 4:1 light/dark reflectance ratio by default). It is a
- * geometric description only; no measured chart or ISO test procedure is reproduced.
+ * The slanted edge follows the geometry described by P. D. Burns, "Slanted-Edge MTF for Digital Camera
+ * and Scanner Analysis", IS&T PICS 2000 (free from imaging.org; also ISO 12233). It is a near-vertical
+ * edge rotated by a few degrees (5 degrees by default), with a 4:1 light/dark reflectance ratio by
+ * default. This is only a geometric description. No measured chart or ISO test procedure is copied.
  * @see docs/QUICK_START.md for the chart catalogue and their analytic definitions.
  */
 
@@ -116,9 +116,9 @@ export interface ResolvedChartScene {
   /** Frame aspect (height / width) the chart was resolved for. */
   aspect: number;
   /**
-   * Material index at a frame point (u right, v up). Index 0.. refers to `materials`. Points outside the
-   * framed rectangle still evaluate (the chart pattern extends as defined) so that blur and slight
-   * framing differences stay well defined.
+   * Material index at a frame point (u right, v up). The index points into `materials`, starting at 0.
+   * Points outside the framed rectangle still evaluate (the pattern continues as defined), so blur and
+   * small framing differences stay well defined.
    */
   materialAt(u: number, v: number): number;
   /** Reflectance materials: a neutral number or a prepared caller spectrum. */
@@ -218,7 +218,7 @@ export function resolveChartScene(input: { scene: ChartScene; aspect: number }):
     case "grey-ramp": {
       const lo = neutral("minimumReflectance"), hi = neutral("maximumReflectance");
       if (!(hi > lo)) throw new InvalidConfigurationError("Grey ramp needs minimum < maximum reflectance.");
-      // A continuous ramp is represented by 1024 neutral levels: the quantization (< 0.1 % of the range) is far below sensor noise.
+      // A continuous ramp is stored as 1024 neutral levels. The step size (< 0.1 % of the range) is far below sensor noise.
       const levels = 1024, materials = Array.from({ length: levels }, (_, i) => ({ kind: "neutral" as const, reflectance: lo + (hi - lo) * (i + 0.5) / levels }));
       return done({ minimumReflectance: lo, maximumReflectance: hi, representation: "1024 equal neutral levels" }, materials,
         (u) => Math.min(levels - 1, Math.max(0, Math.floor((u + 1) / 2 * levels))));
@@ -274,8 +274,8 @@ export function resolveChartScene(input: { scene: ChartScene; aspect: number }):
 }
 
 /**
- * Step reflectances of a step wedge. `equal-density` spaces optical density D = -log10(R) evenly
- * (geometric reflectance steps, as on a photographic step tablet); `linear` spaces reflectance evenly.
+ * Step reflectances of a step wedge. `equal-density` spaces optical density D = -log10(R) evenly, which
+ * gives geometric reflectance steps, as on a photographic step tablet. `linear` spaces reflectance evenly.
  */
 export function calculateStepWedgeReflectances(input: { steps: number; minimumReflectance: number; maximumReflectance: number;
   spacing: "equal-density" | "linear" }): number[] {

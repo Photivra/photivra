@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Calculates EV100 from aperture and shutter duration.
- * Compares image-plane optical exposure using the proportional relation shutterSeconds / aperture^2.
- * This does not include scene light, lens transmission, vignetting, or sensor response and therefore
- * must not be interpreted as a photon-count result.
- * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Basic exposure relations.
+ * - EV100: exposure value from aperture and shutter duration.
+ * - Relative optical exposure at the image plane, from shutterSeconds / aperture^2.
+ * - Relative rendering exposure, which also includes nominal ISO gain.
+ * These do not include scene light, lens transmission, vignetting or sensor response. Do not read
+ * them as photon counts.
+ * @see docs/USAGE.md for the equations, units, coordinate conventions, known blockers and support
+ * limits.
  */
 
 import {
@@ -62,8 +64,8 @@ export interface RelativeOpticalExposure {
  * Compares image-plane optical exposure using the proportional relation
  * shutterSeconds / aperture^2.
  *
- * This does not include scene light, lens transmission, vignetting, or sensor
- * response and therefore must not be interpreted as a photon-count result.
+ * This does not include scene light, lens transmission, vignetting or sensor
+ * response. Do not read it as a photon count.
  */
 export function calculateRelativeOpticalExposure(
   input: CalculateRelativeOpticalExposureInput
@@ -123,10 +125,10 @@ export interface RelativeRenderedExposure {
  * Calculates a relative linear rendering exposure from aperture, shutter, and
  * nominal ISO gain.
  *
- * This relation is intended for deterministic educational rendering relative to
- * a declared reference exposure. ISO is treated as a brightness/gain control;
- * it does not create photons and this function does not model sensor noise,
- * clipping, tone mapping, lens transmission, or absolute scene luminance.
+ * This relation is for deterministic educational rendering, relative to a
+ * declared reference exposure. ISO is treated as a brightness (gain) control;
+ * it does not create photons. This function does not model sensor noise,
+ * clipping, tone mapping, lens transmission or absolute scene luminance.
  *
  * @param input Current and reference aperture/shutter/ISO settings.
  * @returns Relative rendering factor and stop difference.
@@ -174,9 +176,9 @@ export interface CalculateEquivalentIsoInput {
 }
 
 /**
- * Calculates the ISO/gain setting that preserves nominal rendered exposure
- * after changing aperture and/or shutter, assuming all other factors remain
- * constant.
+ * Calculates the ISO (gain) setting that keeps the nominal rendered exposure
+ * the same after aperture, shutter or both change. Assumes nothing else
+ * changes.
  *
  * This is an exposure-compensation relation, not a sensor-noise model.
  */

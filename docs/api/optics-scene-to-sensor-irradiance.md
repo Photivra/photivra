@@ -4,13 +4,17 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSceneRadianceToSensorIrradiance
 
-Apply declared pupil acceptance and exactly one transmission/field-throughput path to spectral scene
-radiance, returning pre-stack irradiance with conservative evidence.
+Applies the declared pupil acceptance and exactly one transmission or field-throughput path to
+spectral scene radiance. Returns the irradiance before the sensor stack, with conservative
+evidence.
 
-The optical bridge maps outgoing W/m²/sr/nm radiance to pre-sensor-stack W/m²/nm irradiance.
-Circular paraxial acceptance is pi/(4*Nworking²); finite-focus unity-pupil geometry uses N*(1+m).
-Spectral transmission and effective working T-stop are alternative paths, and field throughput is
-applied exactly once. Sensor response and PSF redistribution are downstream.
+The optical bridge turns outgoing scene radiance (W/m²/sr/nm) into irradiance (W/m²/nm) arriving
+at the front of the sensor stack.
+- Circular paraxial acceptance is pi/(4*Nworking²). At finite focus with unit pupil magnification,
+  the working f-number is N*(1+m).
+- Spectral transmission and an effective working T-stop are alternative paths; use one.
+- Field throughput is applied exactly once.
+- Sensor response and PSF (point-spread function) blur happen later in the pipeline.
 
 ```ts
 export function calculateSceneRadianceToSensorIrradiance(
@@ -196,13 +200,16 @@ export type OpticalTransmissionModel =
 
 ## parseSceneToSensorIrradianceProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted scene-to-sensor profile and returns the normalized typed contract. Unknown
+enum values, missing required fields and incompatible scientific data are rejected here.
 
-The optical bridge maps outgoing W/m²/sr/nm radiance to pre-sensor-stack W/m²/nm irradiance.
-Circular paraxial acceptance is pi/(4*Nworking²); finite-focus unity-pupil geometry uses N*(1+m).
-Spectral transmission and effective working T-stop are alternative paths, and field throughput is
-applied exactly once. Sensor response and PSF redistribution are downstream.
+The optical bridge turns outgoing scene radiance (W/m²/sr/nm) into irradiance (W/m²/nm) arriving
+at the front of the sensor stack.
+- Circular paraxial acceptance is pi/(4*Nworking²). At finite focus with unit pupil magnification,
+  the working f-number is N*(1+m).
+- Spectral transmission and an effective working T-stop are alternative paths; use one.
+- Field throughput is applied exactly once.
+- Sensor response and PSF (point-spread function) blur happen later in the pipeline.
 
 ```ts
 export function parseSceneToSensorIrradianceProfile(

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * CIE colour-matching functions (CMFs) and spectrum → CIE XYZ integration.
  *
  * Two CMF sources are supported:
@@ -12,14 +11,14 @@
  *    Table 2 reports, relative to the 1 nm CIE 1931 tables, maximum squared errors of
  *    2.0e-4 (x̄), 6.4e-5 (ȳ), 4.9e-4 (z̄) (maximum absolute error ≈ 0.014, 0.008,
  *    0.022) and mean squared errors of 3.1e-5, 7.1e-6, 1.6e-5.
- * 2. Caller-supplied tabulated CMFs (for example the official CIE datasets, which the
- *    CIE distributes under CC BY-SA 4.0 and which are therefore NOT bundled with this
- *    Apache-2.0 package). Tables are linearly interpolated and fail closed outside their
- *    declared range (no extrapolation).
+ * 2. Caller-supplied tabulated CMFs, for example the official CIE datasets. The CIE
+ *    distributes those under CC BY-SA 4.0, so they are NOT bundled with this Apache-2.0
+ *    package. Tables are linearly interpolated. Outside their declared range they throw
+ *    (fail closed); there is no extrapolation.
  *
  * Integration uses explicit wavelength quadrature nodes `{wavelengthNanometers,
- * wavelengthMeasureNanometers}`; nodes from `calculateSensorSpectralQuadrature()` are
- * structurally compatible. X = k Σ S(λᵢ) R(λᵢ) x̄(λᵢ) Δλᵢ (CIE 15:2018 §7.1).
+ * wavelengthMeasureNanometers}`. Nodes from `calculateSensorSpectralQuadrature()` have the
+ * same shape and can be passed directly. X = k Σ S(λᵢ) R(λᵢ) x̄(λᵢ) Δλᵢ (CIE 15:2018 §7.1).
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 
@@ -59,9 +58,11 @@ export interface ColorimetricSpectralSample extends SpectralWavelengthSample {
 
 /**
  * A spectral distribution or spectral factor (reflectance, transmittance, relative SPD,
- * sensitivity). `tabulated` is the JSON path: strictly increasing wavelengths, linear
- * interpolation, fail-closed outside the table. `function` is an in-process evaluator
- * (for example a Planckian SPD) that must be finite on its declared range.
+ * sensitivity).
+ * - `tabulated` is the JSON form: strictly increasing wavelengths, linear interpolation, and an
+ *   error (fail closed) outside the table.
+ * - `function` is an in-process evaluator (for example a Planckian SPD). It must be finite over
+ *   its declared range.
  */
 export type ColorimetricSpectrum =
   | { kind: "tabulated"; samples: readonly ColorimetricSpectralSample[] }
@@ -391,7 +392,7 @@ function scaleXyz(xyz: CieXyzTristimulus, k: number): CieXyzTristimulus {
  * Integrates a spectrum (optionally multiplied by a reflectance/transmittance factor)
  * against colour-matching functions with caller-explicit quadrature (CIE 15:2018 §7).
  * Provenance is `approximation` for the analytic CMF fit and `calculated` for
- * caller-tabulated CMFs; in both cases the quadrature itself is the caller's choice.
+ * caller-tabulated CMFs. Either way, the caller chooses the quadrature.
  */
 export function integrateSpectrumToXyz(input: IntegrateSpectrumToXyzInput): CalculationResult<IntegratedSpectrumXyz> {
   requireInputObject(input, "integrateSpectrumToXyz input");

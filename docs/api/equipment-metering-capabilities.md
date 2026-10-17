@@ -6,8 +6,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 Checks whether one engine metering profile is selectable on a generic body.
 
-Calibration/target policy remains authoritative in the metering profile and
-is never copied into equipment capability metadata.
+The metering profile stays the single source of its calibration and target
+policy. They are never copied into equipment capability metadata.
 
 ```ts
 export function assessExposureMeteringProfileCompatibility(
@@ -113,9 +113,9 @@ export type MeteringCapabilityCompatibilityBlocker =
 
 Parses generic body metering capability metadata.
 
-This profile declares which engine-owned metering profiles/modes a generic
-body can select. It deliberately does not duplicate target/calibration
-values from those metering profiles.
+This profile declares which of the engine's metering profiles and modes a
+generic body can select. It deliberately does not copy target or
+calibration values from those metering profiles.
 
 ```ts
 export function parseGenericBodyMeteringCapabilityProfile(

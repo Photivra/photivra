@@ -5,9 +5,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 ## createDurandDorseyToneMappingTask
 
 Durand & Dorsey (2002) bilateral base/detail tone mapping. The fast bilateral filter is the paper's
-piecewise-linear scheme: intensity nodes i_j spaced ≤ σ_r apart, for each J_j = (f ⊗ (g_r(I − i_j)·I)) /
-(f ⊗ g_r(I − i_j)) on a box-downsampled grid, then bilinear upsampling and linear interpolation between
-the two nodes bracketing each full-resolution intensity.
+piecewise-linear scheme:
+1. Place intensity nodes i_j no more than σ_r apart.
+2. For each node, compute J_j = (f ⊗ (g_r(I − i_j)·I)) / (f ⊗ g_r(I − i_j)) on a box-downsampled grid.
+3. Upsample bilinearly, then interpolate linearly between the two nodes on either side of each
+   full-resolution intensity.
 
 ```ts
 export function createDurandDorseyToneMappingTask(input: DurandDorseyToneMappingInput, provider: ProcessingProvider): ProcessingTask<DurandDorseyToneMappingOutput>;

@@ -4,11 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createExposureMeterTargetFromMeteringResult
 
-Freezes one metering result into the stable relative exposure target
-consumed by downstream camera-control policy.
+Freezes one metering result into a stable relative exposure target, for
+camera-control logic to use.
 
-The target copies the meter snapshot by value. Future scene/light changes do
-not mutate this object, which is the engine seam needed for AE-lock behavior.
+The target copies the meter snapshot by value. Later changes to the scene or
+light do not change it. This is what the engine provides for AE lock
+(auto-exposure lock).
 
 ```ts
 export function createExposureMeterTargetFromMeteringResult(
@@ -108,9 +109,9 @@ export type ExposureMeterTargetSourceResult =
 
 Sets an absolute exposure-compensation value on a frozen meter target.
 
-Compensation is always re-derived from the uncompensated base target, so
-repeated UI updates cannot accidentally accumulate floating-point/control
-drift. Positive compensation requests more exposure.
+Compensation is always worked out again from the base target without
+compensation, so repeated UI updates cannot build up floating-point or
+control drift. Positive compensation asks for more exposure.
 
 ```ts
 export function setExposureCompensationOnMeterTarget(

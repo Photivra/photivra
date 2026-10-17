@@ -4,12 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateStabilizedCaptureTemporalSamples
 
-Feed the residual stabilized rotation into the existing local-exposure temporal mapping without
-changing shutter timing or inventing a blur radius.
+Feeds the residual stabilized rotation into the existing local-exposure temporal mapping. Shutter
+timing is not changed, and no blur radius is invented.
 
-Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
-and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
-calibration, arbitrary stop rating or inferred coordination is supplied.
+The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
 
 ```ts
 export function calculateStabilizedCaptureTemporalSamples(
@@ -42,12 +43,13 @@ export interface CalculateStabilizedCaptureTemporalSamplesInput {
 
 ## calculateStabilizedRotationTrajectory
 
-Evaluate the declared generic per-axis controller against an explicit angular disturbance trajectory
-and return residual motion with latency/limit diagnostics.
+Runs the declared generic per-axis controller against an explicit angular disturbance trajectory.
+Returns the residual motion, with diagnostics for latency and travel limits.
 
-Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
-and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
-calibration, arbitrary stop rating or inferred coordination is supplied.
+The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
 
 ```ts
 export function calculateStabilizedRotationTrajectory(
@@ -75,12 +77,13 @@ export interface CalculateStabilizedRotationTrajectoryInput {
 
 ## parseStabilizationDisturbanceTrajectory
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+missing required fields and incompatible scientific data are rejected here.
 
-Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
-and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
-calibration, arbitrary stop rating or inferred coordination is supplied.
+The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
 
 ```ts
 export function parseStabilizationDisturbanceTrajectory(
@@ -92,12 +95,13 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseStabilizationSystemProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+missing required fields and incompatible scientific data are rejected here.
 
-Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
-and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
-calibration, arbitrary stop rating or inferred coordination is supplied.
+The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
 
 ```ts
 export function parseStabilizationSystemProfile(

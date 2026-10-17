@@ -4,11 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateFieldOfView
 
-Calculates rectilinear angular field of view as
+Calculates the rectilinear angular field of view as
 2 * atan(sensorDimension / (2 * projectionDistance)).
 
-Without focusDistanceM, projectionDistance is nominal focal length for
-backwards-compatible infinity-focus/pinhole behavior. With focusDistanceM,
+Without focusDistanceM, projectionDistance is the nominal focal length. This
+keeps the older infinity-focus (pinhole) behaviour. With focusDistanceM,
 projectionDistance is the ideal Gaussian thin-lens image distance for that
 focus plane.
 
@@ -24,11 +24,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateFieldOfViewBounds
 
-Calculates an asymmetric rectilinear FOV span from signed sensor-plane
-bounds relative to the optical axis.
+Calculates an asymmetric rectilinear field-of-view span from signed
+sensor-plane bounds measured from the optical axis.
 
-This is required for off-center active sensor crops where the optical axis
-is not at the center of the retained rectangle.
+Use it for off-centre sensor crops, where the optical axis is not at the
+centre of the kept rectangle.
 
 ```ts
 export function calculateFieldOfViewBounds(
@@ -80,9 +80,9 @@ export interface CalculateFieldOfViewInput {
    */
   focusDistanceM?: number;
   /**
-   * Ideal projection model. Omitted or `"rectilinear"` keeps the rectilinear behaviour (and model
-   * ids) unchanged. Non-rectilinear models use the focal length as the mapping scale and do not
-   * accept focusDistanceM.
+   * Ideal projection model. Omit it or pass `"rectilinear"` to keep the rectilinear behaviour and
+   * model ids. Other models use the focal length as the mapping scale and do not accept
+   * focusDistanceM.
    */
   projectionModel?: LensProjectionModel;
 }
