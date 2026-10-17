@@ -1,0 +1,159 @@
+{
+  "version": "planckian-cct-reference-1",
+  "model": "engine default locus: Planck's law x analytic CIE 1931 CMF fit, 1 nm nodes 360-830 nm",
+  "method": "50-digit decimal: dense evaluation of the squared uv distance, then the exact root of its derivative",
+  "cases": [
+    {
+      "chromaticity": {
+        "x": 0.62,
+        "y": 0.355
+      },
+      "correlatedColorTemperatureKelvin": "1191.8195228398814068",
+      "duv": "-0.0035983946185433413226"
+    },
+    {
+      "chromaticity": {
+        "x": 0.585,
+        "y": 0.393
+      },
+      "correlatedColorTemperatureKelvin": "1514.8718373876630028",
+      "duv": "-0.000051124583694210837352"
+    },
+    {
+      "chromaticity": {
+        "x": 0.527,
+        "y": 0.413
+      },
+      "correlatedColorTemperatureKelvin": "2002.1552462474597989",
+      "duv": "-0.000022544865504762647993"
+    },
+    {
+      "chromaticity": {
+        "x": 0.44,
+        "y": 0.39
+      },
+      "correlatedColorTemperatureKelvin": "2838.0105819329026491",
+      "duv": "-0.0059657398281276246547"
+    },
+    {
+      "chromaticity": {
+        "x": 0.452,
+        "y": 0.425
+      },
+      "correlatedColorTemperatureKelvin": "2931.1725005266727106",
+      "duv": "0.0061906837034489791083"
+    },
+    {
+      "chromaticity": {
+        "x": 0.38,
+        "y": 0.377
+      },
+      "correlatedColorTemperatureKelvin": "4023.7100835321696463",
+      "duv": "0.00037936193480239304149"
+    },
+    {
+      "chromaticity": {
+        "x": 0.345,
+        "y": 0.33
+      },
+      "correlatedColorTemperatureKelvin": "4932.4388583144065350",
+      "duv": "-0.011130542361365346329"
+    },
+    {
+      "chromaticity": {
+        "x": 0.313,
+        "y": 0.329
+      },
+      "correlatedColorTemperatureKelvin": "6502.0246316262824401",
+      "duv": "0.0032440847813945112234"
+    },
+    {
+      "chromaticity": {
+        "x": 0.31,
+        "y": 0.3
+      },
+      "correlatedColorTemperatureKelvin": "6997.2728878540244731",
+      "duv": "-0.010831810141138265011"
+    },
+    {
+      "chromaticity": {
+        "x": 0.28,
+        "y": 0.29
+      },
+      "correlatedColorTemperatureKelvin": "9987.1759317992599954",
+      "duv": "0.0014732943804942811499"
+    },
+    {
+      "chromaticity": {
+        "x": 0.265,
+        "y": 0.27
+      },
+      "correlatedColorTemperatureKelvin": "14230.747865930992544",
+      "duv": "0.00068776180863728151716"
+    },
+    {
+      "chromaticity": {
+        "x": 0.255,
+        "y": 0.25
+      },
+      "correlatedColorTemperatureKelvin": "24886.237425401243628",
+      "duv": "-0.0028899213871734322676"
+    },
+    {
+      "chromaticity": {
+        "x": 0.25,
+        "y": 0.26
+      },
+      "correlatedColorTemperatureKelvin": "21835.645758051117178",
+      "duv": "0.0059152759994473003673"
+    },
+    {
+      "chromaticity": {
+        "x": 0.248,
+        "y": 0.244
+      },
+      "correlatedColorTemperatureKelvin": "39954.557450602728201",
+      "duv": "-0.00090517766775177641079"
+    },
+    {
+      "chromaticity": {
+        "x": 0.2446,
+        "y": 0.241
+      },
+      "correlatedColorTemperatureKelvin": "58791.529200675815493",
+      "duv": "0.000069086893232360168283"
+    },
+    {
+      "chromaticity": {
+        "x": 0.2435,
+        "y": 0.24
+      },
+      "correlatedColorTemperatureKelvin": "70079.523938046264008",
+      "duv": "0.00037648886891027270013"
+    },
+    {
+      "chromaticity": {
+        "x": 0.2428,
+        "y": 0.2384
+      },
+      "correlatedColorTemperatureKelvin": "90869.337805935833932",
+      "duv": "0.000070911459628504674450"
+    },
+    {
+      "chromaticity": {
+        "x": 0.2427,
+        "y": 0.2382
+      },
+      "correlatedColorTemperatureKelvin": "94571.719514969373775",
+      "duv": "0.000042310490884717794148"
+    },
+    {
+      "chromaticity": {
+        "x": 0.638,
+        "y": 0.348
+      },
+      "correlatedColorTemperatureKelvin": "1100.8745736650897264",
+      "duv": "-0.0019285374043998930868"
+    }
+  ]
+}

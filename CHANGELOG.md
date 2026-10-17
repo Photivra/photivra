@@ -161,7 +161,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
 - **Planckian locus computed from Planck's law; the Kim et al. (2002) spline is removed.**
   - *Why:* the cubic-spline coefficients come from Kang et al. (2002), which is also claimed in a (lapsed) patent. The owner decided to remove them.
   - *What changed:* the locus is the chromaticity of Planck's law integrated against the engine's analytic CMFs on 1 nm nodes, 1000–100000 K. The locus kind `"kim-2002-cubic-spline"` is now `"planck-analytic-cmf"`, the default of `resolveColorTemperatureWhiteBalance`. `KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN` (1667–25000 K) is now `PLANCKIAN_LOCUS_RANGE_KELVIN` (1000–100000 K). `estimatePlanckianLocusChromaticity` keeps its name and uses the new locus. Resolved white-balance states record `planckianLocusModel: "planck-analytic-cmf"`, and states with `"kim-2002-cubic-spline"` are rejected.
-  - *Effect:* locus points move by up to 7.0e-4 in CIE 1960 uv from 2000 to 25000 K (1.4e-3 at 1667 K). The CCT of the daylight-locus point at 6504 K becomes 6516.6 K (was 6500.0 K), and Kelvin white-balance gains change by up to 0.5 %. A CCT/Duv search costs about 0.4 ms instead of 0.02 ms (`scripts/benchmark-planckian-locus.mjs`).
+  - *Effect:* locus points move by up to 7.0e-4 in CIE 1960 uv from 2000 to 25000 K (1.4e-3 at 1667 K). The CCT of the daylight-locus point at 6504 K becomes 6516.6 K (was 6500.0 K), and Kelvin white-balance gains change by up to 0.5 %. A CCT/Duv search costs about 0.03 ms (0.02 ms with the spline; see Performance).
   - *Migration:* replace `{ kind: "kim-2002-cubic-spline" }` with `{ kind: "planck-analytic-cmf" }` (or omit it for the default) and the range constant name. Re-resolve stored Kelvin/tint white-balance states. For a locus from tabulated CIE CMFs, use `{ kind: "planck-integration", colorMatchingFunctions, quadratureNodes }`.
 
 ### Added
@@ -316,6 +316,10 @@ Unless marked otherwise, output is bit-identical to the code before the change, 
   - Every data-dependent check remains, and falls back to the full engine functions. RAW, callbacks and errors are byte-identical.
   - `simulateCapture()` 64×64: 6.0 → 0.87 s CPU; 128×128: 20.6 → 2.2 s. RAW stage 0.95 → 0.12 ms per site.
   - Sampled-PSF and lens-mapped sites keep the full path.
+- **CCT/Duv search by Newton root-find (owner approval 2026-10-17).** *Not bit-identical.*
+  - Changes: `calculateCorrelatedColorTemperature` solves d(uv distance²)/dT = 0 with the analytic temperature derivative of Planck's law (safeguarded Newton with bisection, bracketed by the cached coarse scan, converged to 1e-10 of T), instead of a golden-section search. Duv and the inverse use the analytic locus normal instead of finite differences.
+  - Speed (`scripts/benchmark-planckian-locus.mjs`, medians, same 4-vCPU host): CCT/Duv 366 → 31.3 µs (11.7×); chromaticity from CCT + Duv 22.5 → 16.5 µs; Kelvin white balance 21.3 → 18.6 µs.
+  - Results: CCT now agrees with a 50-digit reference root to 3.3e-12 relative. The old search was off by up to 6.0e-3 K below 25000 K and 0.089 K (1.2e-6 relative) above, so CCT changes by those amounts. Duv changes by at most 8.3e-16. The inverse moves xy by at most 9.3e-10 (1.4e-7 at exactly 1000 or 100000 K); at Duv = 0 it is unchanged. No pinned digest changed. Points whose nearest locus point lies just inside a range limit now resolve instead of failing.
 - **WebGPU:** no GPU speed-up is claimed for the WebGPU backend. On the software adapter it was slower than the CPU (#304).
 
 ### Tests and tooling

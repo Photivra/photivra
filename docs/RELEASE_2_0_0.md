@@ -249,6 +249,12 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 - **Planckian locus:** chromaticity of Planck's law (BIPM *Mise en pratique* for the kelvin, free; exact c₂ = hc/k, CODATA) integrated against those CMFs on 1 nm nodes, 1000–100000 K. Against a locus integrated with the CIE table it is within 2.83e-4 in uv from 2856 to 25000 K (1.05e-3 at 1667 K). The CCT/Duv search uses it by default.
 - **Evidence in the repository:** `test/colorimetry.test.ts` (non-negative, equal-area CMFs with a unit ȳ peak near 555 nm; monotonic locus equal to the explicit Planck integral; illuminant A as a Planckian radiator; McCamy within 20 K over 2856–6504 K; CCT/Duv round trips; Duv sign; CIEDE2000 closed forms), `test/colorimetry-output-and-camera.test.ts`, re-pinned digests in `test/simulate-capture-integration.test.ts`. Numbers and method in `docs/COLORIMETRY.md`. The tests contain no CIE table values.
 
+### CCT/Duv root-find (owner approval 2026-10-17)
+
+- **Model and version:** same CCT/Duv definition and locus; only the numerical method changes. No new science source: the derivative of Planck's law with respect to T is exact calculus of the cited law.
+- **Method:** the root of the analytic d(uv distance²)/dT by safeguarded Newton iteration, converged to 1e-10 of T; analytic locus normal for Duv and the inverse.
+- **Evidence in the repository:** `test/colorimetry.test.ts` (agreement with the 50-digit reference in `test/fixtures/planckian-cct/`, tight round trips at both range limits, monotonicity, fail-closed limits, Duv sign). Measured CCT change up to 0.089 K (1.2e-6 relative) above 50000 K, 6.0e-3 K below 25000 K; 11.7× faster. Numbers and method in `docs/COLORIMETRY.md`.
+
 ## Citation audit (free sources)
 
 The owner's rule is that releases rely only on free-to-use sources. Every paid or paywalled standard cited by 2.0 work is listed below, with the free source used instead.
