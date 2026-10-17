@@ -365,11 +365,12 @@ Work that is known and deliberately left for later:
 ## Pending owner decisions
 
 1. **Flagged citations.** Accept, replace or remove the seven items marked **Flagged** in the [citation audit](#citation-audit-free-sources). Also decide whether the runtime strings that name paid standards should change in a later, versioned release.
-2. **`docs/AGENT_DOMAIN_RULES.md`.** Two statements in it are out of date:
-   - Its spatial camera rotation section still says `estimateCameraShakeBlur()` keeps its legacy sign semantics. That is no longer true for pitch.
-   - It still says not to compose distortion into the production plan without a contract review. #303 wrote that review, in `docs/PHYSICS_FOUNDATION.md`.
+2. **Agent instructions reset.** At the owner's request (2026-10-16), `AGENTS.md` was replaced with a short standard file. It keeps three rules:
+   - changes and recommendations must be evidence-based;
+   - only free-to-use sources, data, code and methods may be used;
+   - the owner approves anything that goes to production.
 
-   That file holds shared agent rules, so changing it needs the owner's approval. This candidate does not edit it.
+   `docs/AGENT_DOMAIN_RULES.md`, `docs/AUTOMATION_COORDINATION.md` and the `.github` agent files were retired. Their scientific content already lives in the domain guides, and `.github/node-lts-policy.mjs` still enforces the CI Node policy.
 3. **Human review** of the colorimetry constants recorded in `THIRD_PARTY.md` (CC BY-ND parameters, the patent record finding) and of the AI-assisted changes.
 
 ## Release gates
