@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { describe, expect, it } from "vitest";
 
 import { freezeOwnedData } from "../src/core/owned-data.js";

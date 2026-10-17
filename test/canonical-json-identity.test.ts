@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
 import { createPhotographicExportPair, parseSimulatedCapture, PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION } from "../src/index.js";

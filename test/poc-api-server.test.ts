@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 

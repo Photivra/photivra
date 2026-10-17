@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { describe, expect, it } from "vitest";
 import { invertSensorColorMatrix, prepareSensorColorDevelopment, sensorColorReferenceWhite, SENSOR_COLOR_DEVELOPMENT_MODEL,
   RAW_HIGHLIGHT_RECONSTRUCTION_START } from "../src/color/sensor-color-development.js";

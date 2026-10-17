@@ -419,6 +419,7 @@ export {
   calculateColorDifference,
   calculateXyzFromCielab,
   type CalculateColorDifferenceInput,
+  type Cie94ParametricFactors,
   type Ciede2000ParametricFactors,
   type CielabColor,
   type CielchColor,
