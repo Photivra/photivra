@@ -1,86 +1,82 @@
 # Sensor support to environment radiance query
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-`calculateSensorEnvironmentRadianceQuery()` derives a renderer-neutral environment
-radiance request from an explicitly supplied physical sensor support point. It
-reuses the existing focus-aware ideal projection and analytic inverse camera
-rotation. This is a bounded environment-query adapter, not a surface-intersection
-solver or a scene renderer.
+`calculateSensorEnvironmentRadianceQuery()` answers: "for this point on the sensor, at this moment, which direction in the environment does the light come from?" It builds a radiance request that does not depend on any renderer.
+
+- Input: an explicitly supplied physical support point on the sensor.
+- It reuses the existing focus-aware ideal projection and the analytic inverse camera rotation.
+- It is a bounded adapter for environment queries. It is not a surface-intersection solver or a scene renderer.
 
 ## Coordinates, direction and clock
 
-`sourcePointNativeSensorMm` is an optical support point in native sensor axes:
-optical-axis origin, +X right, +Y down, millimetres. It can be a pre-AA quadrature
-point or a pre-PSF source tap. The adapter converts it to image-plane axes with
-`{x: native.x, y: -native.y}`. It never recentres off-axis support, applies digital
-crop/orientation, or clips a source point to the sensor's active bounds.
+**The sensor point.** `sourcePointNativeSensorMm` is an optical support point in native sensor axes: origin on the optical axis, +X right, +Y down, in millimetres.
 
-Inputs retain physical `focalLengthMm`, an explicit finite/infinity `focus`, and
-constant `angularVelocityRadPerSec` in the existing right-hand pitch/yaw/roll axes.
-The existing `calculateInverseCameraRotationImageMapping()` owns the thin-lens
-projection distance and simultaneous axis-angle rotation. Infinity uses physical
-focal length; finite focus uses the existing Gaussian image distance. No alternate
-projection or camera-motion equation is introduced.
+- It can be a quadrature point before anti-aliasing, or a source tap before the PSF.
+- The adapter converts it to image-plane axes as `{x: native.x, y: -native.y}`.
+- It never recentres off-axis support, never applies digital crop or orientation, and never clips a point to the sensor's active area.
 
-`timeReference` must explicitly be `first-opening-boundary-phase`, mapping that
-capture boundary to the rotation model's t=0. `timeSecondsFromOpeningReference`
-is reused exactly for the query timestamp and rotation evaluation. Readout or
-renderer time cannot stand in for that declared clock. Call separately at each
-actual local shutter midpoint; this API does not establish local exposure timing.
+**Optics and motion inputs.**
 
-The reference ray is normalized in camera axes at the first opening boundary,
-with +Z forward. `referenceLookDirectionUnitVector` points **from camera toward
-the environment**. The request's `outgoingDirectionUnitVector` is its negative,
-representing radiance propagation **from environment toward camera**. This
-adapter requires the explicit `outgoing-radiance-toward-camera` convention.
-The selected provider must share it; providers indexing maps by a look direction
-must deliberately convert the sign. Existing manually declared request semantics
-are not rewritten by this additive API.
+- physical `focalLengthMm`;
+- an explicit `focus`, finite or infinity;
+- a constant `angularVelocityRadPerSec`, in the existing right-hand pitch/yaw/roll axes.
 
-The existing rotation inverse rejects rays at or behind the exposure-start
-reference camera plane. This forward-hemisphere limit is preserved, rather than
-silently extending the primitive to arbitrary 360-degree environment queries.
+The existing `calculateInverseCameraRotationImageMapping()` owns the thin-lens projection distance and the simultaneous axis-angle rotation. Infinity focus uses the physical focal length; finite focus uses the existing Gaussian image distance. No other projection or camera-motion equation is introduced.
+
+**Clock.**
+
+- `timeReference` must be explicitly `first-opening-boundary-phase`. That capture edge is the rotation model's t=0.
+- `timeSecondsFromOpeningReference` is used exactly, both for the query timestamp and for the rotation.
+- Readout time or renderer time cannot replace this declared clock.
+- Call the function separately at each actual local shutter midpoint. This API does not work out local exposure timing.
+
+**Direction sign convention.** The reference ray is normalised in the camera axes at the first opening edge, with +Z forward.
+
+- `referenceLookDirectionUnitVector` points **from the camera toward the environment**.
+- The request's `outgoingDirectionUnitVector` is its negative: it is the direction the radiance travels, **from the environment toward the camera**.
+- This adapter requires the explicit `outgoing-radiance-toward-camera` convention, and the chosen provider must use it too.
+- A provider that indexes maps by look direction must flip the sign deliberately.
+- Existing manually declared requests keep their meaning; this API does not rewrite them.
+
+**Forward hemisphere only.** The existing rotation inverse rejects rays on or behind the camera's reference plane at the start of exposure. This limit is kept. The primitive is not quietly extended to arbitrary 360-degree environment queries.
 
 ## Request identity and handoff
 
-`request` supplies the existing scene/provider/illumination/material IDs, unique
-sample ID, schema version, wavelength and explicit air/vacuum basis. The adapter
-owns its environment target and timestamp, then parses the complete request
-through `parseSceneRadianceEvaluationRequest()`.
+**Building the request.** `request` supplies the existing scene, provider, illumination and material IDs, a unique sample ID, the schema version, the wavelength, and an explicit air or vacuum basis. The adapter fills in its own environment target and timestamp, then parses the complete request with `parseSceneRadianceEvaluationRequest()`.
 
-Use the returned request with the provider responsible for scene radiance. Bind
-its result through the existing scene-profile/request/result validator and optical
-bridge. At sensor quadrature nodes, the generated request can replace a manually
-declared environment target in `calculateSceneToSensorIrradianceQuadrature()`.
-At PSF support points, evaluate radiance/optical irradiance separately at each
-point before supplying the local sampled-PSF adapter. Do not copy one environment
-scalar across directions without an explicitly uniform provider model.
+**Using the request.**
 
-`geometricRayProjectionCalculated` is true for this named ideal model only.
-`sceneIntersectionCalculated`, `visibilityCalculated` and `providerExecuted`
-remain false. Existing scene/optical diagnostic origin flags remain conservative:
-calling this adapter does not rewrite them or provide measured source truth.
+1. Send it to the provider responsible for scene radiance.
+2. Bind the result through the existing validator for scene profile, request and result, and through the optical bridge.
+
+- At sensor quadrature nodes, the generated request can replace a manually declared environment target in `calculateSceneToSensorIrradianceQuadrature()`.
+- At PSF support points, evaluate radiance and optical irradiance separately at each point, before passing them to the local sampled-PSF adapter.
+- Do not copy one environment value across different directions, unless the provider model is explicitly uniform.
+
+**Flags.**
+
+- `geometricRayProjectionCalculated` is true, for this named ideal model only.
+- `sceneIntersectionCalculated`, `visibilityCalculated` and `providerExecuted` stay false.
+- Existing diagnostic origin flags for scene and optics stay conservative. Calling this adapter does not change them, and does not supply measured source truth.
 
 ## Limits and verification
 
-Environment/rotation reference axes are explicitly the camera axes at the first
-opening boundary. There is no world-pose translation or implicit Euler pose.
-Surface points/material visibility, translation/parallax, moving objects, lens
-distortion, chromatic field mapping, focus breathing, radiance transport and
-production activation remain separate. The adapter's approximation envelope
-retains the child analytic projection result; it claims no real-lens calibration,
-combined uncertainty or full photographic accuracy.
+**Reference axes.** The environment and rotation reference axes are the camera axes at the first opening edge. There is no world pose translation, and no implicit Euler pose.
 
-Tests independently predict native/optical signs, direction normalization,
-finite-focus projection and axis-specific Rodrigues rotation. Forward/inverse
-rotation round trips preserve captured points. Actual pre-AA node requests pass
-the existing provider-binding/optical adapter with owned synthetic radiance.
-Unknown clock/direction/focus/basis, negative time, nonfinite point, invalid focal
-length and behind-reference-plane requests reject. Inputs/results are owned
-without mutating caller state.
+**Out of scope:** surface points and material visibility, translation and parallax, moving objects, lens distortion, chromatic field mapping, focus breathing, radiance transport and production activation.
 
-Root API **0.112.0 → 0.113.0**, model 0.1.0. Existing public contracts and other
-version surfaces stay unchanged; historical capture/file replay retains its API
-stamp. No dependency, external asset, network access or cost is introduced.
-At this introduction checkpoint, #16/#178/#112 were open and V1 was 25/32. They are now reviewed/merged; final conformance is complete.
+The adapter's approximation record keeps the child analytic projection result. It claims no real-lens calibration, combined uncertainty or full photographic accuracy.
+
+**Tests** independently check:
+
+- native and optical signs;
+- direction normalisation;
+- finite-focus projection;
+- per-axis Rodrigues rotation;
+- that forward/inverse rotation round trips return the captured points;
+- that real requests at pre-anti-aliasing nodes pass the existing provider-binding and optical adapter, using owned synthetic radiance;
+- rejection of an unknown clock, direction, focus or basis, negative time, a non-finite point, an invalid focal length, and requests behind the reference plane;
+- that inputs and results are owned, and caller state is not changed.
+
+**Versions.** Root API **0.112.0 → 0.113.0**, model 0.1.0. Existing public contracts and other version numbers did not change; replay of historical captures and files keeps its API stamp. No dependency, external asset, network access or cost is introduced.
