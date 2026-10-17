@@ -52,10 +52,96 @@ describe("root exports reject malformed input with domain errors (API review #4)
       "calculateDepthOfField", "calculateDefocusCircle", "estimateEquivalentViewingCircleOfConfusion", "calculateAiryDisk",
       "calculateExposureValue100", "calculateRelativeOpticalExposure", "calculateRelativeRenderedExposure", "calculateEquivalentIso",
       "calculateThinLensImageDistance", "calculateIdealApertureGeometry", "calculatePixelPitch", "calculatePlanckianSpectralRadiance",
-      "estimatePlanckianLocusChromaticity", "calculateHlgSystemGamma", "prepareBt1886Eotf", "prepareHlgReferenceDisplay"] as const;
+      "estimatePlanckianLocusChromaticity", "calculateHlgSystemGamma", "prepareBt1886Eotf", "prepareHlgReferenceDisplay",
+      "calculateSignalToNoise", "calculateProjectedMotionBlur"] as const;
     for (const name of strict) {
       const fn = engine[name] as (input: unknown) => unknown;
       expect(() => fn({ unexpectedField: 1 }), name).toThrow(new InvalidConfigurationError(`${name} input has unknown field "unexpectedField".`));
     }
+  });
+
+  it("rejects a misspelled or wrong-unit field next to valid fields (2.0.0: every calculator is strict)", () => {
+    const cases: readonly [string, () => unknown, string][] = [
+      ["calculateSignalToNoise", (): unknown => engine.calculateSignalToNoise({ signalElectrons: 100, readNoiseElectrons: 2,
+        darkCurrentElectrons: 5 } as never), "darkCurrentElectrons"],
+      ["calculateProjectedMotionBlur", (): unknown => engine.calculateProjectedMotionBlur({ focalLengthMm: 50, shutterSeconds: 1 / 100,
+        positionM: { x: 0, y: 0, z: 10 }, velocityMps: { x: 1, y: 0, z: 0 }, focusDistanceMm: 10_000 } as never), "focusDistanceMm"],
+      ["calculatePhotoelectrons", (): unknown => engine.calculatePhotoelectrons({ incidentPhotons: 100, quantumEfficiency: 0.5,
+        quantumEfficiencyPercent: 50 } as never), "quantumEfficiencyPercent"],
+      ["estimateCameraShakeBlur", (): unknown => engine.estimateCameraShakeBlur({ focalLengthMm: 50, shutterSeconds: 1 / 30,
+        angularVelocityRadPerSec: { yaw: 0.01, pitch: 0 }, stabilizationStopsEquivalent: 0, pixelPitchMm: 0.004 } as never), "pixelPitchMm"],
+      ["calculateCenteredCrop", (): unknown => engine.calculateCenteredCrop({ pixelWidth: 6000, pixelHeight: 4000, cropFactor: 1.5,
+        cropFactorPercent: 150 } as never), "cropFactorPercent"]
+    ];
+    for (const [name, call, field] of cases) {
+      expect(call, name).toThrow(new InvalidConfigurationError(`${name} input has unknown field ${JSON.stringify(field)}.`));
+    }
+    // The same calls without the extra field still succeed, so the extra field alone causes the rejection.
+    expect(engine.calculateSignalToNoise({ signalElectrons: 100, readNoiseElectrons: 2 }).value.snrLinear).toBeCloseTo(100 / Math.sqrt(104), 12);
+    expect(engine.calculateProjectedMotionBlur({ focalLengthMm: 50, shutterSeconds: 1 / 100, positionM: { x: 0, y: 0, z: 10 },
+      velocityMps: { x: 1, y: 0, z: 0 } }).value.distanceMm).toBeGreaterThan(0);
+  });
+
+  /*
+   * Every root function is classified. Functions that take an input object must reject an unknown
+   * field. Most use the shared message "<name> input has unknown field ...". The others are listed
+   * below with the reason, so a new root export must be classified here before it ships.
+   */
+  const STRICT_WITH_DOMAIN_MESSAGE = new Set([
+    // Reject unknown fields through their own allowlist parser, with a domain message.
+    "calculateCaptureColorTransform", "calculateCaptureCorrectedSdr", "calculateCaptureSdr", "calculateIdealPolygonDiffractionPsf",
+    "calculateIrradianceConvolution", "calculateIrradianceConvolutionPlan", "calculatePackedSensorRawPlan", "calculateTemporalExposureSum",
+    "calculateTemporalExposureSumPlan", "calculateLinearCaptureEncoding", "calculateNativeCaptureSdrPlan",
+    "calculateNativeRawPlan", "calculatePrintContrastReference", "calculatePrintPlan", "calculatePrintRegionDetail",
+    "calculatePrintRegionDifference", "calculatePrintRegionNoise", "calculatePrintSizeLimit", "calculateProcessedSensorRaw",
+    "calculateSdrRendering", "createAhdDemosaicTask", "createBilateralFilterTask", "createCaptureExportMetadataPair",
+    "createCfaPlaneReconstructionTask", "createDurandDorseyToneMappingTask", "createExposureFusionTask", "createFocusStackTask",
+    "createGenericEquipmentTierSelection", "createHdrBracketMergeTask", "createHdrImageEncodingTask", "createImageKernelAccelerator",
+    "createIsoGainReadoutRegimes", "createNativeCaptureSdrTask", "createNativeEnvironmentRawTask", "createNativeEnvironmentSensorStageTask",
+    "createNativeRawDevelopmentTask", "createNativeRawTask", "createNonLocalMeansTask", "createPanoramaTask", "createPhotographicExportPair",
+    "createPrintJpegTask", "createReinhardGlobalToneMappingTask", "createSensorRawFrame", "createSimulatedCapture",
+    "createSyntheticFilmGrainTask", "createUnsharpMaskTask", "resolveCaptureIlluminant", "resolveGenericEquipmentTierCatalog",
+    "resolveGenericEquipmentTierLensProfiles", "resolveRawFrameReconstruction", "serializeNativeRawDng", "serializePngImage",
+    "simulateCapture", "simulatePackedSensorRaw", "simulateSensorRawFrame"
+  ]);
+  const NO_INPUT_OBJECT = new Set([
+    // Positional scalars or bound objects, a string id, raw bytes, result factories or no argument at all.
+    "approximationResult", "composeRelativeErrorBounds", "assessShutterAngleRule", "calculateCieIlluminantARelativeSpectralPower", "calculateHighlightPriorityPlacementSignal",
+    "calculateShutterAngleExposureSeconds", "calculateShutterAngleFromExposureSeconds", "calculatedResult", "calibratedResult",
+    "createCieIlluminantASpectrum", "createSrgbIccProfile", "estimateCie1931ColorMatchingFunctions", "estimatedResult",
+    "evaluateBt709InverseOetf", "evaluateBt709Oetf", "evaluateHlgInverseOetf", "evaluateHlgOetf", "evaluatePqEotf", "evaluatePqInverseEotf",
+    "evaluateSrgbDecoding", "evaluateSrgbEncoding", "evaluateZernikePolynomial", "getImageFormationContract", "getPsfFoundationContract",
+    "resolveCaptureColorModel", "resolveChromaticAdaptationConeMatrix", "resolveRgbColorSpace", "resolveZernikeNollOrder"
+  ]);
+  const TAKES_A_RECORD = new Set([
+    // Take a whole engine or versioned record rather than an input object. Like the parse* functions
+    // (exempt by name), they validate the record's own schema and are not top-level strict yet.
+    "assessMtfOnlyPsfRenderability", "assessRadiometryReadiness", "assessSceneMaterialResponseFidelity",
+    "calculateEffectiveSaturationCode", "createRollingShutterCaptureExposureSchedule", "createTtlScaledFlashProfile",
+    "integrateDiscreteSpectralLineMeasure", "prepareColorMatchingFunctions", "prepareColorimetricSpectrum",
+    "resolveAntiAliasingSpatialKernel", "resolveSceneIlluminationDiscreteLineMeasure", "serializeProductionImageFormationPlan",
+    "validateCalculationQuality"
+  ]);
+
+  it("classifies every root function, and every input-object function outside the lists rejects unknown fields", async () => {
+    const unclassified: string[] = [];
+    const misclassified: string[] = [];
+    for (const [name, fn] of rootFunctions) {
+      let message: string | undefined;
+      let isConfiguration = false;
+      try {
+        const result = fn({ unexpectedField: 1 });
+        if (result instanceof Promise) await result;
+      } catch (error) {
+        isConfiguration = error instanceof InvalidConfigurationError;
+        message = error instanceof Error ? error.message : undefined;
+      }
+      const shared = isConfiguration && message === `${name} input has unknown field "unexpectedField".`;
+      const listed = STRICT_WITH_DOMAIN_MESSAGE.has(name) || NO_INPUT_OBJECT.has(name) || TAKES_A_RECORD.has(name);
+      if (shared && listed) misclassified.push(name);
+      if (!shared && !listed && !name.startsWith("parse")) unclassified.push(`${name}: ${message ?? "no error"}`);
+    }
+    expect(unclassified).toEqual([]);
+    expect(misclassified).toEqual([]);
   });
 });

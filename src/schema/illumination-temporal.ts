@@ -27,7 +27,7 @@ import type {
   SceneIlluminationProfile,
   SceneIlluminationUncertainty
 } from "./illumination.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1056,12 +1056,12 @@ export function evaluateSceneIlluminationTemporalMultiplier(
   input:
     EvaluateSceneIlluminationTemporalMultiplierInput
 ): SceneIlluminationTemporalMultiplierEvaluation {
-  requireInputObject(input, "evaluateSceneIlluminationTemporalMultiplier input");
+  requireInputKeys(input, "evaluateSceneIlluminationTemporalMultiplier", ["illuminationProfile", "temporalProfile", "sourceId", "captureTimeSecondsFromReference"]);
   if (
     typeof input.sourceId !== "string" ||
     input.sourceId.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sourceId must be a non-empty string."
     );
   }
@@ -1139,7 +1139,7 @@ export function integrateSceneIlluminationTemporalMultiplierOverExposureWindow(
   input:
     IntegrateSceneIlluminationTemporalMultiplierInput
 ): SceneIlluminationTemporalExposureIntegration {
-  requireInputObject(input, "integrateSceneIlluminationTemporalMultiplierOverExposureWindow input");
+  requireInputKeys(input, "integrateSceneIlluminationTemporalMultiplierOverExposureWindow", ["illuminationProfile", "temporalProfile", "sourceId", "exposureWindows", "sampleIndex", "temporalSampleCount"]);
   requirePositiveInteger(
     "temporalSampleCount",
     input.temporalSampleCount

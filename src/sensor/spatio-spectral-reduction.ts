@@ -28,7 +28,8 @@ import {
   type SensorSpectralQuadrature,
   type SensorSpectralQuadratureNode
 } from "./spectral-quadrature.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 const SQUARE_MICROMETERS_TO_SQUARE_METERS = 1e-12;
 const MAX_SPATIO_SPECTRAL_SAMPLE_VALUES = 100_000;
@@ -247,7 +248,7 @@ function parseSamples<T extends { node: SensorSpatioSpectralNodeIdentity }, V>(
   valueForSample: (sample: T, sampleIndex: number) => V
 ): Map<string, V> {
   if (!Array.isArray(sampleValues)) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sampleValues must be an array."
     );
   }
@@ -497,7 +498,7 @@ export function reduceSensorSpatioSpectralIrradiance(
   input:
     ReduceSensorSpatioSpectralIrradianceInput
 ): CalculationResult<SensorSpatioSpectralIrradianceReduction> {
-  requireInputObject(input, "reduceSensorSpatioSpectralIrradiance input");
+  requireInputKeys(input, "reduceSensorSpatioSpectralIrradiance", ["spatialQuadrature", "spectralQuadrature", "sampleValues"]);
   const { spatialNodesByKey, spectralNodesByIndex, colorSamplingProfileId, combinedSampleCount, valuesByKey } =
     bindSensorSpatioSpectralSamples(input, (sample, sampleIndex) => requireNonNegativeFinite(
       sample.spectralIrradianceWattsPerSquareMeterPerNanometer,

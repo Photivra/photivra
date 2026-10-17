@@ -16,7 +16,8 @@ import {
   type SensorSpectralChannelResponse,
   type SensorSpectralResponseProfile
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CreateSensorSpectralCoverageParticipantInput {
   spectralResponseProfile:
@@ -85,7 +86,7 @@ export function createSensorSpectralCoverageParticipant(
   input:
     CreateSensorSpectralCoverageParticipantInput
 ): SpectralCoverageParticipant {
-  requireInputObject(input, "createSensorSpectralCoverageParticipant input");
+  requireInputKeys(input, "createSensorSpectralCoverageParticipant", ["spectralResponseProfile", "channelId", "participantId"]);
   const profile =
     parseSensorSpectralResponseProfile(
       input.spectralResponseProfile
@@ -96,7 +97,7 @@ export function createSensorSpectralCoverageParticipant(
       "string" ||
     input.channelId.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "channelId must be a non-empty string."
     );
   }
@@ -182,7 +183,7 @@ export function createSensorSpectralCoverageParticipant(
   if (
     participantId.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "participantId must be a non-empty string when supplied."
     );
   }

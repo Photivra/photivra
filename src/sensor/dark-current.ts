@@ -33,7 +33,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -871,7 +871,7 @@ export function calculateSensorDarkCurrentCharge(
   input:
     CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>
 ): CalculationResult<SensorPhotoDarkCurrentCharge> {
-  requireInputObject(input, "calculateSensorDarkCurrentCharge input");
+  requireInputKeys(input, "calculateSensorDarkCurrentCharge", ["exposure", "darkCurrentProfile", "operatingTemperatureC"]);
   validateExposure(input.exposure);
   const profile =
     parseSensorDarkCurrentProfile(

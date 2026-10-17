@@ -28,6 +28,7 @@ import type {
   BrowserNativeReferenceHitResult,
   PreparedBrowserNativeReferenceGeometry
 } from "./browser-native-reference-geometry.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const BROWSER_NATIVE_REFERENCE_SOURCE_VERSION = "0.1.0" as const;
 
@@ -76,7 +77,7 @@ function canonical(value: unknown): string {
 
 function nonEmpty(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new InvalidScientificInputError(label + " must be a non-empty string.");
+    throw new InvalidConfigurationError(label + " must be a non-empty string.");
   }
   return value.trim();
 }

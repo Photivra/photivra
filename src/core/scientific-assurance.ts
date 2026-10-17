@@ -18,7 +18,8 @@ import {
   parseEvidenceProvenance,
   type EvidenceProvenance
 } from "./evidence-provenance.js";
-import { requireInputObject } from "./record-validation.js";
+import { requireInputKeys } from "./record-validation.js";
+import { InvalidConfigurationError } from "./configuration-error.js";
 
 export const SCIENTIFIC_ASSURANCE_CONTRACT_VERSION =
   "0.1.0" as const;
@@ -189,7 +190,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         " must be a non-empty string."
     );
@@ -225,7 +226,7 @@ function validateSourceIdentity(
         ScientificAssuranceSourceKind
     )
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + ".kind is invalid."
     );
   }
@@ -368,7 +369,7 @@ function validateUncertainty(
     };
   }
 
-  throw new InvalidScientificInputError(
+  throw new InvalidConfigurationError(
     path + ".kind is invalid."
   );
 }
@@ -378,7 +379,7 @@ function validateLimitations(
   path: string
 ): readonly string[] {
   if (!Array.isArray(value)) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be an array."
     );
   }
@@ -421,7 +422,7 @@ function validateComponent(
     typeof value.required !==
     "boolean"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         ".required must be boolean."
     );
@@ -433,7 +434,7 @@ function validateComponent(
         ScientificAssuranceBasisKind
     )
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         ".basisKind is invalid."
     );
@@ -445,7 +446,7 @@ function validateComponent(
         ScientificAssuranceStatus
     )
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         ".scientificStatus is invalid."
     );
@@ -469,14 +470,14 @@ function validateComponent(
     value.evidenceRequirement !==
       "not-required"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         ".evidenceRequirement is invalid."
     );
   }
 
   if (!Array.isArray(value.evidence)) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         ".evidence must be an array."
     );
@@ -640,14 +641,14 @@ export function composeScientificAssurance(
   input:
     ComposeScientificAssuranceInput
 ): ComposedScientificAssurance {
-  requireInputObject(input, "composeScientificAssurance input");
+  requireInputKeys(input, "composeScientificAssurance", ["components"]);
   if (
     !Array.isArray(
       input.components
     ) ||
     input.components.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "components must be a non-empty array."
     );
   }

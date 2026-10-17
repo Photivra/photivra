@@ -22,7 +22,7 @@ import {
   type ExposureMeteringProfile
 } from "../exposure/metering.js";
 import type { GenericCapabilityAvailability } from "./exposure-capabilities.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -296,7 +296,7 @@ export function assessExposureMeteringProfileCompatibility(
   input:
     AssessExposureMeteringProfileCompatibilityInput
 ): MeteringCapabilityCompatibilityAssessment {
-  requireInputObject(input, "assessExposureMeteringProfileCompatibility input");
+  requireInputKeys(input, "assessExposureMeteringProfileCompatibility", ["bodyCapabilities", "meteringProfile"]);
   const body =
     parseGenericBodyMeteringCapabilityProfile(
       input.bodyCapabilities

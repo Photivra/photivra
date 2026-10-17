@@ -48,7 +48,8 @@ import type {
   SensorSpatioSpectralIrradianceReduction,
   SensorSpatioSpectralWavelengthReduction
 } from "./spatio-spectral-reduction.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 const REDUCTION_TOLERANCE = 1e-10;
 
@@ -692,7 +693,7 @@ function parseAirContext(
         typeof entry !== "object" ||
         entry === null
       ) {
-        throw new InvalidScientificInputError(
+        throw new InvalidConfigurationError(
           "airPhotonEnergyContext.samples[" +
             arrayIndex +
             "] must be an object."
@@ -868,7 +869,7 @@ export function calculateSensorEqeElectronRate(
   input:
     CalculateSensorEqeElectronRateInput
 ): CalculationResult<SensorEqeElectronRate> {
-  requireInputObject(input, "calculateSensorEqeElectronRate input");
+  requireInputKeys(input, "calculateSensorEqeElectronRate", ["reduction", "compatibility", "operatingRange", "colorSamplingProfile", "spectralResponseProfile", "airPhotonEnergyContext"]);
   validateAuthorizationChain(
     input.reduction,
     input.compatibility,

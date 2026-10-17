@@ -14,7 +14,8 @@
 
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { requireInputObject, requirePublicOpaqueId } from "../core/record-validation.js";
+import { requireInputObject, requirePublicOpaqueId, requireInputKeys } from "../core/record-validation.js";
+import { InvalidScientificInputError } from "../core/validation.js";
 import type { ReleaseAutomationState, ResolvedReleaseFrame } from "../capture/release-sequence.js";
 import { parseFocusPlane, type FocusPlane } from "../optics/focus-state.js";
 import { parseOpticalProfileState, type OpticalProfileState } from "../optics/profile-contract.js";
@@ -35,7 +36,7 @@ export const VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES = 100_000 as const;
 
 function requireFrameRate(frameRateHz: number): number {
   if (typeof frameRateHz !== "number" || !Number.isFinite(frameRateHz) || frameRateHz <= 0) {
-    throw new InvalidConfigurationError("frameRateHz must be a finite number greater than zero.");
+    throw new InvalidScientificInputError("frameRateHz must be a finite number greater than zero.");
   }
   return frameRateHz;
 }
@@ -43,7 +44,7 @@ function requireFrameRate(frameRateHz: number): number {
 function requireShutterAngle(shutterAngleDegrees: number): number {
   if (typeof shutterAngleDegrees !== "number" || !Number.isFinite(shutterAngleDegrees) ||
     shutterAngleDegrees <= 0 || shutterAngleDegrees > 360) {
-    throw new InvalidConfigurationError("shutterAngleDegrees must lie in (0, 360].");
+    throw new InvalidScientificInputError("shutterAngleDegrees must lie in (0, 360].");
   }
   return shutterAngleDegrees;
 }
@@ -59,11 +60,11 @@ export function calculateShutterAngleExposureSeconds(frameRateHz: number, shutte
 /** Inverse of {@link calculateShutterAngleExposureSeconds}: angle = 360 · frameRateHz · t. */
 export function calculateShutterAngleFromExposureSeconds(frameRateHz: number, exposureSeconds: number): number {
   if (typeof exposureSeconds !== "number" || !Number.isFinite(exposureSeconds) || exposureSeconds <= 0) {
-    throw new InvalidConfigurationError("exposureSeconds must be a finite number greater than zero.");
+    throw new InvalidScientificInputError("exposureSeconds must be a finite number greater than zero.");
   }
   const angle = 360 * requireFrameRate(frameRateHz) * exposureSeconds;
   if (angle > 360 * (1 + 1e-12)) {
-    throw new InvalidConfigurationError("Exposure longer than one frame period has no shutter angle.");
+    throw new InvalidScientificInputError("Exposure longer than one frame period has no shutter angle.");
   }
   return Math.min(360, angle);
 }
@@ -161,7 +162,7 @@ export interface VideoFrameSequence {
  * frame.
  */
 export function resolveVideoFrameSequence(input: ResolveVideoFrameSequenceInput): VideoFrameSequence {
-  requireInputObject(input, "resolveVideoFrameSequence input");
+  requireInputKeys(input, "resolveVideoFrameSequence", ["sequenceId", "opticalState", "shutterAngleDegrees", "firstFrameIndex", "frameCount", "sequenceSeedUint32", "iso", "focus", "automation", "whiteBalanceStateId", "timingEvidence", "rollingShutter"]);
   requireInputObject(input.automation, "resolveVideoFrameSequence automation");
   const sequenceId = requirePublicOpaqueId(input.sequenceId, "Invalid video sequence ID.");
   const optical = parseOpticalProfileState(input.opticalState);
@@ -174,14 +175,14 @@ export function resolveVideoFrameSequence(input: ResolveVideoFrameSequenceInput)
   const first = input.firstFrameIndex ?? 0;
   if (!Number.isSafeInteger(first) || first < 0 || !Number.isSafeInteger(input.frameCount) || input.frameCount < 1 ||
     input.frameCount > VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES || first + input.frameCount - 1 > 0xffffffff) {
-    throw new InvalidConfigurationError("Video frames need a non-negative first index, 1–100000 frames and uint32 frame indices.");
+    throw new InvalidScientificInputError("Video frames need a non-negative first index, 1–100000 frames and uint32 frame indices.");
   }
   const seed = input.sequenceSeedUint32;
   if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) {
-    throw new InvalidConfigurationError("sequenceSeedUint32 must be a uint32 integer.");
+    throw new InvalidScientificInputError("sequenceSeedUint32 must be a uint32 integer.");
   }
   if (typeof input.iso !== "number" || !Number.isFinite(input.iso) || input.iso <= 0) {
-    throw new InvalidConfigurationError("iso must be a finite number greater than zero.");
+    throw new InvalidScientificInputError("iso must be a finite number greater than zero.");
   }
   const timingEvidence = parseEvidenceList(input.timingEvidence, "video.timingEvidence");
   const focus = parseFocusPlane(input.focus ?? { kind: "finite", distanceM: optical.focusDistanceM });
@@ -201,7 +202,7 @@ export function resolveVideoFrameSequence(input: ResolveVideoFrameSequenceInput)
       nominalExposureDurationSeconds: { value: exposureSeconds, unit: "s", evidence: timingEvidence },
       linkageEvidence: input.rollingShutter.linkageEvidence });
     if (rolling.lineScanSkewSeconds > framePeriodSeconds) {
-      throw new InvalidConfigurationError("Rolling-shutter line skew exceeds the video frame period; lines cannot be read once per frame.");
+      throw new InvalidScientificInputError("Rolling-shutter line skew exceeds the video frame period; lines cannot be read once per frame.");
     }
   }
 

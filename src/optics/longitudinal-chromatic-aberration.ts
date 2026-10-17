@@ -41,6 +41,8 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateDefocusWavefront } from "./zernike-wavefront.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Fraunhofer spectral-line wavelengths in nm (SCHOTT TIE-29 table; also ISO 7944 reference wavelengths). */
 export const FRAUNHOFER_D_LINE_NM = 587.5618;
@@ -137,9 +139,7 @@ export function calculateCauchyRefractiveIndex(input: {
   abbeNumberD: number;
   wavelengthNm: number;
 }): CalculationResult<{ refractiveIndex: number }> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateCauchyRefractiveIndex", ["refractiveIndexD", "abbeNumberD", "wavelengthNm"]);
   validateAbbe(input.refractiveIndexD, input.abbeNumberD);
   validateCauchyWavelength("wavelengthNm", input.wavelengthNm);
   return approximationResult(
@@ -223,7 +223,7 @@ function parseSamples(
   let previous = 0;
   return value.map((entry: unknown, index) => {
     if (typeof entry !== "object" || entry === null) {
-      throw new InvalidScientificInputError(`dispersion.samples[${index}] must be an object.`);
+      throw new InvalidConfigurationError(`dispersion.samples[${index}] must be an object.`);
     }
     const record = entry as Record<string, unknown>;
     const wavelengthNm = requireFinite(`dispersion.samples[${index}].wavelengthNm`, record.wavelengthNm);
@@ -260,9 +260,7 @@ function imageDistanceMm(focalLengthMm: number, objectDistanceM: number): number
 export function calculateLongitudinalChromaticFocus(
   input: CalculateLongitudinalChromaticFocusInput
 ): CalculationResult<LongitudinalChromaticFocus> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateLongitudinalChromaticFocus", ["focalLengthMm", "referenceWavelengthNm", "wavelengthNm", "apertureFNumber", "focusDistanceM", "subjectDistanceM", "dispersion"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("referenceWavelengthNm", input.referenceWavelengthNm);
   requirePositiveFinite("wavelengthNm", input.wavelengthNm);
@@ -272,7 +270,7 @@ export function calculateLongitudinalChromaticFocus(
   requirePositiveFinite("subjectDistanceM", subjectDistanceM);
   const dispersion = input.dispersion;
   if (typeof dispersion !== "object" || dispersion === null) {
-    throw new InvalidScientificInputError("dispersion must be an object.");
+    throw new InvalidConfigurationError("dispersion must be an object.");
   }
 
   let focalLengthAtWavelengthMm: number;
@@ -297,7 +295,7 @@ export function calculateLongitudinalChromaticFocus(
     dispersionAssumption =
       "Caller-declared focal-length shift table, linearly interpolated and re-referenced to the reference wavelength; no extrapolation";
   } else {
-    throw new InvalidScientificInputError("dispersion.kind is invalid.");
+    throw new InvalidConfigurationError("dispersion.kind is invalid.");
   }
   if (!(focalLengthAtWavelengthMm > 0) || !Number.isFinite(focalLengthAtWavelengthMm)) {
     throw new InvalidScientificInputError(

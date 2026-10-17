@@ -11,7 +11,7 @@ import {
   type SceneToSensorIrradianceProfile,
   type SceneToSensorIrradianceResult
 } from "../src/index.js";
-import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
+import { expectRejection, type Json, type MixedRejectionCase, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = (
   ref: string
@@ -923,11 +923,11 @@ describe("scene-to-sensor irradiance profile and context rejection branches", ()
   it.each([
     ["a non-unity pupil magnification", (i: Json): void => { i.focus = { kind: "ideal-symmetric-thin-lens", objectDistanceM: 2,
       pupilMagnificationAssumption: "measured" }; }, 'Ideal symmetric thin-lens focus requires pupilMagnificationAssumption "unity".'],
-    ["an unknown focus kind", (i: Json): void => { i.focus = { kind: "autofocus" }; }, "focus.kind is invalid."],
+    ["an unknown focus kind", (i: Json): void => { i.focus = { kind: "autofocus" }; }, "focus.kind is invalid.", InvalidConfigurationError],
     ["a zero supplied working f-number", (i: Json): void => { i.focus = { kind: "supplied-working-f-number",
       focus: { kind: "infinity" }, workingFNumber: { value: 0, evidence: evidence("working") }, basis: "test" }; }, "focus.workingFNumber.value must be finite and greater than zero."],
-    ["an unknown field-throughput kind", (i: Json): void => { i.fieldThroughput = { kind: "cos4" }; }, "fieldThroughput.kind is invalid."]
-  ] as RejectionCase[])("rejects a calculation with %s", (_name, mutate, message) => {
-    expectRejection(context, (i: Json) => calculateSceneRadianceToSensorIrradiance(i), InvalidScientificInputError, mutate, message);
+    ["an unknown field-throughput kind", (i: Json): void => { i.fieldThroughput = { kind: "cos4" }; }, "fieldThroughput.kind is invalid.", InvalidConfigurationError]
+  ] as MixedRejectionCase[])("rejects a calculation with %s", (_name, mutate, message, errorClass) => {
+    expectRejection(context, (i: Json) => calculateSceneRadianceToSensorIrradiance(i), errorClass ?? InvalidScientificInputError, mutate, message);
   });
 });

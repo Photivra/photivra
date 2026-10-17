@@ -22,7 +22,7 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "../optics/focus-state.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -299,7 +299,7 @@ function requireScientificNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         " must be a non-empty string."
     );
@@ -724,7 +724,7 @@ export function createFocusControlState(
   input:
     CreateFocusControlStateInput
 ): FocusControlState {
-  requireInputObject(input, "createFocusControlState input");
+  requireInputKeys(input, "createFocusControlState", ["stateId", "profile", "mode", "initialFocus", "initialTimeSeconds"]);
   const profile =
     parseFocusControlProfile(
       input.profile
@@ -802,7 +802,7 @@ export function setManualFocusState(
   input:
     SetManualFocusStateInput
 ): FocusControlState {
-  requireInputObject(input, "setManualFocusState input");
+  requireInputKeys(input, "setManualFocusState", ["state", "stateId", "focus", "eventTimeSeconds", "commandId"]);
   requireInputObject(input.state, "state");
   if (
     input.state.mode !==
@@ -932,7 +932,7 @@ function parseObservation(
     };
   }
 
-  throw new InvalidScientificInputError(
+  throw new InvalidConfigurationError(
     "observation.kind/reason is invalid."
   );
 }
@@ -1065,12 +1065,12 @@ export function resolveFocusTargetObservation(
   input:
     ResolveFocusTargetObservationInput
 ): FocusTargetResolution {
-  requireInputObject(input, "resolveFocusTargetObservation input");
+  requireInputKeys(input, "resolveFocusTargetObservation", ["state", "stateId", "event", "observation"]);
   if (
     input.event !== "acquire" &&
     input.event !== "update"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'Focus target event must be "acquire" or "update".'
     );
   }
@@ -1245,7 +1245,7 @@ export function setFocusLock(
   input:
     SetFocusLockInput
 ): FocusControlState {
-  requireInputObject(input, "setFocusLock input");
+  requireInputKeys(input, "setFocusLock", ["state", "stateId", "locked", "eventTimeSeconds"]);
   const time =
     requireMonotonicEventTime(
       input.state,
@@ -1326,7 +1326,7 @@ export function assessFocusReleaseGate(
   input:
     AssessFocusReleaseGateInput
 ): FocusReleaseGateAssessment {
-  requireInputObject(input, "assessFocusReleaseGate input");
+  requireInputKeys(input, "assessFocusReleaseGate", ["state", "profile", "priority"]);
   const profile =
     parseFocusControlProfile(
       input.profile

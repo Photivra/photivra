@@ -39,7 +39,7 @@ import type {
   ExposureMeteringSampleSet,
   ExposureMeteringZoneSample
 } from "./metering.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -416,7 +416,7 @@ export function createSceneRadianceDerivedExposureMeteringSampleSet(
   input:
     CreateSceneRadianceDerivedExposureMeteringSampleSetInput
 ): SceneRadianceDerivedExposureMeteringSampleSet {
-  requireInputObject(input, "createSceneRadianceDerivedExposureMeteringSampleSet input");
+  requireInputKeys(input, "createSceneRadianceDerivedExposureMeteringSampleSet", ["measurementId", "sceneStateId", "providerProfile", "illuminationProfile", "materialResponseProfile", "illuminationTemporalProfile", "captureTimeSecondsFromReference", "captureGeometry", "derivationProfile", "samples"]);
   const derivationProfile =
     parseSceneRadianceMeteringDerivationProfile(
       input.derivationProfile
@@ -430,7 +430,7 @@ export function createSceneRadianceDerivedExposureMeteringSampleSet(
     input.measurementId.trim().length ===
       0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "measurementId must be a non-empty string."
     );
   }
@@ -440,7 +440,7 @@ export function createSceneRadianceDerivedExposureMeteringSampleSet(
     input.sceneStateId.trim().length ===
       0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sceneStateId must be a non-empty string."
     );
   }
@@ -448,7 +448,7 @@ export function createSceneRadianceDerivedExposureMeteringSampleSet(
     !Array.isArray(input.samples) ||
     input.samples.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "samples must be a non-empty array."
     );
   }

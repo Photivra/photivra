@@ -25,7 +25,7 @@ import {
   validateRadialDistortionProfile, type RadialDistortionProfile, type LensFieldPointMm
 } from "../optics/radial-distortion.js";
 import { choice, finite, list, positive, record, textValue } from "../optics/profile-contract.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 import {
   brownConradyForwardValue, brownConradyInverseValue, validateBrownConradyDistortionProfile,
   type BrownConradyDistortionProfile, type ValidatedBrownConradyDistortionProfile
@@ -204,7 +204,7 @@ export function parseDigitalGeometricTransform(value: unknown): DigitalGeometric
 export function prepareGeometricMapping(input: {
   transforms: readonly DigitalGeometricTransform[]; frameTimeSeconds: number;
 }): CalculationResult<PreparedGeometricMapping> {
-  requireInputObject(input, "prepareGeometricMapping input");
+  requireInputKeys(input, "prepareGeometricMapping", ["transforms", "frameTimeSeconds"]);
   const time = finite(input.frameTimeSeconds, "frameTimeSeconds");
   if (time < 0) throw new InvalidScientificInputError("Time is seconds from exposure start.");
   const transforms = list(input.transforms, 32).map(parseDigitalGeometricTransform);
@@ -221,12 +221,21 @@ export function prepareGeometricMapping(input: {
   "composed-digital-geometry", version, ["Explicit inverse maps; incompatible domains require separate image stages", "No physical PSF, photon or noise-history recalculation"]);
 }
 
+/**
+ * Re-validates a prepared mapping from its defining fields (transforms and frame time). Its derived
+ * fields (schema version, semantic key, groups) are recomputed, never trusted.
+ */
+function reprepareGeometricMapping(mapping: PreparedGeometricMapping): PreparedGeometricMapping {
+  requireInputObject(mapping, "prepareGeometricMapping input");
+  return prepareGeometricMapping({ transforms: mapping.transforms, frameTimeSeconds: mapping.frameTimeSeconds }).value;
+}
+
 /** Maps a display point to the capture, with the full local derivatives in each direction. */
 export function calculateComposedGeometricMapping(input: {
   mapping: PreparedGeometricMapping; destinationPointMm: LensFieldPointMm;
 }): CalculationResult<GeometricMappingPoint> {
-  requireInputObject(input, "calculateComposedGeometricMapping input");
-  const mapping = prepareGeometricMapping(input.mapping).value;
+  requireInputKeys(input, "calculateComposedGeometricMapping", ["mapping", "destinationPointMm"]);
+  const mapping = reprepareGeometricMapping(input.mapping);
   return calculatePreparedGeometricMappingPoint(mapping, input.destinationPointMm);
 }
 
@@ -286,9 +295,9 @@ function calculatePreparedGeometricMappingPoint(
 export function calculateForwardGeometricMapping(input: {
   mapping: PreparedGeometricMapping; sourcePointMm: LensFieldPointMm;
 }): CalculationResult<LensFieldPointMm> {
-  requireInputObject(input, "calculateForwardGeometricMapping input");
+  requireInputKeys(input, "calculateForwardGeometricMapping", ["mapping", "sourcePointMm"]);
   let p = point(input.sourcePointMm);
-  const mapping = prepareGeometricMapping(input.mapping).value;
+  const mapping = reprepareGeometricMapping(input.mapping);
   for (const t of [...mapping.transforms].reverse()) {
     p = t.kind === "affine"
       ? affine({ x: p.x-t.offsetMm.x, y: p.y-t.offsetMm.y }, inverse(t.matrix), { x: 0, y: 0 })
@@ -356,8 +365,8 @@ export function calculateGeometricSamplingPlan(input: {
    */
   sourceProjectionModel?: LensProjectionModel;
 }): CalculationResult<GeometricSamplingPlan> {
-  requireInputObject(input, "calculateGeometricSamplingPlan input");
-  const mapping = prepareGeometricMapping(input.mapping).value;
+  requireInputKeys(input, "calculateGeometricSamplingPlan", ["mapping", "sourceRaster", "destinationRaster", "resampler", "physicalProjectionDistanceMm", "sourceProjectionModel"]);
+  const mapping = reprepareGeometricMapping(input.mapping);
   if (mapping.groups.length > 1) throw new InvalidScientificInputError("Separate incompatible-domain groups before resampling.");
   const source = parseGeometricRaster(input.sourceRaster), destination = parseGeometricRaster(input.destinationRaster);
   const r = record(input.resampler, ["id", "version", "filter", "antialias"]);
@@ -395,8 +404,12 @@ export function calculateGeometricSamplingPlan(input: {
 export function calculateGeometricResampling(input: {
   plan: GeometricSamplingPlan; sourceSamples: readonly number[];
 }): CalculationResult<{ samples: readonly (number | null)[]; resamplePasses: 1; resampler: GeometricResampler }> {
-  requireInputObject(input, "calculateGeometricResampling input");
-  const plan = calculateGeometricSamplingPlan({ ...input.plan, physicalProjectionDistanceMm: 1 }).value;
+  requireInputKeys(input, "calculateGeometricResampling", ["plan", "sourceSamples"]);
+  const prior = input.plan;
+  requireInputObject(prior, "calculateGeometricResampling plan");
+  // Re-plan from the defining fields; the derived plan fields are recomputed, never trusted.
+  const plan = calculateGeometricSamplingPlan({ mapping: prior.mapping, sourceRaster: prior.sourceRaster,
+    destinationRaster: prior.destinationRaster, resampler: prior.resampler, physicalProjectionDistanceMm: 1 }).value;
   if (!plan.canResample) throw new InvalidScientificInputError("Compression requires source-prefiltered data.");
   const source = list(input.sourceSamples, 65536).map((v) => finite(v, "source sample"));
   if (source.length !== plan.sourceRaster.width*plan.sourceRaster.height) throw new InvalidScientificInputError("Source sample count mismatch.");

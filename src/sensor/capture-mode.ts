@@ -26,7 +26,7 @@ import type {
   NativeImageRaster,
   RasterDimensions
 } from "./sensor-geometry.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -875,13 +875,13 @@ function resolvePerFrameSampling(
 export function resolveCaptureMode(
   input: ResolveCaptureModeInput
 ): ResolvedCaptureMode {
-  requireInputObject(input, "resolveCaptureMode input");
+  requireInputKeys(input, "resolveCaptureMode", ["nativeRaster", "profile", "modeId"]);
   validateNativeRaster(input.nativeRaster);
   if (
     typeof input.modeId !== "string" ||
     input.modeId.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "modeId must be a non-empty string."
     );
   }

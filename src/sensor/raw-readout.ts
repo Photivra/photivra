@@ -45,7 +45,7 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 import {
   evaluateParsedFixedPatternSite,
   parseSensorFixedPatternNoiseProfile,
@@ -1242,7 +1242,7 @@ export function resolveSensorReadoutRegime(
   input:
     ResolveSensorReadoutRegimeInput
 ): ResolvedSensorReadoutRegime {
-  requireInputObject(input, "resolveSensorReadoutRegime input");
+  requireInputKeys(input, "resolveSensorReadoutRegime", ["profile", "regimeId"]);
   const profile =
     parseSensorReadoutConversionProfile(
       input.profile
@@ -1253,7 +1253,7 @@ export function resolveSensorReadoutRegime(
     input.regimeId.trim().length ===
       0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "regimeId must be a non-empty string."
     );
   }
@@ -1690,7 +1690,7 @@ export function simulateSensorChargeRealization(
   input:
     SimulateSensorChargeRealizationInput
 ): CalculationResult<SensorChargeRealization> {
-  requireInputObject(input, "simulateSensorChargeRealization input");
+  requireInputKeys(input, "simulateSensorChargeRealization", ["accumulatedCharge", "samplingProfile", "seedUint32", "fixedPatternNoise"]);
   const profile =
     parseSensorChargeSamplingProfile(
       input.samplingProfile
@@ -2028,7 +2028,7 @@ export function calculateExpectedSensorReadout(
   input:
     CalculateExpectedSensorReadoutInput
 ): CalculationResult<SensorExpectedReadoutSignal> {
-  requireInputObject(input, "calculateExpectedSensorReadout input");
+  requireInputKeys(input, "calculateExpectedSensorReadout", ["accumulatedCharge", "physicalCapacityAssessment", "readoutProfile", "regimeId"]);
   const readout =
     resolveSensorReadoutRegime({
       profile:
@@ -2321,7 +2321,7 @@ export function simulateSensorRawCode(
   input:
     SimulateSensorRawCodeInput
 ): CalculationResult<SensorRawCodeSample> {
-  requireInputObject(input, "simulateSensorRawCode input");
+  requireInputKeys(input, "simulateSensorRawCode", ["chargeRealization", "physicalCapacityAssessment", "readoutProfile", "regimeId", "readNoiseSeedUint32", "fixedPatternNoise"]);
   const readout =
     resolveSensorReadoutRegime({
       profile:

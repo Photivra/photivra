@@ -47,7 +47,7 @@ import type {
   SensorSpatioSpectralIrradianceReduction,
   SensorSpatioSpectralWavelengthReduction
 } from "./spatio-spectral-reduction.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1159,7 +1159,7 @@ export function calculateSensorResponsivityPhotocurrent(
   input:
     CalculateSensorResponsivityPhotocurrentInput
 ): CalculationResult<SensorResponsivityPhotocurrent> {
-  requireInputObject(input, "calculateSensorResponsivityPhotocurrent input");
+  requireInputKeys(input, "calculateSensorResponsivityPhotocurrent", ["reduction", "compatibility", "operatingRange", "colorSamplingProfile", "spectralResponseProfile", "electricalApplicabilityProfile", "operatingElectricalConditions"]);
   validateAuthorizationChain(
     input.reduction,
     input.compatibility,

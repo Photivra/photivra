@@ -39,7 +39,7 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -581,7 +581,7 @@ export function createSensorRawCaptureSample(
   input:
     CreateSensorRawCaptureSampleInput
 ): SensorRawCaptureSample {
-  requireInputObject(input, "createSensorRawCaptureSample input");
+  requireInputKeys(input, "createSensorRawCaptureSample", ["rawCode", "contributors", "adcIntegralNonLinearity"]);
   const raw =
     input.rawCode;
   const contributors =
@@ -776,7 +776,7 @@ export function resolveSensorRawReconstruction(
   input:
     ResolveSensorRawReconstructionInput
 ): CalculationResult<SensorRawReconstructedPixel> {
-  requireInputObject(input, "resolveSensorRawReconstruction input");
+  requireInputKeys(input, "resolveSensorRawReconstruction", ["profile", "colorSamplingProfile", "centerSite", "samples"]);
   const profile =
     parseSensorRawReconstructionProfile(
       input.profile
@@ -1075,7 +1075,7 @@ const BAYER_DEMOSAIC_EVIDENCE: Readonly<Record<BuiltInBayerDemosaicKernel, reado
  * them. Aliasing and moiré are not modelled.
  */
 export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemosaicProfilesInput): CalculationResult<BuiltInBayerDemosaicProfiles> {
-  requireInputObject(input, "createBuiltInBayerDemosaicProfiles input");
+  requireInputKeys(input, "createBuiltInBayerDemosaicProfiles", ["kernel", "captureModeId", "colorSamplingProfile", "channelRoles"]);
   const kernel = input.kernel;
   if (kernel !== "bilinear" && kernel !== "malvar-he-cutler-2004") throw new InvalidConfigurationError("Unknown built-in Bayer demosaic kernel.");
   const captureModeId = requireNonEmptyString(input.captureModeId, "captureModeId");

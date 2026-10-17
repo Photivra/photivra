@@ -35,7 +35,7 @@ import type {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1472,7 +1472,7 @@ export function calculateStabilizedRotationTrajectory(
   input:
     CalculateStabilizedRotationTrajectoryInput
 ): CalculationResult<StabilizedRotationTrajectory> {
-  requireInputObject(input, "calculateStabilizedRotationTrajectory input");
+  requireInputKeys(input, "calculateStabilizedRotationTrajectory", ["disturbance", "profile", "captureKind"]);
   const disturbance =
     parseStabilizationDisturbanceTrajectory(
       input.disturbance
@@ -1656,7 +1656,7 @@ export function calculateStabilizedCaptureTemporalSamples(
   input:
     CalculateStabilizedCaptureTemporalSamplesInput
 ): CalculationResult<StabilizedCaptureTemporalSamples> {
-  requireInputObject(input, "calculateStabilizedCaptureTemporalSamples input");
+  requireInputKeys(input, "calculateStabilizedCaptureTemporalSamples", ["disturbance", "profile", "captureKind", "timing", "samplePointsNative", "temporalSampleCount"]);
   const disturbance =
     parseStabilizationDisturbanceTrajectory(
       input.disturbance
@@ -1684,7 +1684,7 @@ export function calculateStabilizedCaptureTemporalSamples(
     input.samplePointsNative.length ===
       0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "samplePointsNative must be a non-empty array."
     );
   }

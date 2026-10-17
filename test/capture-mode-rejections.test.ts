@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it } from "vitest";
 import { InvalidConfigurationError, InvalidScientificInputError, parseCaptureModeProfile, resolveCaptureMode } from "../src/index.js";
-import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
+import { expectRejection, type Json, type MixedRejectionCase, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = [{ sourceOrigin: "photivra", sourceReference: "test:capture-mode-rejections", reuseStatus: "photivra-owned" }];
 const fact = (value: unknown): Json => ({ value, evidence });
@@ -76,9 +76,9 @@ describe("capture-mode profile rejection branches", () => {
   it.each([
     ["a native raster whose sample count overflows", (i: Json): void => { i.nativeRaster = { pixelWidth: 2 ** 30, pixelHeight: 2 ** 30 }; },
       "nativeRaster total image-sample count must be a safe integer."],
-    ["a blank modeId", (i: Json): void => { i.modeId = ""; }, "modeId must be a non-empty string."],
+    ["a blank modeId", (i: Json): void => { i.modeId = ""; }, "modeId must be a non-empty string.", InvalidConfigurationError],
     ["an undeclared modeId", (i: Json): void => { i.modeId = "night"; }, "modeId does not exist in the supplied capture-mode profile."]
-  ] as RejectionCase[])("resolution rejects %s", (_name, mutate, message) => {
-    expectRejection(resolveBase, resolve, InvalidScientificInputError, mutate, message);
+  ] as MixedRejectionCase[])("resolution rejects %s", (_name, mutate, message, errorClass) => {
+    expectRejection(resolveBase, resolve, errorClass ?? InvalidScientificInputError, mutate, message);
   });
 });
