@@ -139,6 +139,34 @@ The environment PSF quadrature takes its taps around each pre-filter source poin
 
 Timings stay out of everything digested: the scene digest is computed from the scene description before any work, the JPEG source digest from samples and the scene digest, and no timing reaches the RAW, samples or encoded bytes. Evidence: the 2.0.0 hash lock (`test/simulate-capture-optics.test.ts`) passes with its digests unchanged; as before it zeroes `timingsMs`, and it now also leaves the new `options` field out of the digest and checks it by name per case; a new test runs the same capture twice and finds every byte, digest and the whole result except `timingsMs` identical. The five engine hash locks pass.
 
+## Added: cost of each option (docs/QUICK_START.md)
+
+Owner principle (2026-10-17): slow but physically meaningful features ship as opt-ins with their measured cost, so the consuming application decides; computer capability changes over time. `docs/QUICK_START.md` § Cost of each option lists each opt-in that affects run time.
+
+**Method.** Slanted edge, all other options default (f/8, 1/125 s, ISO 100, sRGB 8-bit, bilinear). One fresh Node process per option and size, one 16 × 16 warm-up capture, then three timed captures (`performance.now()` around `simulateCapture`), median reported. Built `dist` of this branch, Node 24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, idle. The measuring script is kept outside the repository; `lens.psf` is the 3 × 3 Airy profile that `lens.diffraction` builds at f/8 for the same frame (run per tap).
+
+| Option | 48 × 48 (s) | 128 × 128 (s) | 128 × 128 runs (ms) | Scene queries at 128 × 128 |
+| --- | --- | --- | --- | --- |
+| default | 0.50 | 2.49 | 2228 / 2486 / 2501 | 338 000 |
+| `lens.diffraction` | 0.65 | 2.84 | 2760 / 2838 / 2940 | 338 000 |
+| `output.demosaic: "ahd"` | 0.65 | 2.60 | 2548 / 2597 / 2750 | 380 880 |
+| `sensor.antiAliasing` four-spot | 0.94 | 4.96 | 4755 / 4959 / 5088 | 1 352 000 |
+| anti-aliasing + diffraction | 1.16 | 6.02 | 5893 / 6017 / 6082 | 1 352 000 |
+| anti-aliasing + diffraction + AHD | 1.42 | 6.99 | 6655 / 6986 / 6994 | 1 523 520 |
+| `lens.pupilSampling` 1 × 4 | 1.79 | 11.46 | 10966 / 11460 / 11578 | 1 352 000 |
+| `lens.pupilSampling` 2 × 8 | 5.20 | 33.09 | 32707 / 33088 / 34327 | 5 408 000 |
+| `lens.psf` 3 × 3 (per tap) | 2.11 | 12.43 | 11549 / 12433 / 12687 | 3 042 000 |
+| yaw 0.01 rad/s, 8 temporal samples | 1.70 | 8.74 | 8584 / 8742 / 9049 | 2 704 000 |
+| rotation + rolling shutter | 1.79 | 9.24 | 9233 / 9237 / 9711 | 2 704 000 |
+| rolling shutter, still | 0.47 | 2.51 | 2466 / 2510 / 2660 | 338 000 |
+| `png` | 0.50 | 2.63 | 2384 / 2630 / 2743 | 338 000 |
+| `jpeg` | 0.52 | 2.59 | 2295 / 2589 / 2607 | 338 000 |
+| `dng` | 0.50 | 2.27 | 2135 / 2267 / 2425 | 338 000 |
+| `highlightMode: "reconstruct"` | 0.50 | 2.20 | 2087 / 2203 / 2388 | 338 000 |
+| `whiteBalance: "auto"` | 0.77 | 4.76 | 4560 / 4757 / 4767 | 338 000 (counted once; the RAW is rendered twice) |
+
+Run time follows the scene queries per site; differences below about 10 % are within the run-to-run spread. With anti-aliasing the run time grows 2.0× for 4× the queries, because each query of the lean executor costs less than the per-site fixed work. The new per-stage diagnostics reported, at 128 × 128: diffraction convolution 377–443 ms, AHD demosaic 42–52 ms, encode 4 ms (DNG), 16 ms (PNG), 45 ms (JPEG), auto white balance second pass 2241 ms.
+
 ### Compatibility
 
 The 2.1 options (`lens.diffraction`, `output.demosaic: "ahd"`, `sensor.antiAliasing`) are opt-in. Captures that do not use them are byte-identical to 2.0.0: a hash lock in `test/simulate-capture-optics.test.ts` checks the RAW codes, every output byte, the assumptions, composed contracts and diagnostics of six captures (sRGB, PNG, JPEG with auto white balance, mirror borders with 16-bit output, Display P3, DNG in program mode) against digests recorded from the 2.0.0 source. The integration test's unknown-demosaic case now uses `"lmmse"`, because `"ahd"` is accepted.

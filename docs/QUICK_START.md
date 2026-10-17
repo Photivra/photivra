@@ -50,7 +50,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
 | `exposure` | Mode, resolved settings, EV100, metered scene luminance and the exposure-mode resolver's full output |
 | `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
-| `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Measuring cost on the user's device](#measuring-cost-on-the-users-device) |
+| `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Cost of each option](#cost-of-each-option) |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
 | `assumptions` | Every default, derived value and fixed modelling choice, each with an explanation |
 
@@ -549,11 +549,49 @@ The 2.1 options, measured on the same kind of host (4-vCPU Intel Xeon 2.80 GHz, 
 runs, slanted edge and Siemens star): at 48 × 48, default 0.38–0.45 s, `lens.diffraction` 0.49–0.71 s
 (f/4–f/16), `"ahd"` 0.48–0.63 s, both 0.60–0.87 s; at 128 × 128, default 2.1–2.3 s, diffraction
 2.5–3.4 s, AHD 2.4–2.5 s, both 2.8–4.0 s. The same diffraction through the per-tap environment quadrature
-took 13.1 s at 48 × 48, f/8.
+took 13.1 s at 48 × 48, f/8. [Cost of each option](#cost-of-each-option) covers every opt-in.
 
 These numbers come from one run on one machine. They are not a performance claim. Small captures
 (up to about 128 × 128) take a few seconds. Use them while you explore, and render large images only
 when you need them.
+
+## Cost of each option
+
+Slow options are opt-in, so an application can decide which ones it can afford: a feature that is
+too slow for a phone today may be cheap on the next generation of hardware. The table gives the
+measured wall time of each opt-in that affects run time, relative to the default capture of the same
+size.
+
+**Method.** Slanted-edge chart, every other option at its default (f/8, 1/125 s, ISO 100, sRGB 8-bit,
+bilinear demosaic). One fresh Node process per row and size; one 16 × 16 warm-up capture, then three
+timed captures (`performance.now()` around `simulateCapture`), median reported. Built `dist`, Node
+24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, nothing else running. One run on one machine: not a
+performance claim, but the ratios carry over roughly.
+
+| Option | 48 × 48 | 128 × 128 | What it buys |
+| --- | --- | --- | --- |
+| default | 0.50 s (1×) | 2.49 s (1×) | Point optics, bilinear demosaic, sRGB samples |
+| `lens.diffraction: "circular-aperture"` | 0.65 s (1.3×) | 2.84 s (1.1×) | Aperture-dependent sharpness (Airy blur); convolution 0.38 s at 128 |
+| `output.demosaic: "ahd"` | 0.65 s (1.3×) | 2.60 s (1.0×) | About half the false colour on sharp edges; 5-site margin, demosaic 0.05 s at 128 |
+| `sensor.antiAliasing: { kind: "four-spot" }` | 0.94 s (1.9×) | 4.96 s (2.0×) | Optical low-pass filter: false colour halved again, at a cost in sharpness |
+| anti-aliasing + diffraction | 1.16 s (2.3×) | 6.02 s (2.4×) | Both, still on the fast convolution path |
+| anti-aliasing + diffraction + AHD | 1.42 s (2.8×) | 6.99 s (2.8×) | The most faithful still image of a planar chart |
+| `lens.pupilSampling` 1 × 4 rays | 1.79 s (3.6×) | 11.5 s (4.6×) | Defocus and depth of field, coarse |
+| `lens.pupilSampling` 2 × 8 rays | 5.20 s (10×) | 33.1 s (13×) | Defocus and depth of field, smoother bokeh |
+| `lens.psf` (caller 3 × 3 kernel) | 2.11 s (4.2×) | 12.4 s (5.0×) | Any sampled lens PSF; runs per tap, so cost grows with the kernel size (a 9 × 9 diffraction kernel took 13.1 s at 48 × 48) |
+| `motion` yaw 0.01 rad/s (8 temporal samples) | 1.70 s (3.4×) | 8.74 s (3.5×) | Motion blur; cost grows with `sensor.temporalSampleCount` |
+| rotation + `shutter: "rolling"` | 1.79 s (3.6×) | 9.24 s (3.7×) | Rolling-shutter skew of moving content |
+| `motion.shutter: "rolling"` (still camera) | 0.47 s (0.9×) | 2.51 s (1.0×) | Per-row exposure windows; no cost alone |
+| `output.format: "png"` | 0.50 s (1.0×) | 2.63 s (1.1×) | PNG file bytes; encode 16 ms at 128 |
+| `output.format: "jpeg"` | 0.52 s (1.0×) | 2.59 s (1.0×) | Baseline JPEG; encode 45 ms at 128 |
+| `output.format: "dng"` | 0.50 s (1.0×) | 2.27 s (0.9×) | Lossless CFA DNG of the RAW; encode 4 ms at 128 |
+| `output.highlightMode: "reconstruct"` | 0.50 s (1.0×) | 2.20 s (0.9×) | Near-clipped highlights blend smoothly toward neutral instead of clipping per channel; no measurable cost |
+| `output.whiteBalance: "auto"` | 0.77 s (1.6×) | 4.76 s (1.9×) | Grey-world white balance; renders the RAW a second time (2.24 s at 128) |
+
+Ratios below about 1.1× are within the run-to-run spread (the three default runs at 128 × 128 took
+2.23–2.50 s). The radiance work dominates: options that multiply the scene queries per site
+(anti-aliasing spots, pupil rays, PSF taps, temporal samples) multiply the run time by about the same
+factor, and output-side options cost almost nothing.
 
 ### Measuring cost on the user's device
 
