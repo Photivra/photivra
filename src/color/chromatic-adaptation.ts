@@ -14,9 +14,13 @@
  *   (1999); as used in ICC.1:2010 Annex E. The original blue-channel non-linearity is
  *   omitted, as in common practice.
  * - CAT02: Moroney et al. (2002), "The CIECAM02 color appearance model", IS&T/SID CIC10
- *   (also CIE 159:2004).
- * - CAT16: Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), "Comprehensive
- *   color solutions: CAM16, CAT16, and CAM16-UCS", Color Res. Appl. 42(6):703–718.
+ *   (also CIE 159:2004). Li et al. (2016, below) name this matrix M02 but do not print
+ *   its coefficients, so that free paper is not a source for CAT02.
+ * - CAT16: Li, Li, Wang, Xu, Luo, Cui, Melgosa & Pointer (2016), "A Revision of CIECAM02
+ *   and its CAT and UCS", IS&T CIC24, pp. 208–212, Eq. (15) (M16),
+ *   doi:10.2352/ISSN.2169-2629.2017.32.208 (free from the IS&T library). Journal version:
+ *   Li et al. (2017), "Comprehensive color solutions: CAM16, CAT16, and CAM16-UCS",
+ *   Color Res. Appl. 42(6):703–718.
  * - von Kries with Hunt–Pointer–Estévez cones (equal-energy normalized), as used in
  *   CIECAM02 (Moroney et al. 2002; also CIE 159:2004).
  * - XYZ scaling: identity cone matrix (diagonal scaling in XYZ; the weakest model).

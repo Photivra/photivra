@@ -122,6 +122,15 @@ describe("sampled PSF field interpolation", () => {
     expect(localMaxima(rowOf(result.value.kernel, CENTER))).toBe(2);
   });
 
+  it("finds interpolation corners by grid position: a −0 axis value is the 0 node, and corner weights are the multilinear ones", () => {
+    const kernelAt = (field: number): LensPsfKernel => gaussian(field / 5, 0, 1 + Math.abs(field) / 10);
+    const negativeZero = profile("bounded-regular-grid-multilinear", [-10, -0, 10], kernelAt), zero = profile("bounded-regular-grid-multilinear", [-10, 0, 10], kernelAt);
+    for (const x of [0, -0, 4, -7.5, 10]) expect(resolve(negativeZero, x, 0)).toEqual(resolve(zero, x, 0));
+    const blended = resolve(zero, 4, 0).value.kernel.normalizedIntensity, a = kernelAt(0).normalizedIntensity, b = kernelAt(10).normalizedIntensity;
+    const raw = a.map((v, i) => 0.6 * v + 0.4 * b[i]!), sum = raw.reduce((s, v) => s + v, 0);
+    blended.forEach((v, i) => expect(v).toBeCloseTo(raw[i]! / sum, 15));
+  });
+
   it("centroid-aligned interpolation gives one peak at the interpolated centroid", () => {
     const p = profile("bounded-regular-grid-centroid-aligned", [-10, 10], shifted);
     const mid = resolve(p, 0, 0);

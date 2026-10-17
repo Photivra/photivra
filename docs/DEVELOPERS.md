@@ -124,3 +124,31 @@ The published 1.2.0 release added [registered linear statistics](PRINT_REGION_ST
 Use [native-only Print planning](PRINT_PLANNING.md) when you have an independently specified image size and viewing distance, explicit angular conventions, a confirmed native crop and the lab's constraints. It never recommends upscaling, does not certify perceived quality, and does not turn on an exporter.
 
 The [regional Print detail diagnostic](PRINT_DETAIL_ASSESSMENT.md) measures one declared, coherent sinusoidal fundamental in a selected linear-luminance ROI (region of interest), and records the exact pipeline stage it was measured at. Its [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-detail-capabilities.json) separate mathematical conformance from the still-blocked qualification of acquired images, renderers and perceived quality.
+
+## Licence and copyright scan
+
+This section is for contributors to this repository. The `licence scan` job in [CI](../.github/workflows/ci.yml) scans every file in the repository with [ScanCode Toolkit](https://github.com/aboutcode-org/scancode-toolkit) (Apache-2.0, free). It then runs [`scripts/check-scancode-policy.mjs`](../scripts/check-scancode-policy.mjs) on the JSON report. The check fails when:
+
+- a file has a detected licence, or a low-confidence licence clue, other than Apache-2.0;
+- a file has a copyright holder other than William Shackelford or Photivra contributors;
+- ScanCode reports a scan error for a file;
+- an allowlist entry's file is in the scan but no longer has that finding (remove stale entries). An entry for a file missing from the scan only prints a warning.
+
+Known findings are on two allowlists in the script: one for licences and one for copyright holders. Each entry names one file and one exact finding (a licence expression or a holder), with its reason. There are no directory-wide exclusions, so a new licence or holder in an allowlisted file still fails. Today's entries cover the castleCSF model material and its notice, the DCO text, licence names mentioned in documentation and comments, licence labels used as test data, ScanCode false positives, the lockfile's dependency metadata and the Adobe DNG licence record.
+
+The job installs ScanCode Toolkit 32.5.0 (`scancode-toolkit-mini`) on Python 3.13 from [`.github/scancode-requirements.txt`](../.github/scancode-requirements.txt). That file pins the complete tested package set by version and hash. It uses `--no-deps`, because this ScanCode version needs pluggy 0.13.1 and setuptools below 81, outside its declared ranges. Nothing from it ships in the package.
+
+Run the same check locally (Linux x86_64 with libmagic; the first scan builds ScanCode's licence index and takes a few minutes):
+
+```sh
+python3.13 -m venv /tmp/scancode-venv
+/tmp/scancode-venv/bin/python -m pip install --no-deps --require-hashes -r .github/scancode-requirements.txt
+/tmp/scancode-venv/bin/scancode --license --copyright -n 2 --strip-root --timeout 300 \
+  --ignore ".git" --ignore "node_modules" --ignore "dist" --ignore "coverage" \
+  --json /tmp/scancode.json .
+node scripts/check-scancode-policy.mjs /tmp/scancode.json
+```
+
+Write the report outside the repository, or the next scan will include it.
+
+To add an allowlist entry, add one object with `path`, the exact `license` (or `holder`) string from the failure message, and a `reason` that says why the material is allowed. Record any third-party material in [THIRD_PARTY.md](../THIRD_PARTY.md). A new or widened entry needs the owner's review in the pull request before merge. Never add a directory-wide or wildcard entry.

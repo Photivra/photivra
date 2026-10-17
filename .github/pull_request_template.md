@@ -13,4 +13,5 @@ measurement or reproduction for any fix, behaviour change or performance claim. 
 - [ ] Tests added or updated for new behaviour and regressions
 - [ ] Docs and `docs/USAGE.md` updated if public behaviour changed; breaking changes have a migration note
 - [ ] Only free-to-use sources, data, code and methods; third-party material recorded in `THIRD_PARTY.md`
+- [ ] New algorithms, constant sets, datasets or file formats state their source, licence and patent check in the PR; anything uncertain goes to the owner before merge
 - [ ] Commits signed off (`git commit -s`, DCO)

@@ -63,7 +63,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface DurandDorseyToneMappingOutput extends ToneMappedImage {
-  /** Bilateral base layer (log₁₀ luminance) per pixel. */
+  /** Bilateral base layer (log₁₀ luminance) per pixel; −Infinity for pixels with luminance ≤ 0, which are excluded from the filter. */
   baseLog10: Float32Array;
   compressionFactor: number;
 }

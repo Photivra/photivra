@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
 import { createDurandDorseyToneMappingTask, createExposureFusionTask, createReinhardGlobalToneMappingTask, InvalidConfigurationError,
-  InvalidScientificInputError } from "../src/index.js";
+  InvalidScientificInputError, type DurandDorseyToneMappingOutput } from "../src/index.js";
 import { gaussianPyramid, laplacianPyramid, collapse, reflect } from "../src/processing/image-ops.js";
 import { mulberry32, psnr, rgbImage, runTask } from "./helpers/processing-fixture.js";
 
@@ -73,6 +73,29 @@ describe("Durand & Dorsey 2002 bilateral operator", () => {
       worst = Math.max(worst, Math.abs(s / w - out.baseLog10[y * W + x]!));
     }
     expect(worst).toBeLessThan(0.03);
+  });
+
+  it("excludes zero-luminance pixels: one black pixel barely changes the rest, and an all-black image stays black", async () => {
+    const W = 64, H = 64;
+    const ramp = (x: number): number => 10 ** (-2 + 4 * x / (W - 1));
+    const run = (image: ReturnType<typeof rgbImage>, z?: number): Promise<DurandDorseyToneMappingOutput> => runTask((p) => createDurandDorseyToneMappingTask({ image, inputColorSpace: "linear-srgb-d65",
+      ...(z === undefined ? {} : { downsampleFactor: z }) }, p));
+    for (const z of [undefined, 4]) {
+      const a = await run(rgbImage(W, H, (x) => ramp(x)), z);
+      const b = await run(rgbImage(W, H, (x, y) => (x === 0 && y === H - 1 ? 0 : ramp(x))), z);
+      // Before the fix the floored log10 (−30) set the range: compression factor 0.180 → 0.022.
+      expect(b.compressionFactor).toBeCloseTo(a.compressionFactor, 3);
+      const black = (H - 1) * W;
+      expect([b.data[3 * black], b.data[3 * black + 1], b.data[3 * black + 2]]).toEqual([0, 0, 0]);
+      expect(b.baseLog10[black]).toBe(-Infinity);
+      let worst = 0;
+      for (let i = 0; i < W * H; i++) if (i !== black) worst = Math.max(worst, Math.abs(lum(b.data, i) / lum(a.data, i) - 1));
+      expect(worst).toBeLessThan(0.02);
+    }
+    const dark = await run(rgbImage(8, 8, () => 0));
+    expect(dark.compressionFactor).toBe(1);
+    expect(dark.data.every((v) => v === 0)).toBe(true);
+    expect(dark.aboveOneSampleCount).toBe(0);
   });
 });
 
