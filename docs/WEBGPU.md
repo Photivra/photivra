@@ -58,6 +58,7 @@ Per-site radiance, pupil, PSF quadrature and sensor noise (the 75-hour path in #
 
 - **SDR and RAW development:**
   - Only the `identity` and `positive-reinhard-per-channel` tone curves. Luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`) reject with `unsupported-on-backend`.
+  - Only `borderHandling: "reject"`. Mirror borders (`borderHandling: "mirror"`) reject with `unsupported-on-backend`; use `cpu-reference` for them.
   - Sample magnitude times scale must stay ≤ 2^120 (`unsupported-float32-domain`).
   - In `reject-out-of-range` mode, any sample inside the float32 gamut classification band rejects with `indeterminate-float32-classification`. The backend fails closed rather than guessing whether the reference would reject.
 - **RAW development** takes ownership of `input.raw` exactly like the reference task: the caller's arrays are detached. The a-priori exposed-value bound must not exceed 1.

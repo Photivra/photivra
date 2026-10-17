@@ -3,7 +3,8 @@
 /** Exact packed RAW reconstruction and shared color/SDR development, with bounded pixel tiles. */
 import { calculateNativeRawPlan, type NativeRawInput, type NativeRawOutput, type NativeRawTaskState } from "./native-raw.js";
 import { parseRawReconstructionPhaseProfiles, type RawFrameReconstructionPhaseProfile } from "./raw-frame-reconstruction.js";
-import { calculateRawReconstructionChannel } from "../sensor/raw-reconstruction.js";
+import { calculateRawReconstructionChannel, rawReconstructionKernelReach, validateMirrorBorderCfaConsistency,
+  type RawReconstructionBorderHandling } from "../sensor/raw-reconstruction.js";
 import { equalWithinUlps } from "../core/portable-math.js";
 import { resolveColorSamplingSite } from "../sensor/color-sampling.js";
 import { parseExportSensorColorProfile, type ExportSensorColorProfile } from "./photographic-export.js";
@@ -32,6 +33,12 @@ export interface NativeRawDevelopmentInput {
   rendering: SdrRenderingProfile;
   /** Default `clip`: neutral clipped highlights. `reconstruct`: documented desaturation blend. */
   highlightMode?: RawHighlightMode;
+  /**
+   * Default `reject`: every reconstruction neighbourhood must lie inside the native RAW frame. `mirror`
+   * reads sites outside the frame at their reflect-101 image, accepted only when that keeps the CFA
+   * channel (always for 2×2 Bayer); interior pixels are unchanged.
+   */
+  borderHandling?: RawReconstructionBorderHandling;
   /** Includes the retained packed RAW plus integer output; not caller buffers, process heap or GPU. */
   maximumRetainedPayloadBytes: number;
 }
@@ -55,6 +62,7 @@ export interface NativeRawDevelopmentOutput {
   integerSamples: Uint8Array | Uint16Array;
   diagnostics: SdrRenderingResult["diagnostics"];
   highlight: RawHighlightDiagnostics;
+  borderHandling: RawReconstructionBorderHandling;
   outputEncoding: SdrRenderingResult["outputEncoding"];
   rendering: SdrRenderingProfile;
   displayAdaptation: SdrRenderingResult["displayAdaptation"];
@@ -123,16 +131,19 @@ export interface PreparedDevelopment {
   plan: NativeRawOutput["plan"]; phases: RawFrameReconstructionPhaseProfile[]; color: ExportSensorColorProfile; profile: SdrRenderingProfile;
   whiteBalance: NativeRawDevelopmentInput["whiteBalance"]; highlightMode: RawHighlightMode; development: SensorColorDevelopment;
   crop: {x:number;y:number;width:number;height:number}; raster: {pixelWidth:number;pixelHeight:number};
+  border: RawReconstructionBorderHandling; mirror: {nativeHeight:number;reach:number}|undefined;
 }
 /** Synchronous metadata/halo/CFA validation shared by the task, the reference and the accelerator. No pixel loop. Not a root export. */
 export function prepareNativeRawDevelopment(input: NativeRawDevelopmentInput): PreparedDevelopment {
-  const r=requireAllowlistedRecord(input,["raw","phaseProfiles","colorProfile","whiteBalance","rendering","highlightMode","maximumRetainedPayloadBytes"],"Invalid native RAW development input.");
+  const r=requireAllowlistedRecord(input,["raw","phaseProfiles","colorProfile","whiteBalance","rendering","highlightMode","borderHandling","maximumRetainedPayloadBytes"],"Invalid native RAW development input.");
   const plan=validateRaw(input.raw),g=plan.exposure.resolvedGeometry,native=plan.exposure.geometry.nativeRaster;
   const phases=freezeOwnedData(parseRawReconstructionPhaseProfiles(r.phaseProfiles,plan.frame.modeId,plan.frame.colorSamplingProfile));
   const color=freezeOwnedData(parseExportSensorColorProfile(r.colorProfile)),profile=freezeOwnedData(parseSdrRenderingProfile(r.rendering));
   const crop=g.output.cropRect,raster=g.output.raster,active=g.activeCapture.nativeRect,intent=plan.exposure.whiteBalanceIntent;
   const highlightMode=r.highlightMode===undefined?"clip":r.highlightMode;
   if(highlightMode!=="clip"&&highlightMode!=="reconstruct")throw new InvalidConfigurationError("Unsupported RAW highlight mode.");
+  const border=r.borderHandling===undefined?"reject":r.borderHandling;
+  if(border!=="reject"&&border!=="mirror")throw new InvalidConfigurationError("Unsupported RAW border handling.");
   if(color.colorSamplingProfileId!==plan.frame.colorSamplingProfile.profileId||phases.some(p=>canonical(p.profile.kernels.map(k=>k.outputChannelId))!==canonical(color.channelIds))||
     (r.whiteBalance!=="not-required"&&r.whiteBalance!=="apply-resolved-sensor-gains")||(intent!==null)!==(r.whiteBalance==="apply-resolved-sensor-gains")||
     raster.pixelWidth!==crop.width||raster.pixelHeight!==crop.height)throw new InvalidConfigurationError("Development requires bound sensor RGB, explicit one-time WB and 1:1 output crop.");
@@ -151,12 +162,25 @@ export function prepareNativeRawDevelopment(input: NativeRawDevelopmentInput): P
     if(firstX>maxX||firstY>maxY)continue;
     const lastX=maxX-(maxX-phase.phaseX+layout.repeatWidthSites)%layout.repeatWidthSites,lastY=maxY-(maxY-phase.phaseY+layout.repeatHeightSites)%layout.repeatHeightSites;
     for(const kernel of phase.profile.kernels)for(const c of kernel.contributions){
-      if(firstX+c.offsetX<0||firstY+c.offsetY<0||lastX+c.offsetX>=native.pixelWidth||lastY+c.offsetY>=native.pixelHeight)throw new InvalidConfigurationError("Reconstruction halo leaves native RAW; no padding or renormalization.");
+      if(firstX+c.offsetX<0||firstY+c.offsetY<0||lastX+c.offsetX>=native.pixelWidth||lastY+c.offsetY>=native.pixelHeight){
+        if(border==="reject")throw new InvalidConfigurationError("Reconstruction halo leaves native RAW; no padding or renormalization.");
+        // Mirror: check the virtual periodic site; validateMirrorBorderCfaConsistency proves reflected reads agree.
+        const vx=phase.phaseX+c.offsetX,vy=phase.phaseY+c.offsetY;
+        if(layout.siteChannelIds[((vy%layout.repeatHeightSites)+layout.repeatHeightSites)%layout.repeatHeightSites*layout.repeatWidthSites+((vx%layout.repeatWidthSites)+layout.repeatWidthSites)%layout.repeatWidthSites]!==c.sourceChannelId)
+          throw new InvalidConfigurationError("Reconstruction source channel disagrees with absolute CFA phase.");
+        continue;
+      }
       const channel=resolveColorSamplingSite({profile:plan.frame.colorSamplingProfile,site:{x:firstX+c.offsetX,y:firstY+c.offsetY}}).mapping.channelId;
       if(channel!==c.sourceChannelId)throw new InvalidConfigurationError("Reconstruction source channel disagrees with absolute CFA phase.");
     }
   }
-  return {plan,phases,color,profile,whiteBalance:r.whiteBalance,highlightMode,development,crop,raster};
+  let mirror:PreparedDevelopment["mirror"];
+  if(border==="mirror"){
+    const reach=rawReconstructionKernelReach(phases);
+    validateMirrorBorderCfaConsistency(layout,native.pixelWidth,native.pixelHeight,reach);
+    mirror={nativeHeight:native.pixelHeight,reach};
+  }
+  return {plan,phases,color,profile,whiteBalance:r.whiteBalance,highlightMode,development,crop,raster,border,mirror};
 }
 /** Numeric integrity of rows [y0,y1): signed values below black are preserved; spans are positive. Not a root export. */
 export function checkNativeRawIntegrity(raw: NativeRawOutput, nativeWidth: number, repeatWidth: number, repeatHeight: number, y0: number, y1: number): void {
@@ -200,7 +224,7 @@ export function developNativeRawReference(input: NativeRawDevelopmentInput): {in
       let saturated=false;
       const values=phase.profile.kernels.map(kernel=>calculateRawReconstructionChannel(kernel,point,(sx,sy)=>{
         if(rawSiteSaturated(src,sx,sy))saturated=true;return normalizedRawSite(src,sx,sy);
-      }).linearBlackSubtractedNormalizedValue);
+      },v.mirror===undefined?undefined:{width:src.nativeWidth,height:v.mirror.nativeHeight}).linearBlackSubtractedNormalizedValue);
       if(saturated)counts.saturatedPixelCount++;
       const developed=[0,0,0];v.development.developInto(values[0]!,values[1]!,values[2]!,developed,0,counts);rgb.push(...developed);
     }
@@ -264,7 +288,7 @@ export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelo
           if(gate.due()){await yieldControl(abort.signal);check();gate.restart();}
         }
         codes=v.profile.bitDepth===8?new Uint8Array(raster.pixelWidth*raster.pixelHeight*3):new Uint16Array(raster.pixelWidth*raster.pixelHeight*3);
-        const diagnostics=emptyDiagnostics(),developer=createRawPixelDeveloper(src,v.phases,v.development),tone=prepareSdrPixelTone(v.profile);
+        const diagnostics=emptyDiagnostics(),developer=createRawPixelDeveloper(src,v.phases,v.development,v.mirror),tone=prepareSdrPixelTone(v.profile);
         const scale=2**v.profile.renderingExposureEv,maximum=2**v.profile.bitDepth-1,rgb=new Float64Array(TILE_WIDTH*3),scratch=new Float64Array(3);
         if(!Number.isFinite(scale)||scale<=0)throw new InvalidConfigurationError("Rendering scale is unrepresentable.");
         for(let y=0;y<raster.pixelHeight;y++)for(let x=0;x<raster.pixelWidth;x+=TILE_WIDTH){
@@ -280,7 +304,7 @@ export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelo
           if(gate.due()||(y===raster.pixelHeight-1&&x+TILE_WIDTH>=raster.pixelWidth)){await yieldControl(abort.signal);check();gate.restart();}
         }
         output={raw,phaseProfiles:v.phases,colorProfile:v.color,whiteBalance:v.whiteBalance,width:raster.pixelWidth,height:raster.pixelHeight,integerSamples:codes,diagnostics,
-          highlight:highlightOf(v.highlightMode,developer.counts),rendering:v.profile,displayAdaptation:{kind:"external-platform",applied:false,displayCapabilities:"unknown"},
+          highlight:highlightOf(v.highlightMode,developer.counts),borderHandling:v.border,rendering:v.profile,displayAdaptation:{kind:"external-platform",applied:false,displayCapabilities:"unknown"},
           outputEncoding:sdrOutputEncoding(maximum),imageDataPairing:"derived-from-exact-packed-native-raw",producerOriginVerified:false};state="completed";
       }catch(error){release();if(!abort.signal.aborted){state="failed";abort.abort();}throw error;}
     },

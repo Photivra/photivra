@@ -24,7 +24,8 @@ import { parseSceneIlluminationTemporalProfile } from "../schema/illumination-te
 import { parseSceneMaterialResponseProfile, parseSceneRadianceProviderProfile, parseSceneRadianceEvaluationResult,
   validateSceneRadianceEvaluationBindings, type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
-import { calculateSensorEnvironmentRadianceQuery, type CalculateSensorEnvironmentRadianceQueryInput } from "../optics/sensor-environment-query.js";
+import { calculateMappedSensorEnvironmentRadianceQuery, calculateSensorEnvironmentRadianceQuery, prepareEnvironmentLensFieldMapping,
+  type CalculateSensorEnvironmentRadianceQueryInput, type EnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
 import { calculateSceneRadianceToSensorIrradiance, type CalculateSceneRadianceToSensorIrradianceInput } from "../optics/scene-to-sensor-irradiance.js";
 import { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradianceQuadratureInput } from "../optics/sensor-psf-quadrature.js";
 import { calculateIlluminationVignetting, type IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
@@ -53,6 +54,12 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
   temporalSampleCount: number;
   /** Optional ideal geometric DOF/visibility support; cannot combine with a sampled PSF. */
   pupil?: IdealCircularPupil;
+  /**
+   * Optional 2.0 lens field mapping (projection model and radial/Brown-Conrady distortion) for the
+   * scene-ray query; its distortion area factor is applied to irradiance exactly once. Omitted keeps
+   * the ideal rectilinear, distortion-free path unchanged. Not combinable with `pupil`.
+   */
+  lensFieldMapping?: EnvironmentLensFieldMapping;
   /** Explicit source-field attenuation, applied once before PSF redistribution. */
   fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
     kind: "radial-illumination-vignetting"; profile: IlluminationVignettingProfile;
@@ -115,6 +122,8 @@ interface EnvironmentPhotoPlan {
       /** The complete query envelope; retained only by "full" plans, whose per-evaluation records embed it. */
       query?: ReturnType<typeof calculateSensorEnvironmentRadianceQuery>;
       apertureRays?: readonly SensorApertureRay[];
+      /** 1 / det(d distorted / d ideal); present only with a lens field mapping. */
+      distortionAreaFactor?: number;
       fieldThroughput: CalculateSceneRadianceToSensorIrradianceInput["fieldThroughput"] }[];
   }[] }[];
 }
@@ -189,6 +198,10 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
     }
   }
   if (owned.pupil !== undefined && owned.psf.kind !== "not-applied") throw new InvalidScientificInputError("Ideal pupil integration cannot mix with a sampled PSF; geometric defocus would be ambiguous.");
+  const lensMapping = owned.lensFieldMapping === undefined ? undefined : prepareEnvironmentLensFieldMapping(owned.lensFieldMapping);
+  if (lensMapping !== undefined && owned.pupil !== undefined) {
+    throw new InvalidScientificInputError("Ideal pupil rays use the rectilinear distortion-free projection and cannot combine with a lens field mapping.");
+  }
   const pupilCount = owned.pupil === undefined ? 1 : calculateSensorApertureRays({sourcePointNativeSensorMm:{x:0,y:0},
     focalLengthMm:owned.optics.focalLengthMm,nominalFNumber:owned.optics.nominalFNumber,focus,pupil:owned.pupil,
     angularVelocityRadPerSec:owned.motion.angularVelocityRadPerSec,timeSecondsFromOpeningReference:window.startOffsetSecondsFromOpeningReference}).value.rays.length;
@@ -222,14 +235,18 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
       const apertureRays = owned.pupil === undefined ? undefined : calculateSensorApertureRays({sourcePointNativeSensorMm:p.point,
         focalLengthMm:owned.optics.focalLengthMm,nominalFNumber:owned.optics.nominalFNumber,focus,pupil:owned.pupil,
         angularVelocityRadPerSec:owned.motion.angularVelocityRadPerSec,timeSecondsFromOpeningReference:time}).value.rays;
-      const query = freezePlannedRequest(calculateSensorEnvironmentRadianceQuery({ ...owned.motion, sourcePointNativeSensorMm: p.point,
+      const queryInput: CalculateSensorEnvironmentRadianceQueryInput = { ...owned.motion, sourcePointNativeSensorMm: p.point,
         focalLengthMm: owned.optics.focalLengthMm, focus, timeSecondsFromOpeningReference: time,
         request: { schemaVersion: "0.1.0", sampleId: `${owned.temporalIntegrationId}-t${temporalSampleIndex}-n${ni}-p${pi}`,
           providerProfileId: sceneBindings.providerProfile.profileId, sceneId: sceneBindings.providerProfile.sceneId,
           illuminationProfileId: sceneBindings.illuminationProfile.profileId, materialResponseProfileId: sceneBindings.materialResponseProfile.profileId,
-          wavelengthNanometers: n.node.wavelengthNanometers, wavelengthBasis } }));
+          wavelengthNanometers: n.node.wavelengthNanometers, wavelengthBasis } };
+      const query = freezePlannedRequest(lensMapping === undefined ? calculateSensorEnvironmentRadianceQuery(queryInput)
+        : calculateMappedSensorEnvironmentRadianceQuery(queryInput, lensMapping));
+      const areaFactor = query.value.lensFieldMapping?.distortionAreaFactor;
       // Photo-only plans drop the query envelope (projection result, diagnostics) once validated (2.0 retention).
-      return { ...p, ...(apertureRays === undefined ? {} : { apertureRays }), request: query.value.request,
+      return { ...p, ...(apertureRays === undefined ? {} : { apertureRays }),
+        ...(areaFactor === undefined ? {} : { distortionAreaFactor: areaFactor }), request: query.value.request,
         sourcePointImagePlaneMm: query.value.sourcePointImagePlaneMm, ...(retention === "full" ? { query } : {}) };
     }) }));
     // Validate PSF evidence/basis/support before supplied code is invoked.
@@ -286,6 +303,10 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
           ...(apertureRay === undefined ? {} : {apertureRay,apertureRequest:request}) });
         integratedIrradiance += optics.value.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer*(ray?.weight ?? 1);
       }
+      if (tap.distortionAreaFactor !== undefined) {
+        // Distortion compresses or spreads the ideal image; flux is conserved, so irradiance scales by 1/det once.
+        integratedIrradiance *= tap.distortionAreaFactor;
+      }
       return { kernelSampleX: tap.kernelSampleX, kernelSampleY: tap.kernelSampleY, sourcePointNativeSensorMm: tap.point,
         timeSecondsFromOpeningReference: instant.time, spectralIrradianceWattsPerSquareMeterPerNanometer: integratedIrradiance };
     }) }));
@@ -305,11 +326,14 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
     fieldThroughputLimitation: owned.fieldThroughput.limitation,
     psfOmission: owned.psf.kind === "not-applied" ? { evidence: parseEvidenceList(owned.psf.evidence, "psfOmission.evidence"), limitation: owned.psf.limitation } : null,
     psfRedistributionApplied: owned.psf.kind === "sampled-local", pupilIntegrationApplied: owned.pupil !== undefined, pupilIntegrationProfile: owned.pupil ?? null, photo, instants
-  }, "environment-sensor-photo-signal", "0.3.0", [
+  }, "environment-sensor-photo-signal", owned.lensFieldMapping === undefined ? "0.3.0" : "0.4.0", [
     "Supplied synchronous provider code was invoked at each generated environment query; physical transport and visibility are not verified.",
     "Ideal focus-aware rotation/projection, explicit evidence-bound field throughput and optional destination-local sampled PSF are bounded approximations.",
     "Optional ideal pupil rays use normalized radiance averaging; source intersections remain provider-owned and convergence is unverified.",
-    "PSF pupil throughput is not applied; child uncertainty, finite-support and quadrature convergence are not combined or established."
+    "PSF pupil throughput is not applied; child uncertainty, finite-support and quadrature convergence are not combined or established.",
+    ...(owned.lensFieldMapping === undefined ? [] : [
+      "Lens field mapping: rays use the declared projection after inverse distortion; irradiance is multiplied once by the distortion area factor 1/det(d distorted/d ideal); field throughput and sampled PSFs remain evaluated at the physical sensor point."
+    ])
   ]);
 }
 

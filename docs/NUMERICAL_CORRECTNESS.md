@@ -126,6 +126,7 @@ Rounding is a scientific/output operation when it changes represented data.
 - RAW/export quantization must define scale, offset/black level, clipping, rounding/tie behavior, and code range.
 - Do not round intermediate physical values for display convenience.
 - Do not let serializer/container limitations redefine the authoritative scientific value.
+- Encoded file bytes must not depend on the JavaScript engine's `Math` library. The baseline JPEG encoder uses a fixed table of correctly rounded DCT cosines (`JPEG_DCT_COSINES`) and rounds quantized coefficients half away from zero; the Print JPEG rounds encoded sRGB codes to nearest with ties up via `Math.round`, not `Math.floor(x + 0.5)` (which rounds 0.49999999999999994 up). See [Photographic export](PHOTOGRAPHIC_EXPORT.md).
 
 ## Signed zero and tiny values
 
@@ -173,6 +174,20 @@ Rules from package 2.0.0:
 Engine-portable identities (equal bits for equal inputs in every conforming engine): the simulated-capture and packed-RAW metadata identities, crop and raster geometry, seeds (`Math.imul`/fmix32 only), RAW codes from integer-safe noise and ADC paths (verified identical for a 512×512 native RAW task in Node and Bun), and every export identity derived from them — `rawDataUniqueId`, `simulationHash` and the DNG/JPEG SHA-256 values (verified identical in Node and Bun for a 23.6 × 15.7 mm sensor at 18 mm, which differed before 2.0.0).
 
 Not guaranteed to be bit-identical across engines: continuous results that pass through a transcendental function (field-of-view angles, rotation and distortion mappings, PSF kernels, tone curves). They agree within a few ulps, and a quantized output (RAW code, 8/16-bit sample) can differ only when a value lies within that rounding noise of a quantization boundary. Hashes over such continuous results, including `simulatePocCamera()` response hashes, are engine-specific. Tests that pin them compare discrete fields exactly and numbers within a stated ulp tolerance; the 64-case POC corpus uses 8 ulps (`test/poc-projection-reuse.test.ts`) and passes under Node and Bun.
+
+### Test hash locks and platforms
+
+Some regression tests lock exact engine output with SHA-256 digests. They prove that a refactor is bit-identical; they are not scientific evidence, and each sits beside independently derived spot values so that a digest change can be traced to a quantity:
+
+| Test | Locked output | Independent spot values beside it |
+| --- | --- | --- |
+| `test/native-environment-bit-identity.test.ts` | float64 photo expectations, RAW codes, developed samples | camera-equation photon/electron counts, provider-evaluation counts |
+| `test/stabilization-evaluation-identity.test.ts` | every IEEE-754 bit of stabilized trajectories and temporal nodes | controller residuals, rolling-window midpoint times and weights |
+| `test/canonical-json-identity.test.ts` | simulation hash, RAW data id, DNG and JPEG bytes | re-derived canonical-JSON hashes, TIFF/DNG tags and strip, JPEG markers |
+| `test/jpeg-reference-byte-parity.test.ts` | 18 reference JPEG byte streams | — |
+| `test/poc-projection-reuse.test.ts` | historical POC responses (discrete fields exact, numbers within 8 ulps) | see "Cross-engine determinism" above |
+
+The digests were recorded with Node.js on Linux x64 (V8), which is the only platform the required CI gate runs. Digests over continuous results are engine-specific (see "Cross-engine determinism" above), so their portability to other platforms is not guaranteed. The informational `hash locks (macos-latest)` CI job runs these five tests on macOS without blocking the gate; Windows and linux-arm64 are not tested. A digest that differs only on another platform is a portability finding to investigate, not a reason to regenerate the Linux value. The `print-*` fixture digests hash checked-in input files, not engine output, and are platform independent.
 
 ## Testing requirements
 

@@ -12,6 +12,7 @@
  */
 import type { RawFrameReconstructionPhaseProfile } from "./raw-frame-reconstruction.js";
 import type { SensorColorDevelopment, SensorColorDevelopmentCounts } from "../color/sensor-color-development.js";
+import { reflectRawSiteIndex } from "../sensor/raw-reconstruction.js";
 
 /** Read-only RAW site storage. Arrays are row-major over the full native frame. */
 export interface RawDevelopmentSource {
@@ -52,8 +53,12 @@ export interface RawPixelDeveloper {
   developRun(x: number, y: number, dx: number, dy: number, count: number, out: Float64Array): void;
   readonly counts: RawDevelopmentCounts;
 }
+/**
+ * `mirror` (optional) enables reflect-101 border reads for pixels within `reach` sites of the frame edge;
+ * interior pixels, and every pixel when it is omitted, take the unchanged flattened-kernel path.
+ */
 export function createRawPixelDeveloper(source: RawDevelopmentSource, phases: readonly RawFrameReconstructionPhaseProfile[],
-  development: SensorColorDevelopment): RawPixelDeveloper {
+  development: SensorColorDevelopment, mirror?: { nativeHeight: number; reach: number }): RawPixelDeveloper {
   const rw = source.repeatWidth, rh = source.repeatHeight, w = source.nativeWidth;
   const table: FlatKernel[][] = [];
   for (const phase of phases) {
@@ -66,7 +71,26 @@ export function createRawPixelDeveloper(source: RawDevelopmentSource, phases: re
   }
   const codes = source.codes, blacks = source.blackLevels, flags = source.saturationFlags, counts = createRawDevelopmentCounts();
   const channel = new Float64Array(3);
+  const mirrorTable = mirror === undefined ? null : phases.map((phase) => phase.profile.kernels);
+  function developMirroredAt(x: number, y: number, out: Float64Array | number[], offset: number): void {
+    const kernels = mirrorTable![(y % rh)*rw + x % rw]!, h = mirror!.nativeHeight;
+    let saturated = false;
+    for (let k = 0; k < 3; k++) {
+      let value = 0;
+      for (const c of kernels[k]!.contributions) {
+        const sx = reflectRawSiteIndex(x+c.offsetX, w), sy = reflectRawSiteIndex(y+c.offsetY, h);
+        if (rawSiteSaturated(source, sx, sy)) saturated = true;
+        value += normalizedRawSite(source, sx, sy)*c.weight;
+      }
+      channel[k] = value;
+    }
+    if (saturated) counts.saturatedPixelCount++;
+    development.developInto(channel[0]!, channel[1]!, channel[2]!, out, offset, counts);
+  }
   function developAt(x: number, y: number, out: Float64Array | number[], offset: number): void {
+      if (mirror !== undefined && (x < mirror.reach || y < mirror.reach || x+mirror.reach >= w || y+mirror.reach >= mirror.nativeHeight)) {
+        developMirroredAt(x, y, out, offset); return;
+      }
       const kernels = table[(y % rh)*rw + x % rw]!, center = y*w+x;
       let saturated = false;
       for (let k = 0; k < 3; k++) {

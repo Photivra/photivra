@@ -6,6 +6,7 @@ import { createProductionImageFormationPlan, createProductionCaptureSnapshot, cr
   type SceneRadianceEvaluationResult } from "../src/index.js";
 import { tierProductionRequest } from "./helpers/tier-production-fixture.js";
 import { evaluator } from "./helpers/environment-raw-fixture.js";
+import { scaledTimeout } from "./helpers/test-timeout.js";
 
 const bytes = readFileSync(new URL("./fixtures/print-detail/visibility-backend-reference.json", import.meta.url));
 const sha = createHash("sha256").update(bytes).digest("hex");
@@ -98,6 +99,7 @@ it.each(reference.cases)("executes actual production capture with a foreground m
   expect(digest(replay)).toBe(digest(plan));
   expect(queries - beforeReplay).toBe(16 * c.temporalSampleCount);
 // Two complete 128-node production captures exceed the default five-second
-// deadline under Node 24 CI coverage (~6.5–6.7 s). This is a numerical
-// qualification fixture, not a performance gate; retain all nodes and replay.
-}, 15_000);
+// deadline (4.5-5.3 s alone on a 4-core host, 16-21 s under V8 coverage). This is
+// a numerical qualification fixture, not a performance gate; retain all nodes and
+// replay, and scale the deadline under coverage.
+}, scaledTimeout(15_000));

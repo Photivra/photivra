@@ -466,6 +466,10 @@ async function developRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input:
   // The reference's own synchronous admission/halo/CFA validation, then the same RAW ownership transfer.
   const v = prepareNativeRawDevelopment(input);
   requirePerChannelTone(v.profile);
+  if (v.border !== "reject") {
+    throw new ImageKernelExecutionError("unsupported-on-backend",
+      "webgpu-f32 develops with rejected borders only; use cpu-reference for borderHandling \"mirror\".");
+  }
   const plan = v.plan, layout = plan.frame.colorSamplingProfile.layout, native = plan.exposure.geometry.nativeRaster;
   if (layout.kind !== "periodic-mosaic") throw new InvalidConfigurationError("Development requires periodic CFA.");
   const affine = orientedToNativeAffine(plan);
@@ -587,7 +591,7 @@ async function developRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input:
     const highlight: RawHighlightDiagnostics = { mode: development.highlightMode, saturatedPixelCount: counters[SDR_COUNTER.saturatedPixels]!,
       whiteBalanceClippedSampleCount: counters[SDR_COUNTER.whiteBalanceClipped]!, reconstructedPixelCount: counters[SDR_COUNTER.reconstructedPixels]! };
     const execution = webGpuExecution(integerCodeBound(maximum, bounds.exposed + float32Gamma(3)), counters[SDR_COUNTER.uncertain]!);
-    return { raw, phaseProfiles: v.phases, colorProfile: v.color, whiteBalance: v.whiteBalance, width: outWidth, height: outHeight, integerSamples: output,
+    return { raw, phaseProfiles: v.phases, colorProfile: v.color, whiteBalance: v.whiteBalance, borderHandling: v.border, width: outWidth, height: outHeight, integerSamples: output,
       diagnostics: sdrDiagnostics(counters, "consumed-in-raw-development"), highlight, outputEncoding: sdrOutputEncoding(maximum), rendering: profile,
       displayAdaptation: { kind: "external-platform", applied: false, displayCapabilities: "unknown" },
       imageDataPairing: "derived-from-exact-packed-native-raw", producerOriginVerified: false, execution };

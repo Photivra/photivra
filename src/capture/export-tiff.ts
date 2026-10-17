@@ -71,6 +71,57 @@ export function exportTiffRationals(id: number, signed: boolean, values: readonl
   });
   return { id, type: signed ? 10 : 5, count: values.length, data };
 }
+/**
+ * IFD0 tags that Exif 2.32 (CIPA DC-008-2019, Table 17, "Compressed" column) marks J (carried by the JPEG
+ * markers) or N (not allowed) for a JPEG-compressed primary image.
+ */
+const JPEG_EXIF_FORBIDDEN_IFD0 = new Set([256, 257, 258, 259, 262, 273, 277, 278, 279, 284, 513, 514, 530]);
+/** Pixel dimensions that the compressed primary image's Exif IFD must record (PixelX/YDimension). */
+export interface ExportJpegExifDimensions { pixelWidth: number; pixelHeight: number }
+/**
+ * Pack the Exif APP1 TIFF structure of a JPEG-compressed primary image with every tag that Exif 2.32
+ * (CIPA DC-008-2019 §4.6.8, Tables 17 and 18, "Compressed" column) marks mandatory. Caller tags win; a
+ * missing mandatory tag gets the standard's own default:
+ *
+ * - IFD0 XResolution = YResolution = 72/1 and ResolutionUnit = 2 (inches). The standard says "When the image
+ *   resolution is unknown, 72 [dpi] shall be designated"; this is the Exif convention for an unknown
+ *   resolution, not a physical print-size claim. The three tags are written together or not at all.
+ * - IFD0 YCbCrPositioning = 1 (centered, the TIFF default; the baseline encoder codes 4:4:4, so no chroma
+ *   siting is implied).
+ * - Exif ExifVersion "0232", FlashpixVersion "0100", ComponentsConfiguration 1 2 3 0 (Y Cb Cr),
+ *   PixelXDimension/PixelYDimension = the coded image size.
+ *
+ * ColorSpace (40961) is mandatory but has no default, so the caller must supply it. Tags the standard marks
+ * J or N for compressed data (ImageWidth, Compression, StripOffsets, YCbCrSubSampling, ...) are rejected,
+ * and a caller PixelX/YDimension that disagrees with the coded size is rejected.
+ */
+export function packExportJpegExif(main: readonly ExportTiffTag[], exif: readonly ExportTiffTag[], dimensions: ExportJpegExifDimensions): Uint8Array {
+  const { pixelWidth, pixelHeight } = dimensions;
+  if (![pixelWidth, pixelHeight].every((v) => Number.isSafeInteger(v) && v >= 1 && v <= 65535)) throw new InvalidConfigurationError("Exif pixel dimensions require integers from 1 to 65535.");
+  if (main.some((t) => JPEG_EXIF_FORBIDDEN_IFD0.has(t.id) || t.id === 34665)) throw new InvalidConfigurationError("Exif IFD0 tag is not allowed for a JPEG-compressed primary image.");
+  const mainIds = new Set(main.map((t) => t.id)), exifIds = new Set(exif.map((t) => t.id));
+  const resolution = [282, 283, 296].filter((id) => mainIds.has(id)).length;
+  if (resolution !== 0 && resolution !== 3) throw new InvalidConfigurationError("Exif XResolution, YResolution and ResolutionUnit must be written together.");
+  if (!exifIds.has(40961)) throw new InvalidConfigurationError("Exif ColorSpace is mandatory and has no default.");
+  for (const [id, value] of [[40962, pixelWidth], [40963, pixelHeight]] as const) {
+    const tag = exif.find((t) => t.id === id);
+    if (tag && (tag.count !== 1 || (tag.type === 3 ? new DataView(tag.data.buffer, tag.data.byteOffset).getUint16(0, true) : tag.type === 4 ? new DataView(tag.data.buffer, tag.data.byteOffset).getUint32(0, true) : -1) !== value)) {
+      throw new InvalidConfigurationError("Exif PixelX/YDimension must equal the coded JPEG size.");
+    }
+  }
+  const mainDefaults: ExportTiffTag[] = [
+    ...(resolution === 0 ? [exportTiffRationals(282, false, [72]), exportTiffRationals(283, false, [72]), exportTiffNumbers(296, 3, [2])] : []),
+    ...(mainIds.has(531) ? [] : [exportTiffNumbers(531, 3, [1])])
+  ];
+  const exifDefaults: ExportTiffTag[] = [
+    ...(exifIds.has(36864) ? [] : [exportTiffBytes(36864, 7, new TextEncoder().encode("0232"))]),
+    ...(exifIds.has(37121) ? [] : [exportTiffBytes(37121, 7, Uint8Array.of(1, 2, 3, 0))]),
+    ...(exifIds.has(40960) ? [] : [exportTiffBytes(40960, 7, new TextEncoder().encode("0100"))]),
+    ...(exifIds.has(40962) ? [] : [exportTiffNumbers(40962, 4, [pixelWidth])]),
+    ...(exifIds.has(40963) ? [] : [exportTiffNumbers(40963, 4, [pixelHeight])])
+  ];
+  return packExportTiff([...main, ...mainDefaults], [...exif, ...exifDefaults]);
+}
 /** Little-endian IEEE-754 binary64 values (TIFF type 12, DOUBLE); finite values only. */
 export function exportTiffDoubles(id: number, values: readonly number[]): ExportTiffTag {
   const data = new Uint8Array(values.length*8), view = new DataView(data.buffer);

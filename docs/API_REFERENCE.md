@@ -76,6 +76,21 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`createCaptureExportMetadataPair`](api/capture-capture-export-metadata.md#createcaptureexportmetadatapair) | Runtime |
 | [`parseCaptureExportMetadataInput`](api/capture-capture-export-metadata.md#parsecaptureexportmetadatainput) | Runtime |
 
+## capture/dng-import.ts
+
+[Detailed contracts](api/capture-dng-import.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/dng-import.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`DNG_IMPORT_LIMITS`](api/capture-dng-import.md#dng_import_limits) | Runtime |
+| [`DNG_IMPORT_SCHEMA_VERSION`](api/capture-dng-import.md#dng_import_schema_version) | Runtime |
+| [`DngImportInput`](api/capture-dng-import.md#dngimportinput) | Type |
+| [`ImportedDngBlackLevel`](api/capture-dng-import.md#importeddngblacklevel) | Type |
+| [`ImportedDngCfa`](api/capture-dng-import.md#importeddngcfa) | Type |
+| [`ImportedDngRaw`](api/capture-dng-import.md#importeddngraw) | Type |
+| [`ImportedDngRect`](api/capture-dng-import.md#importeddngrect) | Type |
+| [`parseDngRawImage`](api/capture-dng-import.md#parsedngrawimage) | Runtime |
+
 ## capture/environment-raw-producer.ts
 
 [Detailed contracts](api/capture-environment-raw-producer.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/environment-raw-producer.ts)
@@ -85,6 +100,14 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`EnvironmentSensorRawFrame`](api/capture-environment-raw-producer.md#environmentsensorrawframe) | Type |
 | [`simulateEnvironmentSensorRawFrame`](api/capture-environment-raw-producer.md#simulateenvironmentsensorrawframe) | Runtime |
 | [`SimulateEnvironmentSensorRawFrameInput`](api/capture-environment-raw-producer.md#simulateenvironmentsensorrawframeinput) | Type |
+
+## capture/export-jpeg.ts
+
+[Detailed contracts](api/capture-export-jpeg.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/export-jpeg.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`EXPORT_JPEG_ENCODER_ID`](api/capture-export-jpeg.md#export_jpeg_encoder_id) | Runtime |
 
 ## capture/focus-control.ts
 
@@ -129,6 +152,16 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`LinearCaptureEncoding`](api/capture-linear-encoding.md#linearcaptureencoding) | Type |
 | [`LinearCaptureEncodingInput`](api/capture-linear-encoding.md#linearcaptureencodinginput) | Type |
 | [`parseLinearCaptureEncoding`](api/capture-linear-encoding.md#parselinearcaptureencoding) | Runtime |
+
+## capture/lossless-jpeg.ts
+
+[Detailed contracts](api/capture-lossless-jpeg.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/lossless-jpeg.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`LosslessJpegImage`](api/capture-lossless-jpeg.md#losslessjpegimage) | Type |
+| [`LosslessJpegLimits`](api/capture-lossless-jpeg.md#losslessjpeglimits) | Type |
+| [`parseLosslessJpeg`](api/capture-lossless-jpeg.md#parselosslessjpeg) | Runtime |
 
 ## capture/native-environment-optical-stage.ts
 
@@ -1001,6 +1034,64 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`ExposureProgramLineProfile`](api/exposure-program-line.md#exposureprogramlineprofile) | Type |
 | [`parseExposureProgramLineProfile`](api/exposure-program-line.md#parseexposureprogramlineprofile) | Runtime |
 
+## facade/chart-scenes.ts
+
+[Detailed contracts](api/facade-chart-scenes.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-scenes.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePointGridCenters`](api/facade-chart-scenes.md#calculatepointgridcenters) | Runtime |
+| [`calculateStepWedgeReflectances`](api/facade-chart-scenes.md#calculatestepwedgereflectances) | Runtime |
+| [`CHART_SCENE_DEFAULTS`](api/facade-chart-scenes.md#chart_scene_defaults) | Runtime |
+| [`CHART_SCENE_PRESETS`](api/facade-chart-scenes.md#chart_scene_presets) | Runtime |
+| [`CHART_SPECTRAL_RANGE_NANOMETERS`](api/facade-chart-scenes.md#chart_spectral_range_nanometers) | Runtime |
+| [`ChartReflectance`](api/facade-chart-scenes.md#chartreflectance) | Type |
+| [`ChartScene`](api/facade-chart-scenes.md#chartscene) | Type |
+| [`ChartScenePresetId`](api/facade-chart-scenes.md#chartscenepresetid) | Type |
+| [`CheckerboardChartScene`](api/facade-chart-scenes.md#checkerboardchartscene) | Type |
+| [`GreyRampChartScene`](api/facade-chart-scenes.md#greyrampchartscene) | Type |
+| [`PatchChartScene`](api/facade-chart-scenes.md#patchchartscene) | Type |
+| [`PointGridChartScene`](api/facade-chart-scenes.md#pointgridchartscene) | Type |
+| [`resolveChartScene`](api/facade-chart-scenes.md#resolvechartscene) | Runtime |
+| [`ResolvedChartScene`](api/facade-chart-scenes.md#resolvedchartscene) | Type |
+| [`SiemensStarChartScene`](api/facade-chart-scenes.md#siemensstarchartscene) | Type |
+| [`SlantedEdgeChartScene`](api/facade-chart-scenes.md#slantededgechartscene) | Type |
+| [`StepWedgeChartScene`](api/facade-chart-scenes.md#stepwedgechartscene) | Type |
+| [`UniformChartScene`](api/facade-chart-scenes.md#uniformchartscene) | Type |
+
+## facade/scene-radiance.ts
+
+[Detailed contracts](api/facade-scene-radiance.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/scene-radiance.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`CallerRadianceScene`](api/facade-scene-radiance.md#callerradiancescene) | Type |
+| [`CallerReflectanceScene`](api/facade-scene-radiance.md#callerreflectancescene) | Type |
+| [`CaptureIlluminant`](api/facade-scene-radiance.md#captureilluminant) | Type |
+| [`createPlanarSceneRadianceProvider`](api/facade-scene-radiance.md#createplanarsceneradianceprovider) | Runtime |
+| [`PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W`](api/facade-scene-radiance.md#photopic_maximum_luminous_efficacy_lm_per_w) | Runtime |
+| [`PlanarSceneRadianceProvider`](api/facade-scene-radiance.md#planarsceneradianceprovider) | Type |
+| [`resolveCaptureIlluminant`](api/facade-scene-radiance.md#resolvecaptureilluminant) | Runtime |
+| [`ResolvedCaptureIlluminant`](api/facade-scene-radiance.md#resolvedcaptureilluminant) | Type |
+| [`ScenePlanePoint`](api/facade-scene-radiance.md#sceneplanepoint) | Type |
+
+## facade/simulate-capture.ts
+
+[Detailed contracts](api/facade-simulate-capture.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/simulate-capture.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
+| [`SIMULATE_CAPTURE_FACADE_VERSION`](api/facade-simulate-capture.md#simulate_capture_facade_version) | Runtime |
+| [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Runtime |
+| [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
+| [`SimulateCaptureExposureMode`](api/facade-simulate-capture.md#simulatecaptureexposuremode) | Type |
+| [`SimulateCaptureOptions`](api/facade-simulate-capture.md#simulatecaptureoptions) | Type |
+| [`SimulateCaptureOutputFormat`](api/facade-simulate-capture.md#simulatecaptureoutputformat) | Type |
+| [`SimulateCaptureProgress`](api/facade-simulate-capture.md#simulatecaptureprogress) | Type |
+| [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
+| [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
+
 ## gpu/image-kernel-accelerator.ts
 
 [Detailed contracts](api/gpu-image-kernel-accelerator.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/gpu/image-kernel-accelerator.ts)
@@ -1495,6 +1586,8 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | --- | --- |
 | [`calculateSensorEnvironmentRadianceQuery`](api/optics-sensor-environment-query.md#calculatesensorenvironmentradiancequery) | Runtime |
 | [`CalculateSensorEnvironmentRadianceQueryInput`](api/optics-sensor-environment-query.md#calculatesensorenvironmentradiancequeryinput) | Type |
+| [`EnvironmentLensFieldMapping`](api/optics-sensor-environment-query.md#environmentlensfieldmapping) | Type |
+| [`SensorEnvironmentLensFieldMappingResult`](api/optics-sensor-environment-query.md#sensorenvironmentlensfieldmappingresult) | Type |
 | [`SensorEnvironmentRadianceQuery`](api/optics-sensor-environment-query.md#sensorenvironmentradiancequery) | Type |
 
 ## optics/sensor-psf-quadrature.ts
@@ -1631,6 +1724,7 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | Export | Kind |
 | --- | --- |
 | [`AffineGeometricTransform`](api/output-geometric-transforms.md#affinegeometrictransform) | Type |
+| [`BrownConradyGeometricTransform`](api/output-geometric-transforms.md#brownconradygeometrictransform) | Type |
 | [`calculateComposedGeometricMapping`](api/output-geometric-transforms.md#calculatecomposedgeometricmapping) | Runtime |
 | [`calculateForwardGeometricMapping`](api/output-geometric-transforms.md#calculateforwardgeometricmapping) | Runtime |
 | [`calculateGeometricResampling`](api/output-geometric-transforms.md#calculategeometricresampling) | Runtime |
@@ -1639,12 +1733,14 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`GeometricImageDomain`](api/output-geometric-transforms.md#geometricimagedomain) | Type |
 | [`GeometricJacobian`](api/output-geometric-transforms.md#geometricjacobian) | Type |
 | [`GeometricMappingPoint`](api/output-geometric-transforms.md#geometricmappingpoint) | Type |
+| [`GeometricProjectionDeclaration`](api/output-geometric-transforms.md#geometricprojectiondeclaration) | Type |
 | [`GeometricRaster`](api/output-geometric-transforms.md#geometricraster) | Type |
 | [`GeometricResampler`](api/output-geometric-transforms.md#geometricresampler) | Type |
 | [`GeometricSamplingPlan`](api/output-geometric-transforms.md#geometricsamplingplan) | Type |
 | [`parseDigitalGeometricTransform`](api/output-geometric-transforms.md#parsedigitalgeometrictransform) | Runtime |
 | [`PreparedGeometricMapping`](api/output-geometric-transforms.md#preparedgeometricmapping) | Type |
 | [`prepareGeometricMapping`](api/output-geometric-transforms.md#preparegeometricmapping) | Runtime |
+| [`ProjectionRemapGeometricTransform`](api/output-geometric-transforms.md#projectionremapgeometrictransform) | Type |
 | [`RadialGeometricTransform`](api/output-geometric-transforms.md#radialgeometrictransform) | Type |
 
 ## output/lens-corrections.ts
@@ -1685,6 +1781,22 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`NativeCaptureSdrTile`](api/output-native-capture-sdr.md#nativecapturesdrtile) | Type |
 | [`NativeCaptureSdrTileRequest`](api/output-native-capture-sdr.md#nativecapturesdrtilerequest) | Type |
 | [`NativeTaskProgress`](api/output-native-capture-sdr.md#nativetaskprogress) | Type |
+
+## output/png-encoder.ts
+
+[Detailed contracts](api/output-png-encoder.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/png-encoder.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`PNG_ENCODER_ID`](api/output-png-encoder.md#png_encoder_id) | Runtime |
+| [`PNG_ENCODER_LIMITS`](api/output-png-encoder.md#png_encoder_limits) | Runtime |
+| [`PngCicpPrimaries`](api/output-png-encoder.md#pngcicpprimaries) | Type |
+| [`PngCicpTransfer`](api/output-png-encoder.md#pngcicptransfer) | Type |
+| [`PngColourEncoding`](api/output-png-encoder.md#pngcolourencoding) | Type |
+| [`PngContentLightLevel`](api/output-png-encoder.md#pngcontentlightlevel) | Type |
+| [`PngEncodeInput`](api/output-png-encoder.md#pngencodeinput) | Type |
+| [`PngMasteringDisplay`](api/output-png-encoder.md#pngmasteringdisplay) | Type |
+| [`serializePngImage`](api/output-png-encoder.md#serializepngimage) | Runtime |
 
 ## output/print-contrast-reference.ts
 
@@ -1798,6 +1910,109 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`calculateSubjectFramingCrop`](api/output-subject-framing-crop.md#calculatesubjectframingcrop) | Runtime |
 | [`CalculateSubjectFramingCropInput`](api/output-subject-framing-crop.md#calculatesubjectframingcropinput) | Type |
 | [`SubjectFramingCrop`](api/output-subject-framing-crop.md#subjectframingcrop) | Type |
+
+## processing/demosaic.ts
+
+[Detailed contracts](api/processing-demosaic.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/demosaic.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`AhdDemosaicInput`](api/processing-demosaic.md#ahddemosaicinput) | Type |
+| [`AhdDemosaicOutput`](api/processing-demosaic.md#ahddemosaicoutput) | Type |
+| [`CfaMosaicPlane`](api/processing-demosaic.md#cfamosaicplane) | Type |
+| [`CfaPlaneReconstructionInput`](api/processing-demosaic.md#cfaplanereconstructioninput) | Type |
+| [`CfaPlaneReconstructionOutput`](api/processing-demosaic.md#cfaplanereconstructionoutput) | Type |
+| [`createAhdDemosaicTask`](api/processing-demosaic.md#createahddemosaictask) | Runtime |
+| [`createCfaPlaneReconstructionTask`](api/processing-demosaic.md#createcfaplanereconstructiontask) | Runtime |
+
+## processing/denoise.ts
+
+[Detailed contracts](api/processing-denoise.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/denoise.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`BilateralFilterInput`](api/processing-denoise.md#bilateralfilterinput) | Type |
+| [`createBilateralFilterTask`](api/processing-denoise.md#createbilateralfiltertask) | Runtime |
+| [`createNonLocalMeansTask`](api/processing-denoise.md#createnonlocalmeanstask) | Runtime |
+| [`createSyntheticFilmGrainTask`](api/processing-denoise.md#createsyntheticfilmgraintask) | Runtime |
+| [`createUnsharpMaskTask`](api/processing-denoise.md#createunsharpmasktask) | Runtime |
+| [`NonLocalMeansInput`](api/processing-denoise.md#nonlocalmeansinput) | Type |
+| [`ProcessedRgbImage`](api/processing-denoise.md#processedrgbimage) | Type |
+| [`SYNTHETIC_FILM_GRAIN_STREAM_ID`](api/processing-denoise.md#synthetic_film_grain_stream_id) | Runtime |
+| [`SyntheticFilmGrainInput`](api/processing-denoise.md#syntheticfilmgraininput) | Type |
+| [`SyntheticFilmGrainOutput`](api/processing-denoise.md#syntheticfilmgrainoutput) | Type |
+| [`UnsharpMaskInput`](api/processing-denoise.md#unsharpmaskinput) | Type |
+
+## processing/focus-stacking.ts
+
+[Detailed contracts](api/processing-focus-stacking.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/focus-stacking.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createFocusStackTask`](api/processing-focus-stacking.md#createfocusstacktask) | Runtime |
+| [`FocusStackInput`](api/processing-focus-stacking.md#focusstackinput) | Type |
+| [`FocusStackOutput`](api/processing-focus-stacking.md#focusstackoutput) | Type |
+
+## processing/hdr.ts
+
+[Detailed contracts](api/processing-hdr.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/hdr.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createHdrBracketMergeTask`](api/processing-hdr.md#createhdrbracketmergetask) | Runtime |
+| [`createHdrImageEncodingTask`](api/processing-hdr.md#createhdrimageencodingtask) | Runtime |
+| [`HdrBracketFrame`](api/processing-hdr.md#hdrbracketframe) | Type |
+| [`HdrBracketMergeInput`](api/processing-hdr.md#hdrbracketmergeinput) | Type |
+| [`HdrBracketMergeOutput`](api/processing-hdr.md#hdrbracketmergeoutput) | Type |
+| [`HdrImageEncodingInput`](api/processing-hdr.md#hdrimageencodinginput) | Type |
+| [`HdrImageEncodingOutput`](api/processing-hdr.md#hdrimageencodingoutput) | Type |
+| [`HdrTransfer`](api/processing-hdr.md#hdrtransfer) | Type |
+
+## processing/panorama.ts
+
+[Detailed contracts](api/processing-panorama.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/panorama.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createPanoramaTask`](api/processing-panorama.md#createpanoramatask) | Runtime |
+| [`PanoramaCanvas`](api/processing-panorama.md#panoramacanvas) | Type |
+| [`PanoramaFrame`](api/processing-panorama.md#panoramaframe) | Type |
+| [`PanoramaInput`](api/processing-panorama.md#panoramainput) | Type |
+| [`PanoramaOutput`](api/processing-panorama.md#panoramaoutput) | Type |
+
+## processing/processing-task.ts
+
+[Detailed contracts](api/processing-processing-task.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/processing-task.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES`](api/processing-processing-task.md#processing_default_maximum_working_bytes) | Runtime |
+| [`PROCESSING_MAX_FRAMES`](api/processing-processing-task.md#processing_max_frames) | Runtime |
+| [`PROCESSING_MAX_PIXELS`](api/processing-processing-task.md#processing_max_pixels) | Runtime |
+| [`PROCESSING_MODEL_VERSION`](api/processing-processing-task.md#processing_model_version) | Runtime |
+| [`ProcessingLinearColorSpace`](api/processing-processing-task.md#processinglinearcolorspace) | Type |
+| [`ProcessingProvenance`](api/processing-processing-task.md#processingprovenance) | Type |
+| [`ProcessingProvider`](api/processing-processing-task.md#processingprovider) | Type |
+| [`ProcessingRgbImage`](api/processing-processing-task.md#processingrgbimage) | Type |
+| [`ProcessingTask`](api/processing-processing-task.md#processingtask) | Type |
+| [`ProcessingTaskState`](api/processing-processing-task.md#processingtaskstate) | Type |
+
+## processing/tone-mapping.ts
+
+[Detailed contracts](api/processing-tone-mapping.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/tone-mapping.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createDurandDorseyToneMappingTask`](api/processing-tone-mapping.md#createduranddorseytonemappingtask) | Runtime |
+| [`createExposureFusionTask`](api/processing-tone-mapping.md#createexposurefusiontask) | Runtime |
+| [`createReinhardGlobalToneMappingTask`](api/processing-tone-mapping.md#createreinhardglobaltonemappingtask) | Runtime |
+| [`DurandDorseyToneMappingInput`](api/processing-tone-mapping.md#duranddorseytonemappinginput) | Type |
+| [`DurandDorseyToneMappingOutput`](api/processing-tone-mapping.md#duranddorseytonemappingoutput) | Type |
+| [`ExposureFusionInput`](api/processing-tone-mapping.md#exposurefusioninput) | Type |
+| [`ExposureFusionOutput`](api/processing-tone-mapping.md#exposurefusionoutput) | Type |
+| [`ReinhardGlobalToneMappingInput`](api/processing-tone-mapping.md#reinhardglobaltonemappinginput) | Type |
+| [`ReinhardGlobalToneMappingOutput`](api/processing-tone-mapping.md#reinhardglobaltonemappingoutput) | Type |
+| [`ToneMappedImage`](api/processing-tone-mapping.md#tonemappedimage) | Type |
 
 ## schema/camera.ts
 
@@ -2329,9 +2544,15 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 
 | Export | Kind |
 | --- | --- |
+| [`BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION`](api/sensor-raw-reconstruction.md#built_in_bayer_demosaic_model_version) | Runtime |
+| [`BuiltInBayerDemosaicKernel`](api/sensor-raw-reconstruction.md#builtinbayerdemosaickernel) | Type |
+| [`BuiltInBayerDemosaicProfiles`](api/sensor-raw-reconstruction.md#builtinbayerdemosaicprofiles) | Type |
+| [`createBuiltInBayerDemosaicProfiles`](api/sensor-raw-reconstruction.md#createbuiltinbayerdemosaicprofiles) | Runtime |
+| [`CreateBuiltInBayerDemosaicProfilesInput`](api/sensor-raw-reconstruction.md#createbuiltinbayerdemosaicprofilesinput) | Type |
 | [`createSensorRawCaptureSample`](api/sensor-raw-reconstruction.md#createsensorrawcapturesample) | Runtime |
 | [`CreateSensorRawCaptureSampleInput`](api/sensor-raw-reconstruction.md#createsensorrawcapturesampleinput) | Type |
 | [`parseSensorRawReconstructionProfile`](api/sensor-raw-reconstruction.md#parsesensorrawreconstructionprofile) | Runtime |
+| [`RawReconstructionBorderHandling`](api/sensor-raw-reconstruction.md#rawreconstructionborderhandling) | Type |
 | [`resolveSensorRawReconstruction`](api/sensor-raw-reconstruction.md#resolvesensorrawreconstruction) | Runtime |
 | [`ResolveSensorRawReconstructionInput`](api/sensor-raw-reconstruction.md#resolvesensorrawreconstructioninput) | Type |
 | [`SENSOR_RAW_CAPTURE_SAMPLE_VERSION`](api/sensor-raw-reconstruction.md#sensor_raw_capture_sample_version) | Runtime |

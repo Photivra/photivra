@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createManualFlashIlluminationOverlay,
+  InvalidConfigurationError,
+  InvalidScientificInputError,
   evaluateSceneIlluminationTemporalMultiplier,
   integrateSceneIlluminationTemporalMultiplierOverExposureWindow,
   parseFlashSyncCapabilityProfile,
@@ -19,6 +21,7 @@ import {
   type SceneIlluminationProfile,
   type SceneIlluminationTemporalProfile
 } from "../src/index.js";
+import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = (
   ref: string
@@ -1111,5 +1114,57 @@ describe("manual flash validation boundaries", () => {
     ).toThrow(
       "must exactly match"
     );
+  });
+});
+
+describe("manual flash parser and overlay rejection branches", () => {
+  const flashInput = (): Json => structuredClone(flash());
+  const flashCases: RejectionCase[] = [
+    ["a non-object pulse", (p): void => { p.pulse = "pulse"; }, "manualFlashProfile.pulse must be an object."],
+    ["a blank profile id", (p): void => { p.profileId = ""; }, "manualFlashProfile.profileId must be a non-empty string."],
+    ["a non-finite pulse multiplier", (p): void => { p.pulse.samples[1].relativeMagnitudeMultiplier = Number.NaN; }, " must be finite."],
+    ["non-array limitations", (p): void => { p.limitations = "manual"; }, "manualFlashProfile.limitations must be an array."],
+    ["duplicate limitations", (p): void => { p.limitations = ["a", "a"]; }, "manualFlashProfile.limitations must not contain duplicates."],
+    ["a single pulse sample", (p): void => { p.pulse.samples = [p.pulse.samples[0]]; }, " must contain at least two waveform samples."],
+    ["a pulse sample after the support", (p): void => { p.pulse.samples[1].timeSecondsFromWaveformReference = 0.002; },
+      ".timeSecondsFromWaveformReference must lie within the declared pulse support."],
+    ["a negative pulse multiplier", (p): void => { p.pulse.samples[1].relativeMagnitudeMultiplier = -1; },
+      ".relativeMagnitudeMultiplier must be nonnegative."],
+    ["non-increasing pulse times", (p): void => { p.pulse.samples[1].timeSecondsFromWaveformReference = 0; }, " times must be strictly increasing."],
+    ["a pulse ending before its support", (p): void => { p.pulse.samples[2].timeSecondsFromWaveformReference = 0.0009; },
+      " must start at waveform time 0 and end exactly at supportDurationSeconds."],
+    ["an invalid source template", (p): void => { p.sourceTemplate.family = "laser"; }, "sources[0].family is invalid."],
+    ["an unsupported schema version", (p): void => { p.schemaVersion = "0.2.0"; }, "manualFlashProfile.schemaVersion must be"],
+    ["a non-peak-normalized pulse", (p): void => { p.pulse.normalization = "unit-area"; },
+      "manualFlashProfile.pulse scientificStatus/interpolation/normalization is invalid."],
+    ["nonzero flash exposure compensation", (p): void => { p.outputControl.flashExposureCompensationStops = 1; },
+      "manualFlashProfile.outputControl must use relative-linear-source-scale"]
+  ];
+  it.each(flashCases)("rejects a manual flash profile with %s", (_name, mutate, message) => {
+    expectRejection(flashInput, parseManualFlashProfile, InvalidConfigurationError, mutate, message);
+  });
+
+  const syncInput = (): Json => structuredClone(syncCapabilities());
+  it.each([
+    ["an unsupported schema version", (p: Json): void => { p.schemaVersion = "9.9.9"; }, "flashSyncCapabilityProfile.schemaVersion must be"],
+    ["no ordinary sync modes", (p: Json): void => { p.supportedOrdinarySyncModes = []; },
+      "flashSyncCapabilityProfile.supportedOrdinarySyncModes must be a non-empty array."],
+    ["an unknown sync mode", (p: Json): void => { p.supportedOrdinarySyncModes = ["front-curtain", "high-speed"]; },
+      "flashSyncCapabilityProfile.supportedOrdinarySyncModes[1"]
+  ] as RejectionCase[])("rejects a flash sync capability profile with %s", (_name, mutate, message) => {
+    expectRejection(syncInput, parseFlashSyncCapabilityProfile, InvalidConfigurationError, mutate, message);
+  });
+
+  const overlayInput = (): Json => ({ baseIlluminationProfile: baseIllumination(), baseTemporalProfile: ambientTemporal(), flashProfile: flash(),
+    resolvedSync: resolveManualFlashSync({ flashEnabled: true, flashProfile: flash(), syncCapabilities: syncCapabilities(), timing: resolvedTiming(),
+      syncMode: "front-curtain" }), illuminationProfileId: "output", temporalProfileId: "output-time" });
+  it.each([
+    ["a sync resolved for another flash profile", (i: Json): void => { i.resolvedSync = { ...i.resolvedSync, flashProfileVersion: "2.0.0" }; },
+      "Resolved flash sync identity must match the manual flash profile."],
+    ["an enabled sync without a waveform time zero", (i: Json): void => {
+      i.resolvedSync = { ...i.resolvedSync, waveformTimeZeroSecondsFromCaptureReference: null }; },
+    "Enabled flash sync must provide an authoritative waveform time-zero registration."]
+  ] as RejectionCase[])("rejects an overlay with %s", (_name, mutate, message) => {
+    expectRejection(overlayInput, (i: Json) => createManualFlashIlluminationOverlay(i), InvalidScientificInputError, mutate, message);
   });
 });

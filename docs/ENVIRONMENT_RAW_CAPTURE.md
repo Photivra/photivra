@@ -206,3 +206,15 @@ attenuation as active or modeled-zero and blocks undeclared attenuation before c
 This candidate has not been tagged or published; the distribution version stays 1.2.0
 until the next release preparation. External chart/backend evidence belongs to its
 provider and does not become an engine calibration claim.
+
+## Lens field mapping (2.0)
+
+`CalculateEnvironmentSensorPhotoSignalInput.lensFieldMapping` (optional, shared by every site of a frame) declares how a physical sensor point becomes a scene ray:
+
+```text
+sensor point (distorted) --inverse radial/Brown–Conrady--> ideal image point
+  --inverse ideal projection (rectilinear, fisheye, equirectangular)--> camera ray
+  --constant-axis camera rotation--> exposure-start environment direction
+```
+
+The projection scale is the same focus-aware projection distance the rectilinear path uses (thin-lens image distance at finite focus, focal length at infinity). `radiometricAreaCorrection: "inverse-distortion-jacobian"` is required: irradiance at each tap is multiplied exactly once by `1 / det(d distorted / d ideal)`, because distortion moves the same flux onto a different sensor area. Field throughput and sampled PSFs remain evaluated at the physical sensor point and must not also contain that factor. A mapping cannot be combined with ideal pupil rays (they use the rectilinear, distortion-free projection), and browser-native prepared sites reject it because their executor integrates irradiance separately. Without the field, plans, queries, photo signals and RAW frames are unchanged; with an identity mapping (rectilinear, `distortion: { kind: "none" }`) the photo signal and RAW are bit-identical and only the photo-signal model version (0.4.0) and query model id record the mapping.

@@ -342,6 +342,14 @@ export function prepareBrowserNativeReferenceSite(
     exposureWindow
   );
 
+  if (environmentPlan.owned.lensFieldMapping !== undefined) {
+    // The browser-native executor integrates irradiance itself and does not apply the distortion
+    // area factor; fail closed rather than silently dropping it.
+    throw new InvalidConfigurationError(
+      "Browser-native prepared sites do not yet support an environment lens field mapping."
+    );
+  }
+
   if (environmentPlan.count > 100_000) {
     throw new InvalidConfigurationError(
       "Browser-native prepared site alone exceeds the existing per-source-tile provider-evaluation bound."

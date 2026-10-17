@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateIlluminationVignetting,
+  InvalidConfigurationError,
+  InvalidScientificInputError,
   calculateSceneRadianceToSensorIrradiance,
   parseSceneToSensorIrradianceProfile,
   type SceneRadianceEvaluationRequest,
@@ -9,6 +11,7 @@ import {
   type SceneToSensorIrradianceProfile,
   type SceneToSensorIrradianceResult
 } from "../src/index.js";
+import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = (
   ref: string
@@ -878,3 +881,53 @@ describe("optical bridge numerical fail-closed guards", () => {
   });
 });
 
+
+describe("scene-to-sensor irradiance profile and context rejection branches", () => {
+  const spectral = (): Json => structuredClone(spectralProfile());
+  const tStop = (): Json => structuredClone(tStopProfile());
+  const cases: RejectionCase[] = [
+    ["a non-object applicability", (p): void => { p.applicability = null; }, "sceneToSensorIrradianceProfile.applicability must be an object."],
+    ["a blank profile id", (p): void => { p.profileId = ""; }, "sceneToSensorIrradianceProfile.profileId must be a non-empty string."],
+    ["a non-finite applicability bound", (p): void => { p.applicability.focalLengthMm.minimum = Number.NaN; }, ".focalLengthMm.minimum must be finite."],
+    ["a zero sample wavelength", (p): void => { p.transmission.samples.value[0].wavelengthNanometers = 0; },
+      ".wavelengthNanometers must be greater than zero."],
+    ["a transmission above one", (p): void => { p.transmission.samples.value[0].linearTransmissionFactor = 1.2; },
+      ".linearTransmissionFactor must be from zero through one."],
+    ["an inverted applicability range", (p): void => { p.applicability.nominalFNumber = { minimum: 16, maximum: 1.4 }; },
+      ".nominalFNumber.minimum must be less than or equal to maximum."],
+    ["an unknown scientific status", (p): void => { p.scientificStatus = "measured"; }, "sceneToSensorIrradianceProfile.scientificStatus is invalid."],
+    ["an unknown uncertainty kind", (p): void => { p.transmission.uncertainty = { kind: "interval" }; }, ".uncertainty.kind is invalid."],
+    ["non-array limitations", (p): void => { p.limitations = "generic"; }, "sceneToSensorIrradianceProfile.limitations must be an array."],
+    ["duplicate limitations", (p): void => { p.limitations = ["a", "a"]; }, "sceneToSensorIrradianceProfile.limitations must not contain duplicates."],
+    ["a single transmission sample", (p): void => { p.transmission.samples.value = [p.transmission.samples.value[0]]; },
+      " must contain at least two samples."],
+    ["non-increasing transmission wavelengths", (p): void => { p.transmission.samples.value[1].wavelengthNanometers = 450; },
+      " wavelengths must be strictly increasing."],
+    ["an unknown transmission kind", (p): void => { p.transmission.kind = "photometric-t-stop"; }, ".transmission.kind is invalid."],
+    ["an unspecified wavelength basis", (p): void => { p.transmission.wavelengthBasis = "unspecified"; }, ' must resolve to "air" or "vacuum".'],
+    ["an unknown focus applicability", (p): void => { p.applicability.focus = { kind: "macro-only" }; }, ".applicability.focus.kind is invalid."],
+    ["an unsupported schema version", (p): void => { p.schemaVersion = "0.2.0"; }, "sceneToSensorIrradianceProfile.schemaVersion must be"],
+    ["a calibrated profile with approximate transmission", (p): void => { p.scientificStatus = "calibrated"; },
+      "A calibrated optical bridge profile requires calibrated spectral transmission."]
+  ];
+  it.each(cases)("rejects a spectral profile with %s", (_name, mutate, message) => {
+    expectRejection(spectral, parseSceneToSensorIrradianceProfile, InvalidConfigurationError, mutate, message);
+  });
+  it("rejects a calibrated T-stop approximation", () => {
+    expectRejection(tStop, parseSceneToSensorIrradianceProfile, InvalidConfigurationError,
+      (p: Json): void => { p.transmission.scientificStatus = "calibrated"; }, ' T-stop scientificStatus must be "approximation".');
+  });
+
+  const context = (): Json => ({ sceneRadianceRequest: request(), sceneRadianceResult: radiance(), profile: spectralProfile(), focalLengthMm: 50,
+    nominalFNumber: 4, focus: { kind: "infinity-focus" }, imagePointMm: { x: 0, y: 0 }, fieldThroughput: { kind: "unity" } });
+  it.each([
+    ["a non-unity pupil magnification", (i: Json): void => { i.focus = { kind: "ideal-symmetric-thin-lens", objectDistanceM: 2,
+      pupilMagnificationAssumption: "measured" }; }, 'Ideal symmetric thin-lens focus requires pupilMagnificationAssumption "unity".'],
+    ["an unknown focus kind", (i: Json): void => { i.focus = { kind: "autofocus" }; }, "focus.kind is invalid."],
+    ["a zero supplied working f-number", (i: Json): void => { i.focus = { kind: "supplied-working-f-number",
+      focus: { kind: "infinity" }, workingFNumber: { value: 0, evidence: evidence("working") }, basis: "test" }; }, "focus.workingFNumber.value must be finite and greater than zero."],
+    ["an unknown field-throughput kind", (i: Json): void => { i.fieldThroughput = { kind: "cos4" }; }, "fieldThroughput.kind is invalid."]
+  ] as RejectionCase[])("rejects a calculation with %s", (_name, mutate, message) => {
+    expectRejection(context, (i: Json) => calculateSceneRadianceToSensorIrradiance(i), InvalidScientificInputError, mutate, message);
+  });
+});
