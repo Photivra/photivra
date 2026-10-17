@@ -122,7 +122,7 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 - **Accepted science and sources:**
   - Analytic colour-matching functions (CMFs): Wyman, Sloan & Shirley, JCGT 2(2) 2013 (free; labelled approximation).
   - Planck's law (BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry, Eq. 1, free) with exact SI constants (BIPM SI Brochure, 9th ed., free).
-  - Illuminant A: Planck's law with the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K; it reproduces the free CIE 1 nm table to its rounding. Daylight locus and M₁/M₂: CIE 15:2018 (paid; no free text found; values checked against the free CIE D55 and D65 datasets).
+  - Illuminant A: Planck's law with the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K; it reproduces the free CIE 1 nm table to its rounding. Daylight locus and M₁/M₂: accepted by the owner (2026-10-17) on the evidence of the free CIE D55 and D65 datasets, which the engine's values reproduce to their rounding.
   - Tristimulus integral: Wyman, Sloan & Shirley 2013, Eq. 1 (free).
   - CIE94: Wikipedia, "Color difference" (secondary source; the primary CIE 116-1995 is not free), checked against the colour-science worked values.
   - RGB↔XYZ matrices: derived from the ITU-R BT.709-6 / BT.2020-2 and CSS Color 4 primaries and D65; equal to the W3C CSS Color 4 matrices within 1e-12.
@@ -239,7 +239,7 @@ The owner's rule is that releases rely only on free-to-use sources. Every paid o
 
 Free standards bodies and documents already in use need no change: CIPA (DC-003, DC-004, DC-008), ITU-R and ITU-T recommendations, EMVA 1288, the Adobe DNG and TIFF 6.0 specifications, ICC specifications, W3C recommendations, IETF RFCs, the BIPM SI Brochure, and the CIE free datasets.
 
-In the Status column: **Replaced** means a free source now backs the fact. **Removed** means the engine no longer depends on the paid source: the fact is derived in the documentation or stated as the engine's own convention. **Flagged** means no free equivalent was found, and the owner must decide what to do (see [pending owner decisions](#pending-owner-decisions)).
+In the Status column: **Replaced** means a free source now backs the fact. **Removed** means the engine no longer depends on the paid source: the fact is derived in the documentation or stated as the engine's own convention. **Accepted** means no free text of the formula exists, and the owner accepted it on free evidence (see [pending owner decisions](#pending-owner-decisions)).
 
 | Paid source | Fact used | Free replacement | Status |
 | --- | --- | --- | --- |
@@ -255,7 +255,7 @@ In the Status column: **Replaced** means a free source now backs the fact. **Rem
 | CIE 15:2018 / ISO/CIE 11664-4 | CIELAB with exact ε, κ | W3C CSS Color 4 §9 (Lab) | Replaced |
 | CIE 15:2018 / ISO/CIE 11664-1 | Tristimulus integration X = k Σ S R x̄ Δλ | Wyman, Sloan & Shirley 2013, JCGT 2(2), Eq. 1 (X = ∫ L(λ) x̄(λ) dλ; open access, CC BY-ND 3.0) — <https://jcgt.org/published/0002/02/01/paper.pdf>. The quadrature and the normalization k are explicit engine choices. | Replaced (owner decision 4) |
 | CIE 15:2018 / ISO/CIE 11664-2 | Illuminant A formula | Planck's law: BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry (2018), Eq. 1 — <https://www.bipm.org/utils/en/pdf/si-mep/MeP-K-2018_Absolute_Primary_Radiometry.pdf>. The engine uses the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K (the exact c₂ = hc/k = 1.438 776 877…e-2 m·K, NIST CODATA 2022, is used only for the Planckian radiator). These two constants have no free source text, but the formula reproduces all 531 values of the free CIE 1 nm table (DOI 10.25039/CIE.DS.8jsxjrsn) within 4.8e-6 relative, the table's rounding. | Replaced (owner decision 4); constants verified for free |
-| CIE 15:2018 | Daylight-locus polynomial and M₁/M₂ | No free copy found. The source paper, Judd, MacAdam & Wyszecki, *JOSA* 54(8):1031 (1964), doi:10.1364/JOSA.54.001031, is subscription-only on the publisher's site; the only other copy found was an unauthorized upload. Per the owner's decision no alternative was chosen. The coefficients were checked against the free CIE datasets: with three-decimal rounding they reproduce D55 within 5.0e-4 and D65 within 8.5e-4 at every 5 nm node (the tables' rounding). | **Flagged** (formula text only); values verified for free |
+| CIE 15:2018 | Daylight-locus polynomial and M₁/M₂ | No free copy found. The source paper, Judd, MacAdam & Wyszecki, *JOSA* 54(8):1031 (1964), doi:10.1364/JOSA.54.001031, is subscription-only on the publisher's site; the only other copy found was an unauthorized upload. The coefficients were checked against the free CIE datasets: with three-decimal rounding they reproduce D55 within 5.0e-4 and D65 within 8.5e-4 at every 5 nm node (the tables' rounding). **Owner decision (2026-10-17):** accepted on that evidence. The datasets are free to download under CC BY-SA 4.0; they are cited and compared against, never bundled, so the licence does not bind the package (see [Rights and licensing](#rights-and-licensing)). The polynomial coefficients are scientific facts, not licensed material. | Accepted (owner decision); values verified for free |
 | CIE 15:2018 | CCT as the nearest Planckian point in (u, v); signed Duv | Smet et al., LEUKOS 2023, doi:10.1080/15502724.2023.2248397; free DOE copy — <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> | Replaced |
 | ANSI C78.377 | Duv sign (positive above the locus) | Ohno, LEUKOS 10(1), 2014 could not be used: NIST's record of it (<https://www.nist.gov/publications/practical-use-and-calculation-cct-and-duv>) links only to the paywalled publisher copy, and no free NIST copy was found. Per the owner's decision, the sign is now stated as the engine's own documented convention (docs, runtime assumption text), and a test checks that a greenish light gives a positive Duv. Ohno's free CORM 2011 slides state the same sign but are not cited. | Removed (owner decision 5) |
 | CIE 018:2019 | K_m = 683 lm/W | BIPM SI Brochure, 9th ed., definition of the candela (K_cd = 683 lm/W) — <https://www.bipm.org/en/publications/si-brochure> | Replaced |
@@ -273,7 +273,7 @@ In the Status column: **Replaced** means a free source now backs the fact. **Rem
 
 **Runtime strings (owner decision).** Provenance `sources` arrays, `assumptions` text and error messages that named paid standards now name the free sources above. This is a text-only output change; no number changed. Limitation and error strings that used internal ticket numbers as model names (#12, #14, #85, #110) now use the model names. See `CHANGELOG.md`. Test comments are not shipped and were left as they were. The result model id `rgb-xyz-matrix-smpte-rp177` of `calculateRgbToXyzMatrices` is an identifier, not a citation, and was not renamed.
 
-**Open:** one flagged item remains: the formula text of the CIE daylight locus and M₁/M₂. Its values are verified against free data.
+**Resolved:** no flagged items remain. The CIE daylight locus and M₁/M₂ were accepted by the owner on the evidence of the free CIE datasets.
 
 ## Free sources for textbook citations
 
@@ -414,7 +414,7 @@ Work that is known and deliberately left for later:
 
 ## Pending owner decisions
 
-1. **Flagged citations.** The owner decided the seven flagged items; six are now replaced or removed (see the [citation audit](#citation-audit-free-sources)). One remains open: no free copy of Judd, MacAdam & Wyszecki (1964) or other free text of the daylight-locus formula was found. The owner decides whether to accept it as a CIE fact verified against the free CIE datasets, or to name another source. Runtime strings now name free sources (decided).
+1. **Flagged citations: decided.** Six of the seven items are replaced or removed (see the [citation audit](#citation-audit-free-sources)). On 2026-10-17 the owner accepted the seventh, the CIE daylight locus, on the evidence of the free CIE datasets, provided it is completely free and licence-compatible: the datasets are only cited and compared against, never bundled, and the coefficients are facts. Runtime strings now name free sources.
 2. **Agent instructions reset.** At the owner's request (2026-10-16), `AGENTS.md` was replaced with a short standard file. It keeps three rules:
    - changes and recommendations must be evidence-based;
    - only free-to-use sources, data, code and methods may be used;
@@ -453,7 +453,7 @@ The authoritative result is GitHub CI on the exact commit that is tagged. The la
 - [x] Generated API reference regenerated after the merge.
 - [x] Citation audit, with doc comments and docs updated to free sources.
 - [x] All streams merged (#305–#314) and changelog entries written.
-- [ ] Owner decisions above.
+- [x] Owner decisions on citations (decision 1).
 - [ ] Owner's substantive human review of the AI-assisted changes and of this record.
 - [ ] Green exact-head CI on the release PR, recorded above; then green CI on `main` after merge.
 - [ ] **The owner's explicit approval to tag `v2.0.0`.** The tag triggers npm publishing. First confirm that 2.0.0 is not already on npm, and never move or overwrite `v1.5.0`.
