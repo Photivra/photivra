@@ -20,7 +20,7 @@ This file records direct development and CI dependencies intentionally used by t
 
 Node built-in modules are used only by development tooling and the repository-local POC API; that API is excluded from the published package and the built-ins are not third-party dependencies.
 
-`src/sensor/stochastic-seed.ts` independently implements the MurmurHash3_x86_32 algorithm and its `fmix32` finalizer (Austin Appleby, SMHasher). The upstream `MurmurHash3.cpp` header states the algorithm "is placed in the public domain" and disclaims copyright. No upstream source file is vendored; the implementation is checked against published test vectors in `test/sensor-raw-noise-independence.test.ts`.
+`src/sensor/stochastic-seed.ts` independently implements the MurmurHash3_x86_32 algorithm and its `fmix32` finalizer (Austin Appleby, SMHasher). The upstream `MurmurHash3.cpp` header states the algorithm "is placed in the public domain" and disclaims copyright. No upstream source file is vendored. `test/sensor-raw-noise-independence.test.ts` checks the implementation with SMHasher's own verification procedure, computed inside the test (keys of 0–255 bytes hashed with seed 256 − i, then the hash of those hashes), against SMHasher's documented MurmurHash3_x86_32 verification value 0xB0F57EE3 (SMHasher, public domain). Test vectors earlier copied from a Stack Overflow answer (CC BY-SA 3.0) were removed.
 
 `src/optics/longitudinal-chromatic-aberration.ts` uses three physical constants: the Fraunhofer d (helium, 587.5618 nm), F (hydrogen, 486.1327 nm) and C (hydrogen, 656.2725 nm) spectral-line wavelengths used to define the Abbe number (as tabulated in SCHOTT Technical Information TIE-29, *Refractive Index and Dispersion*, 2023, free; also the reference wavelengths of ISO 7944). They are factual measured constants of nature, not a copied dataset or table; no glass catalogue data is included and refractive index and Abbe number are caller inputs. The 2.0 projection, distortion, Zernike/Seidel, vignetting, polarizer and haze models are independent implementations of published equations cited in `docs/PHYSICS_FOUNDATION.md` and `docs/PSF_FOUNDATION.md`; they contain no third-party code or numeric tables.
 
@@ -141,6 +141,8 @@ No upstream observational CSV, paper text/figure/table, color-matching dataset o
 
 
 ## Optional offline physical-proof tools
+
+The optional repository-only QA scripts `scripts/verify-photographic-export-fixtures.py` and `scripts/verify-producer-export-acceptance.py` load an installed LibRaw (LGPL-2.1 or CDDL-1.0) dynamically through its C API. Nothing from LibRaw is copied or distributed, and the scripts are not part of the package.
 
 The owned PDF geometry reference is generated with ReportLab 4.4.9 and independently inspected with pypdf 6.10.0. Their installed distribution license files were reviewed as BSD-3-Clause-style terms (ReportLab metadata calls its license BSD; pypdf declares BSD-3-Clause). These are optional offline test-artifact tools, not runtime/npm dependencies. No library source, binary or embedded font program is vendored. The PDF preserves existing owned JPEG streams and uses the PDF standard Helvetica font declaration; its DeviceRGB appearance and actual printing remain unqualified. Generator/parser versions and artifact hashes are retained in the candidate evidence record. Substantive human source review remains pending.
 

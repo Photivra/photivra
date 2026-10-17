@@ -396,21 +396,31 @@ describe("CIELAB and colour difference", () => {
     expect(() => calculateColorDifference({ reference: lab(50, 0, 0), sample: lab(52, 0, 0), formula: "cie76", parametricFactors: { lightness: 1, chroma: 1, hue: 1 } })).toThrow();
     expect(() => calculateColorDifference({ reference: lab(50, 0, 0), sample: lab(52, 0, 0), formula: "x" as "cie76" })).toThrow();
   });
-  it("computes ΔE*ab and the asymmetric CIE94 formulas", () => {
+  it("computes ΔE*ab and the asymmetric CIE94 formulas (closed forms computed in the test)", () => {
     expect(calculateColorDifference({ reference: lab(50, 0, 0), sample: lab(53, 4, 0), formula: "cie76" }).value.deltaE).toBe(5);
-    // Pure chroma difference from reference C1 = 10: ΔE94 = ΔC / (1 + 0.045·10).
-    expect(calculateColorDifference({ reference: lab(50, 10, 0), sample: lab(50, 12, 0), formula: "cie94-graphic-arts" }).value.deltaE).toBeCloseTo(2 / 1.45, 14);
-    expect(calculateColorDifference({ reference: lab(50, 10, 0), sample: lab(50, 12, 0), formula: "cie94-textiles" }).value.deltaE).toBeCloseTo(2 / 1.48, 14);
-    // Pure hue difference: ΔH = 2C sin(Δh/2) scaled by 1 + 0.015·C.
-    const h = calculateColorDifference({ reference: lab(50, 10, 0), sample: lab(50, 10 * Math.cos(0.1), 10 * Math.sin(0.1)), formula: "cie94-graphic-arts" }).value.deltaE;
-    expect(h).toBeCloseTo((20 * Math.sin(0.05)) / 1.15, 12);
-    expect(calculateColorDifference({ reference: lab(40, 0, 0), sample: lab(44, 0, 0), formula: "cie94-textiles" }).value.deltaE).toBeCloseTo(2, 14);
-    // Worked values of the free secondary source (colour-science `delta_E_CIE1994` documentation, BSD-3-Clause,
-    // https://github.com/colour-science/colour/blob/develop/colour/difference/delta_e.py): Lab_1 is the reference.
-    // The documentation prints 7 decimals, so the comparison is to 6.
-    const r94 = lab(48.99183622, -0.10561667, 400.65619925), s94 = lab(50.65907324, -0.11671910, 402.82235718);
-    expect(calculateColorDifference({ reference: r94, sample: s94, formula: "cie94-graphic-arts" }).value.deltaE).toBeCloseTo(1.6711191, 6);
-    expect(calculateColorDifference({ reference: r94, sample: s94, formula: "cie94-textiles" }).value.deltaE).toBeCloseTo(0.8404677, 6);
+    const de94 = (r: CielabColor, t: CielabColor, formula: "cie94-graphic-arts" | "cie94-textiles"): number => calculateColorDifference({ reference: r, sample: t, formula }).value.deltaE;
+    // Weights: graphic arts k_L = 1, K1 = 0.045, K2 = 0.015; textiles k_L = 2, K1 = 0.048, K2 = 0.014.
+    const weights = { "cie94-graphic-arts": { kL: 1, k1: 0.045, k2: 0.015 }, "cie94-textiles": { kL: 2, k1: 0.048, k2: 0.014 } } as const;
+    for (const formula of ["cie94-graphic-arts", "cie94-textiles"] as const) {
+      const { kL, k1, k2 } = weights[formula];
+      // Pure ΔL (any chroma, same a*, b*): ΔE94 = |ΔL| / k_L.
+      for (const [l1, l2, a, b] of [[40, 44, 0, 0], [60, 52.5, 12, -7], [20, 21, -30, 40]] as const) {
+        expect(de94(lab(l1, a, b), lab(l2, a, b), formula)).toBeCloseTo(Math.abs(l2 - l1) / kL, 13);
+      }
+      // Pure chroma on the +a* axis (same L*, hue 0): ΔE94 = |ΔC| / (1 + K1·C1), C1 the reference chroma.
+      for (const [c1, c2] of [[10, 12], [30, 22], [2, 50]] as const) {
+        expect(de94(lab(50, c1, 0), lab(50, c2, 0), formula)).toBeCloseTo(Math.abs(c2 - c1) / (1 + k1 * c1), 13);
+      }
+      // Equal chroma, hue only: ΔE94 = |ΔH| / (1 + K2·C1) with ΔH = 2C sin(Δh/2).
+      for (const [c, h1, h2] of [[10, 0, 0.1], [35, 1, 2.2], [60, -2, 2.5]] as const) {
+        const r = lab(55, c * Math.cos(h1), c * Math.sin(h1)), t = lab(55, c * Math.cos(h2), c * Math.sin(h2));
+        expect(de94(r, t, formula)).toBeCloseTo(Math.abs(2 * c * Math.sin((h2 - h1) / 2)) / (1 + k2 * c), 12);
+      }
+      // Asymmetry: S_C and S_H use the reference chroma, so swapping reference and sample changes ΔE94 when C1 ≠ C2.
+      const r = lab(50, 10, 0), t = lab(50, 20, 0);
+      expect(de94(r, t, formula)).toBeCloseTo(10 / (1 + k1 * 10), 13);
+      expect(de94(t, r, formula)).toBeCloseTo(10 / (1 + k1 * 20), 13);
+    }
   });
   it("converts XYZ ↔ CIELAB ↔ LCh exactly and continuously at the linear segment", () => {
     const white = { x: 0.3127 / 0.3290, y: 1, z: (1 - 0.3127 - 0.3290) / 0.3290 }; // D65 from ITU-R BT.709-6 xy
