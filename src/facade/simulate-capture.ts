@@ -72,6 +72,8 @@ import type { CalculateEnvironmentSensorPhotoSignalInput } from "../sensor/envir
 import { createRollingShutterCaptureExposureSchedule, resolveElectronicRollingShutterExposureSchedule,
   type ElectronicRollingShutterExposureSchedule } from "../sensor/readout-exposure-linkage.js";
 import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
+import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
+import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
 import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
@@ -113,6 +115,8 @@ export type SimulateCaptureBorderHandling = "margin" | "mirror";
 export type SimulateCaptureLensDistortion =
   | { kind: "radial"; profile: RadialDistortionProfile }
   | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
+/** Diffraction model (2.1): the shorthand or a record with an explicit kernel radius in sites. */
+export type SimulateCaptureLensDiffraction = "circular-aperture" | { aperture: "circular-aperture"; kernelRadiusSamples?: number };
 export interface SimulateCaptureMotion {
   /** Constant camera angular velocity, rad/s, in the engine's pitch/yaw/roll convention. Missing axes are 0. */
   angularVelocityRadPerSec?: { pitch?: number; yaw?: number; roll?: number };
@@ -145,6 +149,13 @@ export interface SimulateCaptureOptions {
      * focus must equal the resolved capture settings exactly. Not combinable with pupilSampling.
      */
     psf?: Extract<CalculateEnvironmentSensorPhotoSignalInput["psf"], { kind: "sampled-local" }>;
+    /**
+     * Opt-in (2.1) diffraction blur of an ideal, aberration-free, in-focus lens with a circular pupil at the
+     * capture's resolved f-number: the engine builds the Airy kernels (`createDiffractionLimitedPsfProfile`)
+     * on the site pitch. `kernelRadiusSamples` (0–32) sets the kernel window; default: the third dark ring at
+     * the longest spectral node. Not combinable with `psf` or `pupilSampling`. Default off.
+     */
+    diffraction?: SimulateCaptureLensDiffraction;
   };
   exposure?: {
     /** Default "manual". */
@@ -330,6 +341,8 @@ export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * sosReferenceLu
 /** Demosaic border, native sites per side. */
 const MARGIN = 1;
 
+/** Third dark ring of the Airy pattern in units of λ·N_w (j₁,₃/π, j₁,₃ = 10.1734681351): the default diffraction kernel reach. */
+const AIRY_THIRD_ZERO_PER_LAMBDA_N = 10.173468135062722 / Math.PI;
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
@@ -550,7 +563,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const body = preset.body, lens = preset.lens;
 
   // Lens
-  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf"]);
+  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf", "diffraction"]);
   const focalDefault = lens.exposure.focalLengthMmRange.value.minimum;
   const focalLengthMm = positive(pick(lensOptions, "focalLengthMm", "lens.focalLengthMm", focalDefault, "The preset lens's focal length (the generic primes are 50 mm)."), "lens.focalLengthMm");
   const capabilities = resolveGenericEquipmentExposureCapabilities({ bodyProfile: body.exposure, lensProfile: lens.exposure, selectedFocalLengthMm: focalLengthMm });
@@ -590,6 +603,19 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     requireInputObject(p.configuration, "lens.psf.configuration");
     if (pupil) fail("lens.psf cannot be combined with lens.pupilSampling: geometric defocus would be counted twice.");
     lensPsf = p as unknown as typeof lensPsf;
+  }
+  // Diffraction (2.1): validated here, built once the f-number is resolved.
+  let diffractionRadiusOption: number | null | undefined;
+  if (lensOptions.diffraction !== undefined) {
+    const d = lensOptions.diffraction;
+    if (d === "circular-aperture") diffractionRadiusOption = null;
+    else {
+      const record = allowKeys(d, "lens.diffraction", ["aperture", "kernelRadiusSamples"]);
+      if (record.aperture !== "circular-aperture") fail("lens.diffraction must be \"circular-aperture\" or { aperture: \"circular-aperture\", kernelRadiusSamples }.");
+      diffractionRadiusOption = record.kernelRadiusSamples === undefined ? null : integerIn(record.kernelRadiusSamples, "lens.diffraction.kernelRadiusSamples", 0, 32);
+    }
+    if (lensPsf) fail("lens.diffraction cannot be combined with lens.psf: diffraction would be counted twice.");
+    if (pupil) fail("lens.diffraction cannot be combined with lens.pupilSampling: the environment contract does not mix a sampled PSF with pupil rays.");
   }
 
   // Motion (2.0): constant camera rotation and the shutter type.
@@ -839,7 +865,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   if (rotating) assume("motion.angularVelocityRadPerSec", "model", { ...angular },
     "Constant camera angular velocity applied to every scene ray at each temporal midpoint of each site's exposure window (engine rotation convention, docs/SENSOR_ENVIRONMENT_QUERY.md); motion blur is the midpoint quadrature over sensor.temporalSampleCount samples.");
   if (lensPsf) assume("lens.psf", "model", { kind: "sampled-local" }, "Caller-supplied sampled lens PSF redistributes irradiance through the environment PSF quadrature; its evidence and limits are the caller's.");
-  else assume("lens.psf", "model", "not-applied", "No lens PSF or diffraction blur is applied (point optics); the generic tiers' optical data are declared only at f/4.");
+  // With lens.diffraction the PSF is recorded as lens.diffraction once its kernels are built.
+  else if (diffractionRadiusOption === undefined) assume("lens.psf", "model", "not-applied", "No lens PSF or diffraction blur is applied (point optics); the generic tiers' optical data are declared only at f/4.");
   assume("lens.transmission", "model", lens.matchedReference.transmission,
     "The tier lens's spectrally flat transmission is used at every f-number and focus in the lens capability; the tier declares it only at its f/4, 5 m reference state.");
   if (!vignetting && !lensFieldMapping) assume("lens.fieldThroughput", "model", "unity", "No vignetting, distortion, lateral colour or stray light.");
@@ -980,11 +1007,34 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const fieldThroughput = vignetting ? { kind: "radial-illumination-vignetting" as const, profile: vignetting, evidence,
     limitation: "Caller-declared radial relative illumination applied by the capture facade; not a measured lens." } :
     { kind: "unity" as const, evidence, limitation: "No vignetting or field throughput loss applied by the facade." };
-  const psf = lensPsf ?? { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
-  const pupilRecord = pupil ? { kind: "ideal-uniform-circular-pupil" as const, radialSampleCount: pupil.radialSamples, angularSampleCount: pupil.angularSamples, evidence,
-    limitation: "Ideal uniform circular pupil; finite ray sampling, no convergence claim." } : undefined;
   const spectralSamplingByChannel = Object.fromEntries(CHANNELS.map((channelId) => [channelId, { channelId, wavelengthBasis: "vacuum" as const, wavelengthRangeNanometers: range,
     maximumSubintervalWidthNanometers: spectralStep }])) as Record<Channel, unknown>;
+  // Diffraction (2.1): Airy kernels at the resolved f-number on the site pitch, one per spectral node of the sensor quadrature.
+  let diffraction: DiffractionLimitedPsfProfile | undefined, diffractionPsf: typeof lensPsf | undefined;
+  if (diffractionRadiusOption !== undefined) {
+    const wavelengths = [...new Set(CHANNELS.flatMap((channelId) => calculateSensorSpectralQuadrature({ ...(spectralSamplingByChannel[channelId] as { channelId: string;
+      wavelengthBasis: "vacuum"; wavelengthRangeNanometers: { minimum: number; maximum: number }; maximumSubintervalWidthNanometers: number }), colorSamplingProfile,
+    spectralResponseProfile: spectralResponseProfiles[channelId] as never }).value.nodes.map((node) => node.wavelengthNanometers)))].sort((a, b) => a - b);
+    const lambdaN = wavelengths[wavelengths.length - 1]! / 1000 * fNumber * imageDistanceMm / focalLengthMm;
+    const kernelRadiusSamples = diffractionRadiusOption ?? Math.min(32, Math.max(1, Math.ceil(AIRY_THIRD_ZERO_PER_LAMBDA_N * lambdaN / pitch)));
+    diffraction = createDiffractionLimitedPsfProfile({ aperture: "circular", focalLengthMm, apertureFNumber: fNumber, focus: { kind: "finite", distanceM: focusDistanceM },
+      wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 },
+      profileId: "facade-diffraction-airy" }).value;
+    diffractionPsf = { kind: "sampled-local", configuration: { psf: { profile: diffraction.profile, focalLengthMm, focus: { kind: "finite", distanceM: focusDistanceM },
+      apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
+    spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Diffraction-limited Airy PSF, the same at every field point." } } };
+    assume("lens.diffraction", "model", { model: diffraction.model, aperture: "circular-aperture", fNumber, workingFNumber: diffraction.workingFNumber,
+      kernelRadiusSamples, samplePitchMicrometers: pitch, maximumTruncatedEnergyFraction: diffraction.maximumTruncatedEnergyFraction,
+      truncatedEnergyByWavelength: diffraction.wavelengths.map((w) => ({ wavelengthNm: w.wavelengthNm, truncatedEnergyFraction: w.truncatedEnergyFraction })),
+      execution: "environment-psf-quadrature" },
+      "Scalar Fraunhofer diffraction of an ideal, aberration-free circular pupil (Airy pattern, createDiffractionLimitedPsfProfile) at the resolved f-number, in focus, with D = f/N and the thin-lens image distance (working f-number N·v/f). " +
+      "One kernel per spectral node, binned into site-sized cells over a " + (2 * kernelRadiusSamples + 1) + " × " + (2 * kernelRadiusSamples + 1) + " window" +
+      (diffractionRadiusOption === null ? " (reaching the third dark ring at the longest node)" : "") + "; the Airy tail energy outside it (listed per wavelength) is put back by unit-sum renormalization. " +
+      "Applied through the environment PSF quadrature (one scene query per kernel tap). No defocus, aberration or pupil clipping; the sensor pixel aperture is still point-sampled at the site centre.");
+  }
+  const psf = lensPsf ?? diffractionPsf ?? { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
+  const pupilRecord = pupil ? { kind: "ideal-uniform-circular-pupil" as const, radialSampleCount: pupil.radialSamples, angularSampleCount: pupil.angularSamples, evidence,
+    limitation: "Ideal uniform circular pupil; finite ray sampling, no convergence claim." } : undefined;
   const chargeSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.chargeSampling, completenessProfileId: IDS.completeness, scientificStatus: "approximation" as const,
     photoShotNoiseModel: "poisson" as const, darkShotNoiseModel: "poisson" as const, additionalComponentPolicies: [], evidence, limitations: ["Poisson photo and dark shot noise."] };
   const channelAt = (x: number, y: number): Channel => (["red", "green", "green", "blue"] as const)[(y % 2) * 2 + (x % 2)]!;
@@ -1018,7 +1068,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const readTile = async (request: { captureId: string; frameId: string; x: number; y: number; width: number; height: number }): Promise<NativeEnvironmentRawTile> =>
     ({ ...request, sites: Array.from({ length: request.width }, (_, j) => siteInput(request.y * nativeWidth + request.x + j)) });
   const yieldControl = createHostYield().yieldControl;
-  const perSite = queriesPerSite;
+  const perSite = queriesPerSite * (diffraction && psf === diffractionPsf ? (2 * diffraction.kernelRadiusSamples + 1) ** 2 : 1);
   const evaluations = nativeWidth * nativeHeight * perSite;
   // The native task admits at most 100 000 radiance queries per tile.
   const tileWidth = Math.max(1, Math.min(256, Math.floor(100_000 / perSite)));
@@ -1172,6 +1222,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
         "resolve" + (mode === "manual" ? "Manual" : mode === "aperture-priority" ? "AperturePriority" : mode === "shutter-priority" ? "ShutterPriority" : "ProgramAuto") + "ExposureMode",
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
+        ...(diffraction ? ["createDiffractionLimitedPsfProfile"] : []),
         "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []),
         ...(linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["createNativeRawDevelopmentTask"]),

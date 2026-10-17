@@ -1728,6 +1728,8 @@ export { IRRADIANCE_CONVOLUTION_SCHEMA_VERSION, IRRADIANCE_CONVOLUTION_LIMITS, c
 export type { IrradianceConvolutionInput, IrradianceConvolutionPlan } from "./optics/irradiance-convolution.js";
 export { LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION, LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS, resolveLensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
 export type { LensPsfConvolutionKernelsInput, LensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
+export { DIFFRACTION_LIMITED_PSF_PROFILE_MODEL, DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS, createDiffractionLimitedPsfProfile } from "./optics/diffraction-psf-profile.js";
+export type { CreateDiffractionLimitedPsfProfileInput, DiffractionLimitedPsfProfile, DiffractionLimitedPsfWavelength } from "./optics/diffraction-psf-profile.js";
 export { PACKED_SENSOR_RAW_SCHEMA_VERSION, PACKED_SENSOR_RAW_LIMITS, calculatePackedSensorRawPlan, simulatePackedSensorRaw } from "./capture/packed-sensor-raw.js";
 export type { PackedSensorRawInput, PackedSensorRawPlan, PackedSensorRawDiagnostics, PackedSensorRawResult, PackedSensorFixedPatternNoise,
   PackedSensorAdditionalChargeComponent } from "./capture/packed-sensor-raw.js";
