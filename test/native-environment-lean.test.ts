@@ -5,6 +5,7 @@ import { calculateCaptureExposureWindows, createNativeEnvironmentRawTask, create
   type NativeEnvironmentRawInput, type NativeEnvironmentRawProvider, type NativeEnvironmentRawTile, type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult, type SensorApertureRay } from "../src/index.js";
 import { nativeEnvironmentLeanStatistics, setNativeEnvironmentLeanExecutionEnabled } from "../src/capture/native-environment-lean.js";
+import { planEnvironmentSensorPhotoSignal } from "../src/sensor/environment-photo-signal.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
 
 /*
@@ -42,7 +43,9 @@ function radiance(q: Readonly<SceneRadianceEvaluationRequest>): number {
 interface Options {
   site?: (site: Mutable, index: number) => void;
   raw?: (raw: NativeEnvironmentRawInput["raw"]) => NativeEnvironmentRawInput["raw"];
-  bad?: { at: number; result: (r: SceneRadianceEvaluationResult) => SceneRadianceEvaluationResult };
+  /** Replaces the result of call `at` (of every later call too with `onward`; of every matching request with `where`). */
+  bad?: { at: number; onward?: boolean; where?: (q: Readonly<SceneRadianceEvaluationRequest>) => boolean;
+    result: (r: SceneRadianceEvaluationResult) => SceneRadianceEvaluationResult };
   retain?: boolean;
 }
 interface Summary { [key: string]: unknown }
@@ -54,7 +57,8 @@ async function run(options: Options, lean: boolean): Promise<Summary> {
     calls++;
     requests.push(JSON.stringify([q, ray ?? null, Object.isFrozen(q), Object.isFrozen(q.target), ray ? Object.isFrozen(ray) : null]));
     const r = result(q, radiance(q)*(ray ? 1+0.1*ray.pupilSampleIndex : 1));
-    return options.bad && calls === options.bad.at ? options.bad.result(r) : r;
+    const b = options.bad;
+    return b && (b.where ? b.where(q) : calls === b.at || (b.onward === true && calls > b.at)) ? b.result(r) : r;
   };
   const provider: NativeEnvironmentRawProvider = {
     readTile: async (r): Promise<NativeEnvironmentRawTile> => ({ ...r, sites: Array.from({ length: r.width }, (_, j) => {
@@ -101,6 +105,30 @@ async function same(options: Options, expectLean = true): Promise<Summary> {
 const motion = { angularVelocityRadPerSec: { pitch: 0.3, yaw: -0.2, roll: 0.5 }, timeReference: "first-opening-boundary-phase",
   environmentDirectionConvention: "outgoing-radiance-toward-camera" };
 const fact = <T>(value: T): { value: T; evidence: typeof evidence } => ({ value, evidence });
+/**
+ * Engine-owned synthetic sampled PSF bound to the facade defaults (50 mm, f/8, focus 5 m): a 3 × 3 kernel at the
+ * pixel pitch. With `fieldDependent`, the kernel at field x = +1 mm differs from x = -1 mm, so every site
+ * interpolates its own kernel.
+ */
+function sampledPsf(fieldDependent = false, fNumber = 8): Record<string, unknown> {
+  const axes = { focalLengthMm: [50], focusDiopters: [0.2], apertureFNumber: [fNumber], fieldXmm: [-1, 1], fieldYmm: [-1, 1], wavelengthNm: [380, 780],
+    signedDefocusImagePlaneMicrometers: [0] };
+  const binomial = [0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625], skewed = [0.02, 0.08, 0.1, 0.05, 0.3, 0.15, 0.05, 0.1, 0.15];
+  const kernel = (x: number): Record<string, unknown> => ({ widthSamples: 3, heightSamples: 3, samplePitchMicrometersX: 6, samplePitchMicrometersY: 6,
+    centerSampleX: 1, centerSampleY: 1, normalizedIntensity: fieldDependent && x > 0 ? skewed : binomial });
+  const profile = { schemaVersion: "0.1.0", profileId: "test-lean-psf", profileVersion: "1", scientificStatus: "approximation",
+    opticalDomain: "lens-primary-optical-path-only", coordinateSystem: "image-plane-metric", fieldAxes: "+X right, +Y up", kernelEnergyNormalization: "unit-energy-shape",
+    interpolation: "bounded-regular-grid-multilinear", throughputOwnership: "separate-relative-pupil-throughput-factor",
+    responseIncludes: { diffraction: true, aberration: true, defocus: true, pupilClippingShape: true }, sensorOpticalStackIncluded: false, sensorSamplingIncluded: false,
+    reconstructionIncluded: false, strayLightIncluded: false, axes, evidence, limitations: ["Synthetic kernel for the lean executor test."],
+    nodes: axes.fieldXmm.flatMap(x => axes.fieldYmm.flatMap(y => axes.wavelengthNm.map(nm => ({ nodeId: "n-" + x + "-" + y + "-" + nm,
+      coordinate: { focalLengthMm: 50, focusDiopters: 0.2, apertureFNumber: fNumber, fieldXmm: x, fieldYmm: y, wavelengthNm: nm, signedDefocusImagePlaneMicrometers: 0 },
+      kernel: kernel(x), bestFocusImagePlaneOffsetMicrometers: 0, relativePupilThroughputFactor: 1, evidence,
+      uncertainty: { kind: "not-quantified", limitation: "Synthetic." } })))) };
+  return { kind: "sampled-local", configuration: { psf: { profile, focalLengthMm: 50, focus: { kind: "finite", distanceM: 5 }, apertureFNumber: fNumber,
+    signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
+  spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Synthetic local kernel." } } };
+}
 
 describe("lean native environment executor (2.0 performance)", () => {
   it("reproduces the full path bit for bit, with most sites on the lean path", async () => {
@@ -140,6 +168,73 @@ describe("lean native environment executor (2.0 performance)", () => {
     } });
   }, scaledTimeout(120_000));
 
+  it("covers sampled PSFs and lens field mappings, alone and combined", async () => {
+    const before = { ...nativeEnvironmentLeanStatistics };
+    const radial = { kind: "radial", profile: { normalizationRadiusMm: 0.05, maximumNormalizedRadius: 1, coefficients: { k1: -0.2, k2: 0, k3: 0 } } };
+    const vignetting = { kind: "radial-illumination-vignetting", profile: { normalizationRadiusMm: 0.15, maximumNormalizedRadius: 1,
+      coefficients: { r2: -0.3, r4: 0.05, r6: 0 } }, evidence, limitation: "Test radial profile." };
+    await same({ site: s => { s.environment.psf = sampledPsf(); } });
+    await same({ site: s => { s.environment.psf = sampledPsf(); s.environment.motion = structuredClone(motion); s.environment.temporalSampleCount = 3;
+      s.environment.fieldThroughput = structuredClone(vignetting); } });
+    await same({ site: s => { s.environment.lensFieldMapping = { projectionModel: "rectilinear", distortion: structuredClone(radial),
+      radiometricAreaCorrection: "inverse-distortion-jacobian" }; } });
+    await same({ site: s => { s.environment.lensFieldMapping = { projectionModel: "fisheye-equidistant", distortion: { kind: "brown-conrady", profile: {
+      normalizationRadiusMm: 0.05, maximumNormalizedRadius: 1, coefficients: { k1: 0, k2: 0, k3: 0, p1: 0.02, p2: 0 } } },
+    radiometricAreaCorrection: "inverse-distortion-jacobian" }; s.environment.motion = structuredClone(motion); } });
+    await same({ site: s => { s.environment.psf = sampledPsf(); s.environment.lensFieldMapping = { projectionModel: "rectilinear",
+      distortion: structuredClone(radial), radiometricAreaCorrection: "inverse-distortion-jacobian" }; }, retain: true });
+    // A field-dependent kernel: each site interpolates its own kernel between two different field nodes.
+    await same({ site: s => { s.environment.psf = sampledPsf(true); } });
+    expect(nativeEnvironmentLeanStatistics.executedSites - before.executedSites).toBeGreaterThan(6*width*height/2);
+  }, scaledTimeout(180_000));
+
+  it("throws the same error after the same callbacks for sampled-PSF and lens-mapped provider defects", async () => {
+    const late = width*height*40-50;
+    const psf = (s: Mutable): void => { s.environment.psf = sampledPsf(); };
+    const mapped = (s: Mutable): void => { s.environment.psf = sampledPsf(); s.environment.lensFieldMapping = { projectionModel: "rectilinear",
+      distortion: { kind: "radial", profile: { normalizationRadiusMm: 0.05, maximumNormalizedRadius: 1, coefficients: { k1: -0.2, k2: 0, k3: 0 } } },
+      radiometricAreaCorrection: "inverse-distortion-jacobian" }; };
+    for (const site of [psf, mapped]) for (const bad of [(r: SceneRadianceEvaluationResult): SceneRadianceEvaluationResult => ({ ...r, sampleId: "other" }),
+      (r: SceneRadianceEvaluationResult): SceneRadianceEvaluationResult => ({ ...r, spectralRadianceWattsPerSquareMeterSteradianNanometer: Number.NaN }),
+      (r: SceneRadianceEvaluationResult): SceneRadianceEvaluationResult => ({ ...r, spectralRadianceWattsPerSquareMeterSteradianNanometer: 1.7e308 })]) {
+      const summary = await same({ site, bad: { at: late, result: bad } });
+      expect(summary.error).toBeTypeOf("string");
+      expect(summary.calls).toBeGreaterThanOrEqual(late);
+      expect(summary.calls).toBeLessThanOrEqual(late+200);
+    }
+    for (const site of [psf, mapped]) {
+      const summary = await same({ site, bad: { at: late, onward: true,
+        result: (r): SceneRadianceEvaluationResult => ({ ...r, spectralRadianceWattsPerSquareMeterSteradianNanometer: 1.7e308 }) } });
+      expect(summary.error).toBeTypeOf("string");
+    }
+  }, scaledTimeout(180_000));
+
+  it("lets the full PSF quadrature decide when a lean PSF check fails", async () => {
+    // The largest physical radius of any PSF tap (a corner site's outermost tap), from the full planner.
+    let rmax = 0;
+    for (const index of [0, width-1, width*(height-1), width*height-1]) {
+      const environment = siteInput(index).environment as unknown as Mutable["environment"];
+      environment.psf = sampledPsf();
+      const plan = planEnvironmentSensorPhotoSignal(environment as unknown as Parameters<typeof planEnvironmentSensorPhotoSignal>[0]);
+      for (const group of plan.instants[0]!.groups) for (const tap of group.taps) rmax = Math.max(rmax, Math.hypot(tap.point.x, tap.point.y));
+    }
+    // Barrel k1 = -0.33: the radial map s(r)·r folds over just beyond r = 1. The outermost tap is placed at ideal radius
+    // 0.995, where the distortion area factor 1/(s (s + r ds/dr)) is about 75, above 1/acceptance (about 26 at f/8). A huge
+    // radiance there stays finite through the pupil sum and overflows only after the area factor, so the PSF quadrature's
+    // own checks must reject that instant at its end, on both paths and after the same callbacks.
+    const k1 = -0.33, r = 0.995, normalizationRadiusMm = rmax/((1+k1*r*r)*r);
+    const site = (s: Mutable): void => { s.environment.psf = sampledPsf(); s.environment.lensFieldMapping = { projectionModel: "rectilinear",
+      distortion: { kind: "radial", profile: { normalizationRadiusMm, maximumNormalizedRadius: 1, coefficients: { k1, k2: 0, k3: 0 } } },
+      radiometricAreaCorrection: "inverse-distortion-jacobian" }; };
+    // Top-right corner: a lean site (its CFA phase's template is site 1).
+    const corner = new RegExp(`:native:${width-1}-t`), before = nativeEnvironmentLeanStatistics.psfFallbacks;
+    const summary = await same({ site, bad: { at: 0, where: q => corner.test(q.sampleId),
+      result: (r): SceneRadianceEvaluationResult => ({ ...r, spectralRadianceWattsPerSquareMeterSteradianNanometer: 1.7e308 }) } });
+    // Thrown by the PSF quadrature (its spatio-spectral reduction overflows) at the end of the corner site's first instant.
+    expect(summary.error).toMatch(/spatio-spectral values must remain finite/);
+    expect(nativeEnvironmentLeanStatistics.psfFallbacks - before).toBeGreaterThan(0);
+  }, scaledTimeout(180_000));
+
   it("keeps differing, reordered and negative-zero sites identical (they fall back to the full path)", async () => {
     const reorder = (v: unknown): unknown => Array.isArray(v) ? v.map(reorder) : v && typeof v === "object" ?
       Object.fromEntries(Object.keys(v).reverse().map(k => [k, reorder((v as Record<string, unknown>)[k])])) : v;
@@ -149,7 +244,7 @@ describe("lean native environment executor (2.0 performance)", () => {
     await same({ site: (s, i) => { if (i%7 === 3) { const dark = s.darkCurrentProfile as { temperatureModel: Record<string, unknown> };
       s.darkCurrentProfile = { ...dark, temperatureModel: { ...dark.temperatureModel, darkCurrentElectronsPerSecond: 3 } }; } } });
     await same({ site: s => { s.environment.lensFieldMapping = { projectionModel: "rectilinear", distortion: { kind: "none" },
-      radiometricAreaCorrection: "inverse-distortion-jacobian" }; } }, false);
+      radiometricAreaCorrection: "inverse-distortion-jacobian" }; } });
   }, scaledTimeout(120_000));
 
   it("throws the same error after the same callbacks for invalid sites and provider defects", async () => {

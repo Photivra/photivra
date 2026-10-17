@@ -6,11 +6,11 @@
  * - CIELAB (W3C CSS Color 4 Lab; also CIE 15:2018 §8.2.1) with the exact rational constants ε = (6/29)³ and
  *   κ = (29/3)³ in the linear segment.
  * - ΔE*ab 1976: Euclidean CIELAB distance.
- * - ΔE*94: asymmetric (first colour is the reference: S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁), graphic-arts
- *   (k_L = 1, K₁ = 0.045, K₂ = 0.015) or textiles (k_L = 2, K₁ = 0.048, K₂ = 0.014), k_C = k_H = 1.
- *   Secondary source; the primary CIE 116-1995 is not free: Wikipedia, "Color difference", §CIE94
- *   (https://en.wikipedia.org/wiki/Color_difference#CIE94). The tests check its closed forms for pure
- *   lightness, chroma and hue differences and the reference asymmetry.
+ * - ΔE*94: asymmetric (first colour is the reference: S_L = 1, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁). The
+ *   default is the formula's published reference conditions (k_L = k_C = k_H = 1, K₁ = 0.045,
+ *   K₂ = 0.015, often called "graphic arts"); callers may pass their own factors in `cie94Factors`.
+ *   The engine ships no other preset. The primary source, CIE 116-1995, is not free. The tests check
+ *   the closed forms for pure lightness, chroma and hue differences and the reference asymmetry.
  * - CIEDE2000, implemented from the formula and implementation notes in Sharma, Wu & Dalal
  *   (2005), Color Res. Appl. 30(1):21–30 (paper free at
  *   https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/; also CIE 142-2001, ISO/CIE 11664-6).
@@ -28,6 +28,7 @@ import {
   parseXyz,
   requireFiniteNumber,
   requireFiniteResult,
+  requireNonNegativeNumber,
   requirePositiveNumber,
   requireRecordValue,
   type CieXyzTristimulus
@@ -130,7 +131,7 @@ export function calculateCielabFromCielch(input: { lch: CielchColor }): Calculat
 }
 
 /** Colour-difference formula. */
-export type ColorDifferenceFormula = "cie76" | "cie94-graphic-arts" | "cie94-textiles" | "ciede2000";
+export type ColorDifferenceFormula = "cie76" | "cie94" | "ciede2000";
 
 /** CIEDE2000 parametric factors (default 1, 1, 1 for reference conditions). */
 export interface Ciede2000ParametricFactors {
@@ -138,6 +139,26 @@ export interface Ciede2000ParametricFactors {
   chroma: number;
   hue: number;
 }
+
+/**
+ * CIE94 parametric factors k_L, k_C, k_H and weighting constants K₁, K₂ (S_C = 1 + K₁C*₁,
+ * S_H = 1 + K₂C*₁). The default is the reference conditions: 1, 1, 1, 0.045, 0.015.
+ */
+export interface Cie94ParametricFactors {
+  /** k_L, greater than zero. */
+  lightness: number;
+  /** k_C, greater than zero. */
+  chroma: number;
+  /** k_H, greater than zero. */
+  hue: number;
+  /** K₁ in S_C = 1 + K₁C*₁; finite and not negative. */
+  k1: number;
+  /** K₂ in S_H = 1 + K₂C*₁; finite and not negative. */
+  k2: number;
+}
+
+/** CIE94 reference conditions (k_L = k_C = k_H = 1, K₁ = 0.045, K₂ = 0.015). */
+const CIE94_REFERENCE_FACTORS: Cie94ParametricFactors = { lightness: 1, chroma: 1, hue: 1, k1: 0.045, k2: 0.015 };
 
 const DEG = Math.PI / 180;
 
@@ -147,14 +168,14 @@ export function deltaE76(a: CielabColor, b: CielabColor): number {
 }
 
 /** Internal: ΔE*94 with reference colour `reference`. */
-export function deltaE94(reference: CielabColor, sample: CielabColor, textiles: boolean): number {
-  const kL = textiles ? 2 : 1, k1 = textiles ? 0.048 : 0.045, k2 = textiles ? 0.014 : 0.015;
+export function deltaE94(reference: CielabColor, sample: CielabColor, factors: Cie94ParametricFactors = CIE94_REFERENCE_FACTORS): number {
+  const { lightness: kL, chroma: kC, hue: kH, k1, k2 } = factors;
   const c1 = Math.hypot(reference.aStar, reference.bStar), c2 = Math.hypot(sample.aStar, sample.bStar);
   const dL = reference.lStar - sample.lStar, dC = c1 - c2;
   const da = reference.aStar - sample.aStar, db = reference.bStar - sample.bStar;
   const dH2 = Math.max(0, da * da + db * db - dC * dC);
   const sC = 1 + k1 * c1, sH = 1 + k2 * c1;
-  return Math.sqrt((dL / kL) ** 2 + (dC / sC) ** 2 + dH2 / (sH * sH));
+  return Math.sqrt((dL / kL) ** 2 + (dC / (kC * sC)) ** 2 + dH2 / (kH * sH) ** 2);
 }
 
 function hueDegrees(b: number, a: number): number {
@@ -205,18 +226,31 @@ export interface CalculateColorDifferenceInput {
   formula: ColorDifferenceFormula;
   /** CIEDE2000 only; defaults to 1, 1, 1. */
   parametricFactors?: Ciede2000ParametricFactors;
+  /** CIE94 only; all five fields are required when given. Defaults to the reference conditions 1, 1, 1, 0.045, 0.015. */
+  cie94Factors?: Cie94ParametricFactors;
+}
+
+function parseCie94Factors(value: unknown): Cie94ParametricFactors {
+  const r = requireRecordValue(value, "cie94Factors");
+  requireInputKeys(r, "calculateColorDifference cie94Factors", ["lightness", "chroma", "hue", "k1", "k2"]);
+  return {
+    lightness: requirePositiveNumber(r.lightness, "cie94Factors.lightness"),
+    chroma: requirePositiveNumber(r.chroma, "cie94Factors.chroma"),
+    hue: requirePositiveNumber(r.hue, "cie94Factors.hue"),
+    k1: requireNonNegativeNumber(r.k1, "cie94Factors.k1"),
+    k2: requireNonNegativeNumber(r.k2, "cie94Factors.k2")
+  };
 }
 
 /** Colour difference between two CIELAB colours with an explicit formula. */
 export function calculateColorDifference(input: CalculateColorDifferenceInput): CalculationResult<{ deltaE: number; formula: ColorDifferenceFormula }> {
-  requireInputKeys(input, "calculateColorDifference", ["reference", "sample", "formula", "parametricFactors"]);
+  requireInputKeys(input, "calculateColorDifference", ["reference", "sample", "formula", "parametricFactors", "cie94Factors"]);
   const reference = parseLab(input.reference, "reference");
   const sample = parseLab(input.sample, "sample");
   let deltaE: number;
   switch (input.formula) {
     case "cie76": deltaE = deltaE76(reference, sample); break;
-    case "cie94-graphic-arts": deltaE = deltaE94(reference, sample, false); break;
-    case "cie94-textiles": deltaE = deltaE94(reference, sample, true); break;
+    case "cie94": deltaE = deltaE94(reference, sample, input.cie94Factors === undefined ? undefined : parseCie94Factors(input.cie94Factors)); break;
     case "ciede2000": {
       let k: Ciede2000ParametricFactors | undefined;
       if (input.parametricFactors !== undefined) {
@@ -231,6 +265,9 @@ export function calculateColorDifference(input: CalculateColorDifferenceInput): 
   requireFiniteResult([deltaE], "Colour difference");
   if (input.formula !== "ciede2000" && input.parametricFactors !== undefined) {
     throw new InvalidScientificInputError("parametricFactors apply only to CIEDE2000.");
+  }
+  if (input.formula !== "cie94" && input.cie94Factors !== undefined) {
+    throw new InvalidScientificInputError("cie94Factors apply only to CIE94.");
   }
   return calculatedResult({ deltaE, formula: input.formula }, "color-difference-" + input.formula, COLORIMETRY_MODEL_VERSION);
 }

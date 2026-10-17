@@ -29,6 +29,8 @@ import {
   prepareColorMatchingFunctions,
   prepareColorimetricSpectrum,
   resolveChromaticAdaptationConeMatrix,
+  InvalidConfigurationError,
+  InvalidScientificInputError,
   CHROMATIC_ADAPTATION_TRANSFORMS,
   SECOND_RADIATION_CONSTANT_METER_KELVIN,
   ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS,
@@ -454,28 +456,56 @@ describe("CIELAB and colour difference", () => {
   });
   it("computes ΔE*ab and the asymmetric CIE94 formulas (closed forms computed in the test)", () => {
     expect(calculateColorDifference({ reference: lab(50, 0, 0), sample: lab(53, 4, 0), formula: "cie76" }).value.deltaE).toBe(5);
-    const de94 = (r: CielabColor, t: CielabColor, formula: "cie94-graphic-arts" | "cie94-textiles"): number => calculateColorDifference({ reference: r, sample: t, formula }).value.deltaE;
-    // Weights: graphic arts k_L = 1, K1 = 0.045, K2 = 0.015; textiles k_L = 2, K1 = 0.048, K2 = 0.014.
-    const weights = { "cie94-graphic-arts": { kL: 1, k1: 0.045, k2: 0.015 }, "cie94-textiles": { kL: 2, k1: 0.048, k2: 0.014 } } as const;
-    for (const formula of ["cie94-graphic-arts", "cie94-textiles"] as const) {
-      const { kL, k1, k2 } = weights[formula];
+    // Default: the reference conditions k_L = k_C = k_H = 1, K1 = 0.045, K2 = 0.015. Caller-supplied
+    // factors use arbitrary test values (not a published preset) so every factor is exercised.
+    const custom = { lightness: 2, chroma: 1.5, hue: 0.8, k1: 0.03, k2: 0.02 };
+    const cases = [
+      { factors: undefined, kL: 1, kC: 1, kH: 1, k1: 0.045, k2: 0.015 },
+      { factors: custom, kL: 2, kC: 1.5, kH: 0.8, k1: 0.03, k2: 0.02 }
+    ] as const;
+    for (const { factors, kL, kC, kH, k1, k2 } of cases) {
+      const de94 = (r: CielabColor, t: CielabColor): number =>
+        calculateColorDifference(factors === undefined ? { reference: r, sample: t, formula: "cie94" } : { reference: r, sample: t, formula: "cie94", cie94Factors: factors }).value.deltaE;
       // Pure ΔL (any chroma, same a*, b*): ΔE94 = |ΔL| / k_L.
       for (const [l1, l2, a, b] of [[40, 44, 0, 0], [60, 52.5, 12, -7], [20, 21, -30, 40]] as const) {
-        expect(de94(lab(l1, a, b), lab(l2, a, b), formula)).toBeCloseTo(Math.abs(l2 - l1) / kL, 13);
+        expect(de94(lab(l1, a, b), lab(l2, a, b))).toBeCloseTo(Math.abs(l2 - l1) / kL, 13);
       }
-      // Pure chroma on the +a* axis (same L*, hue 0): ΔE94 = |ΔC| / (1 + K1·C1), C1 the reference chroma.
+      // Pure chroma on the +a* axis (same L*, hue 0): ΔE94 = |ΔC| / (k_C (1 + K1·C1)), C1 the reference chroma.
       for (const [c1, c2] of [[10, 12], [30, 22], [2, 50]] as const) {
-        expect(de94(lab(50, c1, 0), lab(50, c2, 0), formula)).toBeCloseTo(Math.abs(c2 - c1) / (1 + k1 * c1), 13);
+        expect(de94(lab(50, c1, 0), lab(50, c2, 0))).toBeCloseTo(Math.abs(c2 - c1) / (kC * (1 + k1 * c1)), 13);
       }
-      // Equal chroma, hue only: ΔE94 = |ΔH| / (1 + K2·C1) with ΔH = 2C sin(Δh/2).
+      // Equal chroma, hue only: ΔE94 = |ΔH| / (k_H (1 + K2·C1)) with ΔH = 2C sin(Δh/2).
       for (const [c, h1, h2] of [[10, 0, 0.1], [35, 1, 2.2], [60, -2, 2.5]] as const) {
         const r = lab(55, c * Math.cos(h1), c * Math.sin(h1)), t = lab(55, c * Math.cos(h2), c * Math.sin(h2));
-        expect(de94(r, t, formula)).toBeCloseTo(Math.abs(2 * c * Math.sin((h2 - h1) / 2)) / (1 + k2 * c), 12);
+        expect(de94(r, t)).toBeCloseTo(Math.abs(2 * c * Math.sin((h2 - h1) / 2)) / (kH * (1 + k2 * c)), 12);
       }
       // Asymmetry: S_C and S_H use the reference chroma, so swapping reference and sample changes ΔE94 when C1 ≠ C2.
       const r = lab(50, 10, 0), t = lab(50, 20, 0);
-      expect(de94(r, t, formula)).toBeCloseTo(10 / (1 + k1 * 10), 13);
-      expect(de94(t, r, formula)).toBeCloseTo(10 / (1 + k1 * 20), 13);
+      expect(de94(r, t)).toBeCloseTo(10 / (kC * (1 + k1 * 10)), 13);
+      expect(de94(t, r)).toBeCloseTo(10 / (kC * (1 + k1 * 20)), 13);
+    }
+    // Passing the reference conditions explicitly equals the default; zero K1, K2 are allowed (S_C = S_H = 1).
+    const p = lab(50, 10, 5), q = lab(53, 14, -2);
+    expect(calculateColorDifference({ reference: p, sample: q, formula: "cie94", cie94Factors: { lightness: 1, chroma: 1, hue: 1, k1: 0.045, k2: 0.015 } }).value.deltaE)
+      .toBe(calculateColorDifference({ reference: p, sample: q, formula: "cie94" }).value.deltaE);
+    expect(calculateColorDifference({ reference: p, sample: q, formula: "cie94", cie94Factors: { lightness: 1, chroma: 1, hue: 1, k1: 0, k2: 0 } }).value.deltaE)
+      .toBeCloseTo(calculateColorDifference({ reference: p, sample: q, formula: "cie76" }).value.deltaE, 13);
+    // Rejection of bad factors.
+    const de94With = (cie94Factors: unknown): unknown => calculateColorDifference({ reference: p, sample: q, formula: "cie94", cie94Factors: cie94Factors as never });
+    for (const bad of [
+      { ...custom, lightness: 0 }, { ...custom, chroma: -1 }, { ...custom, hue: Number.NaN }, { ...custom, k1: -0.01 },
+      { ...custom, k2: Number.POSITIVE_INFINITY }, { lightness: 1, chroma: 1, hue: 1, k1: 0.045 }, { ...custom, k2: "0.015" }
+    ]) {
+      expect(() => de94With(bad), JSON.stringify(bad)).toThrow(InvalidScientificInputError);
+    }
+    for (const bad of [null, [], 1, { ...custom, kL: 1 }]) {
+      expect(() => de94With(bad), JSON.stringify(bad)).toThrow(InvalidConfigurationError);
+    }
+    expect(() => calculateColorDifference({ reference: p, sample: q, formula: "ciede2000", cie94Factors: custom })).toThrow(InvalidScientificInputError);
+    expect(() => calculateColorDifference({ reference: p, sample: q, formula: "cie94", parametricFactors: { lightness: 1, chroma: 1, hue: 1 } })).toThrow(InvalidScientificInputError);
+    // The removed presets are rejected.
+    for (const formula of ["cie94-graphic-arts", "cie94-textiles"]) {
+      expect(() => calculateColorDifference({ reference: p, sample: q, formula: formula as never })).toThrow(InvalidConfigurationError);
     }
   });
   it("converts XYZ ↔ CIELAB ↔ LCh exactly and continuously at the linear segment", () => {

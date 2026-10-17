@@ -419,6 +419,7 @@ export {
   calculateColorDifference,
   calculateXyzFromCielab,
   type CalculateColorDifferenceInput,
+  type Cie94ParametricFactors,
   type Ciede2000ParametricFactors,
   type CielabColor,
   type CielchColor,
@@ -1709,9 +1710,10 @@ export { NATIVE_RAW_SCHEMA_VERSION, NATIVE_RAW_LIMITS, calculateNativeRawPlan, c
 export { PRINT_JPEG_SCHEMA_VERSION, parsePrintJpegInput, createPrintJpegTask } from "./output/print-jpeg.js";
 export type { PrintJpegSource, PrintJpegInput, PrintJpegTileRequest, PrintJpegTile, PrintJpegProvider, PrintJpegOutput, PrintJpegTask } from "./output/print-jpeg.js";
 export { SRGB_ICC_PROFILE_VERSION, createSrgbIccProfile } from "./color/srgb-icc.js";
-export { createNativeEnvironmentRawTask, createNativeEnvironmentSensorStageTask } from "./capture/native-environment-raw.js";
+export { createNativeEnvironmentRawTask, createNativeEnvironmentSensorStageTask, calculateNativeRawRowBands, createNativeEnvironmentRawPartitionTask,
+  composeNativeEnvironmentRawPartitions } from "./capture/native-environment-raw.js";
 export type { NativeEnvironmentRawInput, NativeEnvironmentRawTile, NativeEnvironmentPhotoTile, NativeEnvironmentRawProvider, NativeEnvironmentRawOutput,
-  NativeEnvironmentRawTask } from "./capture/native-environment-raw.js";
+  NativeEnvironmentRawTask, NativeRawRowBand, NativeEnvironmentRawPartition, NativeEnvironmentRawPartitionTask, NativeEnvironmentRadianceQuery } from "./capture/native-environment-raw.js";
 export { NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS } from "./capture/native-environment-optical-stage.js";
 export type { NativeEnvironmentOpticalStage, NativeEnvironmentOpticalStageRetention, NativeEnvironmentSensorStageInput,
   NativeEnvironmentSensorStageProvider } from "./capture/native-environment-optical-stage.js";

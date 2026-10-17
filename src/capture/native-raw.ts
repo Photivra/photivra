@@ -157,11 +157,18 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
   /** Internal: a yield timer shared with a provider that also yields inside readTile, so both use one time budget. */
   sharedGate?: HostYieldGate,
   /** Internal: faster ("lean") per-site sensor execution for engine-built tiles. It never changes output or errors. */
-  leanSensor?: NativeRawLeanSensorHook): NativeRawTask {
+  leanSensor?: NativeRawLeanSensorHook,
+  /**
+   * Internal: run only native rows [y, y + height) (a partition). The output arrays then hold just those rows, and
+   * effectiveSaturationCodes holds 0 for CFA phases the rows do not contain; the merge step completes them.
+   * Seeds, tiles and per-site values are those of the whole-frame task.
+   */
+  rows?: { readonly y: number; readonly height: number; readonly firstSite?: (site: SensorRawProducerSiteInput) => void }): NativeRawTask {
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
   const native=plan.exposure.geometry.nativeRaster,tileWidth=plan.tileWidth??NATIVE_RAW_LIMITS.tileWidth;
+  const rowStart=rows?.y??0,rowEnd=rowStart+(rows?.height??native.pixelHeight),offset=rowStart*native.pixelWidth,length=(rowEnd-rowStart)*native.pixelWidth;
   let state:NativeRawTaskState="ready",count=0,output:NativeRawOutput|null=null,first:SensorRawProducerSiteInput|undefined;
   function release(): void {if(output){output.codes.fill(0);output.blackLevels.fill(0);output.digitalSaturationCodes.fill(0);output.saturationFlags.fill(0);output.effectiveSaturationCodes.fill(0);}output=null;first=undefined;}
   function active(): void {if(abort.signal.aborted)throw new InvalidConfigurationError("Native RAW execution aborted.");}
@@ -172,8 +179,8 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
         const gate=sharedGate??createHostYieldGate(cadence);sharedGate?.restart();
         const layout=plan.frame.colorSamplingProfile.layout;if(layout.kind!=="periodic-mosaic")throw new InvalidConfigurationError("Native RAW requires periodic CFA.");
         const white=createPhaseWhiteLevelAccumulator(native.pixelWidth,layout.repeatWidthSites,layout.repeatHeightSites);
-        output={plan,codes:new Uint16Array(plan.pixelCount),blackLevels:new Uint16Array(plan.pixelCount),digitalSaturationCodes:new Uint16Array(plan.pixelCount),saturationFlags:new Uint8Array(plan.pixelCount),effectiveSaturationCodes:new Uint16Array(layout.repeatWidthSites*layout.repeatHeightSites)};
-        for(let y=0;y<native.pixelHeight;y++)for(let x=0;x<native.pixelWidth;x+=tileWidth){
+        output={plan,codes:new Uint16Array(length),blackLevels:new Uint16Array(length),digitalSaturationCodes:new Uint16Array(length),saturationFlags:new Uint8Array(length),effectiveSaturationCodes:new Uint16Array(layout.repeatWidthSites*layout.repeatHeightSites)};
+        for(let y=rowStart;y<rowEnd;y++)for(let x=0;x<native.pixelWidth;x+=tileWidth){
           active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(tileWidth,native.pixelWidth-x),height:1});
           {
             const supplied=await read(request,abort.signal);active();
@@ -185,19 +192,20 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
             // identity checks. They are only claimed once the frame's first site is fixed.
             const lean=leanSensor&&first!==undefined?(tile.sites as unknown[]).map(site=>leanSensor.claim(site)):undefined;
             const sites=tile.sites.map((site,j)=>lean?.[j]?undefined:parseNativeRawProducerSite(site,y*native.pixelWidth+x+j,plan.frame,timing?.samples[j]));
-            first??=sites[0];for(const s of sites)if(s)validateNativeRawReadoutIdentity(s,first!);
+            if(first===undefined){first=sites[0];if(first)rows?.firstSite?.(first);}for(const s of sites)if(s)validateNativeRawReadoutIdentity(s,first!);
             // Every site in this tile is validated before any output is written. A failure never returns partial output.
             const seed=plan.exposure.noise.seedUint32;
             for(let j=0;j<sites.length;j++){
-              const index=y*native.pixelWidth+x+j,handle=lean?.[j];
+              // index: absolute native index (seeds, CFA phase); at: position in this task's output arrays.
+              const index=y*native.pixelWidth+x+j,at=index-offset,handle=lean?.[j];
               if(handle){
                 const o=leanSensor!.compute(handle,index,seed,timing?.samples[j]);
-                output.codes[index]=o.rawCode;output.blackLevels[index]=o.blackLevelCode;output.digitalSaturationCodes[index]=o.digitalSaturationCode;
-                output.saturationFlags[index]=o.flags;white.record(index,o.whiteCode);continue;
+                output.codes[at]=o.rawCode;output.blackLevels[at]=o.blackLevelCode;output.digitalSaturationCodes[at]=o.digitalSaturationCode;
+                output.saturationFlags[at]=o.flags;white.record(index,o.whiteCode);continue;
               }
               const result=calculateNativeRawSite(sites[j]!,seed,index),r=result.readout.value;
-              output.codes[index]=r.rawCode;output.blackLevels[index]=r.blackLevelCode;output.digitalSaturationCodes[index]=r.digitalSaturationCode;
-              output.saturationFlags[index]=Number(r.physicalScalarSaturationApplied)|Number(r.preAdcSaturationApplied)<<1|Number(r.digitalSaturationApplied)<<2;
+              output.codes[at]=r.rawCode;output.blackLevels[at]=r.blackLevelCode;output.digitalSaturationCodes[at]=r.digitalSaturationCode;
+              output.saturationFlags[at]=Number(r.physicalScalarSaturationApplied)|Number(r.preAdcSaturationApplied)<<1|Number(r.digitalSaturationApplied)<<2;
               const whiteCode=calculateSiteEffectiveSaturationCode(r,sites[j]!.readoutProfile,sites[j]!.regimeId);
               white.record(index,whiteCode);
               leanSensor?.observe(index,sites[j]!,result,whiteCode,seed);
@@ -205,9 +213,9 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
             count++;
           }
           // Yield when the time budget is spent, and always after the final tile. Yield timing never changes output.
-          if(gate.due()||(y===native.pixelHeight-1&&x+tileWidth>=native.pixelWidth)){await yieldControl(abort.signal);active();gate.restart();}
+          if(gate.due()||(y===rowEnd-1&&x+tileWidth>=native.pixelWidth)){await yieldControl(abort.signal);active();gate.restart();}
         }
-        output.effectiveSaturationCodes.set(white.finish());first=undefined;state="completed";
+        output.effectiveSaturationCodes.set(rows?white.partial():white.finish());first=undefined;state="completed";
       }catch(error){release();if(!abort.signal.aborted){state="failed";abort.abort();}throw error;}
     },
     cancel(): void {if(state==="ready"||state==="running"||state==="completed"){state="cancelled";abort.abort();release();}},

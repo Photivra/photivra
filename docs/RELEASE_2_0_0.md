@@ -124,7 +124,7 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
   - Planck's law (BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry, Eq. 1, free) with exact SI constants (BIPM SI Brochure, 9th ed., free).
   - Illuminant A: Planck's law with the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K; it reproduces the free CIE 1 nm table to its rounding. Daylight locus and M₁/M₂: accepted by the owner (2026-10-17) on the evidence of the free CIE D55 and D65 datasets, which the engine's values reproduce to their rounding.
   - Tristimulus integral: Wyman, Sloan & Shirley 2013, Eq. 1 (free).
-  - CIE94: Wikipedia, "Color difference" (secondary source; the primary CIE 116-1995 is not free), checked by closed-form cases computed in the test.
+  - CIE94: the formula's published reference conditions (k_L = k_C = k_H = 1, K₁ = 0.045, K₂ = 0.015) by default, or caller-supplied factors; the primary CIE 116-1995 is not free. Checked by closed-form cases computed in the test.
   - RGB↔XYZ matrices: derived from the ITU-R BT.709-6 / BT.2020-2 and CSS Color 4 primaries and D65; equal to the W3C CSS Color 4 matrices within 1e-12.
   - Planckian locus: Planck's law integrated against the engine's CMFs. McCamy, *Color Res. Appl.* 17(2) (1992), with its measured deviation documented.
   - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy). Duv sign (positive above the locus): Ohno, CORM 2011 slides (free), slide 5; the engine documents and tests it.
@@ -281,7 +281,7 @@ In the Status column: **Replaced** means a free source now backs the fact. **Rem
 | CIE 15:2018 | CCT as the nearest Planckian point in (u, v); signed Duv | Smet et al., LEUKOS 2023, doi:10.1080/15502724.2023.2248397; free DOE copy — <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> | Replaced |
 | ANSI C78.377 | Duv sign (positive above the locus) | Y. Ohno, "Calculation of CCT and Duv and Practical Conversion Formulae", slides, CORM 2011 Conference, Gaithersburg, MD, May 3–5, 2011, slide 5: Duv is the closest distance from the Planckian locus "with + sign for above and - sign for below the Planckian locus" (free) — <https://cormusa.org/wp-content/uploads/2018/04/CORM_2011_Calculation_of_CCT_and_Duv_and_Practical_Conversion_Formulae.pdf>. The sign follows these slides; the engine documents it (docs, runtime assumption text) and a test checks that a greenish light gives a positive Duv. Ohno, LEUKOS 10(1), 2014 is not cited: NIST's record of it (<https://www.nist.gov/publications/practical-use-and-calculation-cct-and-duv>) links only to the paywalled publisher copy. | Replaced (owner decision 5) |
 | CIE 018:2019 | K_m = 683 lm/W | BIPM SI Brochure, 9th ed., definition of the candela (K_cd = 683 lm/W) — <https://www.bipm.org/en/publications/si-brochure> | Replaced |
-| CIE 116-1995 | CIE94 ΔE weights | Secondary source (the primary CIE 116-1995 is not free): Wikipedia, "Color difference", §CIE94 — <https://en.wikipedia.org/wiki/Color_difference#CIE94> (equations, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁, and the graphic-arts and textiles weights). The tests check closed-form cases computed from those equations; third-party worked values are no longer used. | Replaced (secondary source; owner decision 6) |
+| CIE 116-1995 | CIE94 ΔE weights | No free primary source. The engine uses the formula's published reference conditions (k_L = k_C = k_H = 1, K₁ = 0.045, K₂ = 0.015) by default and accepts caller-supplied factors; the textiles preset and the Wikipedia citation were removed (second licence audit, 2026-10-17). The tests check closed-form cases computed from the equations. | Replaced (owner decision 6; second audit) |
 | CIE 142-2001 / ISO/CIE 11664-6 | CIEDE2000 | Sharma, Wu & Dalal (2005) implementation notes — <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>; CSS Color 4 `deltaE2000`. Their test data file has no licence, so it is not used; the tests check closed forms instead. | Replaced |
 | CIE 159:2004 | CAT02 and HPE matrices; degree of adaptation D | Moroney et al., "The CIECAM02 color appearance model", CIC10 2002, in the RIT open repository — <https://repository.rit.edu/other/143>. Automated download was refused (HTTP 403), so free availability is listed but was not confirmed from this host. | Replaced (needs human confirmation) |
 | SMPTE ST 2084 | PQ EOTF and constants | Not applicable: PQ and HLG were removed from 2.0 (patent declarations are licence-on-request only) | Removed (owner decision) |
@@ -412,7 +412,7 @@ Other contract changes:
 - widened unions (white-balance source, metering policy, readout synchronization, filter polarization, geometric transforms, blocker codes);
 - a smaller package, without `prepare`, declaration maps or internal guides.
 
-Root exports grow from 1,227 to 1,647 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
+Root exports grow from 1,227 to 1,648 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
 
 ## Known historical evidence not regenerated
 
@@ -425,12 +425,12 @@ These committed records are dated evidence tied to outputs from before 2.0.0. Th
 
 Work that is known and deliberately left for later:
 
-- **#305 follow-ups:** lean coverage for sampled-PSF and lens-mapped sites; a provably identical fast path for provider-result validation; lean sensor-stage reuse.
+- **#305 follow-ups:** a provably identical fast path for provider-result validation; lean sensor-stage reuse.
 - **#307 follow-ups:** real-camera DNG interoperability is not claimed (LibRaw decodes the files; no editor review yet); sharing the colour-tag code with the paired export.
-- **#275:** planning once per CFA phase; worker parallelism; a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF).
+- **#275:** a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF); parallel execution inside `simulateCapture()` (the engine-level row-band partitions are done).
 - **#276 follow-up:** the `parse*()` versioned-record parsers and 13 record-taking functions still drop unknown top-level fields instead of rejecting them (each schema needs its own review, and this changes which stored records parse). Result values are frozen only at their top level (a deep freeze measured about 3× on hot scalar calls).
 - **#277 and follow-ups from #304:**
-  - scene radiance on the GPU and the batched provider API;
+  - scene radiance on the GPU (the CPU batched provider API now exists);
   - the per-fixture rollout, with method-error comparisons against the per-site engine;
   - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
   - hardware-GPU conformance runs and CI wiring;
