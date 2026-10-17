@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates independently supplied numeric profile evidence and binds the approximation to the exact
- * CFA profile.
- * Cheap geometry/topology preflight after RAW revalidation, before pixel execution.
+ * Paired photographic export: writes one simulated RAW capture as a lossless DNG and, from the same RAW,
+ * develops and writes a baseline JPEG.
+ *
+ * The JPEG path reconstructs colour from the CFA (colour filter array) mosaic, applies an approximate
+ * camera colour profile and white balance (WB), optional lens correction, orientation and crop, and SDR
+ * rendering. The DNG keeps the native RAW codes unchanged.
  * @see docs/PHOTOGRAPHIC_EXPORT.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -36,15 +38,17 @@ import { approximationResult, type CalculationResult } from "../core/calculation
 
 export const PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION = "0.1.0" as const;
 /**
- * RAW/processed pipeline version recorded in XMP. 0.2.0: development normalizes to the effective white
- * level, consumes saturation, fixes WB for non-white-normalized matrices; DNG WhiteLevel, AsShotNeutral,
- * BlackLevel/CFA phase and the 1.4 tags ForwardMatrix1, BaselineExposure, NoiseProfile, AnalogBalance.
+ * Version of the RAW and processed pipeline, recorded in XMP.
+ *
+ * 0.2.0: development scales to the effective white level, handles saturation, and fixes WB for colour
+ * matrices that are not white-normalized. DNG output fixes WhiteLevel, AsShotNeutral and BlackLevel/CFA
+ * phase, and adds the DNG 1.4 tags ForwardMatrix1, BaselineExposure, NoiseProfile and AnalogBalance.
  */
 export const PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION = "0.2.0" as const;
-/** Version of the `processed-sensor-raw-sdr` model (0.2.0: effective-white normalization, saturation and WB fixes). */
+/** Version of the `processed-sensor-raw-sdr` model (0.2.0: scaling to effective white, saturation and WB fixes). */
 export const PROCESSED_SENSOR_RAW_MODEL_VERSION = "0.2.0" as const;
 type Matrix = readonly (readonly number[])[];
-/** Explicit approximation of normalized camera-channel -> scene XYZ/D65, never inferred from RGB/CFA names. */
+/** Explicit, approximate conversion from normalized camera channels to scene XYZ (D65). Never guessed from RGB or CFA channel names. */
 export interface ExportSensorColorProfile {
   schemaVersion: "0.1.0";
   profileId: string;
@@ -57,36 +61,37 @@ export interface ExportSensorColorProfile {
   evidence: readonly EvidenceProvenance[];
   limitations: readonly string[];
 }
-/** Optional explicit exporter boundary; no files, clocks, randomness, network or encoder dependency. */
+/** Optional export settings. The engine uses no files, clocks, randomness, network or external encoder. */
 export interface PhotographicExportInput {
   reconstruction: RawFrameReconstructionInput;
   colorProfile: ExportSensorColorProfile;
   whiteBalance: "not-required" | "apply-resolved-sensor-gains";
   rendering: SdrRenderingProfile;
   metadata: Omit<CaptureExportMetadataInput, "capture">;
-  /** Caller-declared public scene/version, explicitly bound to the committed scene state. */
+  /** Public scene ID and version declared by the caller. They must match the committed scene state. */
   sceneProfile: { id: string; version: string; sceneStateId: string };
-  /** JPEG constant quantization step 1..255, not an emulated manufacturer's 'quality' scale. */
+  /** JPEG constant quantization step, 1..255. It is not an imitation of a manufacturer's "quality" scale. */
   jpegQuantizationStep: number;
-  /** Optional native-optical post-color correction; JPEG only, RAW records informational intent. */
+  /** Optional lens correction in native optical coordinates, applied after colour. JPEG only; the RAW records it as information. */
   correction?: CaptureCorrectedSdrInput["correction"];
-  /** RAW highlight handling before WB; default `clip`. See `prepareSensorColorDevelopment`. */
+  /** How RAW highlights are handled before WB; default `clip`. See `prepareSensorColorDevelopment`. */
   highlightMode?: RawHighlightMode;
 }
 /** Options for {@link createPhotographicExportPair}. */
 export interface PhotographicExportOptions {
-  /** Aborting rejects with a domain error at the next step boundary; no partial pair is returned. */
+  /** Aborting rejects with a domain error at the next step. No partial pair is returned. */
   signal?: AbortSignal;
 }
-/** Explicit post-ADC RAW development policy shared by preview and file output. */
+/** Explicit RAW development settings (after the ADC), shared by the preview and the file output. */
 export type ProcessedSensorRawInput = Pick<PhotographicExportInput,
   "reconstruction" | "colorProfile" | "whiteBalance" | "rendering" | "correction" | "highlightMode">;
 /**
- * Owned derived preview/JPEG processing record for the exact attached native RAW.
- * Child reconstruction/color/WB/correction/rendering results expose their input
- * and output domains and independent clipping/cost diagnostics. The output view is
- * oriented/cropped SDR, while the native default crop and physical capture history
- * remain unchanged. Returned arrays are pre-file pixels, not a lossy JPEG decode.
+ * Processing record for the preview and JPEG, derived from the exact attached native RAW.
+ *
+ * Each step (reconstruction, colour, WB, correction, rendering) reports its input and output domains and
+ * its own clipping and cost diagnostics. The output view is oriented and cropped SDR. The native default
+ * crop and the physical capture history are unchanged. The returned arrays are the pixels before file
+ * encoding, not a decoded (lossy) JPEG.
  */
 export interface ProcessedSensorRawResult {
   inputDomain: "post-adc-native-sensor-raw";
@@ -102,10 +107,10 @@ export interface ProcessedSensorRawResult {
   processedOutputView: PhotographicExportPair["processedOutputView"];
   correction: CalculationResult<CaptureCorrectedSdrResult> | null;
   rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
-  /** RAW saturation consumed before WB over the developed raster. */
+  /** RAW saturation handled before WB, over the developed image. */
   highlight: RawHighlightDiagnostics;
 }
-/** Owned byte arrays are mutable; identities/hashes refer to the exact bytes returned at creation. */
+/** The byte arrays belong to the caller and can be changed. IDs and hashes refer to the exact bytes as first returned. */
 export interface PhotographicExportPair {
   schemaVersion: typeof PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION;
   metadata: CaptureExportMetadataPair;
@@ -116,11 +121,11 @@ export interface PhotographicExportPair {
   source: CalculationResult<RawFrameReconstruction>;
   rendering: CalculationResult<SdrRenderingResult>;
   nativeDefaultCrop: RasterRect;
-  /** Derived JPEG rectangle in the declared oriented output; never replaces the RAW default crop. */
+  /** The JPEG's rectangle in the oriented output. It never replaces the RAW's default crop. */
   processedOutputView: { rect: RasterRect; pixelWidth: number; pixelHeight: number };
   correction: CalculationResult<CaptureCorrectedSdrResult> | null;
   rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
-  /** RAW saturation consumed before WB in the JPEG development. */
+  /** RAW saturation handled before WB in the JPEG development. */
   highlight: RawHighlightDiagnostics;
   imageDataPairing: "jpeg-generated-from-exact-attached-raw";
   dng: { mediaType: "image/dng"; bytes: Uint8Array; sha256: string };
@@ -133,7 +138,7 @@ function object(value: unknown, keys: readonly string[]): Record<string, unknown
 function id(value: unknown): string {
   return requirePublicOpaqueId(value, "Invalid public export profile identity.");
 }
-/** Validates independently supplied numeric profile evidence and binds the approximation to the exact CFA profile. */
+/** Validates the separately supplied numeric colour-profile evidence, and ties the approximate profile to the exact CFA profile. */
 export function parseExportSensorColorProfile(value: unknown): ExportSensorColorProfile {
   const r=object(value,["schemaVersion","profileId","profileVersion","colorSamplingProfileId","channelIds","scientificStatus","referenceIlluminant","normalizedCameraChannelsToXyz","evidence","limitations"]);
   const m=r.normalizedCameraChannelsToXyz;
@@ -146,7 +151,7 @@ export function parseExportSensorColorProfile(value: unknown): ExportSensorColor
   return { schemaVersion:"0.1.0",profileId:id(r.profileId),profileVersion:id(r.profileVersion),colorSamplingProfileId:id(r.colorSamplingProfileId),
     channelIds:["red","green","blue"],scientificStatus:"approximation",referenceIlluminant:"D65",normalizedCameraChannelsToXyz:matrix,evidence,limitations:[...r.limitations] as string[] };
 }
-/** Cheap geometry/topology preflight after RAW revalidation, before pixel execution. */
+/** Quick geometry and layout checks, run after the RAW is revalidated and before any pixel work. */
 export function validateProcessedSensorRawEnvelope(reconstruction: Pick<RawFrameReconstructionInput, "region"> & { rawFrame: Pick<RawFrameReconstructionInput["rawFrame"], "capture"> }, corrected: boolean): { local: RasterRect; nativeDefaultCrop: RasterRect } {
   const frame=reconstruction.rawFrame, capture=frame.capture, g=capture.resolvedGeometry,
     active=g.activeCapture.nativeRect, crop=g.output.cropRect, raster=g.output.raster, region=reconstruction.region;
@@ -166,11 +171,11 @@ function requireDngTopology(frame: RawFrameReconstructionInput["rawFrame"]): voi
       layout.siteChannelIds.filter((ch) => ch==="green").length!==2) throw new InvalidConfigurationError("Initial DNG profile supports explicitly registered 2x2 RGB Bayer topology only.");
 }
 /**
- * Revalidates one attached RAW snapshot and explicit processing policy.
- * Crop sampling and reconstruction coverage fail here before
- * per-pixel execution. Successful parsing does not establish kernel edge support,
- * correction support or container encoding readiness; those retain execution
- * checks. Input is copied; no file or display backend runs.
+ * Revalidates one attached RAW snapshot and the explicit processing settings.
+ *
+ * Crop sampling and reconstruction coverage problems fail here, before per-pixel work. Passing this
+ * check does not prove kernel support at the edges, correction support or that the file can be encoded;
+ * those are still checked during execution. The input is copied. No file or display code runs.
  */
 export function parseProcessedSensorRawInput(value: unknown): ProcessedSensorRawInput {
   const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","correction","highlightMode"]);
@@ -190,7 +195,7 @@ export function parseProcessedSensorRawInput(value: unknown): ProcessedSensorRaw
   return { reconstruction,colorProfile,whiteBalance:r.whiteBalance,rendering,...(correction===undefined ? {} : {correction}),
     ...(r.highlightMode===undefined ? {} : {highlightMode:r.highlightMode}) };
 }
-/** Adds file metadata/encoding validation to the shared processed RAW policy. */
+/** Adds file metadata and encoding checks to the shared RAW processing settings. */
 export function parsePhotographicExportInput(value: unknown): PhotographicExportInput {
   const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","metadata","sceneProfile","jpegQuantizationStep","correction","highlightMode"]);
   const processed=parseProcessedSensorRawInput({reconstruction:r.reconstruction,colorProfile:r.colorProfile,whiteBalance:r.whiteBalance,rendering:r.rendering,
@@ -265,7 +270,7 @@ function developmentFor(color: ExportSensorColorProfile, intent: ProcessedSensor
   return prepareSensorColorDevelopment(color.normalizedCameraChannelsToXyz,
     intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : null, highlightMode);
 }
-/** Typed RAW site view of a bounded attached frame; the frame parser guarantees per-phase constant white levels. */
+/** Typed-array view of a bounded attached RAW frame. The frame parser guarantees one white level per CFA phase. */
 function frameDevelopmentSource(frame: RawFrameReconstruction["rawFrame"]): RawDevelopmentSource {
   const layout=frame.colorSamplingProfile.layout;
   if (layout.kind!=="periodic-mosaic") throw new InvalidConfigurationError("Development requires periodic CFA.");
@@ -279,7 +284,7 @@ function frameDevelopmentSource(frame: RawFrameReconstruction["rawFrame"]): RawD
   });
   return {nativeWidth:frame.nativePixelWidth,repeatWidth:layout.repeatWidthSites,repeatHeight:layout.repeatHeightSites,codes,blackLevels:blacks,saturationFlags:flags,whiteByPhase:white};
 }
-/** Reconstruct exact attached RAW, develop color/WB once, correct, orient/crop and encode SDR; no file/display IO. */
+/** Reconstructs the exact attached RAW, develops colour and WB once, corrects, orients and crops, and encodes SDR. No file or display I/O. */
 export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): CalculationResult<ProcessedSensorRawResult> {
   const v=structuredClone(parseProcessedSensorRawInput(input));
   const source=resolveRawFrameReconstruction(v.reconstruction), frame=source.value.rawFrame, capture=frame.capture,
@@ -290,7 +295,7 @@ export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): Cal
   const development=developmentFor(v.colorProfile,intent,highlightMode), white=development.referenceWhiteXyz;
   const developedRaster=v.correction ? g.orientedCapture.raster : raster,
     developedRect=v.correction ? {x:0,y:0,width:developedRaster.pixelWidth,height:developedRaster.pixelHeight} : crop;
-  // The attached RAW codes feed the shared typed kernel: per-phase effective white, saturation consumed before WB.
+  // The attached RAW codes go through the shared typed kernel: effective white per phase, saturation handled before WB.
   // Reconstruction (above) already validated every kernel halo for the region, which covers this raster.
   const developer=createRawPixelDeveloper(frameDevelopmentSource(frame),source.value.phaseProfiles,development);
   const rgb: number[]=new Array<number>(developedRaster.pixelWidth*developedRaster.pixelHeight*3).fill(0);
@@ -302,7 +307,7 @@ export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): Cal
   }
   const highlight: RawHighlightDiagnostics={mode:highlightMode,saturatedPixelCount:developer.counts.saturatedPixelCount,
     whiteBalanceClippedSampleCount:developer.counts.whiteBalanceClippedSampleCount,reconstructedPixelCount:developer.counts.reconstructedPixelCount};
-  // Only exact attached RAW reconstruction supplies this private processing plane. Original float planes are discarded.
+  // This private processing plane comes only from reconstructing the exact attached RAW. The original float planes are dropped.
   const correction=v.correction ? calculateCaptureCorrectedSdr({capture:parseSimulatedCapture({...capture,planes:[{
     id:"photivra-export-linear",imageStateId:"photivra-export-developed",imageState:"color-transformed-linear-rgb",
     rasterBinding:"oriented-active-capture",pixelWidth:developedRaster.pixelWidth,pixelHeight:developedRaster.pixelHeight,
@@ -327,16 +332,16 @@ export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): Cal
 }
 
 /**
- * Serialize one authoritative RAW capture to a lossless uncompressed CFA DNG and an independently
- * packed baseline JPEG. Shared metadata comes from the committed capture; orientation/WB/rendering
- * never rewrite native RAW codes.
+ * Writes one RAW capture as a lossless, uncompressed CFA DNG and a separately encoded baseline JPEG.
+ * Shared metadata comes from the committed capture. Orientation, WB and rendering never rewrite the
+ * native RAW codes.
  *
- * Paired export preserves one revalidated native post-ADC RAW frame for DNG and develops that same
- * frame through explicit reconstruction, approximate sensor-channel color/WB and SDR policy for JPEG.
- * File identity and RAW data identity are distinct. Hashing is asynchronous; input data is copied
- * before the first await. Full-native execution is limited to 4096 sites.
- * @param input - PhotographicExportInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns Promise<PhotographicExportPair>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The DNG keeps one revalidated native RAW frame (after the ADC) unchanged. The JPEG develops that same
+ * frame through explicit reconstruction, an approximate sensor-channel colour and WB conversion, and SDR
+ * rendering. File identity and RAW data identity are separate. Hashing is asynchronous; input data is
+ * copied before the first await. The full sensor is limited to 4096 sites.
+ * @param input - The RAW reconstruction input, colour profile, white-balance mode, SDR rendering profile, file metadata and JPEG settings.
+ * @returns The DNG and JPEG pair with their processing records. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -346,7 +351,7 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   const active=(): void => { if (signal?.aborted) throw new InvalidConfigurationError("Photographic export aborted."); };
   // Fail before any work when the context cannot hash (browsers expose crypto.subtle only in secure contexts).
   requireWebCrypto(); active();
-  // Copy validated inputs into private owned values before the first async boundary to prevent hash/encoding races.
+  // Copy the validated inputs into private values before the first await, so later caller changes cannot affect hashing or encoding.
   const v=JSON.parse(JSON.stringify(parsePhotographicExportInput(input))) as PhotographicExportInput;
   const highlightMode=v.highlightMode ?? "clip";
   const processed=calculateProcessedSensorRaw({reconstruction:v.reconstruction,colorProfile:v.colorProfile,whiteBalance:v.whiteBalance,rendering:v.rendering,
@@ -402,14 +407,18 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
     interoperability:"independent-decode-required-editor-validation-pending" };
 }
 /**
- * DNG level tags for a 2×2 CFA frame. DNG 1.7 applies BlackLevelRepeatDim and CFAPattern to the
- * ActiveArea-cropped (stage-2) image, so phases are taken relative to the ActiveArea origin.
- * WhiteLevel (one value: SamplesPerPixel is 1) is the smallest per-phase effective white code, so no
- * channel is reported unsaturated above its own saturation point. NoiseProfile (tag 51041) is written
- * per CFAPlaneColor plane only when every phase of a channel has the same gain, read noise and black:
- * with x = (code − black)/(WhiteLevel − black), var(x) = S·x + O, S = 1/(G·span), O = (σ²/G² + 1/12)/span²
- * (Poisson photo/dark shot noise, Gaussian read noise and uniform ADC quantization; PRNU, DSNU and
- * fixed-pattern noise are not modelled and not included).
+ * DNG level tags for a 2×2 CFA frame.
+ *
+ * DNG 1.7 applies BlackLevelRepeatDim and CFAPattern to the image after the ActiveArea crop (stage 2), so
+ * phases are measured from the ActiveArea origin. WhiteLevel (one value, because SamplesPerPixel is 1) is
+ * the smallest per-phase effective white code, so no channel is reported as unsaturated above its own
+ * saturation point.
+ *
+ * NoiseProfile (tag 51041) is written per CFAPlaneColor plane, only when every phase of a channel has the
+ * same gain, read noise and black level. With x = (code − black)/(WhiteLevel − black):
+ * var(x) = S·x + O, S = 1/(G·span), O = (σ²/G² + 1/12)/span². The model covers Poisson photo and dark shot
+ * noise, Gaussian read noise and uniform ADC quantization. PRNU (photo-response non-uniformity), DSNU
+ * (dark-signal non-uniformity) and other fixed-pattern noise are not modelled and not included.
  */
 function dngLevels(frame: RawFrameReconstruction["rawFrame"], activeRect: RasterRect): { black: number[]; cfaPattern: number[]; whiteLevel: number; noiseProfile: number[] | null } {
   const layout=frame.colorSamplingProfile.layout;

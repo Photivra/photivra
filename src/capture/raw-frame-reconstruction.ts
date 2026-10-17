@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Revalidates committed RAW codes/geometry and complete phase dispatch; no external plane may supply
- * output values.
- * Delegates each pixel to #14's explicit linear reconstruction using only the attached native RAW
- * samples.
+ * Reconstructs sensor-channel values for a region of a committed RAW frame, using only the attached
+ * native RAW samples.
+ *
+ * It revalidates the RAW codes and geometry and checks that every CFA phase has a kernel. Each pixel is
+ * computed by the sensor module's explicit linear reconstruction (sensor/raw-reconstruction). No external
+ * image plane can supply output values.
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -22,19 +23,19 @@ import { parseSensorRawReconstructionProfile, resolveSensorRawReconstruction,
 import { createSensorRawFrame, type SensorRawFrame, type SensorRawFrameInput } from "./sensor-raw-frame.js";
 
 export const RAW_FRAME_RECONSTRUCTION_SCHEMA_VERSION = "0.1.0" as const;
-/** Kernel selection is explicit per absolute native CFA repeat phase, not guessed from channel names. */
+/** A kernel is chosen explicitly for each absolute native CFA repeat phase, not guessed from channel names. */
 export interface RawFrameReconstructionPhaseProfile {
   phaseX: number;
   phaseY: number;
   profile: SensorRawReconstructionProfile;
 }
-/** Bounded reference handoff; region coordinates stay in the full native sensor frame. */
+/** Input to the bounded reference reconstruction. Region coordinates are in the full native sensor frame. */
 export interface RawFrameReconstructionInput {
   rawFrame: SensorRawFrame;
   region: RasterRect;
   phaseProfiles: readonly RawFrameReconstructionPhaseProfile[];
 }
-/** Traceable virtual sensor-channel values, not colorimetric RGB or a rendered photograph. */
+/** Traceable sensor-channel values. Not colorimetric RGB and not a rendered photograph. */
 export interface RawFrameReconstruction {
   schemaVersion: typeof RAW_FRAME_RECONSTRUCTION_SCHEMA_VERSION;
   rawFrame: SensorRawFrame;
@@ -46,10 +47,10 @@ export interface RawFrameReconstruction {
     pixelWidth: number;
     pixelHeight: number;
     channelIds: readonly string[];
-    /** Interleaved native-region row-major values; black-subtracted normalization, signed. */
+    /** Interleaved values over the native region, row-major. Black-subtracted and normalized; can be negative. */
     samples: readonly number[];
   };
-  /** Child envelopes and exact weighted RAW contributions, in matching native-region row-major order. */
+  /** Per-pixel result envelopes and the exact weighted RAW contributions, in the same row-major order. */
   pixels: readonly CalculationResult<SensorRawReconstructedPixel>[];
   lineage: "engine-reconstructed-from-attached-raw";
   producerOriginVerified: false;
@@ -104,7 +105,7 @@ function profile(value: unknown): SensorRawReconstructionProfile {
   }
   return parseSensorRawReconstructionProfile(r);
 }
-/** Internal phase dispatch parser shared with packed native reconstruction. */
+/** Internal: parses the kernel-per-CFA-phase table. Shared with packed native reconstruction. */
 export function parseRawReconstructionPhaseProfiles(value: unknown, modeId: string,
   colorSamplingProfile: SensorRawFrame["colorSamplingProfile"]): RawFrameReconstructionPhaseProfile[] {
   const layout = colorSamplingProfile.layout;
@@ -129,7 +130,7 @@ export function parseRawReconstructionPhaseProfiles(value: unknown, modeId: stri
   phaseProfiles.sort((a, b) => a.phaseY - b.phaseY || a.phaseX - b.phaseX);
   return phaseProfiles;
 }
-/** Revalidates committed RAW codes/geometry and complete phase dispatch; no external plane may supply output values. */
+/** Revalidates the committed RAW codes and geometry and checks that every CFA phase has a kernel. No external image plane can supply output values. */
 export function parseRawFrameReconstructionInput(value: unknown): RawFrameReconstructionInput {
   const r = object(value, ["rawFrame", "region", "phaseProfiles"]), rawFrame = frame(r.rawFrame);
   const rect = object(r.region, ["x", "y", "width", "height"]);
@@ -140,7 +141,7 @@ export function parseRawFrameReconstructionInput(value: unknown): RawFrameRecons
   const phaseProfiles = parseRawReconstructionPhaseProfiles(r.phaseProfiles, rawFrame.modeId, rawFrame.colorSamplingProfile);
   return { rawFrame, region, phaseProfiles };
 }
-/** Delegates each pixel to #14's explicit linear reconstruction using only the attached native RAW samples. */
+/** Computes each pixel with the sensor module's explicit linear reconstruction, using only the attached native RAW samples. */
 export function resolveRawFrameReconstruction(input: RawFrameReconstructionInput): CalculationResult<RawFrameReconstruction> {
   const v = parseRawFrameReconstructionInput(input), f = v.rawFrame, layout = f.colorSamplingProfile.layout;
   if (layout.kind !== "periodic-mosaic") throw new InvalidConfigurationError("Reconstruction requires periodic native CFA.");

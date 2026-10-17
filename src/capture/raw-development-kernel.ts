@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Internal typed RAW development kernel shared by packed native development and bounded paired export.
+ * Internal fast RAW development kernel on typed arrays, shared by packed native development and the
+ * bounded paired export.
  *
- * Per native site i of CFA phase p: if any saturation flag is set or code ≥ W_p, the normalized value
- * is 1 (clipped at the sensor's effective white level, consuming the flags); otherwise it is the signed
- * (code − black)/(W_p − black). Reconstruction sums value·weight in declared contribution order
- * (the `calculateRawReconstructionChannel` order), then `SensorColorDevelopment.developInto` applies
- * WB, highlight handling and colour. Kernels are flattened per absolute CFA phase into typed index
- * deltas, weights and source-site white levels; no per-pixel objects are allocated. Not a root export.
+ * For native site i with CFA (colour filter array) phase p: if any saturation flag is set, or code ≥ W_p,
+ * the normalized value is 1 (clipped at the sensor's effective white level; this uses up the flags).
+ * Otherwise it is the signed (code − black)/(W_p − black). Reconstruction sums value·weight in the declared
+ * contribution order (the same order as `calculateRawReconstructionChannel`). Then
+ * `SensorColorDevelopment.developInto` applies white balance (WB), highlight handling and colour.
+ *
+ * Kernels are flattened per absolute CFA phase into typed arrays of index offsets, weights and source-site
+ * white levels, so no per-pixel objects are allocated. Not exported from the package.
  */
 import type { RawFrameReconstructionPhaseProfile } from "./raw-frame-reconstruction.js";
 import type { SensorColorDevelopment, SensorColorDevelopmentCounts } from "../color/sensor-color-development.js";
@@ -21,7 +24,7 @@ export interface RawDevelopmentSource {
   repeatHeight: number;
   codes: ArrayLike<number>;
   blackLevels: ArrayLike<number>;
-  /** Non-zero means the site saturated physically, pre-ADC or digitally. */
+  /** Non-zero means the site saturated: physically, before the ADC, or digitally. */
   saturationFlags: ArrayLike<number>;
   /** Effective white code per CFA phase, `phaseY*repeatWidth+phaseX`. */
   whiteByPhase: ArrayLike<number>;
@@ -54,8 +57,8 @@ export interface RawPixelDeveloper {
   readonly counts: RawDevelopmentCounts;
 }
 /**
- * `mirror` (optional) enables reflect-101 border reads for pixels within `reach` sites of the frame edge;
- * interior pixels, and every pixel when it is omitted, take the unchanged flattened-kernel path.
+ * `mirror` (optional) turns on mirrored reads (reflect-101) for pixels within `reach` sites of the frame
+ * edge. Interior pixels, and every pixel when it is omitted, use the normal flattened-kernel path.
  */
 export function createRawPixelDeveloper(source: RawDevelopmentSource, phases: readonly RawFrameReconstructionPhaseProfile[],
   development: SensorColorDevelopment, mirror?: { nativeHeight: number; reach: number }): RawPixelDeveloper {
