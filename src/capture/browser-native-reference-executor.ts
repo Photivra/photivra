@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Repository-internal #249 bounded prepared Path-A reference executor.
+ * Internal, bounded float64 reference executor for browser-native capture ("Path A" in
+ * docs/BROWSER_NATIVE_CAPTURE_ENVELOPE.md).
  *
- * This executor consumes the owned event/site contracts from #247/#248. It
- * reuses wavelength-independent visibility only for an identical ray/time
- * request, executes every committed wavelength-dependent source/optical/sensor
- * contribution, and reuses the existing sensor noise/readout/ADC implementation.
+ * It runs from the prepared event and site records (browser-native-reference-plan and
+ * browser-native-reference-site). Visibility does not depend on wavelength, so it is reused
+ * only for an identical ray and time. Every committed wavelength-dependent source, optical and
+ * sensor contribution is still computed. Sensor noise, readout and ADC (analogue-to-digital
+ * conversion) use the existing implementation.
  *
- * It is intentionally not exported from the package root.
+ * It is deliberately not exported from the package.
  */
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";

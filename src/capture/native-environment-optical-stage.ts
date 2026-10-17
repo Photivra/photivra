@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Engine-owned retention of the native environment optical stage (scene radiance → optics/PSF/pupil →
- * EQE photo-signal expectations) so the sensor stage (dark charge → charge realization → readout) can
- * be re-run with new post-optics settings without invoking radiance callbacks again.
+ * Keeps (retains) the result of the optical stage of a native environment capture, so the sensor stage
+ * can be re-run with new post-optics settings without calling the radiance callbacks again.
+ *
+ * Optical stage: scene radiance → optics, PSF (point-spread function) and pupil → expected photo signal
+ * via EQE (external quantum efficiency). Sensor stage: dark charge → charge realization → readout.
  *
  * Reuse is exact, not approximate: the sensor stage receives a photo signal whose every number is the
  * float64 value the optical stage produced, and the same charge/noise/ADC code runs on it. Reuse is
@@ -42,7 +43,7 @@ export const NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS = Object.freeze({
   maximumPhotoTemplates: 256
 });
 
-/** Opt-in request on NativeEnvironmentRawInput. The budget covers the typed-array storage described by the limits. */
+/** Optional request on NativeEnvironmentRawInput to keep the optical stage. The byte budget covers the typed-array storage described by the limits. */
 export interface NativeEnvironmentOpticalStageRetention {
   maximumRetainedBytes: number;
 }
@@ -64,12 +65,12 @@ export interface NativeEnvironmentOpticalStage {
   dispose(): void;
 }
 
-/** Post-optics capture re-run. raw may differ from the producing capture only in post-optics fields. */
+/** Input for a post-optics re-run. `raw` may differ from the original capture only in post-optics fields. */
 export interface NativeEnvironmentSensorStageInput {
   raw: NativeRawInput;
   sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"];
 }
-/** Supplies the same physical site inputs as acquisition; environments must equal the retained ones exactly. */
+/** Supplies the same physical site inputs as the original capture. Environments must equal the retained ones exactly. */
 export interface NativeEnvironmentSensorStageProvider {
   readTile(request: Readonly<NativeRawTileRequest>, signal: AbortSignal): Promise<{ captureId: string; frameId: string; x: number; y: number;
     width: number; height: number; sites: SimulateEnvironmentSensorRawFrameInput["sites"] }>;
@@ -185,7 +186,7 @@ export function composeNativeEnvironmentSensorSite(site: Omit<EnvironmentSite, "
   return { ...site.readout, charge: { ...site.charge, photoSignal, darkCharge } } as SensorRawProducerSiteInput;
 }
 
-/** Validates the opt-in retention request before any provider work. */
+/** Validates the optional retention request before any provider work. */
 export function parseNativeEnvironmentOpticalStageRetention(value: unknown): NativeEnvironmentOpticalStageRetention {
   const r = requireAllowlistedRecord(value, ["maximumRetainedBytes"], "Invalid optical-stage retention request.");
   if (typeof r.maximumRetainedBytes !== "number" || !Number.isSafeInteger(r.maximumRetainedBytes) || r.maximumRetainedBytes < 1) {
@@ -308,8 +309,8 @@ export function createSensorStageRawTask<B>(input: NativeEnvironmentSensorStageI
       if (!Array.isArray(tile.sites) || tile.sites.length !== request.width || Array.from({ length: request.width }, (_, i) => i in (tile.sites as unknown[])).includes(false)) {
         throw new InvalidConfigurationError("Physical source tile needs exact native coverage.");
       }
-      // The supplied environment is only compared, in one synchronous pass, and never consumed: execution uses the
-      // retained stage. Only the post-optics parts the sensor stage consumes are cloned. The equality memo is per
+      // The supplied environment is only compared, in one synchronous pass, and never used: execution uses the
+      // retained stage. Only the post-optics parts the sensor stage uses are cloned. The equality cache is per
       // tile, so a caller object changed between tiles is compared again.
       const tileVerified = new WeakMap<object, WeakSet<object>>();
       const suppliedSites = tile.sites as unknown[];
@@ -347,7 +348,7 @@ export function createSensorStageRawTask<B>(input: NativeEnvironmentSensorStageI
       if (state.disposed) throw new InvalidConfigurationError("Optical stage was disposed.");
     }
   });
-  // The task's own admitted plan is the one compared, so nothing is planned twice and no callback has run yet.
+  // The task's own accepted plan is the one compared, so nothing is planned twice and no callback has run yet.
   if (!strictlyEqual(opticalBinding(task.plan, sceneBinding), state.binding, new WeakMap())) {
     task.dispose();
     throw new InvalidConfigurationError("Optical stage does not match this capture's optical inputs; recompute the optical stage.");

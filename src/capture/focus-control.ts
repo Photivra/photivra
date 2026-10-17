@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Focus is a
- * longitudinal plane or explicit infinity state, never a screen-space distance. The ideal actuator
- * resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring scale or
- * acquisition latency. Target loss, reacquisition, focus lock and release priority remain separate
- * state transitions.
- * Create the initial ideal focus-controller state from an explicit profile, focus plane and public
- * state identity. Focus is a longitudinal plane or explicit infinity state, never a screen-space
- * distance. The ideal actuator resolves supplied target observations; it does not infer a commercial
- * AF sensor, focus-ring scale or acquisition latency. Target loss, reacquisition, focus lock and
- * release priority remain separate state transitions.
+ * Focus control: manual focus (MF), single autofocus (AF-S) and continuous autofocus (AF-C), focus
+ * lock, and the focus-priority or release-priority check before the shutter fires.
+ *
+ * Focus is always a distance along the optical axis (a focus plane) or infinity, never a distance
+ * on screen. The focus "actuator" is ideal: it focuses on the target observations it is given. It
+ * does not model a real AF sensor, a focus-ring scale or how long focusing takes. Losing a target,
+ * reacquiring it, locking focus and the release-priority decision are separate state changes.
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -91,8 +86,8 @@ export type FocusTargetObservation =
   | (FocusTargetObservationBase & {
       kind: "finite-surface";
       /**
-       * Longitudinal camera-space/conjugate distance from #103, not renderer
-       * ray length.
+       * Distance along the camera's optical axis (the same convention as
+       * FocusPlane), not the renderer's ray length to the point.
        */
       longitudinalDistanceM: number;
     })
@@ -107,11 +102,12 @@ export type FocusTargetObservation =
     });
 
 /**
- * Immutable logical MF/single-AF/continuous-AF state. Resolved focus remains a
- * finite longitudinal distance in metres or explicit infinity. Acquisition, loss,
- * reacquisition and lock records explain why a target is usable; a focus-release
- * gate remains separate from shutter sequencing. The ideal actuator does not model
- * commercial AF measurement accuracy or physical acquisition time.
+ * Immutable focus-controller state for MF, AF-S or AF-C.
+ *
+ * The resolved focus is a finite distance along the optical axis in metres, or infinity.
+ * Acquisition, loss, reacquisition and lock records explain why a target can be used. The
+ * focus-release check is separate from shutter sequencing. The ideal actuator does not model
+ * real AF accuracy or the physical time focusing takes.
  */
 export interface FocusControlState {
   version:
@@ -419,15 +415,14 @@ function parseUniqueEnumList<T extends string>(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted focus-control profile and returns it normalized. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
- * Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
- * actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
- * scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
- * separate state transitions.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns FocusControlProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Focus is a distance along the optical axis or infinity, never a distance on screen. The ideal
+ * actuator focuses on the target observations it is given. It does not model a real AF sensor, a
+ * focus-ring scale or focusing time.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The validated profile. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -718,15 +713,10 @@ function verifyStateProfile(
 }
 
 /**
- * Create the initial ideal focus-controller state from an explicit profile, focus plane and public
- * state identity.
- *
- * Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
- * actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
- * scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
- * separate state transitions.
- * @param input - CreateFocusControlStateInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns FocusControlState. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Creates the initial ideal focus-controller state from a profile, a focus plane and a public
+ * state ID.
+ * @param input - New state ID, profile, focus mode, initial focus plane and optional start time.
+ * @returns The initial state. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -801,15 +791,10 @@ function stateProfileView(
 }
 
 /**
- * Return a manual focus transition to the supplied finite/infinity plane without inventing a lens
- * actuator or focus-ring conversion.
- *
- * Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
- * actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
- * scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
- * separate state transitions.
- * @param input - SetManualFocusStateInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns FocusControlState. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Returns the state after manually focusing on the given finite or infinity plane. No lens
+ * actuator or focus-ring conversion is modelled.
+ * @param input - Current state, new state ID, new focus plane and event time.
+ * @returns The new state. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1066,15 +1051,13 @@ function unchangedResolution(
 }
 
 /**
- * Resolve an explicit available/lost target observation under the selected single/continuous AF
- * policy, retaining acquisition and reacquisition disposition.
+ * Applies one target observation (target available or lost) under the selected AF-S or AF-C
+ * policy, and records whether the target was acquired or reacquired.
  *
- * Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
- * actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
- * scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
- * separate state transitions.
- * @param input - ResolveFocusTargetObservationInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns FocusTargetResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The ideal actuator focuses on the observation as given. Target loss, reacquisition, focus
+ * lock and release priority are separate state changes.
+ * @param input - Current state, new state ID, control event and target observation.
+ * @returns The resolution and new state. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1252,14 +1235,9 @@ export function resolveFocusTargetObservation(
 }
 
 /**
- * Return an explicit lock/unlock transition without changing the underlying physical focus plane.
- *
- * Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
- * actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
- * scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
- * separate state transitions.
- * @param input - SetFocusLockInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns FocusControlState. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Locks or unlocks focus. The physical focus plane does not change.
+ * @param input - Current state, new state ID, lock setting and event time.
+ * @returns The new state. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1337,15 +1315,10 @@ export function setFocusLock(
 }
 
 /**
- * Report whether release may proceed under focus-priority or release-priority policy; this does not
- * operate a shutter.
- *
- * Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
- * actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
- * scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
- * separate state transitions.
- * @param input - AssessFocusReleaseGateInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns FocusReleaseGateAssessment. Read structured blockers before consuming an authorization.
+ * Reports whether the shutter may be released under the focus-priority or release-priority
+ * policy. It does not operate the shutter.
+ * @param input - Current state, profile and release priority.
+ * @returns The assessment. Read its structured blockers before acting on an authorization.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

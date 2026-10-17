@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Lean per-site optical executor for createNativeEnvironmentRawTask (2.0 performance). It removes per-site
- * re-validation and result-envelope construction that is provably redundant, and nothing else:
+ * A faster ("lean") per-site optical executor for createNativeEnvironmentRawTask, added in 2.0 for
+ * performance. It skips only per-site re-validation and result-envelope building that can be proven
+ * redundant, and nothing else:
  *
  * - A site whose environment is strictly equal (plain data, same keys in the same order, Object.is leaves) to
  *   an earlier fully validated "template" site except for the two index-bound fields (temporalIntegrationId and
@@ -15,16 +15,16 @@
  *   the same parser, and evaluates the photon/charge-rate arithmetic of the full chain (scene-to-sensor
  *   acceptance, spatio-spectral reduction, operating range, EQE electron rate, Kahan sums, temporal midpoint
  *   sums) in the same floating-point operation order.
- * - Every data-dependent acceptance predicate of the full chain is evaluated. When one fails, or anything is
- *   unexpected, the lean path hands the exact same inputs to the full engine function, which then throws its own
- *   error (or returns its own value). Planning falls back before any callback; execution falls back at the step
- *   whose check failed, so callbacks, errors and their order are unchanged.
+ * - Every data-dependent check of the full chain is still evaluated. When one fails, or anything is unexpected,
+ *   the lean path hands the exact same inputs to the full engine function, which then throws its own error (or
+ *   returns its own value). Planning falls back before any callback. Execution falls back at the step whose check
+ *   failed. So callbacks, errors and their order are unchanged.
  * - Each template verifies itself: its own site is planned by both planners and executed by the full executor,
  *   and the lean results must be bit-identical (Object.is) before any other site uses the template. A mismatch
  *   disables the template and its sites run the full path.
  *
- * Sampled-PSF environments and environments that declare a lensFieldMapping (even an identity one) are not
- * lean-eligible and always run the full path.
+ * Environments with a sampled PSF (point-spread function) or a declared lensFieldMapping (even an identity one)
+ * cannot use the lean path and always run the full path.
  * @see docs/NATIVE_RAW_AND_PRINT.md for the invariance argument and limits.
  */
 
@@ -59,7 +59,7 @@ type FullResult = ReturnType<typeof executeEnvironmentSensorPhotoSignal>;
 type Rec = Record<string, unknown>;
 type FieldThroughput = FullPlan["instants"][number]["groups"][number]["taps"][number]["fieldThroughput"];
 
-/** Most distinct templates one event keeps; further distinct sites simply run the full path. */
+/** Most distinct templates kept for one capture event. Any further distinct sites just run the full path. */
 const MAXIMUM_TEMPLATES = 64;
 const SQUARE_MICROMETERS_TO_SQUARE_METERS = 1e-12;
 const REDUCTION_TOLERANCE = 1e-10;
@@ -144,7 +144,7 @@ interface SpatialNode { xPhase: number; yPhase: number; aaX: number; aaY: number
 interface ExecutionConstants {
   /** Per spatial node: combined normalized weight and geometric area measure in m². */
   weight: Float64Array; areaSquareMeters: Float64Array;
-  /** Per spectral node: d-lambda, photon energy and effective EQE exactly as the template's full chain used them. */
+  /** Per spectral node: dλ (wavelength step), photon energy and effective EQE, exactly as the template's full chain used them. */
   measure: Float64Array; photonEnergy: Float64Array; eqe: Float64Array;
   /** Per spectral node: scene-to-sensor acceptance before field throughput. */
   acceptance: Float64Array;
@@ -203,20 +203,21 @@ export interface NativeEnvironmentLeanFrame {
   nativeHeight: number;
   repeatWidth: number;
   repeatHeight: number;
-  /** True only for the one-to-one shared-top-left native/colour-site binding (identity site mapping). */
+  /** True only when native sites and colour-sampling sites map one to one, with the same top-left origin (identity mapping). */
   identityBinding: boolean;
 }
 
 /** Per-event lean executor state. Templates and memos live only for one native task. */
 export interface NativeEnvironmentLeanExecutor {
   /**
-   * Classifies a planned site: a lean plan when it matches a verified template, "candidate" when it should be
-   * planned in full with "full" retention and offered to admitCandidate, or undefined (plan in full, photo-only).
+   * Classifies a planned site. Returns a lean plan when it matches a verified template; "candidate" when it
+   * should be planned in full with "full" retention and offered to admitCandidate; or undefined (plan it in
+   * full, keeping only the photo signal).
    */
   plan(environment: Env, index: number): LeanEnvironmentPlan | "candidate" | undefined;
   /** Registers a fully planned ("full" retention) candidate; never throws. */
   admitCandidate(environment: Env, index: number, plan: FullPlan): void;
-  /** True when index is an admitted candidate whose full execution must use "full" retention and be verified. */
+  /** True when this index is an accepted candidate. Its full execution must use "full" retention and be verified. */
   isCandidate(index: number): boolean;
   /** Verifies a candidate's full execution (full retention) against the lean arithmetic; never throws. */
   verifyCandidate(index: number, plan: FullPlan, result: FullResult): void;
@@ -233,7 +234,7 @@ function siteOf(environment: Env): { x: unknown; y: unknown } | undefined {
   return site as { x: unknown; y: unknown } | undefined;
 }
 
-/** Site-dependent planning with the full planner's arithmetic; undefined on any doubt (the caller plans in full). */
+/** Plans the site-dependent parts with the full planner's arithmetic. Returns undefined on any doubt, and the caller plans in full. */
 function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFrame, environment: Env, index: number): LeanEnvironmentPlan | undefined {
   try {
     const x = index % frame.nativeWidth, y = Math.floor(index / frame.nativeWidth), site = siteOf(environment);
@@ -247,7 +248,7 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
     if (apertureCenterFromTopLeftX - g.widthUm / 2 < 0 || apertureCenterFromTopLeftY - g.heightUm / 2 < 0 ||
       apertureCenterFromTopLeftX + g.widthUm / 2 > imagingWidthMicrometers || apertureCenterFromTopLeftY + g.heightUm / 2 > imagingHeightMicrometers) return undefined;
     const centerX = -g.imagingWidthMm / 2 + apertureCenterFromTopLeftX / 1000, centerY = -g.imagingHeightMm / 2 + apertureCenterFromTopLeftY / 1000;
-    // calculateSensorSpatialSamplingQuadrature: tensor midpoint nodes minus the AA offset.
+    // calculateSensorSpatialSamplingQuadrature: midpoint grid nodes minus the anti-aliasing (AA) offset.
     const widthMm = g.widthUm / 1000, heightMm = g.heightUm / 1000;
     const leftMm = centerX - widthMm / 2, topMm = centerY - heightMm / 2;
     const sources: { x: number; y: number }[] = [];
@@ -301,9 +302,9 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
         const rx = pd * (reference.x / reference.z), ry = pd * (reference.y / reference.z);
         const length = Math.hypot(rx, ry, pd);
         const ray = { x: rx / length, y: ry / length, z: pd / length };
-        // parseSceneRadianceEvaluationRequest output, built directly: every other field is a template constant already
-        // parsed for the template site, the sample ID is a public opaque ID (trim-invariant) and the time is checked
-        // above, so only the unit-direction check of parseUnitDirection depends on this site.
+        // Build the parseSceneRadianceEvaluationRequest output directly. Every other field is a template constant already
+        // parsed for the template site. The sample ID is a public opaque ID (trimming cannot change it) and the time is
+        // checked above. So only parseUnitDirection's unit-direction check depends on this site.
         const direction = { x: -ray.x, y: -ray.y, z: -ray.z };
         if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y) || !Number.isFinite(direction.z)) return undefined;
         const norm = Math.hypot(direction.x, direction.y, direction.z);
@@ -325,7 +326,7 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
   }
 }
 
-/** Lean photo arithmetic. values[ti][s*P+p]; returns undefined when any data-dependent predicate fails. */
+/** Lean photo-signal arithmetic over values[ti][s*P+p]. Returns undefined when any data-dependent check fails. */
 function photo(k: PlanConstants, c: ExecutionConstants, values: readonly Float64Array[], environment: Env, site: { x: number; y: number },
   start: number, end: number, duration: number, times: readonly number[]): SensorEqeTemporalPhotoSignal | undefined {
   const S = k.spectralCount, P = k.spatialCount, T = k.temporalCount;
@@ -461,7 +462,7 @@ function planReproduced(lean: LeanEnvironmentPlan | undefined, plan: FullPlan, k
   return true;
 }
 
-/** Derives and verifies execution constants from the template site's full ("full" retention) execution; undefined on mismatch. */
+/** Derives execution constants from the template site's full execution ("full" retention) and checks them. Returns undefined on a mismatch. */
 function executionConstants(k: PlanConstants, environment: Env, plan: FullPlan, result: FullResult): ExecutionConstants | undefined {
   const S = k.spectralCount, P = k.spatialCount, T = k.temporalCount;
   const value = result.value, stages = value.photo.value.exposure.value.samples[0]!.stages;
@@ -696,7 +697,7 @@ function sensorMatches(site: Site, photo: SensorEqeTemporalPhotoSignal, x: numbe
     photo.temporalSamples.length === t.photo.temporalSamples.length;
 }
 
-/** The sensor stage of calculateNativeRawSite in the same operation order; undefined when one of its checks would throw. */
+/** The sensor stage of calculateNativeRawSite, in the same operation order. Returns undefined when one of its checks would throw. */
 function leanSensorSite(t: SensorTemplate, h: Pick<SensorHandle, "photo" | "darkE" | "total" | "x" | "y">, index: number, seed: number):
   (NativeRawLeanOutput & { photoRealized: number; darkRealized: number }) | undefined {
   const ratio = h.total / t.capacity, headroom = t.capacity - h.total;
@@ -727,7 +728,7 @@ function leanSensorSite(t: SensorTemplate, h: Pick<SensorHandle, "photo" | "dark
     whiteCode: t.whiteCode, photoRealized, darkRealized };
 }
 
-/** Kahan total of composeSensorAccumulatedCharge for photo and dark charge only. */
+/** The Kahan (compensated) total that composeSensorAccumulatedCharge computes, for photo and dark charge only. */
 function chargeTotal(photoE: number, darkE: number): number {
   let sum = 0, correction = 0;
   for (const value of [photoE, darkE]) {
@@ -738,9 +739,11 @@ function chargeTotal(photoE: number, darkE: number): number {
 }
 
 /**
- * Lean sensor stage for createNativeEnvironmentRawTask. claim() runs in the environment task where the full path
- * composes the site (dark charge) and evaluates every parse-phase predicate there; compute() runs in the native RAW
- * task's compute phase and falls back to the full parse and calculateNativeRawSite on any compute-phase predicate.
+ * Lean sensor stage for createNativeEnvironmentRawTask.
+ *
+ * claim() runs in the environment task, at the point where the full path composes the site (dark charge), and
+ * evaluates every parse-phase check there. compute() runs in the native RAW task's compute phase. If any
+ * compute-phase check fails, it falls back to the full parse and calculateNativeRawSite.
  */
 export interface NativeEnvironmentSensorLean {
   readonly hook: NativeRawLeanSensorHook;

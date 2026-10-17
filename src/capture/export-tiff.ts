@@ -1,26 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Pack validated unsigned integer tag values into little-endian BYTE, SHORT or LONG payloads; reject
- * values outside the selected storage range.
- * Describe an internal BYTE/UNDEFINED tag using the supplied byte array. The payload is borrowed here;
- * the final TIFF packer copies it into its owned output buffer.
+ * Little-endian TIFF 6.0 writer used for DNG and Exif output: helpers that pack tag values, the Exif
+ * APP1 block for JPEG, and the TIFF file packer (IFD0, Exif IFD and an optional uncompressed strip).
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
-/** Internal TIFF field packing; pointers are resolved only inside the returned owned buffer. */
+/** One packed TIFF tag (internal). Pointers are resolved only inside the buffer the packer returns. */
 export interface ExportTiffTag { id: number; type: number; count: number; data: Uint8Array; pointer?: "exif" | "pixels" }
 /**
- * Pack validated unsigned integer tag values into little-endian BYTE, SHORT or LONG payloads; reject
- * values outside the selected storage range.
- * @param id - number. See the linked contract for coordinate, unit and profile binding semantics.
- * @param type - 1 | 3 | 4. See the linked contract for coordinate, unit and profile binding semantics.
- * @param values - readonly number[]. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ExportTiffTag. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Packs unsigned integer tag values as little-endian BYTE, SHORT or LONG. A value outside the
+ * chosen type's range is rejected.
+ * @param id - TIFF tag number.
+ * @param type - TIFF field type: 1 BYTE, 3 SHORT or 4 LONG.
+ * @param values - Unsigned integer values.
+ * @returns The packed tag.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -33,12 +30,12 @@ export function exportTiffNumbers(id: number, type: 1 | 3 | 4, values: readonly 
   return { id, type, count: values.length, data };
 }
 /**
- * Describe an internal BYTE/UNDEFINED tag using the supplied byte array. The payload is borrowed here;
- * the final TIFF packer copies it into its owned output buffer.
- * @param id - number. See the linked contract for coordinate, unit and profile binding semantics.
- * @param type - 1 | 7. See the linked contract for coordinate, unit and profile binding semantics.
- * @param data - Uint8Array. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ExportTiffTag. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Makes a BYTE or UNDEFINED tag from a byte array. The array is not copied here; the final TIFF
+ * packer copies it into its own output buffer.
+ * @param id - TIFF tag number.
+ * @param type - TIFF field type: 1 BYTE or 7 UNDEFINED.
+ * @param data - Tag bytes.
+ * @returns The tag, referring to `data`.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -46,11 +43,11 @@ export function exportTiffBytes(id: number, type: 1 | 7, data: Uint8Array): Expo
   return { id, type, count: data.length, data };
 }
 /**
- * Encode printable ASCII with the required NUL terminator; reject unsupported characters instead of
- * silent lossy replacement.
- * @param id - number. See the linked contract for coordinate, unit and profile binding semantics.
- * @param value - string. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ExportTiffTag. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Encodes printable ASCII text with the required NUL terminator. Any other character is rejected,
+ * rather than silently replaced.
+ * @param id - TIFF tag number.
+ * @param value - Printable ASCII text.
+ * @returns The packed ASCII tag.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -58,7 +55,7 @@ export function exportTiffAscii(id: number, value: string): ExportTiffTag {
   if (!/^[\x20-\x7e]*$/.test(value)) throw new InvalidConfigurationError("TIFF text requires printable ASCII.");
   const data = new TextEncoder().encode(value+"\0"); return { id, type: 2, count: data.length, data };
 }
-/** Bounded rational approximation; matrix/metadata precision is explicit, never silent overflow. */
+/** Packs values as TIFF RATIONAL or SRATIONAL (fractions) with a power-of-ten denominator. A value that would overflow or lose all precision is rejected, never silently changed. */
 export function exportTiffRationals(id: number, signed: boolean, values: readonly number[]): ExportTiffTag {
   const data = new Uint8Array(values.length*8), view = new DataView(data.buffer);
   values.forEach((v, i) => {
@@ -73,15 +70,15 @@ export function exportTiffRationals(id: number, signed: boolean, values: readonl
 }
 /**
  * IFD0 tags that Exif 2.32 (CIPA DC-008-2019, Table 17, "Compressed" column) marks J (carried by the JPEG
- * markers) or N (not allowed) for a JPEG-compressed primary image.
+ * markers instead) or N (not allowed) for a JPEG-compressed primary image.
  */
 const JPEG_EXIF_FORBIDDEN_IFD0 = new Set([256, 257, 258, 259, 262, 273, 277, 278, 279, 284, 513, 514, 530]);
 /** Pixel dimensions that the compressed primary image's Exif IFD must record (PixelX/YDimension). */
 export interface ExportJpegExifDimensions { pixelWidth: number; pixelHeight: number }
 /**
- * Pack the Exif APP1 TIFF structure of a JPEG-compressed primary image with every tag that Exif 2.32
- * (CIPA DC-008-2019 §4.6.8, Tables 17 and 18, "Compressed" column) marks mandatory. Caller tags win; a
- * missing mandatory tag gets the standard's own default:
+ * Packs the Exif APP1 TIFF structure for a JPEG-compressed primary image, with every tag that Exif 2.32
+ * (CIPA DC-008-2019 §4.6.8, Tables 17 and 18, "Compressed" column) marks mandatory. Caller tags take
+ * priority. A missing mandatory tag gets the standard's own default:
  *
  * - IFD0 XResolution = YResolution = 72/1 and ResolutionUnit = 2 (inches). The standard says "When the image
  *   resolution is unknown, 72 [dpi] shall be designated"; this is the Exif convention for an unknown
@@ -122,7 +119,7 @@ export function packExportJpegExif(main: readonly ExportTiffTag[], exif: readonl
   ];
   return packExportTiff([...main, ...mainDefaults], [...exif, ...exifDefaults]);
 }
-/** Little-endian IEEE-754 binary64 values (TIFF type 12, DOUBLE); finite values only. */
+/** Packs finite numbers as little-endian IEEE-754 doubles (TIFF type 12, DOUBLE). */
 export function exportTiffDoubles(id: number, values: readonly number[]): ExportTiffTag {
   const data = new Uint8Array(values.length*8), view = new DataView(data.buffer);
   values.forEach((v, i) => {
@@ -131,7 +128,7 @@ export function exportTiffDoubles(id: number, values: readonly number[]): Export
   });
   return { id, type: 12, count: values.length, data };
 }
-/** Independently authored little-endian TIFF6 IFD0 + EXIF IFD, with optional uncompressed strip. */
+/** Writes a little-endian TIFF 6.0 file: IFD0 plus an EXIF IFD, with an optional uncompressed strip. Written for this project. */
 export function packExportTiff(main: readonly ExportTiffTag[], exif: readonly ExportTiffTag[], pixels = new Uint8Array()): Uint8Array {
   const pointer: ExportTiffTag = { ...exportTiffNumbers(34665, 4, [0]), pointer: "exif" };
   const lists = [[...main, pointer].sort((a,b) => a.id-b.id), [...exif].sort((a,b) => a.id-b.id)];
@@ -139,10 +136,10 @@ export function packExportTiff(main: readonly ExportTiffTag[], exif: readonly Ex
     if (tags.length > 128 || new Set(tags.map((t) => t.id)).size !== tags.length) throw new InvalidConfigurationError("Duplicate/oversized TIFF directory.");
   }
 /**
- * Directories precede their out-of-line payloads. Four-byte alignment applies to
- * payload addresses; values up to four bytes stay in the directory slot. Pointer
- * placeholders are resolved only against this newly owned buffer, preventing a
- * caller-supplied address from becoming an external file/memory reference.
+ * Each directory comes before the tag data stored outside it. That data starts on
+ * four-byte boundaries; values of four bytes or fewer stay in the directory entry.
+ * Pointer placeholders are resolved only within this new buffer, so a caller-supplied
+ * address can never point to another file or memory.
  */
   const exifOffset = 8+2+lists[0]!.length*12+4;
   let cursor = exifOffset+2+lists[1]!.length*12+4;
