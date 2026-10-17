@@ -1866,23 +1866,22 @@ function weightedScalar(
   );
 }
 
-/**
- * Resolves the sampled PSF for a declared optical state and query point. It never extrapolates and
- * never invents missing dimensions.
- *
- * A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
- * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
- * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
- * has no phase or spatial information, so it cannot justify rendering one unique PSF.
- * @param input - ResolveLensSampledPsfInput. See that type for coordinates, units and profile binding.
- * @returns CalculationResult<ResolvedLensSampledPsf>. The result states its shape and scientific status; a successful call does not imply calibration.
- *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
- */
-export function resolveLensSampledPsf(
+/** The resolved PSF before its result envelope; resolveLensSampledPsf and the lean native executor share it. */
+interface ResolvedLensSampledPsfCore {
+  profile: LensSampledPsfProfile;
+  query: ReturnType<typeof queryCoordinate>;
+  rotational: boolean;
+  exact: boolean;
+  weighted: readonly WeightedNode[];
+  kernel: LensPsfKernel;
+  bestFocus: number;
+  throughput: number;
+}
+
+function resolveLensSampledPsfCore(
   input:
     ResolveLensSampledPsfInput
-): CalculationResult<ResolvedLensSampledPsf> {
+): ResolvedLensSampledPsfCore {
   requireInputKeys(input, "resolveLensSampledPsf", ["profile", "focalLengthMm", "focus", "apertureFNumber", "fieldPointMm", "wavelengthNm", "signedDefocusImagePlaneMicrometers"]);
   const profile =
     parseOwnedOrUntrustedProfile(
@@ -1965,6 +1964,40 @@ export function resolveLensSampledPsf(
     );
   }
 
+  return { profile, query, rotational, exact, weighted, kernel, bestFocus, throughput };
+}
+
+/**
+ * Internal (2.0 performance): the kernel resolveLensSampledPsf returns for the same input, computed by
+ * the same code without building the result envelope. Throws whenever resolveLensSampledPsf would throw
+ * before its envelope. Not exported from the package.
+ */
+export function resolveLensSampledPsfKernel(
+  input:
+    ResolveLensSampledPsfInput
+): LensPsfKernel {
+  return resolveLensSampledPsfCore(input).kernel;
+}
+
+/**
+ * Resolves the sampled PSF for a declared optical state and query point. It never extrapolates and
+ * never invents missing dimensions.
+ *
+ * A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+ * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+ * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+ * has no phase or spatial information, so it cannot justify rendering one unique PSF.
+ * @param input - ResolveLensSampledPsfInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<ResolvedLensSampledPsf>. The result states its shape and scientific status; a successful call does not imply calibration.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
+export function resolveLensSampledPsf(
+  input:
+    ResolveLensSampledPsfInput
+): CalculationResult<ResolvedLensSampledPsf> {
+  const { profile, query, rotational, exact, weighted, kernel, bestFocus, throughput } =
+    resolveLensSampledPsfCore(input);
   return approximationResult(
     {
       profileId:

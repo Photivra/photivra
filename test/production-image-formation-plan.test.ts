@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { correctionProfile as executedCorrectionProfile, state as executedCorrectionState } from "./optics-group-fixtures.js";
 import { frameInput as environmentFrameInput, evaluator as environmentEvaluator } from "./helpers/environment-raw-fixture.js";
 import { InvalidConfigurationError, simulateEnvironmentSensorRawFrame } from "../src/index.js";

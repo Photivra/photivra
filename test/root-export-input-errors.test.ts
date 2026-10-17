@@ -97,8 +97,8 @@ describe("root exports reject malformed input with domain errors (API review #4)
     "calculateSdrRendering", "createAhdDemosaicTask", "createBilateralFilterTask", "createCaptureExportMetadataPair",
     "createCfaPlaneReconstructionTask", "createDurandDorseyToneMappingTask", "createExposureFusionTask", "createFocusStackTask",
     "createGenericEquipmentTierSelection", "createHdrBracketMergeTask", "createHdrImageEncodingTask", "createImageKernelAccelerator",
-    "createIsoGainReadoutRegimes", "createNativeCaptureSdrTask", "createNativeEnvironmentRawTask", "createNativeEnvironmentSensorStageTask",
-    "createNativeRawDevelopmentTask", "createNativeRawTask", "createNonLocalMeansTask", "createPanoramaTask", "createPhotographicExportPair",
+    "createIsoGainReadoutRegimes", "createNativeCaptureSdrTask", "createNativeEnvironmentRawPartitionTask", "createNativeEnvironmentRawTask", "createNativeEnvironmentSensorStageTask",
+    "createNativeRawDevelopmentTask", "createNativeRawTask", "composeNativeEnvironmentRawPartitions", "createNonLocalMeansTask", "createPanoramaTask", "createPhotographicExportPair",
     "createPrintJpegTask", "createReinhardGlobalToneMappingTask", "createSensorRawFrame", "createSimulatedCapture",
     "createSyntheticFilmGrainTask", "createUnsharpMaskTask", "resolveCaptureIlluminant", "resolveGenericEquipmentTierCatalog",
     "resolveGenericEquipmentTierLensProfiles", "resolveRawFrameReconstruction", "serializeNativeRawDng", "serializePngImage",
@@ -123,7 +123,7 @@ describe("root exports reject malformed input with domain errors (API review #4)
    */
   const RECORD_FUNCTIONS = new Set([
     "assessMtfOnlyPsfRenderability", "assessRadiometryReadiness", "assessSceneMaterialResponseFidelity",
-    "createRollingShutterCaptureExposureSchedule", "createTtlScaledFlashProfile", "integrateDiscreteSpectralLineMeasure",
+    "calculateNativeRawRowBands", "createRollingShutterCaptureExposureSchedule", "createTtlScaledFlashProfile", "integrateDiscreteSpectralLineMeasure",
     "prepareColorMatchingFunctions", "prepareColorimetricSpectrum", "resolveAntiAliasingSpatialKernel",
     "resolveSceneIlluminationDiscreteLineMeasure", "serializeProductionImageFormationPlan", "validateCalculationQuality"
   ]);

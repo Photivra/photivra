@@ -238,6 +238,9 @@ export interface ExposureFusionOutput extends ProcessingRgbImage {
   provenance: ProcessingProvenance;
 }
 
+// Patent note (public record, not legal advice): standard Mertens et al. Laplacian-pyramid fusion. CyberLink
+// US 8,885,976 (in force to 2034) claims a specific merged-pyramid variant that this implementation does not use;
+// see THIRD_PARTY.md.
 /** Mertens, Kautz & Van Reeth (2007) exposure fusion with Laplacian-pyramid blending. */
 export function createExposureFusionTask(input: ExposureFusionInput, provider: ProcessingProvider): ProcessingTask<ExposureFusionOutput> {
   const r = requireOptions(input, ["frames", "contrastExponent", "saturationExponent", "wellExposednessExponent", "wellExposednessSigma",

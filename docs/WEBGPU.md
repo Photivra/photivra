@@ -66,7 +66,7 @@ Two image-formation stages were added later for #277. Their CPU references are n
 | Temporal exposure sum (exposure, motion, rolling or global readout) | `calculateTemporalExposureSum` (new, float64) | One invocation per output site; K nodes × 4 bilinear taps |
 | Sensor stage (seeded Poisson charge, capacity, read noise, pre-ADC limit, ADC) | `simulatePackedSensorRaw` (new, float64; bit-identical to the per-site producer) | One invocation per site; integer random streams |
 
-Per-site radiance and pupil sampling (the 75-hour path in #277) stay on the CPU. They need the batched provider API, which is not built yet.
+Per-site radiance, pupil and PSF quadrature (the 75-hour path in #277) do not map cleanly to a compute shader yet. The batched provider API now exists (`evaluateRadianceBatch`, see [native RAW](NATIVE_RAW_AND_PRINT.md#batched-light-sampling-evaluateradiancebatch-20)), but the per-stage accuracy contracts that #277 schedules after 2.0.0 do not. They stay on the CPU.
 
 ### Supported domain (fails closed outside it)
 

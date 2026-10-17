@@ -54,6 +54,8 @@ export interface CalculateColorDifferenceInput {
   formula: ColorDifferenceFormula;
   /** CIEDE2000 only; defaults to 1, 1, 1. */
   parametricFactors?: Ciede2000ParametricFactors;
+  /** CIE94 only; all five fields are required when given. Defaults to the reference conditions 1, 1, 1, 0.045, 0.015. */
+  cie94Factors?: Cie94ParametricFactors;
 }
 ```
 
@@ -66,6 +68,26 @@ export function calculateXyzFromCielab(input: { lab: CielabColor; referenceWhite
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## Cie94ParametricFactors
+
+CIE94 parametric factors k_L, k_C, k_H and weighting constants K₁, K₂ (S_C = 1 + K₁C*₁,
+S_H = 1 + K₂C*₁). The default is the reference conditions: 1, 1, 1, 0.045, 0.015.
+
+```ts
+export interface Cie94ParametricFactors {
+  /** k_L, greater than zero. */
+  lightness: number;
+  /** k_C, greater than zero. */
+  chroma: number;
+  /** k_H, greater than zero. */
+  hue: number;
+  /** K₁ in S_C = 1 + K₁C*₁; finite and not negative. */
+  k1: number;
+  /** K₂ in S_H = 1 + K₂C*₁; finite and not negative. */
+  k2: number;
+}
+```
 
 ## Ciede2000ParametricFactors
 
@@ -108,5 +130,5 @@ export interface CielchColor {
 Colour-difference formula.
 
 ```ts
-export type ColorDifferenceFormula = "cie76" | "cie94-graphic-arts" | "cie94-textiles" | "ciede2000";
+export type ColorDifferenceFormula = "cie76" | "cie94" | "ciede2000";
 ```

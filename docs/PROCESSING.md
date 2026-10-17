@@ -130,6 +130,8 @@ The ITU-R BT.2100 PQ (also SMPTE ST 2084) and HLG transfer functions are not par
 
   Each weight is raised to its exponent (default 1). The weights are normalized per pixel and blended with Laplacian pyramids (Burt & Adelson, 1983; 5-tap kernel [1, 4, 6, 4, 1]/16). The output is clipped to [0, 1]. Identical frames reproduce the input, which is tested.
 
+  Patent note (public record, not legal advice): the engine uses standard Mertens et al. Laplacian-pyramid fusion. CyberLink US 8,885,976 (in force to 2034) claims a specific merged-pyramid variant that this implementation does not use; see `THIRD_PARTY.md`.
+
 HDR operator outputs are display-referred linear RGB in the input primaries. Encode them with the SDR rendering primitives.
 
 ## Focus stacking
