@@ -23,6 +23,8 @@
  * - optics: the environment `lensFieldMapping` (projection, radial / Brown–Conrady distortion), radial
  *   illumination vignetting as field throughput and a caller sampled lens PSF;
  * - motion: constant camera angular velocity and the electronic rolling-shutter exposure schedule.
+ * The 2.1 options are opt-in in the same way: `lens.diffraction`, `output.demosaic: "ahd"` and
+ * `sensor.antiAliasing` (a birefringent point-splitting low-pass filter in the sensor optical stack).
  * @see docs/QUICK_START.md
  */
 
@@ -78,6 +80,7 @@ import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
+import { resolveAntiAliasingSpatialKernel, type AntiAliasingPointSplitComponent, type SensorOpticalStackProfile } from "../sensor/optical-stack.js";
 import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
@@ -125,6 +128,20 @@ export type SimulateCaptureLensDistortion =
   | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
 /** Diffraction model (2.1): the shorthand or a record with an explicit kernel radius in sites. */
 export type SimulateCaptureLensDiffraction = "circular-aperture" | { aperture: "circular-aperture"; kernelRadiusSamples?: number };
+/**
+ * Optical anti-aliasing (low-pass) filter (2.1), modelled as birefringent point splitting: each image point is
+ * split into equally bright copies (the engine's `normalized-point-splitting-kernel` optical-stack response).
+ * - `four-spot`: two crossed birefringent plates; copies at (±d/2, ±d/2), weight 1/4 each, MTF |cos(π·f_x·d)·cos(π·f_y·d)|.
+ * - `two-spot`: one plate splitting along `axis`; copies at ±d/2, weight 1/2 each, MTF |cos(π·f·d)|.
+ * - `point-splitting`: the engine contract itself, offsets in micrometres (+x right, +y down) and positive weights
+ *   summing to 1 (at most 16 components, each within 4 sites).
+ * d = `separationSites` × pixel pitch, 0 < separationSites ≤ 4, default 1 (first MTF zero at the sensor's Nyquist
+ * frequency 1/(2·pitch)).
+ */
+export type SimulateCaptureSensorAntiAliasing =
+  | { kind: "four-spot"; separationSites?: number }
+  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number }
+  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[] };
 export interface SimulateCaptureMotion {
   /** Constant camera angular velocity, rad/s, in the engine's pitch/yaw/roll convention. Missing axes are 0. */
   angularVelocityRadPerSec?: { pitch?: number; yaw?: number; roll?: number };
@@ -226,6 +243,11 @@ export interface SimulateCaptureOptions {
     temporalSampleCount?: number;
     /** Noise seed (uint32). Default 1. */
     noiseSeed?: number;
+    /**
+     * Opt-in (2.1) optical anti-aliasing filter (birefringent point splitting, `SimulateCaptureSensorAntiAliasing`).
+     * Multiplies the scene queries by the number of split points. Default off (the tiers declare no filter).
+     */
+    antiAliasing?: SimulateCaptureSensorAntiAliasing;
   };
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
@@ -365,13 +387,57 @@ const AHD_MARGIN = 5;
 /** Sites whose values enter an AHD output pixel (interpolation reach), for the saturated-pixel count. */
 const AHD_VALUE_REACH = 3;
 
+/** Anti-aliasing filter limits: split points, and the largest offset in sites (bounds the scene work and the convolution margin). */
+const AA_MAXIMUM_COMPONENTS = 16;
+const AA_MAXIMUM_OFFSET_SITES = 4;
+/** Default birefringent separation in sites: the two-spot MTF |cos(π·f·d)| then has its first zero at Nyquist, f = 1/(2·pitch). */
+const AA_DEFAULT_SEPARATION_SITES = 1;
+interface ParsedAntiAliasing { kind: SimulateCaptureSensorAntiAliasing["kind"]; separationSites?: number; axis?: "horizontal" | "vertical";
+  components: AntiAliasingPointSplitComponent[] }
+/** Parses `sensor.antiAliasing` into engine point-splitting components (offsets in µm, +x right, +y down). */
+function parseAntiAliasing(value: unknown, pitch: number): ParsedAntiAliasing {
+  requireInputObject(value, "sensor.antiAliasing");
+  const kind = (value as { kind?: unknown }).kind;
+  const separation = (record: Record<string, unknown>): number => {
+    if (record.separationSites === undefined) return AA_DEFAULT_SEPARATION_SITES;
+    const d = positive(record.separationSites, "sensor.antiAliasing.separationSites");
+    if (d > AA_MAXIMUM_OFFSET_SITES) fail("sensor.antiAliasing.separationSites must be greater than 0 and at most " + AA_MAXIMUM_OFFSET_SITES + ".");
+    return d;
+  };
+  if (kind === "four-spot") {
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "separationSites"]), d = separation(record), h = d * pitch / 2;
+    return { kind, separationSites: d, components: [[-h, -h], [h, -h], [-h, h], [h, h]].map(([x, y]) => ({ offsetMicrometers: { x: x!, y: y! }, normalizedWeight: 0.25 })) };
+  }
+  if (kind === "two-spot") {
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "axis", "separationSites"]), d = separation(record), h = d * pitch / 2;
+    if (record.axis !== "horizontal" && record.axis !== "vertical") fail("sensor.antiAliasing.axis must be horizontal or vertical.");
+    const axis = record.axis as "horizontal" | "vertical";
+    return { kind, axis, separationSites: d, components: [-h, h].map((o) => ({ offsetMicrometers: axis === "horizontal" ? { x: o, y: 0 } : { x: 0, y: o }, normalizedWeight: 0.5 })) };
+  }
+  if (kind === "point-splitting") {
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "components"]);
+    if (!Array.isArray(record.components) || record.components.length === 0 || record.components.length > AA_MAXIMUM_COMPONENTS) {
+      fail("sensor.antiAliasing.components must be an array of 1 to " + AA_MAXIMUM_COMPONENTS + " components.");
+    }
+    // The engine's optical-stack parser checks shape, finiteness, positive weights and the unit sum (1e-12).
+    const kernel = resolveAntiAliasingSpatialKernel({ schemaVersion: "0.1.0", profileId: "facade-aa-check", evidence: FACADE_EVIDENCE,
+      effectiveAntiAliasingSpatialResponse: { kind: "normalized-point-splitting-kernel", evidence: FACADE_EVIDENCE, coordinateSystem: "native-sensor-physical",
+        scope: "field-wavelength-polarization-invariant-approximation", components: record.components as AntiAliasingPointSplitComponent[] } });
+    for (const c of kernel.components) if (Math.max(Math.abs(c.offsetMicrometers.x), Math.abs(c.offsetMicrometers.y)) > AA_MAXIMUM_OFFSET_SITES * pitch) {
+      fail("sensor.antiAliasing.components offsets must lie within " + AA_MAXIMUM_OFFSET_SITES + " sites (" + AA_MAXIMUM_OFFSET_SITES * pitch + " µm) of the site centre.");
+    }
+    return { kind, components: kernel.components.map((c) => ({ offsetMicrometers: { ...c.offsetMicrometers }, normalizedWeight: c.normalizedWeight })) };
+  }
+  return fail("sensor.antiAliasing.kind must be four-spot, two-spot or point-splitting.");
+}
+
 /** Third dark ring of the Airy pattern in units of λ·N_w (j₁,₃/π, j₁,₃ = 10.1734681351): the default diffraction kernel reach. */
 const AIRY_THIRD_ZERO_PER_LAMBDA_N = 10.173468135062722 / Math.PI;
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
   sceneState: "facade-scene-state", scene: "facade-scene", provider: "facade-provider", lights: "facade-lights", materials: "facade-materials",
-  capture: "facade-capture", spectral: "facade-colorimetric-eqe", sampling: "facade-sampling", stack: "facade-no-aa",
+  capture: "facade-capture", spectral: "facade-colorimetric-eqe", sampling: "facade-sampling", stack: "facade-no-aa", stackAa: "facade-aa",
   stationarity: "facade-stationarity", operatingState: "facade-operating-state", dark: "facade-dark", completeness: "facade-completeness",
   chargeSampling: "facade-charge-sampling", capacity: "facade-capacity" });
 const CHANNELS = ["red", "green", "blue"] as const;
@@ -744,7 +810,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const jpegStep = format === "jpeg" ? integerIn(pick(outputOptions, "jpegQuantizationStep", "output.jpegQuantizationStep", DEFAULTS.jpegQuantizationStep,
     "Constant JPEG quantization step 2 (not a manufacturer quality scale)."), "output.jpegQuantizationStep", 1, 255) : undefined;
   if (format !== "jpeg" && outputOptions.jpegQuantizationStep !== undefined) fail("output.jpegQuantizationStep applies only to output.format \"jpeg\".");
-  const sensorOptions = allowKeys(top.sensor, "sensor", ["pixelPitchMicrometers", "spectralStepNanometers", "temporalSampleCount", "noiseSeed"]);
+  const sensorOptions = allowKeys(top.sensor, "sensor", ["pixelPitchMicrometers", "spectralStepNanometers", "temporalSampleCount", "noiseSeed", "antiAliasing"]);
   const pitch = positive(pick(sensorOptions, "pixelPitchMicrometers", "sensor.pixelPitchMicrometers", DEFAULTS.pixelPitchMicrometers,
     "6 µm pixels (about a 24 MP full-frame sensor). The simulated sensor is width × pitch wide, so small images are a central crop of a large sensor, not a downscaled full frame."), "sensor.pixelPitchMicrometers");
   if (pitch < 0.5 || pitch > 100) fail("sensor.pixelPitchMicrometers must be 0.5-100.");
@@ -756,6 +822,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     pick(sensorOptions, "temporalSampleCount", "sensor.temporalSampleCount", DEFAULTS.temporalSampleCount,
       "One temporal sample: the static scene and still camera make more samples unnecessary."), "sensor.temporalSampleCount", 1, 256);
   const noiseSeed = integerIn(pick(sensorOptions, "noiseSeed", "sensor.noiseSeed", DEFAULTS.noiseSeed, "Fixed noise seed 1 (deterministic output)."), "sensor.noiseSeed", 0, 0xffffffff);
+  const antiAliasing = sensorOptions.antiAliasing === undefined ? undefined : parseAntiAliasing(sensorOptions.antiAliasing, pitch);
 
   const colorSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.cfa, evidence: FACADE_EVIDENCE, coordinateSystem: "native-sensor-color-sampling-site-index" as const,
     layout: { kind: "periodic-mosaic" as const, repeatWidthSites: 2, repeatHeightSites: 2, siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" as const } };
@@ -801,7 +868,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const psfTaps = lensPsf ? Math.max(1, ...((lensPsf.configuration.psf.profile.nodes ?? []) as readonly { kernel?: { widthSamples?: unknown; heightSamples?: unknown } }[])
     .map((node) => Number(node.kernel?.widthSamples) * Number(node.kernel?.heightSamples)).filter((taps) => Number.isSafeInteger(taps) && taps > 0)) : 1;
   const queriesPerSite = temporalSampleCount * (Math.ceil((FACADE_SPECTRAL_RANGE_NANOMETERS.maximum - FACADE_SPECTRAL_RANGE_NANOMETERS.minimum) / spectralStep) + 1) *
-    (pupil ? pupil.radialSamples * pupil.angularSamples : 1) * psfTaps;
+    (pupil ? pupil.radialSamples * pupil.angularSamples : 1) * psfTaps * (antiAliasing ? antiAliasing.components.length : 1);
 
   // Scene and illuminant
   // The scene is the one required input: the facade never guesses what is being photographed.
@@ -922,7 +989,19 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     "Synthetic uniform dark current of 1 e⁻/s per site at 20 °C (the tier presets declare none); dark shot noise follows from it.");
   assume("sensor.spectralResponse", "model", { kind: "colorimetric-cmf-eqe", peakScale: EQE_SCALE },
     "Idealized colorimetric sensor: channel EQE = a·{x̄, ȳ, z̄}(λ)·555/λ (the engine's analytic CIE 1931 fit), so RAW channels are proportional to CIE XYZ (Luther–Ives) and the camera matrix is diagonal. Not a real camera's response; CMF air wavelengths are used as vacuum wavelengths (difference about 0.03 %).");
-  assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens or anti-aliasing filter.");
+  if (!antiAliasing) assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens or anti-aliasing filter.");
+  else {
+    assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens.");
+    assume("sensor.antiAliasing", "model", { kind: antiAliasing.kind, ...(antiAliasing.axis ? { axis: antiAliasing.axis } : {}),
+      ...(antiAliasing.separationSites === undefined ? {} : { separationSites: antiAliasing.separationSites, separationMicrometers: antiAliasing.separationSites * pitch }),
+      components: antiAliasing.components },
+      "Optical low-pass (anti-aliasing) filter as a normalized point-splitting kernel in the sensor optical stack (resolveAntiAliasingSpatialKernel): every site integrates the light that would " +
+      "otherwise land at its centre minus each offset, weighted. " + (antiAliasing.kind === "point-splitting" ? "Caller-declared components. " :
+        "This is the ideal birefringent " + (antiAliasing.kind === "four-spot" ? "two-plate (crossed) splitter: four equal spots at (±d/2, ±d/2), MTF |cos(π·f_x·d)·cos(π·f_y·d)|" :
+          "single-plate splitter: two equal spots at ±d/2 along the " + antiAliasing.axis + " axis, MTF |cos(π·f·d)|") + ", d = " + antiAliasing.separationSites + " site(s); first zero at f = 1/(2d). ") +
+      "Approximations: the split is the same at every wavelength, field point and polarization (birefringence dispersion and the thickness-dependent displacement are not modelled), the spots are exact points with equal weights for unpolarized light, " +
+      "and the filter's transmission, reflections and focus shift are not modelled. Not a measured filter; the tier presets declare none. The scene queries are multiplied by " + antiAliasing.components.length + ".");
+  }
   // Shutter (2.0): the electronic rolling-shutter schedule derived from the body's rolling readout declaration.
   let rollingSchedule: ElectronicRollingShutterExposureSchedule | undefined;
   if (shutterKind === "rolling") {
@@ -1032,10 +1111,13 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     siteCenterLattice: { kind: "regular-rectangular-site-center-lattice" as const, coordinateSystem: "native-sensor-physical" as const, pitchXMicrometers: pitch, pitchYMicrometers: pitch,
       firstSiteCenterFromImagingAreaTopLeftMicrometers: { x: pitch / 2, y: pitch / 2 }, evidence },
     geometricSensitiveAperture: { kind: "uniform-axis-aligned-rectangle" as const, widthMicrometers: pitch, heightMicrometers: pitch, centerOffsetFromSiteCenterMicrometers: { x: 0, y: 0 }, evidence } };
-  const opticalStackProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.stack, evidence, effectiveAntiAliasingSpatialResponse: { kind: "absent" as const, evidence } };
+  const stackId = antiAliasing ? IDS.stackAa : IDS.stack;
+  const opticalStackProfile: SensorOpticalStackProfile = antiAliasing ? { schemaVersion: "0.1.0", profileId: stackId, evidence, effectiveAntiAliasingSpatialResponse: {
+    kind: "normalized-point-splitting-kernel", evidence, coordinateSystem: "native-sensor-physical", scope: "field-wavelength-polarization-invariant-approximation",
+    components: antiAliasing.components } } : { schemaVersion: "0.1.0" as const, profileId: IDS.stack, evidence, effectiveAntiAliasingSpatialResponse: { kind: "absent" as const, evidence } };
   const perChannel = Object.fromEntries(CHANNELS.map((channelId) => [channelId, {
     applicationProfile: { schemaVersion: "0.1.0" as const, profileId: "facade-application-" + channelId, spectralResponseProfileId: IDS.spectral, colorSamplingProfileId: IDS.cfa, channelId,
-      samplingApertureProfileId: IDS.sampling, opticalStackProfileId: IDS.stack, evidence, incidentAreaBasis: { kind: "geometric-sensitive-aperture" as const, areaSquareMicrometers: apertureArea },
+      samplingApertureProfileId: IDS.sampling, opticalStackProfileId: stackId, evidence, incidentAreaBasis: { kind: "geometric-sensitive-aperture" as const, areaSquareMicrometers: apertureArea },
       spatialResponseModel: { kind: "uniform-over-geometric-sensitive-aperture" as const, scientificStatus: "approximation" as const, evidence, limitation: "Uniform response over the square aperture." },
       referenceConditionPolicy: { kind: "exact-match-required" as const } },
     operatingRangeProfile: { schemaVersion: "0.1.0" as const, profileId: "facade-linearity-" + channelId, responseApplicationProfileId: "facade-application-" + channelId,
@@ -1092,9 +1174,12 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       wavelengthBasis: "vacuum"; wavelengthRangeNanometers: { minimum: number; maximum: number }; maximumSubintervalWidthNanometers: number }), colorSamplingProfile,
     spectralResponseProfile: spectralResponseProfiles[channelId] as never }).value.nodes.map((node) => node.wavelengthNanometers)))].sort((a, b) => a - b);
     const lambdaN = wavelengths[wavelengths.length - 1]! / 1000 * fNumber * imageDistanceMm / focalLengthMm;
+    // The environment resolves the PSF at each pre-filter source point, up to the largest split offset outside the imaging area.
+    const aaReachMm = antiAliasing ? Math.max(...antiAliasing.components.map((c) => Math.max(Math.abs(c.offsetMicrometers.x), Math.abs(c.offsetMicrometers.y)))) / 1000 : 0;
     const kernelRadiusSamples = diffractionRadiusOption ?? Math.min(32, Math.max(1, Math.ceil(AIRY_THIRD_ZERO_PER_LAMBDA_N * lambdaN / pitch)));
     diffraction = createDiffractionLimitedPsfProfile({ aperture: "circular", focalLengthMm, apertureFNumber: fNumber, focus: { kind: "finite", distanceM: focusDistanceM },
-      wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 },
+      wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: aaReachMm === 0 ? { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 } :
+        { x: imagingArea.widthMm / 2 + aaReachMm, y: imagingArea.heightMm / 2 + aaReachMm },
       profileId: "facade-diffraction-airy" }).value;
     diffractionPsf = { kind: "sampled-local", configuration: { psf: { profile: diffraction.profile, focalLengthMm, focus: { kind: "finite", distanceM: focusDistanceM },
       apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
@@ -1151,7 +1236,10 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const perSite = queriesPerSite * (diffraction && psf === diffractionPsf ? (2 * diffraction.kernelRadiusSamples + 1) ** 2 : 1);
   const rawProvider = diffraction && diffractionObjectSpace ? createDiffractedPlanarProvider({ base: provider, psf: diffractionPsf!.configuration.psf,
     wavelengthsNm: diffraction.profile.axes.wavelengthNm, kernelRadius: diffraction.kernelRadiusSamples, nativeWidth, nativeHeight, outputWidth: width,
-    sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit }) : provider;
+    sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit,
+    // The environment queries each site at its centre minus each split offset (sites, +x right, +y down).
+    ...(antiAliasing ? { queryOffsetsSites: antiAliasing.components.map((c) => ({ x: -c.offsetMicrometers.x / pitch, y: -c.offsetMicrometers.y / pitch })) } : {}) }) : provider;
+  if (antiAliasing && perSite > 100_000) fail("sensor.antiAliasing with these options needs " + perSite + " scene queries per site; the environment admits at most 100000.");
   const evaluations = nativeWidth * nativeHeight * perSite;
   // The native task admits at most 100 000 radiance queries per tile.
   const tileWidth = Math.max(1, Math.min(256, Math.floor(100_000 / perSite)));
@@ -1329,7 +1417,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         "resolve" + (mode === "manual" ? "Manual" : mode === "aperture-priority" ? "AperturePriority" : mode === "shutter-priority" ? "ShutterPriority" : "ProgramAuto") + "ExposureMode",
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
         ...(diffraction ? ["createDiffractionLimitedPsfProfile", ...(diffractionObjectSpace ? ["resolveLensPsfConvolutionKernels", "calculateIrradianceConvolution"] : [])] : []),
-        "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
+        ...(antiAliasing ? ["resolveAntiAliasingSpatialKernel"] : []), "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []), ...(ahd ? ["createAhdDemosaicTask"] : []),
         ...(ahd ? ["native RAW development operator (colour, after AHD)", ...(linearPath ? ["resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["SDR rendering kernel"])] : linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["createNativeRawDevelopmentTask"]),
         ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : []), ...(dng ? ["resolveSensorReadoutRegime", "serializeNativeRawDng"] : [])],

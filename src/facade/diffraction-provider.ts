@@ -23,8 +23,15 @@
  * plane and convolving irradiance on the image plane agree for a planar object and a space-invariant PSF
  * (MIT OpenCourseWare 2.71, lecture 22, free; also see: Goodman, Introduction to Fourier Optics, 4th ed., §6.1).
  *
- * A query that does not land on the lattice (within 1e-6 site) is refused rather than approximated: the facade
- * uses this path only when the lattice argument above holds.
+ * With an anti-aliasing point-splitting filter (2.1, `sensor.antiAliasing`) the environment queries the PSF taps
+ * around each pre-filter source point q − a (a = a split offset) instead of around q. Those taps lie on the site
+ * lattice shifted by a, so the same argument holds on each shifted lattice: B is computed once per distinct
+ * fractional shift (offsets that differ by whole sites share one lattice; the centred four-spot filter with a
+ * one-site separation needs a single half-site-shifted lattice) over the native raster widened by the largest
+ * offset, and the environment's spatial quadrature still forms the weighted split sum.
+ *
+ * A query that does not land on one of the lattices (within 1e-6 site) is refused rather than approximated: the
+ * facade uses this path only when the lattice argument above holds.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -54,6 +61,13 @@ export interface DiffractedPlanarProviderInput {
   /** Planar geometry of the base provider, to map query directions to plane points exactly as it does. */
   distanceM: number;
   metresPerFrameUnit: number;
+  /**
+   * Offsets of the query points from the site centres, in sites (+x right, +y down): the anti-aliasing split
+   * offsets with their sign reversed (the environment queries q − a). Default: one zero offset.
+   */
+  queryOffsetsSites?: readonly { x: number; y: number }[];
+  /** Called with the duration in ms of each band convolution (diagnostics only; never changes values). */
+  onConvolution?: (milliseconds: number) => void;
 }
 
 /** Internal (not exported from the package): the base provider with diffraction applied as an object-space convolution. */
@@ -61,6 +75,16 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
   const { base, wavelengthsNm, nativeWidth: W, nativeHeight: H, kernelRadius: R } = input;
   const g = 2 / input.outputWidth, pitch = input.sitePitchMicrometers;
   const index = new Map(wavelengthsNm.map((nm, i) => [nm, i]));
+  // One lattice per distinct fractional query offset; M extra sites per side hold the offset queries.
+  const offsets = input.queryOffsetsSites ?? [{ x: 0, y: 0 }];
+  const fraction = (value: number): number => { const f = value - Math.floor(value); return f > 1 - LATTICE_TOLERANCE_SITES ? 0 : f < LATTICE_TOLERANCE_SITES ? 0 : f; };
+  const shifts: { x: number; y: number }[] = [];
+  for (const o of offsets) {
+    const f = { x: fraction(o.x), y: fraction(o.y) };
+    if (!shifts.some((s) => Math.abs(s.x - f.x) <= LATTICE_TOLERANCE_SITES && Math.abs(s.y - f.y) <= LATTICE_TOLERANCE_SITES)) shifts.push(f);
+  }
+  const M = Math.max(0, ...offsets.map((o) => Math.ceil(Math.max(Math.abs(o.x), Math.abs(o.y)) - LATTICE_TOLERANCE_SITES)));
+  const LW = W + 2 * M, LH = H + 2 * M;
   // One kernel per wavelength, on the site grid, from the engine's own tap-to-site mapping (field point 0, 0).
   const kernels = wavelengthsNm.map((wavelengthNm) => {
     const k = resolveLensPsfConvolutionKernels({ schemaVersion: "0.1.0", psf: input.psf, spectralWeights: [{ wavelengthNm, weight: 1 }],
@@ -69,34 +93,41 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
     if (!k.exactSiteSampling || k.kernelRadius !== R) throw new InvalidConfigurationError("Diffraction kernels must sample the site pitch exactly.");
     return k.kernels;
   });
-  const gridWidth = W + 2 * R;
-  const bands = new Map<number, Float64Array[]>();
-  function band(b: number): Float64Array[] {
+  const gridWidth = LW + 2 * R;
+  const now = (): number => globalThis.performance?.now() ?? Date.now();
+  const bands = new Map<number, Float64Array[][]>();
+  function band(b: number): Float64Array[][] {
     const cached = bands.get(b);
     if (cached) { bands.delete(b); bands.set(b, cached); return cached; }
-    const y0 = b * BAND_ROWS, rows = Math.min(BAND_ROWS, H - y0), gridHeight = rows + 2 * R;
-    const values = wavelengthsNm.map((nm, w) => {
+    const started = input.onConvolution ? now() : 0;
+    const y0 = b * BAND_ROWS, rows = Math.min(BAND_ROWS, LH - y0), gridHeight = rows + 2 * R;
+    const values = shifts.map((shift) => wavelengthsNm.map((nm, w) => {
       const samples = new Float64Array(gridWidth * gridHeight);
       for (let gy = 0; gy < gridHeight; gy++) {
-        const v = -(y0 + gy - R + 0.5 - H / 2) * g;
-        for (let gx = 0; gx < gridWidth; gx++) samples[gy * gridWidth + gx] = base.radianceAt((gx - R + 0.5 - W / 2) * g, v, nm);
+        const v = shift.y === 0 ? -(y0 + gy - R - M + 0.5 - H / 2) * g : -(y0 + gy - R - M + 0.5 + shift.y - H / 2) * g;
+        for (let gx = 0; gx < gridWidth; gx++) samples[gy * gridWidth + gx] = base.radianceAt(shift.x === 0 ? (gx - R - M + 0.5 - W / 2) * g : (gx - R - M + 0.5 + shift.x - W / 2) * g, v, nm);
       }
       const blurred = calculateIrradianceConvolution({ schemaVersion: "0.1.0", width: gridWidth, height: gridHeight, samples, kernelRadius: R,
         patchWidth: gridWidth, patchHeight: gridHeight, kernels: kernels[w]!, boundary: "zero-outside-grid" }).values;
-      const out = new Float64Array(W * rows);
-      for (let y = 0; y < rows; y++) out.set(blurred.subarray((y + R) * gridWidth + R, (y + R) * gridWidth + R + W), y * W);
+      const out = new Float64Array(LW * rows);
+      for (let y = 0; y < rows; y++) out.set(blurred.subarray((y + R) * gridWidth + R, (y + R) * gridWidth + R + LW), y * LW);
       return out;
-    });
+    }));
     bands.set(b, values);
     if (bands.size > CACHED_BANDS) bands.delete(bands.keys().next().value!);
+    if (input.onConvolution) input.onConvolution(now() - started);
     return values;
   }
   function blurredAt(u: number, v: number, nm: number): number {
-    const w = index.get(nm), fi = u / g - 0.5 + W / 2, fj = -v / g - 0.5 + H / 2, i = Math.round(fi), j = Math.round(fj);
-    if (w === undefined || Math.abs(fi - i) > LATTICE_TOLERANCE_SITES || Math.abs(fj - j) > LATTICE_TOLERANCE_SITES || i < 0 || j < 0 || i >= W || j >= H) {
-      throw new InvalidConfigurationError("Diffraction query is off the site lattice; the object-space convolution does not apply.");
+    const w = index.get(nm), fi = u / g - 0.5 + W / 2, fj = -v / g - 0.5 + H / 2;
+    if (w !== undefined) for (let s = 0; s < shifts.length; s++) {
+      const shift = shifts[s]!, i = Math.round(fi - shift.x), j = Math.round(fj - shift.y);
+      if (Math.abs(fi - shift.x - i) > LATTICE_TOLERANCE_SITES || Math.abs(fj - shift.y - j) > LATTICE_TOLERANCE_SITES) continue;
+      if (i < -M || j < -M || i >= W + M || j >= H + M) break;
+      const lj = j + M;
+      return band(Math.floor(lj / BAND_ROWS))[s]![w]![(lj % BAND_ROWS) * LW + i + M]!;
     }
-    return band(Math.floor(j / BAND_ROWS))[w]![(j % BAND_ROWS) * W + i]!;
+    throw new InvalidConfigurationError("Diffraction query is off the site lattice; the object-space convolution does not apply.");
   }
   const scale = input.metresPerFrameUnit, distance = input.distanceM;
   return {

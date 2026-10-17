@@ -97,6 +97,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `sensor.spectralStepNanometers` | 20 | Spectral quadrature over 380–780 nm. |
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
+| `sensor.antiAliasing` | off | 2.1: an optical low-pass (anti-aliasing) filter: `{ kind: "four-spot", separationSites? }`, `{ kind: "two-spot", axis, separationSites? }` or `{ kind: "point-splitting", components }` (see [Anti-aliasing filter](#anti-aliasing-filter)). |
 | `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
 | `motion.shutter` | `"global"` | Or `"rolling"`. |
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
@@ -105,7 +106,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 Unknown fields are rejected, so a typo never silently falls back to a default.
 
 Every option added in 2.0 (PNG, demosaic, optics and motion) and in 2.1 (`lens.diffraction`,
-`output.demosaic: "ahd"`) is opt-in. With none of them given, the
+`output.demosaic: "ahd"`, `sensor.antiAliasing`) is opt-in. With none of them given, the
 request, RAW, samples and JPEG are byte-identical to the 1.0 facade at the same illuminance, and a
 test checks that. (The default illuminance changed before release; see [Exposure](#exposure).)
 
@@ -444,6 +445,53 @@ const stoppedDown = await simulateCapture({
 console.log(stoppedDown.request.diffraction?.execution, stoppedDown.request.diffraction?.profile.maximumTruncatedEnergyFraction);
 ```
 
+### Anti-aliasing filter
+
+`sensor.antiAliasing` (2.1) puts an optical low-pass filter in front of the sensor. Most real cameras
+with a Bayer sensor carry one; the generic tiers declare none, so it is off by default. It is modelled
+the way a birefringent quartz filter works: every image point is split into equally bright copies, and
+each site collects the light that would otherwise have landed at its centre minus each offset (the
+engine's `normalized-point-splitting-kernel` optical-stack response, resolved by
+`resolveAntiAliasingSpatialKernel`).
+
+- `{ kind: "four-spot", separationSites }`: two crossed plates, four spots at (±d/2, ±d/2) with weight
+  1/4 each. Its MTF is |cos(π·f_x·d)·cos(π·f_y·d)|. The most common filter in digital cameras.
+- `{ kind: "two-spot", axis: "horizontal" | "vertical", separationSites }`: one plate, two spots at
+  ±d/2 along the axis, MTF |cos(π·f·d)|.
+- `{ kind: "point-splitting", components }`: your own kernel, offsets in micrometres (+x right, +y
+  down) and positive weights that sum to 1; at most 16 components, each within 4 sites.
+- d = `separationSites` × pixel pitch, 0 < `separationSites` ≤ 4. The default 1 puts the first MTF
+  zero at the sensor's Nyquist frequency 1/(2·pitch): a four-spot filter one pixel wide cuts off at
+  Nyquist (Palum 2006). Above Nyquist the cosine rises again, so a lens (for example
+  `lens.diffraction`) is still needed to suppress the highest frequencies.
+
+Measured at f/8 on 128 × 128 neutral charts (mean false colour |R − G| + |B − G| in 8-bit codes):
+Siemens star 100.8 → 52.2 with bilinear and 68.7 → 25.1 with AHD; slanted edge 4.9 → 3.8 (bilinear).
+The price is sharpness: the slanted-edge 10–90 % width grows from 1.49 to 2.34 px (bilinear).
+
+Each site queries the scene once per spot, so the radiance work grows by the number of spots (4 for
+`four-spot`). With `lens.diffraction` the object-space convolution still applies: the taps around
+each split point lie on the site lattice shifted by its offset, so the engine convolves once per
+distinct sub-site shift (one half-site lattice for the default four-spot filter). A test checks it
+against the per-tap environment quadrature to 1e-12 per site.
+
+Approximations, listed in the `sensor.antiAliasing` assumption: the split is the same at every
+wavelength, field point and polarization (birefringence dispersion is ignored), the spots are exact
+points of equal weight for unpolarized light, and the filter's transmission, reflections and focus
+shift are not modelled. It is not a measured filter.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const filtered = await simulateCapture({
+  scene: { preset: "siemens-star" },
+  sensor: { antiAliasing: { kind: "four-spot" } },
+  lens: { diffraction: "circular-aperture" },
+  output: { width: 48, height: 48, demosaic: "ahd" }
+});
+console.log(filtered.assumptions.find((a) => a.id === "sensor.antiAliasing")?.value);
+```
+
 ## Motion
 
 `motion.angularVelocityRadPerSec` rotates the camera at a constant rate during the exposure, in the
@@ -515,6 +563,11 @@ provided, for rights reasons.
 
 ## Sources
 
+- R. Palum, "Anti-Aliasing Filter Analysis for Digital Cameras", Proc. IS&T International Congress of
+  Imaging Science (ICIS '06), 2006, free at
+  <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2006/ICIS-0-736/33683.pdf>
+  (birefringent quartz four-spot filter; one pixel wide in each direction cuts off at Nyquist; its MTF
+  is the modulus of a cosine that returns to one at the sampling frequency).
 - CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at
   <https://www.cipa.jp/e/std/std-sec.html> (standard output sensitivity S = 10/H, §3.2; reference
   level tied to 18 % grey, §5.2 and Explanation 1, 2.2; focal-plane exposure H = 0.65·L·t/N², §5.5

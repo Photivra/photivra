@@ -210,6 +210,11 @@ export interface SimulateCaptureOptions {
     temporalSampleCount?: number;
     /** Noise seed (uint32). Default 1. */
     noiseSeed?: number;
+    /**
+     * Opt-in (2.1) optical anti-aliasing filter (birefringent point splitting, `SimulateCaptureSensorAntiAliasing`).
+     * Multiplies the scene queries by the number of split points. Default off (the tiers declare no filter).
+     */
+    antiAliasing?: SimulateCaptureSensorAntiAliasing;
   };
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
@@ -325,6 +330,24 @@ export interface SimulateCaptureResult {
   };
   assumptions: readonly SimulateCaptureAssumption[];
 }
+```
+
+## SimulateCaptureSensorAntiAliasing
+
+Optical anti-aliasing (low-pass) filter (2.1), modelled as birefringent point splitting: each image point is
+split into equally bright copies (the engine's `normalized-point-splitting-kernel` optical-stack response).
+- `four-spot`: two crossed birefringent plates; copies at (±d/2, ±d/2), weight 1/4 each, MTF |cos(π·f_x·d)·cos(π·f_y·d)|.
+- `two-spot`: one plate splitting along `axis`; copies at ±d/2, weight 1/2 each, MTF |cos(π·f·d)|.
+- `point-splitting`: the engine contract itself, offsets in micrometres (+x right, +y down) and positive weights
+  summing to 1 (at most 16 components, each within 4 sites).
+d = `separationSites` × pixel pitch, 0 < separationSites ≤ 4, default 1 (first MTF zero at the sensor's Nyquist
+frequency 1/(2·pitch)).
+
+```ts
+export type SimulateCaptureSensorAntiAliasing =
+  | { kind: "four-spot"; separationSites?: number }
+  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number }
+  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[] };
 ```
 
 ## SimulateCaptureWhiteBalance
