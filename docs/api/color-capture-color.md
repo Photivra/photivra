@@ -4,10 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateCaptureColorTransform
 
-Converts a bounded inline XYZ/ideal-camera plane to unclamped linear sRGB.
-Reuses resolved WB intent; never estimates illumination or changes exposure/noise.
-Adopted-white adaptation (XYZ diagonal by default, or an explicit Bradford/CAT02/CAT16/
-von Kries-HPE cone-space transform) is explicitly an approximation, distinct from RGB gains.
+Converts a bounded inline XYZ (ideal-camera) plane to unclamped linear sRGB.
+It reuses the resolved white-balance intent. It never estimates the lighting and never changes
+exposure or noise. Adapting to the adopted white (XYZ diagonal by default, or an explicit
+Bradford, CAT02, CAT16 or von Kries-HPE cone-space transform) is labelled an approximation, and
+is separate from RGB gains.
 
 ```ts
 export function calculateCaptureColorTransform(input: CaptureColorTransformInput): CalculationResult<CaptureColorTransformResult>;
@@ -25,8 +26,8 @@ CAPTURE_COLOR_MODEL_VERSION = "0.1.0" as const
 
 ## CaptureChromaticAdaptationTransform
 
-Cone-space transform for adopted-white adaptation. Omitted keeps the original
-XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) unchanged.
+Cone-space transform for adapting to the adopted white. If omitted, the original
+XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) is used unchanged.
 
 ```ts
 export type CaptureChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe";
@@ -34,7 +35,7 @@ export type CaptureChromaticAdaptationTransform = "bradford" | "cat02" | "cat16"
 
 ## CaptureColorModel
 
-Profile data exposes complete row-major matrices and domain conditions to consumers.
+Profile data gives callers the complete row-major matrices and the conditions where they apply.
 
 ```ts
 export interface CaptureColorModel {
@@ -54,7 +55,7 @@ export interface CaptureColorModel {
 
 ## CaptureColorTransformInput
 
-IDs identify a new derived plane; source capture stays immutable.
+IDs name a new derived plane. The source capture is never changed.
 
 ```ts
 export interface CaptureColorTransformInput {
@@ -79,14 +80,14 @@ export interface CaptureColorTransformResult {
   whiteBalance: CaptureColorWhiteBalance;
   /** Matrix on CIE XYZ, identity when no adaptation; row-major, dimensionless. */
   chromaticAdaptationMatrix: Matrix;
-  /** False: even adopted-white scaling is a camera choice under mixed illumination. */
+  /** False: under mixed lighting, even scaling to the adopted white is a choice the camera makes. */
   claimsUniqueSceneWhite: false;
 }
 ```
 
 ## CaptureColorWhiteBalance
 
-One explicit color interpretation; gains and adaptation cannot silently double-apply WB.
+One explicit colour interpretation. Gains and adaptation cannot both apply white balance by accident.
 
 ```ts
 export type CaptureColorWhiteBalance =
@@ -97,7 +98,7 @@ export type CaptureColorWhiteBalance =
 
 ## LINEAR_CAPTURE_RGB_PROFILE
 
-Linear light, sRGB primaries/D65; no sRGB transfer curve is applied.
+Linear light with sRGB primaries and a D65 white. No sRGB transfer curve is applied.
 
 ```ts
 LINEAR_CAPTURE_RGB_PROFILE = Object.freeze({ id: "linear-srgb-d65", version: CAPTURE_COLOR_MODEL_VERSION })
@@ -105,7 +106,7 @@ LINEAR_CAPTURE_RGB_PROFILE = Object.freeze({ id: "linear-srgb-d65", version: CAP
 
 ## parseCaptureColorTransformInput
 
-Validates the entire capture and explicit transform policy across untrusted JSON boundaries.
+Validates the whole capture and its explicit transform policy, read from untrusted JSON.
 
 ```ts
 export function parseCaptureColorTransformInput(value: unknown): CaptureColorTransformInput;

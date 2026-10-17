@@ -5,8 +5,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 ## calculateLensProjectionDirection
 
 Inverse-maps one image-plane point to its unit camera-frame scene direction under the declared
-projection model. Points outside the model's image circle (or outside +/-pi longitude and
-+/-pi/2 latitude for equirectangular) are rejected.
+projection model. It rejects points outside the model's image circle. For equirectangular, it
+rejects points outside +/-pi longitude and +/-pi/2 latitude.
 
 ```ts
 export function calculateLensProjectionDirection(
@@ -34,9 +34,9 @@ export interface CalculateLensProjectionDirectionInput {
 Angular field of view across a centred sensor dimension along one axis through the optical
 axis: 2 * theta(d / 2) for radial models and d / f for equirectangular.
 
-For equirectangular the result is the longitude span when the dimension is horizontal and the
-latitude span when it is vertical. Sensor dimensions larger than a fisheye's image circle are
-rejected rather than clipped.
+For equirectangular, the result is the longitude span for a horizontal dimension and the latitude
+span for a vertical one. A sensor dimension larger than a fisheye's image circle is rejected, not
+clipped.
 
 ```ts
 export function calculateLensProjectionFieldOfView(
@@ -224,7 +224,7 @@ export type LensProjectionModel =
 
 ## parseLensProjectionModel
 
-Fail-closed runtime parser for the projection discriminator.
+Runtime parser for the projection discriminator. Rejects (fails closed on) unknown values.
 
 ```ts
 export function parseLensProjectionModel(

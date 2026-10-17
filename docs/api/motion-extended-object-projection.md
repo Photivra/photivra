@@ -4,8 +4,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateCaptureExtendedObjectTemporalProjection
 
-Evaluates extended-object projection at deterministic midpoint nodes inside
-each point's authoritative #12 local exposure window.
+Evaluates extended-object projection at deterministic midpoint time samples
+inside each point's local exposure window (from the capture exposure
+schedule).
 
 ```ts
 export function calculateCaptureExtendedObjectTemporalProjection(
@@ -44,8 +45,9 @@ export interface CalculateCaptureExtendedObjectTemporalProjectionInput {
 Evaluates multiple explicit metric points on one rigidly translating object
 at deterministic physical times.
 
-This is geometry only. It does not synthesize a blur kernel, visibility,
-radiance integration, deformation, camera rotation or a universal scale.
+This is geometry only. It does not build a blur kernel, decide visibility,
+integrate radiance, deform the object, rotate the camera or apply a
+universal scale.
 
 ```ts
 export function calculateExtendedObjectProjectionTrajectory(
@@ -86,8 +88,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface CaptureExtendedObjectMetricPoint
   extends ExtendedObjectMetricPoint {
   /**
-   * Native destination point selecting the authoritative #12 local exposure
-   * window for this object point.
+   * Native destination point. It selects the local exposure window (from the
+   * capture exposure schedule) for this object point.
    */
   destinationPointNative:
     RasterPoint;
@@ -198,7 +200,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface ExtendedObjectMetricPoint {
   pointId: string;
   /**
-   * Metric camera-space point at the common reference phase.
+   * Point in camera space, in metres, at the shared reference phase.
    *
    * +X right, +Y up, +Z forward/away from the camera.
    */

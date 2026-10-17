@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Generic optical state binds one body/lens/version/acquisition/output configuration to explicit
- * approximation evidence. These identities do not certify manufacturer calibration.
- * Correction/stray-light consumers validate exact state equality before applying declared
- * coefficients.
+ * Generic optical state. It ties one camera body, lens, version, acquisition setting and output
+ * configuration to explicit evidence for the approximation used.
+ *
+ * These identities do not certify manufacturer calibration. Correction and stray-light code checks
+ * that the state matches exactly before it applies any declared coefficients.
  * @see docs/RELEASE_1_0.md and the corresponding domain guide.
  */
 
 import { InvalidScientificInputError } from "../core/validation.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 
-/** Exact, generic camera/lens and acquisition state; no implicit interpolation. */
+/** Exact, generic camera, lens and acquisition state. Nothing is interpolated implicitly. */
 export interface OpticalProfileState {
   bodyId: string;
   bodyVersion: string;
@@ -27,7 +28,7 @@ export interface OpticalProfileState {
   stabilizationMode: string;
 }
 
-/** Generic approximation evidence; never implies measured calibration. */
+/** Evidence for a generic approximation. It never implies a measured calibration. */
 export interface GenericOpticalEvidence {
   kind: "generic-parametric";
   basis: string;
@@ -76,7 +77,7 @@ export function choice<T extends string>(value: unknown, choices: readonly T[]):
   return value as T;
 }
 
-/** @internal Reject holes, duplicates (by consumers), and unbounded work. */
+/** @internal Rejects gaps and unbounded work. Consumers reject duplicates. */
 export function list(value: unknown, maximum = 4096): unknown[] {
   if (!Array.isArray(value) || value.length > maximum ||
       Array.from({ length: value.length }, (_, index) => index in value).includes(false)) {
@@ -85,7 +86,7 @@ export function list(value: unknown, maximum = 4096): unknown[] {
   return value;
 }
 
-/** Parses a complete exact-state binding, including still/video/output settings. */
+/** Parses a complete exact-state binding, including still, video and output settings. */
 export function parseOpticalProfileState(value: unknown): OpticalProfileState {
   const r = record(value, ["bodyId", "bodyVersion", "lensId", "lensVersion", "focalLengthMm",
     "aperture", "focusDistanceM", "captureMode", "outputWidth", "outputHeight", "frameRateHz", "stabilizationMode"]);
@@ -109,7 +110,7 @@ export function parseOpticalProfileState(value: unknown): OpticalProfileState {
   };
 }
 
-/** @internal Exact binding; mismatches fail rather than extrapolate. */
+/** @internal Exact binding. A mismatch fails; it is never extrapolated. */
 export function requireSameState(expected: OpticalProfileState, actual: OpticalProfileState): void {
   if (JSON.stringify(parseOpticalProfileState(expected)) !== JSON.stringify(parseOpticalProfileState(actual))) {
     throw new InvalidScientificInputError("Profile is not applicable to this exact camera/lens state.");

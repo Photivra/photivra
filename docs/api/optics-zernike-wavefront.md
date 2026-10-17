@@ -7,8 +7,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 Converts a signed paraxial image-plane defocus into the defocus wave aberration
 W020 = dz / (8 N^2) and its Noll Z4 coefficient W020 / (2 sqrt 3).
 
-Sign convention: dz = sensor distance minus image distance; positive W020 means the image lies in
-front of the sensor. Pure-defocus PSF intensity is independent of the sign.
+Sign convention: dz = sensor distance minus image distance. Positive W020 means the image lies in
+front of the sensor. With pure defocus, the PSF intensity does not depend on the sign.
 
 ```ts
 export function calculateDefocusWavefront(
@@ -33,9 +33,9 @@ export interface CalculateDefocusWavefrontInput {
 
 ## createWavefrontPupilGrid
 
-Builds a complex-pupil grid (circular pupil, optional polygon mask, OPD from Zernike and/or
-Seidel coefficients). All-zero coefficients give an exactly zero OPD, so the PSF equals the
-existing aberration-free circular-pupil reference.
+Builds a complex-pupil grid: a circular pupil, an optional polygon mask, and an OPD from Zernike
+coefficients, Seidel coefficients or both. If every coefficient is zero, the OPD is exactly zero,
+so the PSF equals the existing aberration-free circular-pupil reference.
 
 ```ts
 export function createWavefrontPupilGrid(
@@ -53,7 +53,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface CreateWavefrontPupilGridInput {
   /** Pupil diameter in mm; rho = 1 at radius pupilDiameterMm / 2. */
   pupilDiameterMm: number;
-  /** Odd number of samples across the pupil diameter, 3 through 63. */
+  /** Odd number of samples across the pupil diameter, from 3 to 63. */
   samplesAcross: number;
   zernikeCoefficients?: readonly ZernikeCoefficient[];
   seidelCoefficients?: SeidelWavefrontCoefficients;
@@ -84,8 +84,8 @@ export interface DefocusWavefront {
 
 ## estimateMarechalStrehlRatio
 
-Marechal/Mahajan Strehl approximation exp(-(2 pi sigma / lambda)^2). An approximation for small
-RMS wavefront error (Strehl roughly above 0.3); not an exact PSF calculation.
+Marechal/Mahajan approximation of the Strehl ratio: exp(-(2 pi sigma / lambda)^2). Valid only for a
+small RMS wavefront error (Strehl roughly above 0.3). It is not an exact PSF calculation.
 
 ```ts
 export function estimateMarechalStrehlRatio(
@@ -172,14 +172,14 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface WavefrontPupilGrid {
-  /** Grid for LensComplexPupilProfile.grid (amplitude 1 inside, 0 outside; OPD in micrometres). */
+  /** Grid for LensComplexPupilProfile.grid. Amplitude is 1 inside and 0 outside; OPD is in micrometres. */
   grid: LensComplexPupilGrid;
   pupilDiameterMm: number;
   /** Number of samples with non-zero amplitude. */
   openSampleCount: number;
-  /** sqrt(sum c_j^2, j >= 2) of the Zernike terms alone over the continuous unit disk. */
+  /** sqrt(sum c_j^2, j >= 2): RMS of the Zernike terms alone over the continuous unit disk. */
   zernikeRmsMicrometers: number;
-  /** Piston-removed RMS of the sampled OPD over open samples (all terms). */
+  /** RMS of the sampled OPD over open samples, with piston removed (all terms). */
   sampledRmsMicrometers: number;
   /** Peak-to-valley of the sampled OPD over open samples. */
   sampledPeakToValleyMicrometers: number;
@@ -223,7 +223,7 @@ export interface ZernikeOrder {
   nollIndex: number;
   /** Radial order n. */
   radialOrder: number;
-  /** Signed azimuthal frequency m: positive = cos(m theta), negative = sin(|m| theta). */
+  /** Signed azimuthal frequency m. Positive means cos(m theta); negative means sin(|m| theta). */
   azimuthalFrequency: number;
 }
 ```

@@ -18,14 +18,14 @@ export interface AxisSamplingPitchMicrometers {
 Maps one stationary-world ray to its image-plane location after pure camera
 rotation at an arbitrary physical time from exposure start.
 
-The initial image point defines the world ray in the camera frame at t=0.
-Constant angular velocity is integrated as one axis-angle rotation vector,
-avoiding Euler-order dependence. The stationary world ray is then expressed
-in the rotated camera frame using the inverse camera rotation and projected
-rectilinearly back onto the image plane.
+The starting image point defines the world ray in the camera frame at t=0.
+Constant angular velocity is integrated as a single axis-angle rotation
+vector, which avoids any dependence on Euler-angle order. The world ray is
+then expressed in the rotated camera frame with the inverse camera rotation,
+and projected rectilinearly back onto the image plane.
 
-This function models rotation only. It deliberately excludes camera
-translation because translational optical flow depends on scene depth.
+Only rotation is modelled. Camera translation is deliberately left out,
+because the image motion it causes depends on scene depth.
 
 ```ts
 export function calculateCameraRotationImageMapping(
@@ -46,7 +46,7 @@ export interface CalculateCameraRotationImageMappingInput {
   /**
    * Stationary-world-ray image-plane position at exposure start.
    *
-   * Image-plane coordinates use optical-axis origin, +X right, +Y up.
+   * Image-plane coordinates have their origin on the optical axis, +X right, +Y up.
    */
   imagePointMm: ImagePlanePointMm;
   /**
@@ -56,19 +56,20 @@ export interface CalculateCameraRotationImageMappingInput {
   /**
    * Constant camera angular-velocity vector in radians per second.
    *
-   * Components are resolved in the camera axes at exposure start and follow
-   * the physical right-hand rule: pitch about +X (positive tilts up, content
-   * moves toward image -Y), yaw about +Y (positive turns left, content moves
-   * toward image +X), roll about +Z (positive is clockwise seen from behind
-   * the camera). See CameraAngularVelocityRadPerSec.
+   * Components are given in the camera axes at exposure start and follow the
+   * physical right-hand rule:
+   * - pitch about +X: positive tilts up; content moves toward image -Y;
+   * - yaw about +Y: positive turns left; content moves toward image +X;
+   * - roll about +Z: positive is clockwise seen from behind the camera.
+   * See CameraAngularVelocityRadPerSec.
    */
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
   /** Optional focus distance in metres for thin-lens projection distance. */
   focusDistanceM?: number;
   /**
-   * Optional axis-aware geometric sampling pitch for reporting sample-domain
-   * displacement. This is geometric sample spacing, not photosite collection
-   * area.
+   * Optional sampling pitch per axis, used to also report the displacement in
+   * samples. This is the geometric spacing of samples, not the light-collecting
+   * area of a photosite.
    */
   samplingPitchMicrometers?: AxisSamplingPitchMicrometers;
 }
@@ -79,9 +80,9 @@ export interface CalculateCameraRotationImageMappingInput {
 Maps a captured stationary-world ray at one non-negative capture time back
 to its image-plane location at exposure start.
 
-For the existing constant-axis pure-rotation model this inverse is analytic:
-the captured ray is transformed by the forward camera rotation before
-rectilinear projection. No iterative solver is required.
+For this constant-axis, pure-rotation model the inverse is analytic: apply
+the forward camera rotation to the captured ray, then project
+rectilinearly. No iterative solver is needed.
 
 ```ts
 export function calculateInverseCameraRotationImageMapping(
@@ -101,7 +102,7 @@ export interface CalculateInverseCameraRotationImageMappingInput {
   focalLengthMm: number;
   /**
    * Captured image-plane location of a stationary world ray at the requested
-   * time. Coordinates use optical-axis origin, +X right and +Y up.
+   * time. Coordinates have their origin on the optical axis, +X right, +Y up.
    */
   imagePointMm: ImagePlanePointMm;
   /**
@@ -117,8 +118,8 @@ export interface CalculateInverseCameraRotationImageMappingInput {
   /** Optional focus distance in metres for thin-lens projection distance. */
   focusDistanceM?: number;
   /**
-   * Optional axis-aware geometric sampling pitch for reporting sample-domain
-   * inverse displacement.
+   * Optional sampling pitch per axis, used to also report the inverse
+   * displacement in samples.
    */
   samplingPitchMicrometers?: AxisSamplingPitchMicrometers;
 }
@@ -129,16 +130,16 @@ export interface CalculateInverseCameraRotationImageMappingInput {
 Camera angular velocity in radians per second about the exposure-start
 camera axes (+X right, +Y up, +Z forward along the optical axis).
 
-Signs follow the physical right-hand rule about each named axis. That basis
-is left-handed, so a positive rotation is the mirror of what the plain
-component Rodrigues/cross-product formula would give in it:
+Signs follow the physical right-hand rule about each named axis. These axes
+form a left-handed basis. So a positive rotation is the mirror image of what
+the plain component Rodrigues (cross-product) formula would give in it:
 
-- positive pitch tilts the optical axis up; stationary scene content moves
-  toward image -Y (down);
-- positive yaw turns the optical axis to the left (counter-clockwise seen
-  from above); stationary scene content moves toward image +X (right);
-- positive roll rotates the camera clockwise as seen by the photographer
-  looking along +Z; stationary scene content rotates counter-clockwise in the
+- Positive pitch tilts the optical axis up. Still scene content moves
+  toward image -Y (down).
+- Positive yaw turns the optical axis left (counter-clockwise seen from
+  above). Still scene content moves toward image +X (right).
+- Positive roll turns the camera clockwise, as seen by the photographer
+  looking along +Z. Still scene content rotates counter-clockwise in the
   +X-right/+Y-up image plane.
 
 ```ts
@@ -174,8 +175,8 @@ export interface CameraRotationImageMapping {
     distance: number;
   };
   /**
-   * Optional geometric sample displacement in the image-plane basis
-   * (+X right, +Y up). This is not a native-raster vector.
+   * Optional displacement in samples, in image-plane axes (+X right, +Y up).
+   * This is not a vector in native raster axes.
    */
   deltaImagePlaneSamples?: {
     x: number;

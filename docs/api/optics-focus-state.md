@@ -6,9 +6,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 Calculates the ideal image-plane distance for an explicit focus state.
 
-Finite focus delegates to the existing Gaussian thin-lens calculation, so
-its numerical result and provenance are unchanged. Infinity focus resolves
-exactly to the nominal focal length with zero limiting magnification.
+Finite focus uses the existing Gaussian thin-lens calculation, so its
+numbers and provenance are unchanged. Infinity focus gives exactly the
+nominal focal length, with a limiting magnification of zero.
 
 ```ts
 export function calculateFocusPlaneImageDistance(
@@ -35,10 +35,9 @@ export interface CalculateFocusPlaneImageDistanceInput {
 
 Explicit ideal focus-plane state.
 
-Finite distance is the longitudinal object-plane distance from the ideal
-lens principal plane along the camera optical axis. Infinity is a semantic
-state and is never represented with JavaScript Infinity or a fabricated
-large distance.
+A finite distance is measured along the camera's optical axis, from the
+ideal lens principal plane to the object plane. Infinity is a named state.
+It is never stored as JavaScript Infinity or as a made-up large distance.
 
 ```ts
 export type FocusPlane =
@@ -53,9 +52,9 @@ export type FocusPlane =
 
 ## parseFocusPlane
 
-Parses an explicit focus-plane state from an untrusted JSON boundary.
+Parses an explicit focus-plane state from untrusted JSON.
 
-Missing/unknown focus is rejected rather than being interpreted as infinity.
+Missing or unknown focus is rejected. It is never read as infinity.
 
 ```ts
 export function parseFocusPlane(value: unknown): FocusPlane;

@@ -48,13 +48,15 @@ export type ExposureMeteringPolicy =
     }
   | {
       /**
-       * Highlight-emphasis weighted average (unchanged since 1.x). Brighter samples
-       * receive weight `minimumWeightFraction + (1 - minimumWeightFraction) *
-       * (signal / maximum)^exponent`; the weighted mean is then placed at the
-       * profile target. It is NOT highlight protection: no sample is placed
-       * relative to saturation, so in a mostly mid-grey scene with a small bright
-       * area it underexposes the mid-tones relative to uniform metering without
-       * guaranteeing headroom. Use `highlight-priority` to place highlights below
+       * Weighted average that emphasises highlights (unchanged since 1.x).
+       * Brighter samples get the weight `minimumWeightFraction + (1 -
+       * minimumWeightFraction) * (signal / maximum)^exponent`. The weighted mean
+       * is then placed at the profile target.
+       *
+       * This is NOT highlight protection. No sample is placed relative to
+       * saturation. In a mostly mid-grey scene with a small bright area, it
+       * underexposes the mid-tones compared with uniform metering, yet does not
+       * guarantee headroom. Use `highlight-priority` to keep highlights below
        * saturation.
        */
       kind: "highlight-weighted";
@@ -65,7 +67,7 @@ export type ExposureMeteringPolicy =
       /**
        * Highlight-priority placement. The area-weighted `highlightPercentile`
        * quantile of the relative pre-exposure signal is placed `headroomStops`
-       * below `saturationRelativeSignal`. The profile target must declare that
+       * below `saturationRelativeSignal`. The profile target must state that
        * placement exactly: `targetRelativeSignal = saturationRelativeSignal *
        * 2^-headroomStops` (see {@link calculateHighlightPriorityPlacementSignal}).
        */
@@ -185,12 +187,12 @@ export interface HighlightPriorityMeteringDiagnostics {
 
 ## meterRelativeExposure
 
-Meters relative pre-exposure linear signal over the actual oriented active
-capture frame.
+Meters relative pre-exposure linear signal over the actual active capture
+frame, in its capture orientation.
 
-The first contract is an educational/relative approximation. It is
-intentionally independent of final output crop, display/tone mapping,
-exposure compensation, and automatic exposure setting resolution.
+This first contract is an educational, relative approximation. It
+deliberately ignores the final output crop, display and tone mapping,
+exposure compensation and the choice of automatic exposure settings.
 
 ```ts
 export function meterRelativeExposure(
@@ -216,9 +218,10 @@ export interface MeterRelativeExposureInput {
 
 Parses one generic relative exposure-metering profile.
 
-Schema 0.1.0 is approximation-only and consumes relative pre-exposure
-linear signal. It deliberately does not claim luminance, spectral radiance,
-sensor-plane irradiance, or a specific manufacturer's meter calibration.
+Schema 0.1.0 is an approximation only. It works on relative linear signal
+measured before the exposure. It deliberately does not claim luminance,
+spectral radiance, sensor-plane irradiance or any manufacturer's meter
+calibration.
 
 ```ts
 export function parseExposureMeteringProfile(

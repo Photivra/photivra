@@ -2,11 +2,14 @@
 
 /**
  * Execution-backend labels, error bounds and domain errors for the optional image-kernel accelerator.
- * `cpu-reference` is the float64 engine reference and the default. `webgpu-f32` is a distinct float32
- * approximation backend whose every result carries an a-priori forward-error bound derived from IEEE 754
- * binary32 rounding (unit roundoff u = 2^-24; Higham, Accuracy and Stability of Numerical Algorithms,
- * 2nd ed., SIAM 2002, §2–§3, γ_k = k·u/(1 − k·u)) and the WGSL built-in accuracy table (W3C WebGPU
- * Shading Language, §"Floating Point Accuracy"). See docs/WEBGPU.md.
+ *
+ * `cpu-reference` is the float64 engine reference and the default. `webgpu-f32` is a separate float32
+ * approximation backend. Every one of its results carries a forward-error bound worked out in advance
+ * from:
+ * - IEEE 754 binary32 rounding (unit roundoff u = 2^-24; Higham, Accuracy and Stability of Numerical
+ *   Algorithms, 2nd ed., SIAM 2002, §2–§3, γ_k = k·u/(1 − k·u));
+ * - the WGSL built-in accuracy table (W3C WebGPU Shading Language, §"Floating Point Accuracy").
+ * See docs/WEBGPU.md.
  */
 
 /** Requested or actual execution backend. */
@@ -20,7 +23,7 @@ export type ImageKernelFallbackReason = "webgpu-unavailable" | "adapter-unavaila
 export type ImageKernelFailureReason = ImageKernelFallbackReason | "device-lost" | "out-of-memory" | "gpu-validation" |
   "aborted" | "disposed" | "busy" | "unsupported-on-backend" | "unsupported-float32-domain" | "indeterminate-float32-classification";
 
-/** Domain error for backend acquisition and execution. Input validation keeps the engine's existing errors. */
+/** Domain error for getting and running a backend. Input validation still throws the engine's existing errors. */
 export class ImageKernelExecutionError extends Error {
   readonly code = "IMAGE_KERNEL_EXECUTION";
   readonly reason: ImageKernelFailureReason;
@@ -64,7 +67,8 @@ export interface ImageKernelExecution {
   errorBound: ImageKernelCodeErrorBound | ImageKernelRelativeErrorBound | null;
   /**
    * Diagnostic counts equal the reference when no sample fell inside a float32 classification band
-   * (`diagnosticUncertaintySampleCount === 0`); otherwise each count differs by at most that many samples.
+   * (`diagnosticUncertaintySampleCount === 0`). Otherwise each count differs by at most that many
+   * samples.
    */
   diagnosticsExact: boolean;
   diagnosticUncertaintySampleCount: number;
@@ -74,10 +78,10 @@ export interface ImageKernelExecution {
 /** IEEE 754 binary32 unit roundoff. */
 export const WEBGPU_F32_UNIT_ROUNDOFF = 2 ** -24;
 /**
- * Declared absolute bound for the WGSL sRGB encode on [0, 1]: `1.055·pow(x, 1/2.4) − 0.055` with pow
- * inherited from exp2(y·log2 x) (log2: 3 ULP, or 2^-21 absolute on [0.5, 2]; exp2: 3 + 2|x| ULP). The
- * worst case over [0.0031308, 1] is about 2.5e-6; 2^-17 ≈ 7.6e-6 keeps a 3× margin, also covering the
- * sRGB segment-join discontinuity (< 1e-7).
+ * Declared absolute error bound for the WGSL sRGB encode on [0, 1]: `1.055·pow(x, 1/2.4) − 0.055`. pow
+ * takes its accuracy from exp2(y·log2 x) (log2: 3 ULP, or 2^-21 absolute on [0.5, 2]; exp2: 3 + 2|x|
+ * ULP). The worst case over [0.0031308, 1] is about 2.5e-6. The bound 2^-17 ≈ 7.6e-6 keeps a 3× margin,
+ * and also covers the small jump where the sRGB segments join (< 1e-7).
  */
 export const WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND = 2 ** -17;
 /** Largest slope of the sRGB encode on [0, 1] (the linear segment, 12.92). */

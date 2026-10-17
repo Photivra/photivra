@@ -66,7 +66,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface PrepareRgbGamutMappingInput {
   colorSpace: RgbColorSpaceId;
   method: GamutMappingMethod;
-  /** Fraction of the boundary chroma left untouched, in [0, 1]; 1 = clip to boundary. */
+  /** Fraction of the boundary chroma left untouched, in [0, 1]. 1 means clip to the boundary. */
   kneeFraction: number;
 }
 ```

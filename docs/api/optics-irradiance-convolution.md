@@ -33,9 +33,9 @@ IRRADIANCE_CONVOLUTION_LIMITS = Object.freeze({
   maximumKernelRadius: 32,
   maximumPatchCount: 4_096,
   maximumKernelWeights: 4_194_304,
-  /** A kernel may lose energy (vignetting/transmission) but never create it beyond rounding slack. */
+  /** A kernel may lose energy (vignetting, transmission) but may not create it, beyond rounding slack. */
   maximumKernelSum: 1 + 2 ** -20,
-  /** Inputs above this magnitude are rejected so float32 execution cannot overflow. */
+  /** Inputs larger than this are rejected so that float32 execution cannot overflow. */
   maximumSampleMagnitude: 2 ** 100
 })
 ```
@@ -57,11 +57,11 @@ export interface IrradianceConvolutionInput {
   schemaVersion: typeof IRRADIANCE_CONVOLUTION_SCHEMA_VERSION;
   width: number;
   height: number;
-  /** Row-major, finite, non-negative, linear and additive (e.g. irradiance or expected photons per site). */
+  /** Row-major samples. Finite, non-negative, linear and additive (for example irradiance, or expected photons per site). */
   samples: Float32Array | Float64Array;
-  /** Kernel half-width in grid sites; each kernel is (2r+1)×(2r+1). */
+  /** Kernel half-width in grid sites. Each kernel is (2r+1)×(2r+1). */
   kernelRadius: number;
-  /** Isoplanatic patch size in grid sites; the last row/column of patches may be partial. */
+  /** Patch size in grid sites. The last row and column of patches may be partial. */
   patchWidth: number;
   patchHeight: number;
   /**
@@ -75,7 +75,7 @@ export interface IrradianceConvolutionInput {
 
 ## IrradianceConvolutionPlan
 
-Validated, immutable geometry of a convolution request (sample arrays are borrowed, not copied).
+Validated, immutable geometry of a convolution request. Sample arrays are borrowed, not copied.
 
 ```ts
 export interface IrradianceConvolutionPlan {
@@ -88,7 +88,7 @@ export interface IrradianceConvolutionPlan {
   patchHeight: number;
   patchColumns: number;
   patchRows: number;
-  /** Largest single kernel sum and input magnitude, used by the float32 error bound. */
+  /** Largest kernel sum and largest input magnitude. The float32 error bound uses them. */
   maximumKernelSum: number;
   maximumSampleMagnitude: number;
 }

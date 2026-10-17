@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Wavefront parameterisation for the complex-pupil PSF reference. Generates the declared pupil grid
- * (relative amplitude plus optical path difference in micrometres) consumed unchanged by
- * calculateLensComplexPupilPsf(); this module adds no propagation of its own.
+ * Describes lens aberrations as a wavefront, for the complex-pupil PSF (point-spread function)
+ * reference.
+ *
+ * This module builds the declared pupil grid: relative amplitude plus optical path difference (OPD)
+ * in micrometres. calculateLensComplexPupilPsf() uses that grid unchanged. This module does no light
+ * propagation itself.
  *
  * Zernike polynomials use Noll's single index j >= 1 and Noll's normalisation (Noll 1976, JOSA
- * 66:207): Z_j = sqrt(n + 1) R_n^0(rho) for m = 0 and sqrt(2 (n + 1)) R_n^|m|(rho) cos(m theta)
- * (even j) or sin(m theta) (odd j) for m != 0, so each term has unit RMS over the unit disk and the
- * RMS wavefront error of sum_j c_j Z_j (piston excluded) is sqrt(sum_{j>=2} c_j^2). Radial
- * polynomial R_n^m follows Born & Wolf, Principles of Optics, 7th ed., sec. 9.2 and app. VII.
+ * 66:207):
+ * - m = 0: Z_j = sqrt(n + 1) R_n^0(rho)
+ * - m != 0: Z_j = sqrt(2 (n + 1)) R_n^|m|(rho) cos(m theta) for even j, or sin(m theta) for odd j
+ * So each term has an RMS of 1 over the unit disk. The RMS wavefront error of sum_j c_j Z_j (piston
+ * excluded) is sqrt(sum_{j>=2} c_j^2). The radial polynomial R_n^m follows Born & Wolf, Principles
+ * of Optics, 7th ed., sec. 9.2 and app. VII.
  *
  * Primary (Seidel) aberrations use the wave-aberration expansion in normalised field height H and
  * normalised pupil coordinates (rho, phi), phi measured from the field direction (Hopkins 1950,
@@ -20,13 +24,16 @@
  *
  * Paraxial defocus: an image-plane defocus dz at working f-number N gives W020 = dz / (8 N^2)
  * (Goodman, Introduction to Fourier Optics, 3rd ed., sec. 6.4; Mahajan, Optical Imaging and
- * Aberrations Part I, sec. 3.4), i.e. Zernike Z4 coefficient W020 / (2 sqrt 3).
- * Marechal/Mahajan approximation: Strehl ratio ~ exp(-(2 pi sigma / lambda)^2) for small RMS
+ * Aberrations Part I, sec. 3.4). That is a Zernike Z4 coefficient of W020 / (2 sqrt 3).
+ *
+ * Marechal/Mahajan approximation: Strehl ratio ~ exp(-(2 pi sigma / lambda)^2) for a small RMS
  * wavefront error sigma (Marechal 1947; Mahajan 1982 JOSA 72:1258). It is an approximation, valid
- * roughly for Strehl above 0.3.
- * Pupil coordinates are metric, aligned with the image plane (+X right, +Y up), with theta measured
- * counter-clockwise from +X.
- * @see docs/PSF_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ * roughly for Strehl ratios above 0.3.
+ *
+ * Pupil coordinates are in metric units, aligned with the image plane (+X right, +Y up). theta is
+ * measured counter-clockwise from +X.
+ * @see docs/PSF_FOUNDATION.md for the equations, units, coordinate conventions, known blockers and
+ * support limits.
  */
 
 import {
@@ -49,7 +56,7 @@ export interface ZernikeOrder {
   nollIndex: number;
   /** Radial order n. */
   radialOrder: number;
-  /** Signed azimuthal frequency m: positive = cos(m theta), negative = sin(|m| theta). */
+  /** Signed azimuthal frequency m. Positive means cos(m theta); negative means sin(|m| theta). */
   azimuthalFrequency: number;
 }
 
@@ -87,7 +94,7 @@ export interface SeidelFieldPosition {
 export interface CreateWavefrontPupilGridInput {
   /** Pupil diameter in mm; rho = 1 at radius pupilDiameterMm / 2. */
   pupilDiameterMm: number;
-  /** Odd number of samples across the pupil diameter, 3 through 63. */
+  /** Odd number of samples across the pupil diameter, from 3 to 63. */
   samplesAcross: number;
   zernikeCoefficients?: readonly ZernikeCoefficient[];
   seidelCoefficients?: SeidelWavefrontCoefficients;
@@ -101,14 +108,14 @@ export interface CreateWavefrontPupilGridInput {
 }
 
 export interface WavefrontPupilGrid {
-  /** Grid for LensComplexPupilProfile.grid (amplitude 1 inside, 0 outside; OPD in micrometres). */
+  /** Grid for LensComplexPupilProfile.grid. Amplitude is 1 inside and 0 outside; OPD is in micrometres. */
   grid: LensComplexPupilGrid;
   pupilDiameterMm: number;
   /** Number of samples with non-zero amplitude. */
   openSampleCount: number;
-  /** sqrt(sum c_j^2, j >= 2) of the Zernike terms alone over the continuous unit disk. */
+  /** sqrt(sum c_j^2, j >= 2): RMS of the Zernike terms alone over the continuous unit disk. */
   zernikeRmsMicrometers: number;
-  /** Piston-removed RMS of the sampled OPD over open samples (all terms). */
+  /** RMS of the sampled OPD over open samples, with piston removed (all terms). */
   sampledRmsMicrometers: number;
   /** Peak-to-valley of the sampled OPD over open samples. */
   sampledPeakToValleyMicrometers: number;
@@ -323,9 +330,9 @@ function parseMask(
 }
 
 /**
- * Builds a complex-pupil grid (circular pupil, optional polygon mask, OPD from Zernike and/or
- * Seidel coefficients). All-zero coefficients give an exactly zero OPD, so the PSF equals the
- * existing aberration-free circular-pupil reference.
+ * Builds a complex-pupil grid: a circular pupil, an optional polygon mask, and an OPD from Zernike
+ * coefficients, Seidel coefficients or both. If every coefficient is zero, the OPD is exactly zero,
+ * so the PSF equals the existing aberration-free circular-pupil reference.
  */
 export function createWavefrontPupilGrid(
   input: CreateWavefrontPupilGridInput
@@ -468,8 +475,8 @@ export function createWavefrontPupilGrid(
  * Converts a signed paraxial image-plane defocus into the defocus wave aberration
  * W020 = dz / (8 N^2) and its Noll Z4 coefficient W020 / (2 sqrt 3).
  *
- * Sign convention: dz = sensor distance minus image distance; positive W020 means the image lies in
- * front of the sensor. Pure-defocus PSF intensity is independent of the sign.
+ * Sign convention: dz = sensor distance minus image distance. Positive W020 means the image lies in
+ * front of the sensor. With pure defocus, the PSF intensity does not depend on the sign.
  */
 export function calculateDefocusWavefront(
   input: CalculateDefocusWavefrontInput
@@ -500,8 +507,8 @@ export function calculateDefocusWavefront(
 }
 
 /**
- * Marechal/Mahajan Strehl approximation exp(-(2 pi sigma / lambda)^2). An approximation for small
- * RMS wavefront error (Strehl roughly above 0.3); not an exact PSF calculation.
+ * Marechal/Mahajan approximation of the Strehl ratio: exp(-(2 pi sigma / lambda)^2). Valid only for a
+ * small RMS wavefront error (Strehl roughly above 0.3). It is not an exact PSF calculation.
  */
 export function estimateMarechalStrehlRatio(
   input: EstimateMarechalStrehlRatioInput

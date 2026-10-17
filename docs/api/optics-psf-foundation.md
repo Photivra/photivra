@@ -4,14 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculatePsfFoundationComponents
 
-Evaluates the currently implemented PSF-related diagnostics in one explicit
-field/depth/spectral/pupil context without combining them into a synthetic
-PSF or blur radius.
+Evaluates today's PSF-related diagnostics in one explicit context (field
+position, depth, wavelength and pupil). It does not combine them into a
+synthetic PSF or blur radius.
 
-Field position is recorded even though the current defocus-circle and
-circular-Airy diagnostics are not field dependent. Future field-dependent
-contributions can consume the same context without changing these existing
-primitives.
+The field position is recorded even though the current defocus-circle and
+circular-Airy diagnostics do not depend on it. Future field-dependent
+contributions can use the same context without changing these primitives.
 
 ```ts
 export function calculatePsfFoundationComponents(
@@ -37,8 +36,9 @@ export interface CalculatePsfFoundationComponentsInput {
    */
   fieldPointMm: LensFieldPointMm;
   /**
-   * Physical image-plane radius used only to normalize field position for
-   * cross-case diagnostics. It is not a lens calibration or validity bound.
+   * Physical image-plane radius. It is used only to normalize the field
+   * position so diagnostics can be compared across cases. It is not a lens
+   * calibration or a validity limit.
    */
   fieldNormalizationRadiusMm: number;
   spectralBasis: {
@@ -52,8 +52,8 @@ export interface CalculatePsfFoundationComponentsInput {
 
 Returns the public PSF/pupil foundation contract.
 
-The contract describes current diagnostics plus reserved future contribution
-ownership. It does not imply that reserved contributions are implemented.
+The contract lists today's diagnostics and reserves names for future
+contributions. A reserved contribution is not implemented.
 
 ```ts
 export function getPsfFoundationContract(): PsfFoundationContract;

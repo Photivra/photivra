@@ -61,7 +61,7 @@ export interface PanoramaInput {
   /** Gain prior σ_g; default 0.1. */
   gainPriorSigma?: number;
   /** Multi-band pyramid levels; default min(4, auto). Coarse bands wider than the frame overlap mix
-   * differently-normalized low frequencies, so keep 2^(levels−1) well below the overlap width. */
+   * low frequencies that were normalized differently, so keep 2^(levels−1) well below the overlap width. */
   pyramidLevels?: number;
   maximumWorkingBytes?: number;
 }

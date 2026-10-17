@@ -34,9 +34,11 @@ export interface ColorimetricSpectralSample extends SpectralWavelengthSample {
 ## ColorimetricSpectrum
 
 A spectral distribution or spectral factor (reflectance, transmittance, relative SPD,
-sensitivity). `tabulated` is the JSON path: strictly increasing wavelengths, linear
-interpolation, fail-closed outside the table. `function` is an in-process evaluator
-(for example a Planckian SPD) that must be finite on its declared range.
+sensitivity).
+- `tabulated` is the JSON form: strictly increasing wavelengths, linear interpolation, and an
+  error (fail closed) outside the table.
+- `function` is an in-process evaluator (for example a Planckian SPD). It must be finite over
+  its declared range.
 
 ```ts
 export type ColorimetricSpectrum =
@@ -124,7 +126,7 @@ export interface IntegratedSpectrumXyz {
 Integrates a spectrum (optionally multiplied by a reflectance/transmittance factor)
 against colour-matching functions with caller-explicit quadrature (CIE 15:2018 §7).
 Provenance is `approximation` for the analytic CMF fit and `calculated` for
-caller-tabulated CMFs; in both cases the quadrature itself is the caller's choice.
+caller-tabulated CMFs. Either way, the caller chooses the quadrature.
 
 ```ts
 export function integrateSpectrumToXyz(input: IntegrateSpectrumToXyzInput): CalculationResult<IntegratedSpectrumXyz>;

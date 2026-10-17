@@ -17,11 +17,12 @@ export interface EquivalentViewingCircleOfConfusion {
 
 ## estimateEquivalentViewingCircleOfConfusion
 
-Estimates a circle-of-confusion criterion for equivalent final viewing by
-scaling a caller-supplied reference criterion in proportion to sensor
+Estimates a circle-of-confusion criterion for equivalent final viewing. It
+scales a caller-supplied reference criterion in proportion to the sensor
 diagonal.
 
-This is a viewing/acceptability convention, not a physical blur threshold.
+This is a viewing (acceptable-sharpness) convention, not a physical blur
+threshold.
 
 ```ts
 export function estimateEquivalentViewingCircleOfConfusion(

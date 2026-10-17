@@ -4,11 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateProjectedObjectSize
 
-Calculates the projected size of a fronto-parallel object plane.
+Calculates the projected size of a flat object that faces the camera
+(fronto-parallel).
 
-Without focusDistanceM, the function preserves ideal pinhole projection
-using nominal focal length. With focusDistanceM, it projects to the ideal
-thin-lens sensor plane selected by that focus distance.
+Without focusDistanceM, it uses ideal pinhole projection with the nominal
+focal length. With focusDistanceM, it projects onto the ideal thin-lens
+sensor plane for that focus distance.
 
 ```ts
 export function calculateProjectedObjectSize(

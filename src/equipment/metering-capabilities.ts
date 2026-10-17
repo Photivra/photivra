@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses generic body metering capability metadata. This profile declares which engine-owned metering
- * profiles/modes a generic body can select. It deliberately does not duplicate target/calibration
- * values from those metering profiles.
- * Checks whether one engine metering profile is selectable on a generic body. Calibration/target
- * policy remains authoritative in the metering profile and is never copied into equipment capability
- * metadata.
- * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Metering capabilities of a generic body: which of the engine's metering profiles and modes it can
+ * select.
+ *
+ * This profile deliberately does not copy target or calibration values from those metering profiles.
+ * The metering profile stays the single source of its calibration and target policy.
+ * @see docs/GENERIC_TIER_PRESETS.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -159,9 +157,9 @@ function parsePolicyKind(
 /**
  * Parses generic body metering capability metadata.
  *
- * This profile declares which engine-owned metering profiles/modes a generic
- * body can select. It deliberately does not duplicate target/calibration
- * values from those metering profiles.
+ * This profile declares which of the engine's metering profiles and modes a
+ * generic body can select. It deliberately does not copy target or
+ * calibration values from those metering profiles.
  */
 export function parseGenericBodyMeteringCapabilityProfile(
   value: unknown
@@ -291,8 +289,8 @@ export function parseGenericBodyMeteringCapabilityProfile(
 /**
  * Checks whether one engine metering profile is selectable on a generic body.
  *
- * Calibration/target policy remains authoritative in the metering profile and
- * is never copied into equipment capability metadata.
+ * The metering profile stays the single source of its calibration and target
+ * policy. They are never copied into equipment capability metadata.
  */
 export function assessExposureMeteringProfileCompatibility(
   input:

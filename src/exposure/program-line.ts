@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses a generic educational/product exposure program line. A program line is control policy, not
- * physics. Nodes declare desired aperture/shutter pairs at explicit optical-exposure stops relative to
- * the resolver's reference exposure. Resolution later verifies that every node is physically
- * consistent with that reference and current equipment capability.
- * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Generic exposure program lines, for teaching and for products. A program line is the curve of
+ * aperture/shutter pairs a camera's Program mode follows.
+ *
+ * A program line is control policy, not physics. Each node declares a wanted aperture/shutter pair at
+ * an explicit number of stops of optical exposure, relative to the resolver's reference exposure.
+ * The resolver later checks that every node is physically consistent with that reference and with
+ * what the equipment can do.
+ * @see docs/USAGE.md for the equations, units, coordinate conventions, known blockers and support
+ * limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -135,10 +138,11 @@ function parseLimitations(
 /**
  * Parses a generic educational/product exposure program line.
  *
- * A program line is control policy, not physics. Nodes declare desired
- * aperture/shutter pairs at explicit optical-exposure stops relative to the
- * resolver's reference exposure. Resolution later verifies that every node is
- * physically consistent with that reference and current equipment capability.
+ * A program line is control policy, not physics. Each node declares a wanted
+ * aperture/shutter pair at an explicit number of stops of optical exposure,
+ * relative to the resolver's reference exposure. The resolver later checks
+ * that every node is physically consistent with that reference and with what
+ * the equipment can do.
  */
 export function parseExposureProgramLineProfile(
   value: unknown

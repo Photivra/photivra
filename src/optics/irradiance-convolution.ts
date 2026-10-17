@@ -1,23 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Piecewise shift-invariant (isoplanatic-patch) convolution of a sampled, linear, additive image-plane
- * quantity with caller-supplied incoherent intensity PSF kernels. This is the CPU float64 reference for
- * the optics-as-convolution step proposed in #277; `webgpu-f32` executes the same equation (see
- * docs/WEBGPU.md).
+ * Blurs a sampled image-plane quantity with caller-supplied PSF (point-spread function) kernels, one
+ * kernel per patch of the image. The quantity must be linear and additive (for example irradiance).
+ * Each patch is treated as shift-invariant ("isoplanatic"): the same PSF applies everywhere inside it.
+ * The PSFs are incoherent intensity PSFs.
  *
- * Equation (source-indexed, energy-conserving scatter written as a gather):
+ * This is the CPU float64 reference for the optics-as-convolution step (#277). The `webgpu-f32`
+ * path runs the same equation; see docs/WEBGPU.md.
+ *
+ * Equation (indexed by source site; an energy-conserving scatter written as a gather):
  *   out(x, y) = Σ_{v=-r..r} Σ_{u=-r..r} in(x − u, y − v) · K_{p(x − u, y − v)}(u, v)
  * where `p(s)` is the patch containing the **source** site and `K_p(u, v)` is the fraction of the source
- * site's quantity that lands at displacement (+u right, +v down) in grid sites. Incoherent imaging is a
- * linear superposition of intensity PSFs (Goodman, Introduction to Fourier Optics, 4th ed., 2017, §6.1);
- * a field-dependent PSF is approximated as constant inside each isoplanatic patch (Goodman §6.1; the
- * piecewise shift-invariant method used by camera simulators such as ISETCam, Farrell et al., Proc.
- * SPIE 8299, 2012). The patch approximation is the caller's declared choice of patch size and kernels.
+ * site's quantity that lands at displacement (+u right, +v down), in grid sites.
  *
- * Boundary: the grid is the complete source support. Sources outside the grid are not represented and
- * quantity scattered outside the grid is lost (reported through `inputSum`/`outputSum`); no padding,
- * reflection or renormalization is performed.
+ * Incoherent imaging is a linear sum of intensity PSFs (Goodman, Introduction to Fourier Optics, 4th
+ * ed., 2017, §6.1). A PSF that varies across the field is approximated as constant inside each patch
+ * (Goodman §6.1). Camera simulators such as ISETCam use the same piecewise shift-invariant method
+ * (Farrell et al., Proc. SPIE 8299, 2012). The caller chooses the patch size and kernels, and so
+ * owns the patch approximation.
+ *
+ * Edges: the grid holds every source. Sources outside the grid are not represented. Anything
+ * scattered outside the grid is lost; compare `inputSum` with `outputSum` to see how much. There is no
+ * padding, reflection or renormalization.
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
@@ -29,9 +34,9 @@ export const IRRADIANCE_CONVOLUTION_LIMITS = Object.freeze({
   maximumKernelRadius: 32,
   maximumPatchCount: 4_096,
   maximumKernelWeights: 4_194_304,
-  /** A kernel may lose energy (vignetting/transmission) but never create it beyond rounding slack. */
+  /** A kernel may lose energy (vignetting, transmission) but may not create it, beyond rounding slack. */
   maximumKernelSum: 1 + 2 ** -20,
-  /** Inputs above this magnitude are rejected so float32 execution cannot overflow. */
+  /** Inputs larger than this are rejected so that float32 execution cannot overflow. */
   maximumSampleMagnitude: 2 ** 100
 });
 
@@ -39,11 +44,11 @@ export interface IrradianceConvolutionInput {
   schemaVersion: typeof IRRADIANCE_CONVOLUTION_SCHEMA_VERSION;
   width: number;
   height: number;
-  /** Row-major, finite, non-negative, linear and additive (e.g. irradiance or expected photons per site). */
+  /** Row-major samples. Finite, non-negative, linear and additive (for example irradiance, or expected photons per site). */
   samples: Float32Array | Float64Array;
-  /** Kernel half-width in grid sites; each kernel is (2r+1)×(2r+1). */
+  /** Kernel half-width in grid sites. Each kernel is (2r+1)×(2r+1). */
   kernelRadius: number;
-  /** Isoplanatic patch size in grid sites; the last row/column of patches may be partial. */
+  /** Patch size in grid sites. The last row and column of patches may be partial. */
   patchWidth: number;
   patchHeight: number;
   /**
@@ -54,7 +59,7 @@ export interface IrradianceConvolutionInput {
   boundary: "zero-outside-grid";
 }
 
-/** Validated, immutable geometry of a convolution request (sample arrays are borrowed, not copied). */
+/** Validated, immutable geometry of a convolution request. Sample arrays are borrowed, not copied. */
 export interface IrradianceConvolutionPlan {
   width: number;
   height: number;
@@ -65,7 +70,7 @@ export interface IrradianceConvolutionPlan {
   patchHeight: number;
   patchColumns: number;
   patchRows: number;
-  /** Largest single kernel sum and input magnitude, used by the float32 error bound. */
+  /** Largest kernel sum and largest input magnitude. The float32 error bound uses them. */
   maximumKernelSum: number;
   maximumSampleMagnitude: number;
 }
@@ -128,7 +133,8 @@ export function calculateIrradianceConvolutionPlan(input: IrradianceConvolutionI
 
 /**
  * Reference gather for output rows `[y0, y1)`, written into `output` at `(y - y0) * width + x`.
- * Summation order (v outer, u inner, ascending) is part of the contract shared with the WGSL kernel.
+ * The summation order (v outer, u inner, both ascending) is part of the contract shared with the
+ * WGSL (WebGPU shader) kernel.
  * @internal
  */
 export function convolveIrradianceRows(plan: IrradianceConvolutionPlan, samples: Float32Array | Float64Array,

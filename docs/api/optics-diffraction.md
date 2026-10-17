@@ -9,8 +9,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface AiryDisk {
   /**
-   * Diameter from the center of the diffraction pattern to the first dark-ring
-   * diameter, in micrometres: 2.44 * wavelength * f-number.
+   * Diameter of the first dark ring of the diffraction pattern, in
+   * micrometres: 2.44 * wavelength * f-number.
    */
   firstZeroDiameterMicrometers: number;
 }
@@ -18,11 +18,12 @@ export interface AiryDisk {
 
 ## calculateAiryDisk
 
-Calculates the first-zero Airy-disk diameter for an ideal circular aperture.
+Calculates the Airy-disk diameter to the first dark ring for an ideal
+circular aperture.
 
-This uses the established diffraction relation d = 2.44 * lambda * N.
-It is an independent implementation of the mathematical relation and does
-not model lens aberrations or non-circular pupil geometry.
+It uses the standard diffraction relation d = 2.44 * lambda * N. This is an
+independent implementation of that relation. It does not model lens
+aberrations or non-circular pupils.
 
 ```ts
 export function calculateAiryDisk(
