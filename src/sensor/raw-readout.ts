@@ -614,7 +614,7 @@ function parseNonNegativeFact(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorChargeSamplingProfile(
   value: unknown
@@ -1139,7 +1139,7 @@ function parseRegime(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorReadoutConversionProfile(
   value: unknown
@@ -1236,7 +1236,7 @@ export function parseSensorReadoutConversionProfile(
  * @param input - The input; see `ResolveSensorReadoutRegimeInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function resolveSensorReadoutRegime(
   input:
@@ -1682,7 +1682,7 @@ function sampleStandardNormal(
  * @param input - The input; see `SimulateSensorChargeRealizationInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function simulateSensorChargeRealization(
   input:
@@ -2020,7 +2020,7 @@ function validateCapacityAgainstRealization(
  * @param input - The input; see `CalculateExpectedSensorReadoutInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function calculateExpectedSensorReadout(
   input:
@@ -2313,7 +2313,7 @@ export function adcTransfer(
  * @param input - The input; see `SimulateSensorRawCodeInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function simulateSensorRawCode(
   input:

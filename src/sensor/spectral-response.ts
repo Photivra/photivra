@@ -1028,7 +1028,7 @@ export function parseSensorSpectralResponseProfile(
  * @param response - The input; see `SensorSpectralChannelResponse` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function createSensorSpectralResponseChannelBinding(
   response: SensorSpectralChannelResponse

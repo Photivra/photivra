@@ -535,7 +535,7 @@ function approximatelyEqual(
  * @param quadrature - The input; see `SensorSpectralQuadrature` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function validateSensorSpectralQuadrature(
   quadrature: SensorSpectralQuadrature

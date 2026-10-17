@@ -234,7 +234,7 @@ function requireFinite(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorRateTemporalStationarityProfile(
   value: unknown

@@ -424,7 +424,7 @@ function parseUniqueEnumList<T extends string>(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The validated profile. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseFocusControlProfile(
   value: unknown
@@ -718,7 +718,7 @@ function verifyStateProfile(
  * @param input - New state ID, profile, focus mode, initial focus plane and optional start time.
  * @returns The initial state. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function createFocusControlState(
   input:
@@ -796,7 +796,7 @@ function stateProfileView(
  * @param input - Current state, new state ID, new focus plane and event time.
  * @returns The new state. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function setManualFocusState(
   input:
@@ -1059,7 +1059,7 @@ function unchangedResolution(
  * @param input - Current state, new state ID, control event and target observation.
  * @returns The resolution and new state. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function resolveFocusTargetObservation(
   input:
@@ -1239,7 +1239,7 @@ export function resolveFocusTargetObservation(
  * @param input - Current state, new state ID, lock setting and event time.
  * @returns The new state. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function setFocusLock(
   input:
@@ -1320,7 +1320,7 @@ export function setFocusLock(
  * @param input - Current state, profile and release priority.
  * @returns The assessment. Read its structured blockers before acting on an authorization.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function assessFocusReleaseGate(
   input:

@@ -145,7 +145,7 @@ interface EnvironmentPhotoPlan {
  * and errors are unchanged.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">,
   ownership: "copy" | "engine-owned" = "copy", retention: "full" | "photo-only" = "full"): EnvironmentPhotoPlan {

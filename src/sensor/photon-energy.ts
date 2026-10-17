@@ -383,7 +383,7 @@ function conditionsMatch(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSourcedAirPhaseRefractiveIndex(
   value: unknown
@@ -491,7 +491,7 @@ export function parseSourcedAirPhaseRefractiveIndex(
  * @param input - The input; see `CalculatePhotonEnergyFromWavelengthInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function calculatePhotonEnergyFromWavelength(
   input:

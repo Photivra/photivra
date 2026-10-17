@@ -19,7 +19,7 @@ export interface ExportTiffTag { id: number; type: number; count: number; data: 
  * @param values - Unsigned integer values.
  * @returns The packed tag.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function exportTiffNumbers(id: number, type: 1 | 3 | 4, values: readonly number[]): ExportTiffTag {
   const size = type === 1 ? 1 : type === 3 ? 2 : 4, data = new Uint8Array(values.length*size), view = new DataView(data.buffer);
@@ -37,7 +37,7 @@ export function exportTiffNumbers(id: number, type: 1 | 3 | 4, values: readonly 
  * @param data - Tag bytes.
  * @returns The tag, referring to `data`.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function exportTiffBytes(id: number, type: 1 | 7, data: Uint8Array): ExportTiffTag {
   return { id, type, count: data.length, data };
@@ -49,7 +49,7 @@ export function exportTiffBytes(id: number, type: 1 | 7, data: Uint8Array): Expo
  * @param value - Printable ASCII text.
  * @returns The packed ASCII tag.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function exportTiffAscii(id: number, value: string): ExportTiffTag {
   if (!/^[\x20-\x7e]*$/.test(value)) throw new InvalidConfigurationError("TIFF text requires printable ASCII.");

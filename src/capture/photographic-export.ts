@@ -343,7 +343,7 @@ export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): Cal
  * @param input - The RAW reconstruction input, colour profile, white-balance mode, SDR rendering profile, file metadata and JPEG settings.
  * @returns The DNG and JPEG pair with their processing records. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export async function createPhotographicExportPair(input: PhotographicExportInput, options: PhotographicExportOptions = {}): Promise<PhotographicExportPair> {
   const opts=object(options,["signal"]), signal=opts.signal as AbortSignal | undefined;

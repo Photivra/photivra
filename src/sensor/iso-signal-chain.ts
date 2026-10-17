@@ -403,7 +403,7 @@ function parseCaptureModeBinding(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseGenericIsoSignalChainProfile(
   value: unknown
@@ -610,7 +610,7 @@ function regimeIdForIso(
  * @param input - The input; see `ResolveGenericIsoSignalChainInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function resolveGenericIsoSignalChain(
   input:
@@ -751,7 +751,7 @@ const PRESETS =
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseGenericIsoSignalChainPresetCatalog(
   value: unknown
@@ -881,7 +881,7 @@ export function parseGenericIsoSignalChainPresetCatalog(
  * @returns The preset and its signal-chain profile ID. `performanceOrderingClaimed` and
  *   `realCameraRankingClaimed` are always false. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function resolveGenericIsoSignalChainPreset(
   input: {

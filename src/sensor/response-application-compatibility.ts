@@ -391,7 +391,7 @@ function parseReferenceConditionPolicy(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorResponseApplicationProfile(
   value: unknown
@@ -601,7 +601,7 @@ function validateReductionBoundary(
  * @param input - The input; see `AssessSensorResponseApplicationCompatibilityInput` for its fields, units and coordinates.
  * @returns The assessment. Read its structured blockers before acting on an authorization.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function assessSensorResponseApplicationCompatibility(
   input:

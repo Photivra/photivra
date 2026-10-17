@@ -404,7 +404,7 @@ function parseWindowIdentity(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorAdditionalStoredChargeComponent(
   value: unknown
@@ -532,7 +532,7 @@ export function parseSensorAdditionalStoredChargeComponent(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorAccumulatedChargeCompletenessProfile(
   value: unknown
@@ -814,7 +814,7 @@ function validateComponentBinding(
  *   dark charge (SensorDarkCurrentCharge); see `ComposeSensorAccumulatedChargeInput`.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function composeSensorAccumulatedCharge(
   input: Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
@@ -831,7 +831,7 @@ export function composeSensorAccumulatedCharge(
  *   dark charge (SensorTemporalDarkCurrentCharge); see `ComposeSensorAccumulatedChargeInput`.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function composeSensorAccumulatedCharge(
   input: Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
@@ -847,7 +847,7 @@ export function composeSensorAccumulatedCharge(
  * @param input - The input; see `ComposeSensorPhotoAccumulatedChargeInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function composeSensorAccumulatedCharge(
   input: ComposeSensorPhotoAccumulatedChargeInput
@@ -861,7 +861,7 @@ export function composeSensorAccumulatedCharge(
  * @param input - The input; see `ComposeSensorPhotoAccumulatedChargeInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function composeSensorAccumulatedCharge(
   input: ComposeSensorPhotoAccumulatedChargeInput

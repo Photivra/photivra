@@ -258,7 +258,7 @@ function parseValueDomain(
  * @param identity - The input; see `SensorSpatialQuadratureNodeIdentity` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function sensorSpatialQuadratureNodeIdentityKey(
   identity: SensorSpatialQuadratureNodeIdentity
@@ -341,7 +341,7 @@ function approximatelyEqual(
  * @param quadrature - The input; see `SensorSpatialSamplingQuadrature` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function validateSensorSpatialSamplingQuadrature(
   quadrature: SensorSpatialSamplingQuadrature

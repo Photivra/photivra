@@ -511,7 +511,7 @@ function parseTemperatureModel(
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorDarkCurrentProfile(
   value: unknown
@@ -823,7 +823,7 @@ function validateExposure(
  * @param input - Dark-current input whose exposure is a per-exposure photo signal (SensorEqeExposureIntegration); see `CalculateSensorDarkCurrentChargeInput`.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function calculateSensorDarkCurrentCharge(
   input: Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeExposureIntegration }
@@ -837,7 +837,7 @@ export function calculateSensorDarkCurrentCharge(
  * @param input - Dark-current input whose exposure is a time-resolved photo signal (SensorEqeTemporalPhotoSignal); see `CalculateSensorDarkCurrentChargeInput`.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function calculateSensorDarkCurrentCharge(
   input: Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeTemporalPhotoSignal }
@@ -851,7 +851,7 @@ export function calculateSensorDarkCurrentCharge(
  * @param input - The input; see `CalculateSensorDarkCurrentChargeInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function calculateSensorDarkCurrentCharge(
   input: CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>
@@ -865,7 +865,7 @@ export function calculateSensorDarkCurrentCharge(
  * @param input - The input; see `CalculateSensorDarkCurrentChargeInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function calculateSensorDarkCurrentCharge(
   input:

@@ -66,7 +66,7 @@ const REDUCTION_TOLERANCE = 1e-10;
 
 /** Disables the lean executor process-wide (internal; tests compare both paths). */
 let leanDisabled = false;
-/** Internal counters of lean work (tests assert the lean path actually runs). Not a root export. */
+/** Internal counters of lean work (tests assert the lean path actually runs). Not exported from the package. */
 export const nativeEnvironmentLeanStatistics = { plannedSites: 0, executedSites: 0, sensorSites: 0 };
 export function setNativeEnvironmentLeanExecutionEnabled(enabled: boolean): void { leanDisabled = !enabled; }
 
