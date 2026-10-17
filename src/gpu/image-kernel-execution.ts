@@ -6,8 +6,10 @@
  * `cpu-reference` is the float64 engine reference and the default. `webgpu-f32` is a separate float32
  * approximation backend. Every one of its results carries a forward-error bound worked out in advance
  * from:
- * - IEEE 754 binary32 rounding (unit roundoff u = 2^-24; Higham, Accuracy and Stability of Numerical
- *   Algorithms, 2nd ed., SIAM 2002, §2–§3, γ_k = k·u/(1 − k·u));
+ * - IEEE 754 binary32 rounding (unit roundoff u = 2^-24; γ_k = k·u/(1 − k·u), the classical factor
+ *   in error bounds for floating-point sums and inner products: Rump & Jeannerod, SIAM J. Matrix
+ *   Anal. Appl. 35(2), 2014, sec. 1, free author copy. Also see: Higham, Accuracy and Stability of
+ *   Numerical Algorithms, 2nd ed., SIAM 2002, §2–§3);
  * - the WGSL built-in accuracy table (W3C WebGPU Shading Language, §"Floating Point Accuracy").
  * See docs/WEBGPU.md.
  */

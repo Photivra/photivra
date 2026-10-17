@@ -1491,7 +1491,7 @@ Use `parseLensComplexPupilProfile()` and `calculateLensComplexPupilPsf()` when t
 
 The reference evaluator runs deterministic scalar Fraunhofer propagation on the explicit pupil grid.
 
-- Each axis is zero-padded to at least 2S − 1 samples, where S is the number of samples in the non-zero support. This makes the intensity PSF meet Goodman's sampling condition Q = λN/pitch > 2. `result.value.sampling` reports the achieved Q and padding.
+- Each axis is zero-padded to at least 2S − 1 samples, where S is the number of samples in the non-zero support. This makes the intensity PSF meet Goodman's sampling condition Q = λN/pitch > 2 (stated freely in Ban et al., [arXiv:2511.06936](https://arxiv.org/abs/2511.06936), eqs. 8–9). `result.value.sampling` reports the achieved Q and padding.
 - A pupil support wider than the declared f/N aperture is rejected.
 - Diffraction and aberration phase are evaluated **together** in that pupil calculation. Do not add a separate diffraction blur to the result.
 

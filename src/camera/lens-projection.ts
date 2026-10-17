@@ -15,11 +15,12 @@
  * rotationally symmetric. Equirectangular (spherical, or cylindrical equidistant) is not radial:
  * x = f * longitude, y = f * latitude, where f is the image distance per radian.
  *
- * Sources: Miyamoto 1964 (JOSA 54:1060, fish-eye projection functions); Kingslake 1989 (A History of
- * the Photographic Lens, ch. on fish-eye lenses); Ray 2002 (Applied Photographic Optics, 3rd ed.,
- * ch. 6 and 47); Kannala & Brandt 2006 (IEEE TPAMI 28:1335, generic camera model listing these
- * projections); Snyder 1987 (Map Projections - A Working Manual, USGS PP 1395) for the equirectangular
- * and stereographic projections.
+ * Sources: Kannala & Brandt 2006 (IEEE TPAMI 28:1335, generic camera model listing these
+ * projections, eqs. 1-5; free author copy); Miyamoto 1964 (JOSA 54:1060, fish-eye projection
+ * functions); Snyder 1987 (Map Projections - A Working Manual, USGS PP 1395, free) for the
+ * equirectangular and stereographic projections. Also see: Kingslake 1989 (A History of the
+ * Photographic Lens, ch. on fish-eye lenses); Ray 2002 (Applied Photographic Optics, 3rd ed., ch. 6
+ * and 47).
  *
  * These are ideal mapping functions. Real fisheye lenses deviate from them. Modelling a real lens
  * would need a calibrated polynomial (for example Kannala-Brandt) with defensible provenance.

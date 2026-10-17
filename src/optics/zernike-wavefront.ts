@@ -13,8 +13,9 @@
  * - m = 0: Z_j = sqrt(n + 1) R_n^0(rho)
  * - m != 0: Z_j = sqrt(2 (n + 1)) R_n^|m|(rho) cos(m theta) for even j, or sin(m theta) for odd j
  * So each term has an RMS of 1 over the unit disk. The RMS wavefront error of sum_j c_j Z_j (piston
- * excluded) is sqrt(sum_{j>=2} c_j^2). The radial polynomial R_n^m follows Born & Wolf, Principles
- * of Optics, 7th ed., sec. 9.2 and app. VII.
+ * excluded) is sqrt(sum_{j>=2} c_j^2). The radial polynomial R_n^m is the standard one in Noll's
+ * nomenclature (Mathar, arXiv:0809.2368, eq. 1, free). Also see: Born & Wolf, Principles of Optics,
+ * 7th ed., sec. 9.2 and app. VII.
  *
  * Primary (Seidel) aberrations use the wave-aberration expansion in normalised field height H and
  * normalised pupil coordinates (rho, phi), phi measured from the field direction (Hopkins 1950,
@@ -23,11 +24,13 @@
  *     + W222 H^2 rho^2 cos^2(phi) + W220 H^2 rho^2 + W311 H^3 rho cos(phi).
  *
  * Paraxial defocus: an image-plane defocus dz at working f-number N gives W020 = dz / (8 N^2)
- * (Goodman, Introduction to Fourier Optics, 3rd ed., sec. 6.4; Mahajan, Optical Imaging and
+ * (Wyant & Creath 1992, Applied Optics and Optical Engineering XI ch. 1, eq. 18, free author copy.
+ * Also see: Goodman, Introduction to Fourier Optics, 3rd ed., sec. 6.4; Mahajan, Optical Imaging and
  * Aberrations Part I, sec. 3.4). That is a Zernike Z4 coefficient of W020 / (2 sqrt 3).
  *
  * Marechal/Mahajan approximation: Strehl ratio ~ exp(-(2 pi sigma / lambda)^2) for a small RMS
- * wavefront error sigma (Marechal 1947; Mahajan 1982 JOSA 72:1258). It is an approximation, valid
+ * wavefront error sigma (Marechal 1947; Mahajan 1982 JOSA 72:1258; free: Wyant & Creath 1992,
+ * ch. 1, eq. 67). It is an approximation, valid
  * roughly for Strehl ratios above 0.3.
  *
  * Pupil coordinates are in metric units, aligned with the image plane (+X right, +Y up). theta is

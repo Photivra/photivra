@@ -212,7 +212,7 @@ Each message is three little-endian uint32 words, hashed with seed 0 (`src/senso
 - Shot-noise variance was about a fifth of the Poisson value.
 - Captures with seeds s and s+2 were shifted copies of each other.
 
-That contradicted the Poisson photon-transfer model (EMVA 1288 §2; Janesick, *Photon Transfer*). Expected charge, the Poisson and normal samplers, ADC arithmetic and every saturation rule are unchanged.
+That contradicted the Poisson photon-transfer model ([EMVA 1288 Release 4.0 Linear](https://www.emva.org/wp-content/uploads/EMVA1288Linear_4.0Release.pdf) §2.4, free. Also see: Janesick, *Photon Transfer*). Expected charge, the Poisson and normal samplers, ADC arithmetic and every saturation rule are unchanged.
 
 **Breaking.** Realised RAW codes and recorded per-site seed identities change for every seed. Replay requests that carry noise model 0.1.0 or 0.2.0 fail closed. To recompute, recreate the capture with model 0.3.0, keep its original seed, and keep the old artifacts as historical output.
 

@@ -180,7 +180,7 @@ PQ and HLG accept signals only in [0, 1] and fail closed outside that range. The
 - **Method:** L*ab and hue h_ab are held constant. The boundary chroma C_max(L*, h) is found by bisection, and chroma is reduced toward the neutral axis.
 - **Knee:** with `kneeFraction` k, chroma above k·C_max is compressed as C′ = kC_max + (1 − k)C_max·tanh((C − kC_max)/((1 − k)C_max)). This is continuous, monotone and stays inside the boundary. k = 1 is hard chroma clipping along constant (L*, h).
 - **Lightness:** values outside [0, 100] are clipped to black or white.
-- **Method family:** constant-lightness/constant-hue chroma reduction (Morovič 2008, *Color Gamut Mapping*, Wiley). It is the same binary-search idea as W3C CSS Color 4 §13, which uses OKLCh. This independent implementation uses CIELAB instead, so no additional third-party matrices are needed.
+- **Method family:** constant-lightness/constant-hue chroma reduction, the same binary-search idea as W3C CSS Color 4 §14 (free), which uses OKLCh. Also see: Morovič 2008, *Color Gamut Mapping*, Wiley. This independent implementation uses CIELAB instead, so no additional third-party matrices are needed.
 - **Known limitation:** CIELAB hue is not perceptually constant for saturated blues, so mapped blues can drift toward purple. The result is labelled `approximation`.
 
 ## References
@@ -196,7 +196,7 @@ PQ and HLG accept signals only in [0, 1] and fail closed outside that range. The
 - G. Sharma, W. Wu, E. N. Dalal (2005), Color Res. Appl. 30(1):21–30; paper and test data at <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>. Also CIE 142-2001.
 - CIE94: Wikipedia, "Color difference", §CIE94, <https://en.wikipedia.org/wiki/Color_difference#CIE94> (secondary source; the primary CIE 116-1995 is not free). Worked values: colour-science, `colour.difference.delta_E_CIE1994` documentation, <https://github.com/colour-science/colour/blob/develop/colour/difference/delta_e.py> (BSD-3-Clause).
 - G. D. Finlayson, M. S. Drew (1997), IS&T/SID 5th Color Imaging Conference.
-- J. Morovič (2008), *Color Gamut Mapping*, Wiley; W3C CSS Color Module Level 4 §13.
+- W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič (2008), *Color Gamut Mapping*, Wiley.
 - ITU-R BT.709-6 (primaries, D65 and luminance coefficients, items 1.3 and 3.2), BT.1886, BT.2020-2 (Tables 3 and 4), BT.2100-3 (PQ and HLG), BT.2408 (free at <https://www.itu.int/rec/R-REC-BT>); W3C CSS Color Module Level 4 (`srgb`, `display-p3`, Lab, the RGB↔XYZ method and its sample-code matrices) <https://www.w3.org/TR/css-color-4/>; ITU-T H.273. Also specified in IEC 61966-2-1:1999, SMPTE ST 2084, SMPTE EG 432-1 and SMPTE RP 177-1993.
 - Planck's law: BIPM, *Mise en pratique for the definition of the kelvin*, Absolute Primary Radiometry (2018), Eq. (1), <https://www.bipm.org/utils/en/pdf/si-mep/MeP-K-2018_Absolute_Primary_Radiometry.pdf>; second radiation constant c₂ = hc/k = 1.438 776 877…e-2 m·K (exact), NIST CODATA 2022, <https://physics.nist.gov/cgi-bin/cuu/Value?c22ndrc>.
 - BIPM, *The International System of Units*, 9th ed. (2019).
