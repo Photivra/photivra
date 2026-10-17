@@ -282,6 +282,9 @@ export interface MtfOnlyPsfRenderabilityAssessment {
 interface AxisBracket {
   lower: number;
   upper: number;
+  /** Positions of lower and upper in the axis values. */
+  lowerIndex: number;
+  upperIndex: number;
   fraction: number;
   exact: boolean;
 }
@@ -976,8 +979,13 @@ function sameKernelGeometry(
 const ENGINE_OWNED_PROFILES = new WeakSet<object>();
 /** Deep-frozen parse of a deep-frozen engine-owned declaration. */
 const PARSED_OWNED_PROFILES = new WeakMap<object, LensSampledPsfProfile>();
-/** Node coordinate index of a cached, deep-frozen parse. */
-const TRUSTED_NODE_INDEX = new WeakMap<LensSampledPsfProfile, ReadonlyMap<string, LensSampledPsfProfile["nodes"][number]>>();
+/** Nodes by grid position (see buildGridNodeIndex). */
+interface GridNodeIndex {
+  readonly strides: readonly number[];
+  readonly nodes: readonly (LensSampledPsfGridNode | undefined)[];
+}
+/** Grid node index of a cached, deep-frozen parse. */
+const TRUSTED_NODE_INDEX = new WeakMap<LensSampledPsfProfile, GridNodeIndex>();
 
 /**
  * Internal: registers a private profile declaration owned by the engine, so that repeated
@@ -1007,7 +1015,7 @@ function parseOwnedOrUntrustedProfile(value: unknown): LensSampledPsfProfile {
     return parsed;
   }
   freezeOwnedData(parsed);
-  TRUSTED_NODE_INDEX.set(parsed, new Map(parsed.nodes.map((node) => [coordinateKey(node.coordinate), node] as const)));
+  TRUSTED_NODE_INDEX.set(parsed, buildGridNodeIndex(parsed));
   PARSED_OWNED_PROFILES.set(value, parsed);
   return parsed;
 }
@@ -1363,8 +1371,11 @@ function bracketAxis(
   }
 
   for (
-    const value of values
+    let index = 0;
+    index < values.length;
+    index += 1
   ) {
+    const value = values[index]!;
     if (
       Math.abs(
         target - value
@@ -1373,6 +1384,8 @@ function bracketAxis(
       return {
         lower: value,
         upper: value,
+        lowerIndex: index,
+        upperIndex: index,
         fraction: 0,
         exact: true
       };
@@ -1396,6 +1409,8 @@ function bracketAxis(
       return {
         lower,
         upper,
+        lowerIndex: index,
+        upperIndex: index + 1,
         fraction:
           (target - lower) /
           (upper - lower),
@@ -1515,95 +1530,39 @@ function bracketCoordinate(
   };
 }
 
-function cornerCoordinates(
-  brackets:
-    Record<
-      AxisKey,
-      AxisBracket
-    >
-): readonly {
-  coordinate:
-    LensSampledPsfGridCoordinate;
-  weight: number;
-}[] {
-  let corners: {
-    partial:
-      Partial<
-        LensSampledPsfGridCoordinate
-      >;
-    weight: number;
-  }[] = [{
-    partial: {},
-    weight: 1
-  }];
-
-  for (
-    const key of AXIS_KEYS
-  ) {
-    const bracket =
-      brackets[key];
-    const values =
-      bracket.exact
-        ? [{
-            value:
-              bracket.lower,
-            weight: 1
-          }]
-        : [
-            {
-              value:
-                bracket.lower,
-              weight:
-                1 -
-                bracket.fraction
-            },
-            {
-              value:
-                bracket.upper,
-              weight:
-                bracket.fraction
-            }
-          ];
-
-    const next: typeof corners =
-      [];
-    for (
-      const corner of corners
-    ) {
-      for (
-        const option of values
-      ) {
-        if (
-          option.weight === 0
-        ) {
-          continue;
-        }
-        next.push({
-          partial: {
-            ...corner.partial,
-            [key]:
-              option.value
-          },
-          weight:
-            corner.weight *
-            option.weight
-        });
-      }
-    }
-    corners = next;
+/** Flat-index strides of the regular grid over AXIS_KEYS (the last axis varies fastest). */
+function gridStrides(axes: LensPsfGridAxes): number[] {
+  const strides = new Array<number>(AXIS_KEYS.length);
+  let stride = 1;
+  for (let a = AXIS_KEYS.length - 1; a >= 0; a -= 1) {
+    strides[a] = stride;
+    stride *= axes[AXIS_KEYS[a]!].length;
   }
-
-  return corners.map(
-    (corner) => ({
-      coordinate:
-        corner.partial as
-          LensSampledPsfGridCoordinate,
-      weight:
-        corner.weight
-    })
-  );
+  return strides;
 }
 
+/**
+ * Nodes indexed by grid position. Node coordinates match declared axis values exactly (checked by the
+ * parser, with `===`, so −0 and 0 are one position) and are unique, so each position holds at most one node.
+ */
+function buildGridNodeIndex(profile: LensSampledPsfProfile): GridNodeIndex {
+  const strides = gridStrides(profile.axes);
+  const nodes = new Array<LensSampledPsfGridNode | undefined>(AXIS_KEYS.reduce((n, key) => n * profile.axes[key].length, 1));
+  for (const node of profile.nodes) {
+    let flat = 0;
+    for (let a = 0; a < AXIS_KEYS.length; a += 1) {
+      const key = AXIS_KEYS[a]!;
+      flat += profile.axes[key].indexOf(node.coordinate[key]) * strides[a]!;
+    }
+    nodes[flat] = node;
+  }
+  return { strides, nodes };
+}
+
+/**
+ * The multilinear corners of a bracketed query and their weights, in a fixed order: axes in AXIS_KEYS order,
+ * lower before upper, zero-weight options skipped. Each weight is the product of its per-axis weights in that order.
+ */
 function resolveWeightedNodes(
   profile:
     LensSampledPsfProfile,
@@ -1613,37 +1572,32 @@ function resolveWeightedNodes(
       AxisBracket
     >
 ): readonly WeightedNode[] {
-  const byKey =
-    TRUSTED_NODE_INDEX.get(profile) ??
-    new Map(
-      profile.nodes.map(
-        (node) => [
-          coordinateKey(
-            node.coordinate
-          ),
-          node
-        ] as const
-      )
-    );
-  return cornerCoordinates(
-    brackets
-  ).map((corner) => {
-    const node =
-      byKey.get(
-        coordinateKey(
-          corner.coordinate
-        )
-      );
+  const index = TRUSTED_NODE_INDEX.get(profile) ?? buildGridNodeIndex(profile);
+  let flats = [0], weights = [1];
+  for (let a = 0; a < AXIS_KEYS.length; a += 1) {
+    const bracket = brackets[AXIS_KEYS[a]!], stride = index.strides[a]!;
+    const nextFlats: number[] = [], nextWeights: number[] = [];
+    for (let c = 0; c < flats.length; c += 1) {
+      if (bracket.exact) {
+        nextFlats.push(flats[c]! + bracket.lowerIndex * stride);
+        nextWeights.push(weights[c]! * 1);
+        continue;
+      }
+      const lowerWeight = 1 - bracket.fraction, upperWeight = bracket.fraction;
+      if (lowerWeight !== 0) { nextFlats.push(flats[c]! + bracket.lowerIndex * stride); nextWeights.push(weights[c]! * lowerWeight); }
+      if (upperWeight !== 0) { nextFlats.push(flats[c]! + bracket.upperIndex * stride); nextWeights.push(weights[c]! * upperWeight); }
+    }
+    flats = nextFlats;
+    weights = nextWeights;
+  }
+  return flats.map((flat, c) => {
+    const node = index.nodes[flat];
     if (node === undefined) {
       throw new InvalidScientificInputError(
         "PSF profile grid is missing a required interpolation corner."
       );
     }
-    return {
-      node,
-      weight:
-        corner.weight
-    };
+    return { node, weight: weights[c]! };
   });
 }
 
