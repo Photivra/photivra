@@ -160,6 +160,8 @@ Sampled-PSF and lens-mapped coverage (#275 follow-up), `simulateCapture()` 48 ×
 | Radial distortion (`lens.distortion`) | 2.63 s | 0.59 s (4.4×) |
 | Ideal pupil, 1 × 4 rays (`lens.pupilSampling`), after the change above | 2.19 s | 1.26 s (1.7×) |
 
+All #275 follow-ups together (main before, branch head after, same method): sampled PSF 11.2 → 1.60 s, radial distortion 2.66 → 0.46 s, 1 × 4 pupil rays 2.32 → 1.15 s; default optics unchanged within noise (0.33 vs 0.34 s).
+
 The remaining time is mostly the private copy of each supplied tile, parsing provider results, comparing templates, and the provider callbacks themselves.
 
 ### Optional smaller execution chunks (unreleased)

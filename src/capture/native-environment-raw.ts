@@ -157,7 +157,7 @@ function tileQueries(plans:readonly SitePlan[]):NativeEnvironmentRadianceQuery[]
     for(const ray of tap.apertureRays)queries.push(prebuildApertureRadianceQuery(tap.request,ray));
   };
   for(const p of plans){
-    if(isLeanEnvironmentPlan(p)){for(const instant of p.instants)for(const taps of instant.groups)for(const tap of taps)add(tap);}
+    if(isLeanEnvironmentPlan(p)){for(const instant of p.instants)for(const tap of instant.taps)add(tap);}
     else for(const instant of p.instants)for(const group of instant.groups)for(const tap of group.taps)add(tap);
   }
   return queries;

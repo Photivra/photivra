@@ -178,6 +178,8 @@ interface PlanConstants {
   spectralCount: number; spatialCount: number; temporalCount: number; pupilCount: number; count: number;
   /** Per group (spectral × spatial node): its number of taps (1 without a sampled PSF). */
   tapCounts: readonly number[];
+  /** Start of each group in an instant's flat tap list, plus the total at the end. */
+  tapOffsets: readonly number[];
   /** The template's sampled-PSF resolver input (its engine-owned, frozen profile), without wavelength and field point. */
   psf?: Omit<ResolveLensSampledPsfInput, "wavelengthNm" | "fieldPointMm">;
   /** The template's validated lens field mapping. */
@@ -214,8 +216,11 @@ export interface LeanEnvironmentPlan {
   readonly count: number;
   readonly site: { x: number; y: number };
   readonly start: number; readonly end: number; readonly duration: number;
-  /** Per instant, per group (spectral-major, spatial-minor), the group's taps in kernel order. */
-  readonly instants: readonly { time: number; groups: readonly (readonly LeanTap[])[] }[];
+  /**
+   * Per instant, every tap in one flat list: group by group (spectral-major, spatial-minor), each group's taps in kernel
+   * order. Group gi holds taps tapOffsets[gi] to tapOffsets[gi + 1] - 1 of its template's plan constants.
+   */
+  readonly instants: readonly { time: number; taps: readonly LeanTap[] }[];
   /** Per group: the resolved PSF kernel weights. Present only with a sampled PSF. */
   readonly kernels?: readonly (readonly number[])[];
 }
@@ -314,10 +319,10 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
     const S = k.spectralCount, P = k.spatialCount;
     const tapPoints: (readonly { x: number; y: number }[])[] = [], tapFields: (readonly ReturnType<typeof fieldAt>[])[] = [];
     const kernels: (readonly number[])[] = [];
+    // Without a PSF, the single tap of group gi is the destination sources[gi % P] (no per-group arrays are built).
     const destinationFields = k.psf === undefined ? sources.map(fieldAt) : undefined;
-    for (let s = 0; s < S; s++) for (let p = 0; p < P; p++) {
+    if (k.psf !== undefined) for (let s = 0; s < S; s++) for (let p = 0; p < P; p++) {
       const destination = sources[p]!, gi = s * P + p;
-      if (k.psf === undefined) { tapPoints.push([destination]); tapFields.push([destinationFields![p]!]); continue; }
       const kernel = resolveLensSampledPsfKernel({ ...k.psf, wavelengthNm: k.wavelengths[s]!, fieldPointMm: { x: destination.x, y: -destination.y } });
       const n = kernel.widthSamples * kernel.heightSamples, weights = kernel.normalizedIntensity;
       if (n !== k.tapCounts[gi] || weights.length !== n) return undefined;
@@ -334,7 +339,7 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
     }
     const measure = duration / k.temporalCount;
     let previous = -Infinity;
-    const instants: { time: number; groups: LeanTap[][] }[] = [];
+    const instants: { time: number; taps: LeanTap[] }[] = [];
     const pd = k.projectionDistanceMm, base = k.requestBase, id = environment.temporalIntegrationId;
     for (let ti = 0; ti < k.temporalCount; ti++) {
       const time = start + (ti + .5) * measure;
@@ -342,11 +347,12 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
       previous = time;
       if (!Number.isFinite(time) || time < 0) return undefined;
       const displacement = { pitch: omega.pitch * time, yaw: omega.yaw * time, roll: omega.roll * time };
-      const groups: LeanTap[][] = [];
+      const taps: LeanTap[] = [];
       for (let gi = 0; gi < S * P; gi++) {
-        const s = Math.floor(gi / P), points = tapPoints[gi]!, fields = tapFields[gi]!, taps: LeanTap[] = [];
-        for (let pi = 0; pi < points.length; pi++) {
-          const point = points[pi]!, sampleId = `${id}-t${ti}-n${gi}-p${pi}`;
+        const s = Math.floor(gi / P), points = destinationFields === undefined ? tapPoints[gi]! : undefined;
+        const tapCount = points === undefined ? 1 : points.length;
+        for (let pi = 0; pi < tapCount; pi++) {
+          const point = points === undefined ? sources[gi % P]! : points[pi]!, sampleId = `${id}-t${ti}-n${gi}-p${pi}`;
           const apertureRays = pupil === undefined ? undefined : sensorApertureRayValues({ sourcePointNativeSensorMm: point, focalLengthMm,
             nominalFNumber, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: time }, pupil, k.parsedFocus).rays;
           let request: SceneRadianceEvaluationRequest, imagePointMm: { x: number; y: number }, distortionAreaFactor: number | undefined;
@@ -383,13 +389,15 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
               timeSecondsFromExposureStart: time, wavelengthNanometers: k.wavelengths[s]!,
               wavelengthBasis: base.wavelengthBasis as SceneRadianceEvaluationRequest["wavelengthBasis"] });
           }
-          const f = fields[pi]!;
-          taps.push({ request, sourcePointImagePlaneMm: imagePointMm, fieldThroughput: f.value, fieldFactor: f.factor, fieldValid: f.valid,
-            ...(apertureRays === undefined ? {} : { apertureRays }), ...(distortionAreaFactor === undefined ? {} : { distortionAreaFactor }) });
+          const f = destinationFields === undefined ? tapFields[gi]![pi]! : destinationFields[gi % P]!;
+          // Built without object spread (cheaper per tap); optional fields are added only when present.
+          const leanTap: LeanTap = { request, sourcePointImagePlaneMm: imagePointMm, fieldThroughput: f.value, fieldFactor: f.factor, fieldValid: f.valid };
+          if (apertureRays !== undefined) leanTap.apertureRays = apertureRays;
+          if (distortionAreaFactor !== undefined) leanTap.distortionAreaFactor = distortionAreaFactor;
+          taps.push(leanTap);
         }
-        groups.push(taps);
       }
-      instants.push({ time, groups });
+      instants.push({ time, taps });
     }
     return { lean: true, template: t, index, owned: environment, count: k.count, site: { x, y }, start, end, duration, instants,
       ...(k.psf === undefined ? {} : { kernels }) };
@@ -503,6 +511,7 @@ function planConstants(environment: Env, plan: FullPlan): PlanConstants {
   const configuration = sampled ? (psf.configuration as Rec).psf as Omit<ResolveLensSampledPsfInput, "wavelengthNm" | "fieldPointMm"> : undefined;
   return {
     spectralCount: S, spatialCount: P, temporalCount: T, pupilCount, count: plan.count, tapCounts,
+    tapOffsets: tapCounts.reduce((offsets: number[], n) => { offsets.push(offsets[offsets.length - 1]! + n); return offsets; }, [0]),
     ...(configuration === undefined ? {} : { psf: { profile: configuration.profile, focalLengthMm: configuration.focalLengthMm, focus: configuration.focus,
       apertureFNumber: configuration.apertureFNumber, signedDefocusImagePlaneMicrometers: configuration.signedDefocusImagePlaneMicrometers } }),
     ...("lensFieldMapping" in e ? { lensMapping: prepareEnvironmentLensFieldMapping(e.lensFieldMapping) } : {}),
@@ -531,12 +540,13 @@ function planReproduced(lean: LeanEnvironmentPlan | undefined, plan: FullPlan, k
   const check = new WeakMap<object, object>();
   for (let ti = 0; ti < plan.instants.length; ti++) {
     const full = plan.instants[ti]!, mine = lean.instants[ti]!;
-    if (!Object.is(full.time, mine.time) || full.temporalSampleIndex !== ti || full.groups.length !== mine.groups.length) return false;
+    if (!Object.is(full.time, mine.time) || full.temporalSampleIndex !== ti || full.groups.length !== k.tapCounts.length ||
+      mine.taps.length !== k.tapOffsets[k.tapCounts.length]) return false;
     for (let gi = 0; gi < full.groups.length; gi++) {
-      const fullTaps = full.groups[gi]!.taps, taps = mine.groups[gi]!;
-      if (fullTaps.length !== taps.length || !sameData(full.groups[gi]!.node, k.nodes[gi], check)) return false;
+      const fullTaps = full.groups[gi]!.taps, first = k.tapOffsets[gi]!;
+      if (fullTaps.length !== k.tapCounts[gi] || !sameData(full.groups[gi]!.node, k.nodes[gi], check)) return false;
       for (let pi = 0; pi < fullTaps.length; pi++) {
-        const fullTap = fullTaps[pi]!, tap = taps[pi]!;
+        const fullTap = fullTaps[pi]!, tap = mine.taps[first + pi]!;
         if (!Object.isFrozen(fullTap.request) || !Object.isFrozen(tap.request) || !sameData(fullTap.request, tap.request, check) ||
           !sameData(fullTap.sourcePointImagePlaneMm, tap.sourcePointImagePlaneMm, check) ||
           !sameData(fullTap.fieldThroughput, tap.fieldThroughput, check) || !sameData(fullTap.apertureRays, tap.apertureRays, check) ||
@@ -759,12 +769,13 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         const instant = plan.instants[ti]!;
         let v: Float64Array = new Float64Array(S * P);
         if (kernels === undefined) {
-          for (let gi = 0; gi < S * P; gi++) v[gi] = tapIrradiance(instant.groups[gi]![0]!, Math.floor(gi / P));
+          // One tap per group, so the flat list is indexed by group.
+          for (let gi = 0; gi < S * P; gi++) v[gi] = tapIrradiance(instant.taps[gi]!, Math.floor(gi / P));
         } else {
           const tapValues: Float64Array[] = [];
           for (let gi = 0; gi < S * P; gi++) {
-            const taps = instant.groups[gi]!, s = Math.floor(gi / P), groupValues = new Float64Array(taps.length);
-            for (let pi = 0; pi < taps.length; pi++) groupValues[pi] = tapIrradiance(taps[pi]!, s);
+            const first = k.tapOffsets[gi]!, s = Math.floor(gi / P), groupValues = new Float64Array(k.tapOffsets[gi + 1]! - first);
+            for (let pi = 0; pi < groupValues.length; pi++) groupValues[pi] = tapIrradiance(instant.taps[first + pi]!, s);
             tapValues.push(groupValues);
             v[gi] = psfSum(kernels[gi]!, groupValues);
           }
