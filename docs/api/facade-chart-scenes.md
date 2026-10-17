@@ -14,8 +14,8 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateStepWedgeReflectances
 
-Step reflectances of a step wedge. `equal-density` spaces optical density D = -log10(R) evenly
-(geometric reflectance steps, as on a photographic step tablet); `linear` spaces reflectance evenly.
+Step reflectances of a step wedge. `equal-density` spaces optical density D = -log10(R) evenly, which
+gives geometric reflectance steps, as on a photographic step tablet. `linear` spaces reflectance evenly.
 
 ```ts
 export function calculateStepWedgeReflectances(input: { steps: number; minimumReflectance: number; maximumReflectance: number;
@@ -169,9 +169,9 @@ export interface ResolvedChartScene {
   /** Frame aspect (height / width) the chart was resolved for. */
   aspect: number;
   /**
-   * Material index at a frame point (u right, v up). Index 0.. refers to `materials`. Points outside the
-   * framed rectangle still evaluate (the chart pattern extends as defined) so that blur and slight
-   * framing differences stay well defined.
+   * Material index at a frame point (u right, v up). The index points into `materials`, starting at 0.
+   * Points outside the framed rectangle still evaluate (the pattern continues as defined), so blur and
+   * small framing differences stay well defined.
    */
   materialAt(u: number, v: number): number;
   /** Reflectance materials: a neutral number or a prepared caller spectrum. */

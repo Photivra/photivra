@@ -4,12 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createSceneRadianceDerivedExposureMeteringSampleSet
 
-Creates a relative pre-exposure meter sample set bound to one validated #85
-provider context.
+Builds a set of relative pre-exposure meter samples tied to one validated
+scene-radiance provider context.
 
-The caller/renderer still supplies the scalar relative samples. This bridge
-validates identity and timing semantics only; it does not convert spectral
-radiance into luminance or define a calibrated meter spectral response.
+The caller or renderer still supplies the relative sample values. This
+bridge only checks identity and timing. It does not convert spectral
+radiance into luminance, and it does not define a calibrated meter spectral
+response.
 
 ```ts
 export function createSceneRadianceDerivedExposureMeteringSampleSet(
@@ -48,11 +49,11 @@ export interface CreateSceneRadianceDerivedExposureMeteringSampleSetInput {
 
 ## parseSceneRadianceMeteringDerivationProfile
 
-Parses the declared approximation used to reduce renderer/provider scene
-information into the scalar relative-linear domain consumed by metering.
+Parses the declared approximation that turns renderer or provider scene data
+into the single relative linear values the meter uses.
 
-This profile explicitly does not authorize a calibrated luminance or
-spectral-to-photometric conversion claim.
+The profile does not support any claim of calibrated luminance or of a
+spectral-to-photometric conversion.
 
 ```ts
 export function parseSceneRadianceMeteringDerivationProfile(

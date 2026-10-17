@@ -41,7 +41,7 @@ export interface AtmosphericHaze {
   airlightContribution: number;
   /** L0 t + L_air (1 - t), in the input radiance unit. */
   hazedRadiance: number;
-  /** Apparent contrast relative to the intrinsic contrast against the horizon, (L - L_air)/(L0 - L_air) = t. */
+  /** Apparent contrast against the horizon divided by the intrinsic contrast: (L - L_air)/(L0 - L_air) = t. */
   contrastTransmittance: number;
 }
 ```

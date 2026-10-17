@@ -34,7 +34,7 @@ export interface HdrBracketFrame {
   blackLevelCode: number;
   /** Codes at or above this level are saturated and excluded. */
   whiteLevelCode: number;
-  /** Optional per-sample flags; non-zero excludes the sample (e.g. physical/pre-ADC saturation). */
+  /** Optional per-sample flags. Non-zero excludes the sample (for example physical saturation before the ADC). */
   saturationFlags?: Uint8Array;
   /** System conversion gain K, electrons per code (includes the frame's ISO gain). */
   conversionGainElectronsPerCode: number;

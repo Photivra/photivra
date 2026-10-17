@@ -34,11 +34,11 @@ export type CaptureIlluminant =
 
 ## createPlanarSceneRadianceProvider
 
-Public scene-preset provider: an engine chart (or caller reflectance/radiance function) on a plane
-`distanceM` in front of the camera, `framedWidthM` wide (frame units u = ±1 at its edges), lit by
-`illuminant` at `illuminanceLux`. The returned `evaluateRadiance`/`evaluateApertureRadiance` follow the
-native environment RAW provider contract and answer requests for scene `sceneId` / provider
-`providerProfileId`.
+Public scene-preset provider. Places an engine chart (or a caller reflectance or radiance function) on
+a plane `distanceM` in front of the camera and `framedWidthM` wide (frame units u = ±1 at its edges),
+lit by `illuminant` at `illuminanceLux`. The returned `evaluateRadiance` and `evaluateApertureRadiance`
+follow the native environment RAW provider contract. They answer requests for scene `sceneId` and
+provider `providerProfileId`.
 
 ```ts
 export function createPlanarSceneRadianceProvider(input: {

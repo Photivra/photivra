@@ -4,9 +4,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateEquivalentIso
 
-Calculates the ISO/gain setting that preserves nominal rendered exposure
-after changing aperture and/or shutter, assuming all other factors remain
-constant.
+Calculates the ISO (gain) setting that keeps the nominal rendered exposure
+the same after aperture, shutter or both change. Assumes nothing else
+changes.
 
 This is an exposure-compensation relation, not a sensor-noise model.
 
@@ -62,8 +62,8 @@ export interface CalculateExposureValue100Input {
 Compares image-plane optical exposure using the proportional relation
 shutterSeconds / aperture^2.
 
-This does not include scene light, lens transmission, vignetting, or sensor
-response and therefore must not be interpreted as a photon-count result.
+This does not include scene light, lens transmission, vignetting or sensor
+response. Do not read it as a photon count.
 
 ```ts
 export function calculateRelativeOpticalExposure(
@@ -91,10 +91,10 @@ export interface CalculateRelativeOpticalExposureInput {
 Calculates a relative linear rendering exposure from aperture, shutter, and
 nominal ISO gain.
 
-This relation is intended for deterministic educational rendering relative to
-a declared reference exposure. ISO is treated as a brightness/gain control;
-it does not create photons and this function does not model sensor noise,
-clipping, tone mapping, lens transmission, or absolute scene luminance.
+This relation is for deterministic educational rendering, relative to a
+declared reference exposure. ISO is treated as a brightness (gain) control;
+it does not create photons. This function does not model sensor noise,
+clipping, tone mapping, lens transmission or absolute scene luminance.
 
 ```ts
 export function calculateRelativeRenderedExposure(

@@ -20,7 +20,7 @@ export interface AcceleratedNativeRawDevelopmentOutput extends NativeRawDevelopm
 
 ## createImageKernelAccelerator
 
-Requests a backend. Never silently substitutes: a fallback is explicit in options and in every result label.
+Requests a backend. Never swaps backends silently: a fallback must be set in the options and is shown in every result label.
 
 ```ts
 export async function createImageKernelAccelerator(options: ImageKernelAcceleratorOptions): Promise<ImageKernelAccelerator>;
@@ -30,7 +30,7 @@ This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.
 
 ## ImageKernelAccelerator
 
-Single-flight owner: one operation at a time; dispose releases the device and every buffer.
+Runs one operation at a time. dispose() releases the device and every buffer.
 
 ```ts
 export interface ImageKernelAccelerator {
@@ -60,7 +60,7 @@ export interface ImageKernelAcceleratorOptions {
   /** WebGPU entry point; defaults to `navigator.gpu`. Supply a worker's `navigator.gpu` explicitly if needed. */
   gpu?: unknown;
   powerPreference?: "low-power" | "high-performance";
-  /** Largest single GPU band buffer in bytes (4 KiB … device limit); default min(64 MiB, device limit). Memory only, never results. */
+  /** Largest single GPU band buffer in bytes (4 KiB up to the device limit); default min(64 MiB, device limit). Affects memory only, never results. */
   maximumBandBytes?: number;
   /** Aborts adapter/device acquisition. */
   signal?: AbortSignal;
@@ -82,7 +82,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface ImageKernelRunOptions {
   signal?: AbortSignal;
-  /** Host event-loop yield between CPU reference chunks and GPU bands (convolution only; tasks keep their own yields). */
+  /** Yields to the host event loop between CPU reference chunks and GPU bands. Convolution only; tasks keep their own yields. */
   yieldControl?: (signal: AbortSignal) => Promise<void>;
 }
 ```
@@ -96,7 +96,7 @@ export interface IrradianceConvolutionResult {
   plan: IrradianceConvolutionPlan;
   /** Float64 for `cpu-reference`, float32 for `webgpu-f32`; row-major, same grid as the input. */
   values: Float64Array | Float32Array;
-  /** Float64 sums of the input and output samples; their difference is quantity lost across the grid boundary. */
+  /** Float64 sums of the input and output samples. Their difference is the amount lost across the grid edge. */
   inputSum: number;
   outputSum: number;
   execution: ImageKernelExecution;

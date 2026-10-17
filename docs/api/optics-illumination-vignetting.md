@@ -4,12 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateIlluminationVignetting
 
-Calculates generic field-dependent illumination falloff as a multiplicative
-linear-light throughput factor.
+Calculates generic illumination falloff across the image (vignetting) as a
+factor that multiplies linear light.
 
-The profile is accepted only when its relative throughput remains strictly
-positive and never exceeds the optical-axis normalization of 1 throughout
-the complete declared operating envelope.
+A profile is accepted only if its relative throughput stays strictly
+positive and never exceeds 1 (the value on the optical axis) anywhere in
+its declared range.
 
 ```ts
 export function calculateIlluminationVignetting(
@@ -28,8 +28,8 @@ export interface CalculateIlluminationVignettingInput {
   /**
    * Ideal image-plane field position relative to the optical axis, in mm.
    *
-   * This slice evaluates throughput from the declared ideal field coordinate;
-   * it does not apply or invert geometric distortion.
+   * Throughput is evaluated at this ideal field coordinate. Geometric
+   * distortion is neither applied nor inverted.
    */
   imagePointMm: LensFieldPointMm;
   profile: IlluminationVignettingProfile;
@@ -45,9 +45,9 @@ export interface IlluminationVignetting {
   imagePointMm: LensFieldPointMm;
   normalizedRadius: number;
   /**
-   * Multiplicative factor for scene-linear/channel-linear signal.
+   * Factor that multiplies scene-linear or channel-linear signal.
    *
-   * 1 means no attenuation; values are required to remain in (0, 1].
+   * 1 means no attenuation. Values must stay in (0, 1].
    */
   linearThroughputFactor: number;
   /** Positive exposure loss relative to the optical axis, in stops. */

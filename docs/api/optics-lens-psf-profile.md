@@ -4,13 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## assessMtfOnlyPsfRenderability
 
-Explain why MTF-only evidence cannot determine a unique renderable PSF; return blockers instead of
-fabricating phase information.
+Explains why MTF-only evidence cannot determine one unique renderable PSF. Returns blockers instead
+of making up phase information.
 
-Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
-support. Interpolation stays within declared applicability and preserves normalized shape separately
-from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
-unique PSF.
+A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+has no phase or spatial information, so it cannot justify rendering one unique PSF.
 
 ```ts
 export function assessMtfOnlyPsfRenderability(
@@ -192,17 +192,17 @@ export interface LensSampledPsfGridNode {
 ## LensSampledPsfInterpolation
 
 Kernel interpolation between regular-grid nodes.
-- `bounded-regular-grid-multilinear`: legacy weighted sum of kernel values. Blending kernels whose
-  peaks sit at different positions produces multiple peaks.
-- `bounded-regular-grid-centroid-aligned`: each node kernel is shifted so its intensity centroid
-  sits at the weighted (interpolated) centroid before the same multilinear weights are applied,
-  so shifted or asymmetric PSFs blend into one peak at the interpolated position.
-- `rotationally-symmetric-radial-field-centroid-aligned`: for a rotationally symmetric lens, nodes
-  are declared only along the +X field axis (fieldYmm = [0], fieldXmm >= 0); a query at field
-  (x, y) is interpolated at radius hypot(x, y) with centroid alignment and the kernel is then
-  rotated by atan2(y, x) about its centre (square sample pitch required).
-Shifts and rotations use bilinear resampling, which slightly smooths the kernel (at most about
-one sample); outside-kernel samples are zero and the result is renormalised to unit energy.
+- `bounded-regular-grid-multilinear`: the legacy weighted sum of kernel values. Blending kernels
+  whose peaks sit at different positions gives several peaks.
+- `bounded-regular-grid-centroid-aligned`: each node kernel is first shifted so its intensity
+  centroid sits at the weighted (interpolated) centroid. Then the same multilinear weights are
+  applied. Shifted or asymmetric PSFs therefore blend into one peak at the interpolated position.
+- `rotationally-symmetric-radial-field-centroid-aligned`: for a rotationally symmetric lens. Nodes
+  are declared only along the +X field axis (fieldYmm = [0], fieldXmm >= 0). A query at field
+  (x, y) is interpolated, with centroid alignment, at radius hypot(x, y). The kernel is then
+  rotated by atan2(y, x) about its centre. The sample pitch must be square.
+Shifts and rotations use bilinear resampling. This smooths the kernel slightly (by at most about
+one sample). Samples outside the kernel are zero, and the result is renormalised to unit energy.
 
 ```ts
 export type LensSampledPsfInterpolation =
@@ -275,13 +275,13 @@ export interface MtfOnlyPsfRenderabilityAssessment {
 
 ## parseLensMtfDiagnosticProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+missing required fields and incompatible scientific data are rejected here.
 
-Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
-support. Interpolation stays within declared applicability and preserves normalized shape separately
-from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
-unique PSF.
+A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+has no phase or spatial information, so it cannot justify rendering one unique PSF.
 
 ```ts
 export function parseLensMtfDiagnosticProfile(
@@ -293,13 +293,13 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseLensSampledPsfProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+missing required fields and incompatible scientific data are rejected here.
 
-Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
-support. Interpolation stays within declared applicability and preserves normalized shape separately
-from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
-unique PSF.
+A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+has no phase or spatial information, so it cannot justify rendering one unique PSF.
 
 ```ts
 export function parseLensSampledPsfProfile(
@@ -363,13 +363,13 @@ export interface ResolvedLensSampledPsf {
 
 ## resolveLensSampledPsf
 
-Resolve the bounded sampled PSF for a declared optical state and support point without extrapolation
-or silently inventing missing dimensions.
+Resolves the sampled PSF for a declared optical state and query point. It never extrapolates and
+never invents missing dimensions.
 
-Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
-support. Interpolation stays within declared applicability and preserves normalized shape separately
-from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
-unique PSF.
+A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+has no phase or spatial information, so it cannot justify rendering one unique PSF.
 
 ```ts
 export function resolveLensSampledPsf(

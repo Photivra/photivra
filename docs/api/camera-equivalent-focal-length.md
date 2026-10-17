@@ -4,13 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateEquivalentFocalLength35Mm
 
-Calculates conventional 35 mm-equivalent focal length from physical focal
-length and the effective active-capture diagonal.
+Calculates the conventional 35 mm-equivalent focal length from the physical
+focal length and the diagonal of the active capture area.
 
-The physical focal length remains unchanged and continues to be the optical
-input for projection and depth-of-field calculations. Focus distance and
-later digital/output crops are deliberately excluded from this conventional
-equivalence quantity.
+The physical focal length is not changed. It stays the optical input for
+projection and depth-of-field calculations. Focus distance and later digital
+or output crops are deliberately left out of this conventional equivalence.
 
 ```ts
 export function calculateEquivalentFocalLength35Mm(

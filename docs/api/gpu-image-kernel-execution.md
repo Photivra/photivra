@@ -44,7 +44,8 @@ export interface ImageKernelExecution {
   errorBound: ImageKernelCodeErrorBound | ImageKernelRelativeErrorBound | null;
   /**
    * Diagnostic counts equal the reference when no sample fell inside a float32 classification band
-   * (`diagnosticUncertaintySampleCount === 0`); otherwise each count differs by at most that many samples.
+   * (`diagnosticUncertaintySampleCount === 0`). Otherwise each count differs by at most that many
+   * samples.
    */
   diagnosticsExact: boolean;
   diagnosticUncertaintySampleCount: number;
@@ -54,7 +55,7 @@ export interface ImageKernelExecution {
 
 ## ImageKernelExecutionError
 
-Domain error for backend acquisition and execution. Input validation keeps the engine's existing errors.
+Domain error for getting and running a backend. Input validation still throws the engine's existing errors.
 
 ```ts
 export class ImageKernelExecutionError extends Error {
@@ -101,10 +102,10 @@ export interface ImageKernelRelativeErrorBound {
 
 ## WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND
 
-Declared absolute bound for the WGSL sRGB encode on [0, 1]: `1.055·pow(x, 1/2.4) − 0.055` with pow
-inherited from exp2(y·log2 x) (log2: 3 ULP, or 2^-21 absolute on [0.5, 2]; exp2: 3 + 2|x| ULP). The
-worst case over [0.0031308, 1] is about 2.5e-6; 2^-17 ≈ 7.6e-6 keeps a 3× margin, also covering the
-sRGB segment-join discontinuity (< 1e-7).
+Declared absolute error bound for the WGSL sRGB encode on [0, 1]: `1.055·pow(x, 1/2.4) − 0.055`. pow
+takes its accuracy from exp2(y·log2 x) (log2: 3 ULP, or 2^-21 absolute on [0.5, 2]; exp2: 3 + 2|x|
+ULP). The worst case over [0.0031308, 1] is about 2.5e-6. The bound 2^-17 ≈ 7.6e-6 keeps a 3× margin,
+and also covers the small jump where the sRGB segments join (< 1e-7).
 
 ```ts
 WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND = 2 ** -17
