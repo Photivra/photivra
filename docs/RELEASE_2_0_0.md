@@ -6,7 +6,7 @@
 
 **Candidate base:** `origin/main` at `09e4262` (#304) merged into the release branch. `npm run release:prepare -- 2.0.0` had already aligned `package.json`, both lockfile root versions, `ENGINE_API_VERSION`, `CITATION.cff`, the current-release lines in `README.md` and `docs/DEVELOPERS.md` and the generated `docs/api`; after the merge the API reference was regenerated. No citation release date is asserted before publication.
 
-**Still in flight:** two streams are not merged yet and have placeholder bullets in the [changelog](../CHANGELOG.md): the lean per-site executor (performance, #275) and the `simulateCapture()` integration of the 2.0 features. This record must be updated, and the release gates re-run, after they merge.
+**All streams merged:** the lean per-site executor (#305), the `simulateCapture()` integration of the 2.0 features (#306) and the native RAW DNG writer (#307) are merged and listed in the [changelog](https://github.com/Photivra/photivra/blob/main/CHANGELOG.md).
 
 ## Scope
 
@@ -36,6 +36,9 @@ Changes since `v1.5.0`, all merged to `main`:
 | [#302](https://github.com/Photivra/photivra/pull/302) | 2.0 review | Demosaic, HDR, tone mapping, fusion, stacking, panorama, denoise | Additive |
 | [#303](https://github.com/Photivra/photivra/pull/303) | 2.0 review | Brown–Conrady and projections wired into mapping and environment capture | Additive, type widening |
 | [#304](https://github.com/Photivra/photivra/pull/304) | #277 | Opt-in WebGPU float32 backend | Additive |
+| [#305](https://github.com/Photivra/photivra/pull/305) | #275 | Lean per-site executor for native environment RAW | Performance (identical output) |
+| [#306](https://github.com/Photivra/photivra/pull/306) | — | `simulateCapture()` uses the 2.0 features | Additive |
+| [#307](https://github.com/Photivra/photivra/pull/307) | — | Native RAW DNG writer, perceptual gamut mapping, PSF throughput rounding fix | Additive, fix |
 
 Commits #243–#267 between `v1.5.0` and the first review are guidance, CI, documentation, hooks, `release:prepare` and repository-internal browser-native reference work; they change no public root contract. The full release notes, with a migration for each breaking change, are in the [changelog](../CHANGELOG.md).
 
@@ -59,6 +62,8 @@ Every row lists the model, its accepted sources and the committed deterministic 
 | Processing (#302) | opt-in tasks; no default-path change | Malvar, He & Cutler, ICASSP 2004; Hirakawa & Parks, IEEE TIP 14(3) (2005); Gunturk et al. (2005); Granados et al. and Hasinoff et al., CVPR 2010; Reinhard et al. and Durand & Dorsey, SIGGRAPH 2002; Mertens et al., PG 2007; Burt & Adelson (1983); Nayar & Nakagawa (1994); Brown & Lowe, IJCV 2007; Tomasi & Manduchi, ICCV 1998; Buades et al., CVPR 2005 and IPOL 2011 (free). Film grain is explicitly synthetic. | `test/processing-*.test.ts` (seven files) |
 | `simulateCapture()` (#300) | facade 1.0.0 | Composes existing models. Exposure anchor by the reflected-light meter equation N²/t = L·S/K with K = 12.5 (ISO 2720; no free equivalent found, flagged below). Luther condition (Luther 1927). Slanted-edge geometry after Burns, IS&T PICS 2000 (free). K_cd = 683 lm/W (BIPM SI Brochure). | `test/simulate-capture.test.ts`, `test/chart-scenes.test.ts` |
 | WebGPU backend (#304) | `webgpu-f32` execution label; irradiance convolution schema 0.1.0 | Incoherent imaging as linear superposition with isoplanatic patches (Goodman 2017 §6.1); piecewise shift-invariant optics (Farrell et al., Proc. SPIE 8299, 2012). Float32 forward-error bounds γ_k (Higham, *Accuracy and Stability of Numerical Algorithms*, 2nd ed., §2–3); IEEE 754 binary32; W3C WGSL accuracy rules (free). Never claimed bit-identical. | `test/image-kernel-accelerator.test.ts` (fake device), `test/webgpu/conformance.webgpu.ts` (real device, repository-only) |
+| Native RAW DNG (#307) | `NATIVE_RAW_DNG_SCHEMA_VERSION` 1.0.0 | Adobe DNG Specification 1.7.1.0 (free): tag semantics, BlackLevel/CFAPattern origin at the ActiveArea top-left (confirmed in the spec text), NoiseProfile definition; EMVA 1288 (free) shot, read and quantization noise. | `test/native-raw-dng.test.ts` (round trip through `parseDngRawImage`); LibRaw decode recorded in #307 |
+| Facade gamut mapping (#307) | — | CIELAB constant-L*/hue chroma reduction (W3C CSS Color 4 §13, free; Morovič 2008). | `test/simulate-capture-integration.test.ts` |
 | Fixes and validation (#280, #281, #282, #293) | no physics change | Consistency, tolerance, serialization and validation fixes. | `test/sensor-raw-pipeline.test.ts`, `test/priority-auto-iso-resolver.test.ts`, `test/canonical-json.test.ts`, `test/root-export-input-errors.test.ts`, the `*-rejections.test.ts` tables |
 | Performance (#285–#288, #292, #294) | no model, equation or unit change | Bit-identical output. | `test/native-environment-bit-identity.test.ts`, `test/native-environment-shared-state.test.ts`, `test/environment-photo-plan-retention.test.ts`, `test/native-capture-sdr-kernel-parity.test.ts`, `test/export-jpeg-byte-identity.test.ts`, `test/stabilization-evaluation-identity.test.ts`, `test/native-yield-cadence.test.ts`, `test/native-environment-optical-stage.test.ts` |
 
@@ -151,7 +156,8 @@ These committed records are dated evidence bound to pre-2.0.0 outputs. They are 
 
 ## Deferred items
 
-- **In flight for 2.0.0:** the lean per-site executor (#275) and the `simulateCapture()` integration of the 2.0 features. Both have placeholders in the changelog.
+- **#305 follow-ups:** lean coverage for sampled-PSF and lens-mapped sites; a provably identical fast path for provider-result validation; lean sensor-stage reuse.
+- **#307 follow-ups:** real-camera DNG interoperability is not claimed (LibRaw decodes the files; no editor review yet); sharing the colour-tag code with the paired export.
 - **#275:** planning once per CFA phase; worker parallelism; a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF).
 - **#276:** consistency between error classes; freezing result envelopes (a deep freeze costs every result on hot paths).
 - **#277 and follow-ups from #304:** hardware-GPU conformance runs and CI wiring, kernel sampling from `LensPsfProfile`, GPU luminance tone curves.
@@ -196,7 +202,7 @@ A first `pack:check` run failed on stale declaration maps left in a reused `dist
 - [x] 2.0.0 changelog with breaking changes and migrations, additions, fixes, performance, tests and tooling.
 - [x] Generated API reference regenerated after the merge.
 - [x] Citation audit, with doc comments and docs updated to free sources.
-- [ ] In-flight streams merged (lean per-site executor; `simulateCapture()` 2.0 integration) and their changelog placeholders replaced.
+- [x] All streams merged (#305, #306, #307) and changelog entries written.
 - [ ] Owner decisions above.
 - [ ] Owner's substantive human review of the AI-assisted changes and of this record.
 - [ ] Green exact-head CI on the release PR, recorded above; then green CI on `main` after merge.
