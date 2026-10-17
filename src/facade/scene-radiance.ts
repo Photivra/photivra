@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Turns a facade scene (an engine chart, a caller reflectance function or a caller radiance function) and
- * an illuminant into a scene radiance provider for the existing native environment RAW contract
- * (`NativeEnvironmentRawProvider.evaluateRadiance` and, for pupil sampling, `evaluateApertureRadiance`).
+ * Turns a facade scene and an illuminant into a scene radiance provider for the existing native
+ * environment RAW contract (`NativeEnvironmentRawProvider.evaluateRadiance` and, for pupil sampling,
+ * `evaluateApertureRadiance`). The scene is an engine chart, a caller reflectance function or a caller
+ * radiance function.
  *
  * Geometry: one plane perpendicular to the optical axis at `distanceM` in front of the camera. A query's
  * outgoing direction o (scene toward camera, see docs/SENSOR_ENVIRONMENT_QUERY.md) gives the look
@@ -14,8 +14,8 @@
  * Radiometry: a Lambertian reflector of reflectance ρ(λ) under irradiance E(λ) has radiance
  * L(λ) = ρ(λ)·E(λ)/π (W·m⁻²·sr⁻¹·nm⁻¹). The illuminant spectral shape S(λ) is scaled so that the
  * plane illuminance is E_v = K_m ∫ E(λ) V(λ) dλ with K_m = 683 lm/W (CIE photometric definition) and
- * V(λ) = ȳ(λ) from the engine's analytic CIE 1931 fit (Wyman, Sloan & Shirley 2013). The illuminant is
- * uniform over the plane and arrives without shadowing; inter-reflection, gloss and fluorescence are not modelled.
+ * V(λ) = ȳ(λ) from the engine's analytic CIE 1931 fit (Wyman, Sloan & Shirley 2013). The light is uniform
+ * over the plane, with no shadows. Inter-reflection, gloss and fluorescence are not modelled.
  * @see docs/QUICK_START.md
  */
 
@@ -207,11 +207,11 @@ export function buildPlanarSceneRadianceProvider(input: {
 }
 
 /**
- * Public scene-preset provider: an engine chart (or caller reflectance/radiance function) on a plane
- * `distanceM` in front of the camera, `framedWidthM` wide (frame units u = ±1 at its edges), lit by
- * `illuminant` at `illuminanceLux`. The returned `evaluateRadiance`/`evaluateApertureRadiance` follow the
- * native environment RAW provider contract and answer requests for scene `sceneId` / provider
- * `providerProfileId`.
+ * Public scene-preset provider. Places an engine chart (or a caller reflectance or radiance function) on
+ * a plane `distanceM` in front of the camera and `framedWidthM` wide (frame units u = ±1 at its edges),
+ * lit by `illuminant` at `illuminanceLux`. The returned `evaluateRadiance` and `evaluateApertureRadiance`
+ * follow the native environment RAW provider contract. They answer requests for scene `sceneId` and
+ * provider `providerProfileId`.
  */
 export function createPlanarSceneRadianceProvider(input: {
   scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;

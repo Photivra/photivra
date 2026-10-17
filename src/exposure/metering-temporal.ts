@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Meters a declared weighted time-average of scene-radiance-derived relative pre-exposure samples.
- * Every temporal sample must already be explicitly bound to one #85 temporal illumination profile and
- * one capture time in the first-opening-boundary-phase reference. Spatial metering is performed first
- * in the same declared profile, then those scalar pre-exposure measurements are combined linearly by
- * caller-declared normalized time weights.
- * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Metering over time: a declared weighted time average of relative meter samples taken before the
+ * exposure (pre-exposure) and derived from scene radiance. Useful for flickering light.
+ *
+ * Each time sample must already be bound to one temporal illumination profile and one capture time.
+ * Times are measured from the first opening-boundary phase (when the shutter starts to open). Each
+ * time sample is metered spatially first, with the same declared profile. The resulting single
+ * values are then combined linearly using normalized time weights that the caller declares.
+ * @see docs/USAGE.md for the equations, units, coordinate conventions, known blockers and support
+ * limits.
  */
 
 import {
@@ -169,14 +171,14 @@ function contextKey(
 }
 
 /**
- * Meters a declared weighted time-average of scene-radiance-derived relative
- * pre-exposure samples.
+ * Meters a declared weighted time average of relative pre-exposure samples
+ * derived from scene radiance.
  *
- * Every temporal sample must already be explicitly bound to one #85 temporal
- * illumination profile and one capture time in the
- * first-opening-boundary-phase reference. Spatial metering is performed first
- * in the same declared profile, then those scalar pre-exposure measurements are
- * combined linearly by caller-declared normalized time weights.
+ * Each time sample must already be bound to one temporal illumination profile
+ * and one capture time, measured from the first opening-boundary phase. Each
+ * time sample is metered spatially first, with the same declared profile. The
+ * resulting single values are then combined linearly using normalized time
+ * weights that the caller declares.
  */
 export function meterSceneRadianceTemporalExposure(
   input:

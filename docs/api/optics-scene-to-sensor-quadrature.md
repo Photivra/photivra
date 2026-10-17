@@ -4,10 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSceneToSensorIrradianceQuadrature
 
-Calculate the existing paraxial optical bridge at every requested node.
-Exact identity/coverage and provider bindings are checked before returning
-physical W/m²/nm samples. Image coordinates belong to the spatial plan, so
-callers cannot attach a field-throughput result from a different point.
+Runs the existing paraxial optical bridge at every requested node.
+
+Before it returns physical W/m²/nm samples, it checks that node identities,
+grid coverage and provider bindings match exactly. Image coordinates come
+from the spatial plan, so a caller cannot attach a field-throughput result
+computed at a different point.
 
 ```ts
 export function calculateSceneToSensorIrradianceQuadrature(
@@ -19,27 +21,28 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## CalculateSceneToSensorIrradianceQuadratureInput
 
-Static point-sample bridge; PSF and temporal transport remain separate responsibilities.
+Static point-sample bridge. PSF blur and motion over time are handled elsewhere.
 
 ```ts
 export interface CalculateSceneToSensorIrradianceQuadratureInput {
   spatialQuadrature: ReduceSensorSpatioSpectralIrradianceInput["spatialQuadrature"];
   spectralQuadrature: ReduceSensorSpatioSpectralIrradianceInput["spectralQuadrature"];
-  /** Evidence-backed provider/illumination/material identities, parsed before use. */
+  /** Provider, illumination and material identities with their evidence. Parsed before use. */
   sceneBindings: Omit<ValidateSceneRadianceEvaluationBindingsInput, "request" | "result">;
   /** One declared lens/focus/filter state shared by every node. */
   optics: Omit<CalculateSceneRadianceToSensorIrradianceInput,
     "sceneRadianceRequest" | "sceneRadianceResult" | "imagePointMm" | "fieldThroughput">;
-  /** Explicit nonnegative instant shared by all queries; not an exposure integration. */
+  /** One non-negative instant shared by all queries. This is not an integral over the exposure. */
   timeSecondsFromExposureStart: number;
-  /** Complete Cartesian coverage with a unique scene sampleId per node. */
+  /** Every combination of the grid axes, with a unique scene sampleId per node. */
   samples: readonly SceneSensorQuadratureSample[];
 }
 ```
 
 ## SceneSensorQuadratureSample
 
-One declared scene query/result for an exact pre-AA spatial/wavelength node.
+One declared scene query and its result, for one exact spatial and wavelength node before the
+anti-aliasing (AA) filter.
 
 ```ts
 export interface SceneSensorQuadratureSample {
@@ -66,9 +69,9 @@ export interface SceneToSensorIrradianceQuadrature {
   reduction: ReturnType<typeof reduceSensorSpatioSpectralIrradiance>;
   samples: readonly {
     node: SensorSpatioSpectralNodeIdentity;
-    /** Physical source coordinate before AA redistribution, in mm. */
+    /** Physical source coordinate, in mm, before the anti-aliasing filter spreads it. */
     preAntiAliasingSourcePointMm: { x: number; y: number };
-    /** Owned provider target/time declaration; not a verified ray intersection. */
+    /** The provider's declared target and time. This is not a verified ray intersection. */
     request: SceneSensorQuadratureSample["sceneRadianceRequest"];
     result: SceneSensorQuadratureSample["sceneRadianceResult"];
     bindings: ReturnType<typeof validateSceneRadianceEvaluationBindings>;

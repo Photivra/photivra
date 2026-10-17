@@ -4,23 +4,23 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateCaptureRotationTemporalQuadrature
 
-Builds deterministic temporal quadrature nodes for pure-camera-rotation
-capture geometry over each destination point's local exposure interval.
+Builds deterministic time samples (temporal quadrature nodes) for a
+rotating camera, across each destination point's local exposure interval.
 
-The first model uses an equal-width midpoint rule. Every node reuses
-calculateCaptureRotationInverseMappings(), so the instantaneous geometry has
-one authoritative implementation.
+The first model uses an equal-width midpoint rule. Every node calls
+calculateCaptureRotationInverseMappings(), so the instantaneous geometry
+has a single implementation.
 
-No radiance is evaluated here. normalizedTimeWeight is suitable for a
-downstream time-average under a uniform temporal-response assumption, while
-timeMeasureSeconds is the local dt measure for a downstream time integral.
-Neither weight includes shutter transmission, scene flicker, sensor
-response, radiometric calibration or any other throughput term.
+No radiance is evaluated here. normalizedTimeWeight is for a time average,
+assuming a uniform response over time. timeMeasureSeconds is the local dt
+for a time integral. Neither weight includes shutter transmission, scene
+flicker, sensor response, radiometric calibration or any other throughput
+term.
 
-The function intentionally reports no numerical integration error estimate:
-geometry alone cannot determine the error in a scene-radiance integral.
-Downstream renderers may compare increasing temporal sample counts in their
-own radiance domain when convergence evidence is required.
+No numerical integration error estimate is reported, on purpose. Geometry
+alone cannot tell the error in a scene-radiance integral. A renderer that
+needs evidence of convergence can compare results for increasing sample
+counts in its own radiance domain.
 
 ```ts
 export function calculateCaptureRotationTemporalQuadrature(
@@ -41,8 +41,8 @@ export interface CalculateCaptureRotationTemporalQuadratureInput
     "localExposurePhase"
   > {
   /**
-   * Number of deterministic temporal quadrature nodes per local exposure
-   * interval. Nodes use the uniform midpoint rule.
+   * Number of time samples (quadrature nodes) per local exposure interval.
+   * Nodes follow the uniform midpoint rule.
    */
   temporalSampleCount: number;
 }
@@ -83,15 +83,15 @@ export interface CaptureRotationTemporalQuadratureNode {
   localExposurePhase: number;
   captureTimeSecondsFromReference: number;
   /**
-   * Dimensionless weight for approximating the time-average of a downstream
-   * quantity under a uniform temporal-response assumption.
+   * Dimensionless weight for approximating the time average of a quantity,
+   * assuming a uniform response over time.
    */
   normalizedTimeWeight: number;
   /**
-   * Seconds-valued quadrature measure for approximating a time integral.
+   * Quadrature measure in seconds, for approximating a time integral.
    *
-   * This is temporal measure only. It is not shutter transmission, radiometric
-   * throughput, photon count, sensor response, or scene radiance.
+   * This is a measure of time only. It is not shutter transmission,
+   * radiometric throughput, photon count, sensor response or scene radiance.
    */
   timeMeasureSeconds: number;
   referenceImagePointMm: ImagePlanePointMm;

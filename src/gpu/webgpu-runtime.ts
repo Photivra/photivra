@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Internal WebGPU device ownership for the image-kernel accelerator: adapter/device acquisition, limits,
- * device-loss tracking, abort/loss racing, error scopes, banded buffers and resource cleanup. Not a root
- * export; WebGPU types never appear in published declarations (consumers need no WebGPU typings).
+ * Internal WebGPU device handling for the image-kernel accelerator: getting the adapter and device,
+ * limits, tracking device loss, racing work against abort and loss, error scopes, banded buffers and
+ * cleanup. Not exported from the package root. WebGPU types never appear in the published type
+ * declarations, so consumers do not need WebGPU typings.
  */
 import { ImageKernelExecutionError, type ImageKernelFallbackReason } from "./image-kernel-execution.js";
 
-/** WebGPU spec constants (GPUBufferUsage / GPUMapMode), local so no global is required at import time. */
+/** WebGPU spec constants (GPUBufferUsage, GPUMapMode), defined here so no global is needed at import time. */
 export const BUFFER_USAGE = Object.freeze({ MAP_READ: 0x0001, COPY_SRC: 0x0004, COPY_DST: 0x0008, UNIFORM: 0x0040, STORAGE: 0x0080 });
 const MAP_MODE_READ = 0x0001;
 
@@ -52,8 +53,9 @@ function abortRace(signal: AbortSignal | undefined): { promise: Promise<never>; 
 }
 
 /**
- * Requests a high-limit device from `gpu` (normally `navigator.gpu`). Never throws for an unavailable
- * platform: the caller decides between CPU fallback and failure. Abort during acquisition throws.
+ * Requests a device with high limits from `gpu` (normally `navigator.gpu`). It does not throw when
+ * WebGPU is unavailable; the caller decides whether to fall back to the CPU or fail. An abort during
+ * acquisition does throw.
  */
 export async function acquireWebGpuRuntime(gpu: unknown, powerPreference: "low-power" | "high-performance" | undefined,
   signal: AbortSignal | undefined): Promise<WebGpuAcquisition> {

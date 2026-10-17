@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createGenericEquipmentTierSelection
 
-Match lens tier by default; cross-tier combinations remain normal supported selections.
+The lens tier matches the body tier by default. Mixing tiers is a normal, supported choice.
 
 ```ts
 export function createGenericEquipmentTierSelection(input: {
@@ -54,7 +54,7 @@ export interface GenericEquipmentTierSelection {
 
 ## parseGenericEquipmentTierSelection
 
-Reject stale/missing/retuned profile versions on saved simulations rather than selecting today's defaults.
+On a saved simulation, rejects profile versions that are stale, missing or retuned, instead of picking today's defaults.
 
 ```ts
 export function parseGenericEquipmentTierSelection(value: unknown): GenericEquipmentTierSelection;
@@ -84,7 +84,7 @@ export interface ResolvedGenericTierLensProfiles {
 
 ## resolveGenericEquipmentTierCatalog
 
-Exact-version catalog; no hidden latest alias and no sensor-size default.
+Catalog of exact versions. No hidden "latest" alias and no default sensor size.
 
 ```ts
 export function resolveGenericEquipmentTierCatalog(input: { presetVersion: string }): readonly GenericEquipmentTierPreset[];
@@ -94,7 +94,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## resolveGenericEquipmentTierLensProfiles
 
-Bind the finite matched-reference optical slice to one exact generic selected state, without extrapolation.
+Ties the finite matched-reference optical data to one exact generic selected state. Never extrapolates.
 
 ```ts
 export function resolveGenericEquipmentTierLensProfiles(input: { selection: GenericEquipmentTierSelection; state: OpticalProfileState }): ResolvedGenericTierLensProfiles;

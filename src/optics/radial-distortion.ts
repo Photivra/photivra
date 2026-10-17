@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Applies a generic radial lens-distortion field mapping to one ideal image-plane point. The mapping
- * is rotationally symmetric about the optical axis: p_distorted = p_ideal * (1 + k1 r² + k2 r⁴ + k3
- * r⁶) where r is normalized by the caller-declared physical reference radius. The profile is accepted
- * only when the radial mapping is strictly monotonic over its declared operating radius, which makes
- * inverse destination-to-source sampling well-defined.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Generic radial lens distortion (barrel and pincushion).
+ *
+ * The mapping is rotationally symmetric about the optical axis:
+ *   p_distorted = p_ideal * (1 + k1 r² + k2 r⁴ + k3 r⁶)
+ * where r is normalized by the physical reference radius the caller declares.
+ *
+ * A profile is accepted only if the radial mapping is strictly monotonic over its declared operating
+ * radius. That makes the inverse mapping (destination-to-source sampling) well defined.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -37,8 +39,8 @@ export interface RadialDistortionProfile {
    */
   normalizationRadiusMm: number;
   /**
-   * Maximum undistorted normalized radius over which this profile is declared
-   * valid and must remain one-to-one/invertible.
+   * Largest undistorted normalized radius for which this profile is declared
+   * valid. Within it the mapping must stay one-to-one and invertible.
    */
   maximumNormalizedRadius: number;
   coefficients: RadialDistortionCoefficients;
@@ -106,7 +108,7 @@ export interface InverseRadialDistortionMappings {
   profileMinimumRadialDerivative: number;
 }
 
-/** @internal Shared by composite lens-field batch evaluators; not root-exported. */
+/** @internal Shared by the composite lens-field batch evaluators. Not exported from the package root. */
 export interface ValidatedRadialProfile {
   normalizationRadiusMm: number;
   maximumNormalizedRadius: number;
@@ -183,10 +185,10 @@ function derivativeCriticalSquaredRadii(
   // d/dr² of the radial derivative:
   // 3 k1 + 10 k2 s + 21 k3 s² = 0, where s = r².
   //
-  // Scale the quadratic before solving so finite caller coefficients cannot
-  // overflow the discriminant calculation. Use the stable q-form roots so a
+  // Scale the quadratic before solving, so finite caller coefficients cannot
+  // overflow the discriminant. Use the numerically stable q-form roots. Then a
   // tiny quadratic term cannot erase the smaller physical root through
-  // cancellation and accidentally let a non-monotonic profile pass.
+  // cancellation and let a non-monotonic profile pass by accident.
   const a = 21 * coefficients.k3;
   const b = 10 * coefficients.k2;
   const c = 3 * coefficients.k1;
@@ -234,7 +236,7 @@ function derivativeCriticalSquaredRadii(
   return [q / scaledA, scaledC / q];
 }
 
-/** @internal Validates/copies one profile for repeated in-package evaluation. */
+/** @internal Validates and copies one profile for repeated use inside the package. */
 export function validateRadialDistortionProfile(
   profile: RadialDistortionProfile
 ): ValidatedRadialProfile {
@@ -342,9 +344,9 @@ function mappingAssumptions(): readonly string[] {
  *
  * where r is normalized by the caller-declared physical reference radius.
  *
- * The profile is accepted only when the radial mapping is strictly monotonic
- * over its declared operating radius, which makes inverse destination-to-source
- * sampling well-defined.
+ * A profile is accepted only if the radial mapping is strictly monotonic over
+ * its declared operating radius. That makes the inverse mapping
+ * (destination-to-source sampling) well defined.
  */
 export function calculateRadialDistortionMapping(
   input: CalculateRadialDistortionMappingInput
@@ -402,14 +404,14 @@ export function calculateRadialDistortionMapping(
 }
 
 /**
- * Inverse-maps one distorted image-plane point to its ideal/undistorted source
- * coordinate for destination-to-source renderer sampling.
+ * Inverse-maps one distorted image-plane point to its ideal (undistorted)
+ * source point, for destination-to-source sampling in a renderer.
  *
- * The same profile monotonicity requirement used by the forward mapping makes
- * the inverse unique over the declared operating radius. Exact center,
- * identity-profile, and mapped-boundary cases are resolved directly; other
- * radii use bounded deterministic bisection that stops once floating-point
- * bounds can no longer narrow.
+ * The forward mapping must be monotonic, so the inverse is unique over the
+ * declared operating radius. The exact centre, an identity profile and the
+ * mapped boundary are solved directly. Other radii use a bounded,
+ * deterministic bisection that stops when the floating-point bounds can no
+ * longer narrow.
  */
 export interface InverseRadialSourcePointValue {
   sourceImagePointMm: LensFieldPointMm;
@@ -419,8 +421,8 @@ export interface InverseRadialSourcePointValue {
 }
 
 /**
- * @internal Minimal inverse evaluation used by composite in-package batch
- * models that do not need the standalone radial delta/provenance envelope.
+ * @internal Minimal inverse evaluation for composite batch models inside the
+ * package that do not need the standalone radial delta or provenance wrapper.
  */
 export function calculateInverseRadialSourcePointValue(
   distortedImagePointMm: LensFieldPointMm,
@@ -556,10 +558,10 @@ function calculateInverseRadialDistortionMappingValue(
 }
 
 /**
- * Invert the declared monotonic radial field map within its supported envelope using the existing
- * bounded root solve and preserve explicit optical coordinates.
- * @param input - CalculateInverseRadialDistortionMappingInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<InverseRadialDistortionMapping>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Inverts the declared monotonic radial field mapping inside its supported range, using the existing
+ * bounded root solver. Optical coordinates are kept explicit.
+ * @param input - CalculateInverseRadialDistortionMappingInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<InverseRadialDistortionMapping>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -586,11 +588,11 @@ export function calculateInverseRadialDistortionMapping(
 }
 
 /**
- * Inverse-maps multiple distorted image-plane destinations while validating
- * and resolving the radial profile only once for the complete batch.
+ * Inverse-maps many distorted image-plane points at once. The radial profile
+ * is validated and resolved only once for the whole batch.
  *
- * The returned per-point mappings are numerically identical to the scalar API;
- * provenance and profile validation are shared once at the batch boundary.
+ * Each returned mapping is numerically identical to the single-point API.
+ * Provenance and profile validation are reported once for the batch.
  */
 export function calculateInverseRadialDistortionMappings(
   input: CalculateInverseRadialDistortionMappingsInput

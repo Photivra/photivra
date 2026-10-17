@@ -4,8 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createHighSpeedSyncIlluminationOverlay
 
-Registers a resolved HSS burst as a temporal illumination overlay (rectangular quasi-continuous
-waveform over [0, D]); every line then integrates the burst over its own local exposure window.
+Registers a resolved high-speed-sync burst as a temporal illumination overlay: a rectangular
+waveform over [0, D]. Each line then collects the burst over its own local exposure window.
 
 ```ts
 export function createHighSpeedSyncIlluminationOverlay(
@@ -17,13 +17,13 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createManualFlashIlluminationOverlay
 
-Construct an owned registered temporal illumination overlay from the resolved manual pulse while
-preserving base ambient source identity.
+Builds a temporal illumination overlay from the resolved manual pulse. The identity of the base
+ambient light source is kept.
 
-Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
-Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
-are unsupported here; source magnitude, optical transport and sensor integration retain their own
-contracts.
+Manual flash is a relative light pulse added on top of the scene light, timed on the capture's
+opening-reference clock. Ordinary front- or rear-curtain sync needs a real interval when the whole
+frame is open at once. High-speed sync (HSS), TTL and flash metering are not handled here. Source
+brightness, optical transport and sensor integration have their own contracts.
 
 ```ts
 export function createManualFlashIlluminationOverlay(
@@ -55,7 +55,7 @@ export interface CreateManualFlashIlluminationOverlayInput {
 
 ## FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION
 
-Sync-capability schema that may declare high-speed (pulsed quasi-continuous) sync.
+Sync-capability schema that may declare high-speed sync (a fast pulse train that acts as continuous light).
 
 ```ts
 FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION =
@@ -73,7 +73,7 @@ FLASH_SYNC_CAPABILITY_SCHEMA_VERSION =
 
 ## FlashOverlaySyncRegistration
 
-Fields of a resolved sync that registration of a flash overlay needs (ordinary or HSS).
+Fields of a resolved sync (ordinary or HSS) needed to register a flash overlay.
 
 ```ts
 export type FlashOverlaySyncRegistration = Pick<
@@ -107,8 +107,9 @@ export interface FlashSyncCapabilityProfile {
   /** Present exactly when highSpeedSyncSupported is true (schema 0.2.0). */
   highSpeedSync?: {
     /**
-     * η: energy of one full-power quasi-continuous burst as a fraction of one full-power ordinary
-     * pulse, (0, 1]. Caller-declared from evidence (capacitor/thermal limits); never inferred.
+     * η: energy of one full-power high-speed-sync burst, as a fraction of one full-power ordinary
+     * pulse, in (0, 1]. The caller declares it from evidence (capacitor and thermal limits). It is
+     * never inferred.
      */
     burstEnergyFractionOfFullPulse: number;
     evidence: readonly EvidenceProvenance[];
@@ -241,13 +242,13 @@ export type ManualFlashSyncMode =
 
 ## parseFlashSyncCapabilityProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+missing required fields and incompatible scientific data are rejected here.
 
-Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
-Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
-are unsupported here; source magnitude, optical transport and sensor integration retain their own
-contracts.
+Manual flash is a relative light pulse added on top of the scene light, timed on the capture's
+opening-reference clock. Ordinary front- or rear-curtain sync needs a real interval when the whole
+frame is open at once. High-speed sync (HSS), TTL and flash metering are not handled here. Source
+brightness, optical transport and sensor integration have their own contracts.
 
 ```ts
 export function parseFlashSyncCapabilityProfile(
@@ -259,13 +260,13 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseManualFlashProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+missing required fields and incompatible scientific data are rejected here.
 
-Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
-Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
-are unsupported here; source magnitude, optical transport and sensor integration retain their own
-contracts.
+Manual flash is a relative light pulse added on top of the scene light, timed on the capture's
+opening-reference clock. Ordinary front- or rear-curtain sync needs a real interval when the whole
+frame is open at once. High-speed sync (HSS), TTL and flash metering are not handled here. Source
+brightness, optical transport and sensor integration have their own contracts.
 
 ```ts
 export function parseManualFlashProfile(
@@ -302,7 +303,7 @@ export interface ResolvedHighSpeedFlashSync extends FlashOverlaySyncRegistration
   powerFraction: number;
   /** η from the sync capability profile. */
   burstEnergyFractionOfFullPulse: number;
-  /** ∫ pulse(t) dt of the declared relative-peak-one ordinary pulse (relative multiplier · s). */
+  /** ∫ pulse(t) dt of the declared ordinary pulse, whose relative peak is 1 (relative multiplier · s). */
   singlePulseIntegratedRelativeSeconds: number;
   /** D: burst support covering the first line opening to the last line closing. */
   burstStartSecondsFromCaptureReference: number;
@@ -315,7 +316,7 @@ export interface ResolvedHighSpeedFlashSync extends FlashOverlaySyncRegistration
   /** Effective guide-number factor relative to the same-power ordinary pulse: √(η·t_e/D). */
   guideNumberFactorRange: { minimum: number; maximum: number };
   uniformAcrossActiveFrame: boolean;
-  /** Rectangular quasi-continuous burst expressed as a manual pulse profile for the illumination overlay. */
+  /** The rectangular high-speed-sync burst, written as a manual pulse profile for the illumination overlay. */
   burstFlashProfile: ManualFlashProfile | null;
   releaseFrameBinding:
     | {
@@ -397,20 +398,25 @@ export interface ResolvedManualFlashSync {
 
 ## resolveHighSpeedFlashSync
 
-Resolves high-speed (focal-plane) sync as a pulsed quasi-continuous burst spanning the whole
-travelling-slit exposure.
+Resolves high-speed (focal-plane) sync (HSS): a fast pulse train that acts as continuous light and
+covers the whole travelling-slit exposure.
 
-When the opening and closing boundaries traverse the frame so that no instant exposes the whole
-frame (shutter faster than the ordinary sync limit), a single short pulse would expose only a band.
-HSS instead emits a rapid pulse train that behaves as constant output P over the burst D from the
-first line opening to the last line closing. Each line integrates P·t_e over its slit time t_e. If
-the burst carries energy E_burst = η·p·E_pulse (η declared by the sync profile, p the power
-fraction, E_pulse the ordinary full-power pulse energy), then P = E_burst/D and each line receives
-η·p·E_pulse·t_e/D. Because exposure ∝ GN² (inverse-square law, GN = d·N), the effective guide number
-relative to the same-power ordinary pulse is GN_HSS/GN = √(η·t_e/D). Shortening t_e by one stop
-therefore costs half a stop of guide number. Approximation: the pulse train is treated as continuous
-(pulse period ≪ t_e), recycle/thermal limits are folded into η, and front/rear-curtain placement does
-not apply because the burst spans the whole exposure.
+At shutter speeds faster than the ordinary sync limit, the shutter's opening and closing edges
+cross the frame as a slit, and the whole frame is never open at once. A single short pulse would
+light only a band.
+
+HSS instead fires a rapid pulse train. It behaves like constant output P over the burst D, from
+the first line opening to the last line closing. Each line collects P·t_e over its slit time t_e.
+- The burst energy is E_burst = η·p·E_pulse. η comes from the sync profile, p is the power
+  fraction and E_pulse is the energy of an ordinary full-power pulse.
+- So P = E_burst/D, and each line receives η·p·E_pulse·t_e/D.
+- Exposure ∝ GN² (inverse-square law, GN = d·N). So, relative to an ordinary pulse at the same
+  power, the effective guide number is GN_HSS/GN = √(η·t_e/D).
+Shortening t_e by one stop therefore costs half a stop of guide number.
+
+Approximations: the pulse train is treated as continuous (pulse period ≪ t_e). Recycle and thermal
+limits are folded into η. Front/rear-curtain placement does not apply, because the burst covers
+the whole exposure.
 
 ```ts
 export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput): ResolvedHighSpeedFlashSync;
@@ -438,13 +444,13 @@ export interface ResolveHighSpeedFlashSyncInput {
 
 ## resolveManualFlashSync
 
-Place a declared ordinary flash pulse into the actual whole-frame exposure opening interval for
-front or rear sync, or return structured incompatibility.
+Places a declared ordinary flash pulse inside the actual interval when the whole frame is open, for
+front- or rear-curtain sync. Otherwise returns a structured incompatibility.
 
-Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
-Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
-are unsupported here; source magnitude, optical transport and sensor integration retain their own
-contracts.
+Manual flash is a relative light pulse added on top of the scene light, timed on the capture's
+opening-reference clock. Ordinary front- or rear-curtain sync needs a real interval when the whole
+frame is open at once. High-speed sync (HSS), TTL and flash metering are not handled here. Source
+brightness, optical transport and sensor integration have their own contracts.
 
 ```ts
 export function resolveManualFlashSync(

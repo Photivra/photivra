@@ -4,10 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorEnvironmentRadianceQuery
 
-Generate an environment radiance request from physical sensor support using
-the existing focus-aware ideal projection and analytic inverse camera rotation.
-Native Y is explicitly inverted; the provider direction is opposite the
-exposure-start look ray. No scene intersection, radiance or renderer executes.
+Builds an environment radiance request from points on the physical sensor,
+using the existing focus-aware ideal projection and the analytic inverse
+camera rotation.
+
+Native Y (+Y down) is inverted explicitly. The provider direction points
+opposite the look ray at exposure start. Nothing intersects the scene,
+computes radiance or renders.
 
 ```ts
 export function calculateSensorEnvironmentRadianceQuery(
@@ -23,18 +26,18 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface CalculateSensorEnvironmentRadianceQueryInput {
-  /** Pre-AA or pre-PSF optical support, native +X right/+Y down, mm about optical axis. */
+  /** Optical sample point before the anti-aliasing filter or PSF. Native +X right, +Y down, in mm from the optical axis. */
   sourcePointNativeSensorMm: { x: number; y: number };
   focalLengthMm: number;
   focus: FocusPlane;
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
-  /** Explicitly maps the shutter opening boundary to the rotation model's t=0. */
+  /** States that the moment the shutter opens is t=0 in the rotation model. */
   timeReference: "first-opening-boundary-phase";
   timeSecondsFromOpeningReference: number;
-  /** Environment request uses radiance propagation toward the camera, opposite the look ray. */
+  /** The request uses the direction radiance travels: toward the camera, opposite the look ray. */
   environmentDirectionConvention: "outgoing-radiance-toward-camera";
   request: Omit<SceneRadianceEvaluationRequest, "target" | "timeSecondsFromExposureStart">;
-  /** Optional 2.0 lens field mapping; omitted keeps the ideal rectilinear, distortion-free query. */
+  /** Optional 2.0 lens field mapping. Omit it for the ideal rectilinear, distortion-free query. */
   lensFieldMapping?: EnvironmentLensFieldMapping;
 }
 ```
@@ -42,9 +45,9 @@ export interface CalculateSensorEnvironmentRadianceQueryInput {
 ## EnvironmentLensFieldMapping
 
 Lens field mapping between the physical (distorted) sensor point and the scene ray (2.0).
-`radiometricAreaCorrection` makes ownership of the distortion area factor explicit: the
-environment photo signal multiplies irradiance by 1 / det(d distorted / d ideal) exactly once,
-so a supplied field-throughput profile must not also contain it.
+`radiometricAreaCorrection` states who applies the distortion area factor. The environment
+photo signal multiplies irradiance by 1 / det(d distorted / d ideal) exactly once. A supplied
+field-throughput profile must therefore not include it as well.
 
 ```ts
 export interface EnvironmentLensFieldMapping {
@@ -84,7 +87,7 @@ export interface SensorEnvironmentRadianceQuery {
   sourcePointNativeSensorMm: { x: number; y: number };
   sourcePointImagePlaneMm: { x: number; y: number };
   referenceLookDirectionUnitVector: { x: number; y: number; z: number };
-  /** Rectilinear rotation mapping; null when a non-rectilinear lens field mapping is used. */
+  /** Rectilinear rotation mapping. Null when a non-rectilinear lens field mapping is used. */
   projection: ReturnType<typeof calculateInverseCameraRotationImageMapping> | null;
   /** Present only when the input declared a lens field mapping. */
   lensFieldMapping?: SensorEnvironmentLensFieldMappingResult;

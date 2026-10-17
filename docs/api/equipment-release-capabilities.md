@@ -78,9 +78,9 @@ export type GenericReleaseDriveMode =
 
 Parses generic logical-release/drive capabilities.
 
-The first schema deliberately models non-overlapping ordinary still
-exposures only. Buffer/media/thermal slowdown and pre-release capture remain
-outside this profile.
+The first schema deliberately models only ordinary still exposures that do
+not overlap. Slowdown from the buffer, media or heat, and pre-release
+capture, are not part of this profile.
 
 ```ts
 export function parseGenericReleaseCapabilityProfile(

@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Internal typed-array image operations shared by the processing operators (not root exports).
- * Every spatial operation uses whole-sample symmetric (reflect-101) borders, the same mapping as RAW
- * mirror border handling. Row generators yield once per output row of each pass; the matching
- * `*Rows` functions return exactly that count so task plans know their total up front.
+ * Internal image operations on typed arrays, shared by the processing operators. Not exported from
+ * the package root.
  *
- * Pyramids follow Burt & Adelson (1983): REDUCE blurs with the separable 5-tap generating kernel
- * w = [1, 4, 6, 4, 1]/16 (a = 0.375) and decimates by two (size ⌈n/2⌉); EXPAND upsamples with the same
- * kernel times two per axis. A Laplacian level is G_l − EXPAND(G_{l+1}); collapsing with the same EXPAND
- * reconstructs G_0 exactly up to float32 storage rounding, whatever the border rule.
+ * Every spatial operation uses symmetric whole-sample (reflect-101) borders, the same mapping as the
+ * RAW mirror border handling. Row generators yield once per output row of each pass. The matching
+ * `*Rows` functions return exactly that count, so task plans know their total in advance.
+ *
+ * Pyramids follow Burt & Adelson (1983):
+ * - REDUCE blurs with the separable 5-tap kernel w = [1, 4, 6, 4, 1]/16 (a = 0.375) and keeps every
+ *   second sample (size ⌈n/2⌉).
+ * - EXPAND upsamples with the same kernel, times two per axis.
+ * - A Laplacian level is G_l − EXPAND(G_{l+1}). Collapsing with the same EXPAND rebuilds G_0 exactly,
+ *   up to float32 rounding, whatever the border rule.
  */
 
 import { reflectRawSiteIndex as reflect } from "../sensor/raw-reconstruction.js";

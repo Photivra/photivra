@@ -4,13 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateLensComplexPupilPsf
 
-Evaluate a declared complex pupil with explicit amplitude/phase and sampling support; normalize PSF
-shape and retain pupil throughput as a separate quantity.
+Evaluates a declared complex pupil with explicit amplitude, phase and sampling support. Returns the
+normalized PSF shape, and the pupil throughput as a separate quantity.
 
-Complex pupil evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF
-shape is normalized separately from pupil throughput; coherent phase, pupil energy and
-spectral/field applicability cannot be replaced by a scalar blur radius. Numeric profiles require
-owned or reusable-data provenance.
+The complex pupil is evaluated by summing the declared amplitude and phase over a bounded, regular
+pupil grid. The PSF shape is normalized separately from the pupil throughput. A single blur radius
+cannot stand in for coherent phase, pupil energy, or the wavelength and field range where the
+profile applies. Numeric profiles need provenance showing the data is owned or reusable.
 
 ```ts
 export function calculateLensComplexPupilPsf(
@@ -29,9 +29,9 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface CalculateLensComplexPupilPsfInput {
   profile:
     LensComplexPupilProfile;
-  /** Physical pupil-to-image propagation scale in mm. Omission preserves the
-   * nominal focal-plane reference. Finite-focus callers must explicitly resolve
-   * the supported principal-plane geometry; profile metadata does not do so. */
+  /** Physical propagation distance from pupil to image, in mm. If omitted, the
+   * nominal focal-plane reference is used. At finite focus the caller must
+   * resolve the supported principal-plane geometry; profile metadata does not. */
   propagationDistanceMm?: number;
 }
 ```
@@ -199,9 +199,9 @@ export interface LensComplexPupilPsfSampling {
   pupilSupportDiameterMmX: number;
   pupilSupportDiameterMmY: number;
   /**
-   * Widest support consistent with the declared f-number at the resolved propagation distance,
-   * propagationDistanceMm / apertureFNumber, in millimetres (focalLengthMm / apertureFNumber for
-   * the nominal focal-plane reference).
+   * Widest support allowed by the declared f-number at the resolved propagation distance:
+   * propagationDistanceMm / apertureFNumber, in millimetres. For the nominal focal-plane reference
+   * this is focalLengthMm / apertureFNumber.
    */
   declaredPupilDiameterMm: number;
   /** Declared pupil grid size before zero padding. */
@@ -213,7 +213,7 @@ export interface LensComplexPupilPsfSampling {
   zeroPaddingApplied: boolean;
   /**
    * Achieved Goodman sampling factor Q = lambda*(z/D)/imagePitch =
-   * transform samples / (support samples - 1). Always greater than 2; null
+   * transform samples / (support samples - 1). Always greater than 2. Null
    * when the support is a single sample on that axis (no finite diameter).
    */
   samplingFactorQX: number | null;
@@ -223,13 +223,13 @@ export interface LensComplexPupilPsfSampling {
 
 ## parseLensComplexPupilProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+missing required fields and incompatible scientific data are rejected here.
 
-Complex pupil evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF
-shape is normalized separately from pupil throughput; coherent phase, pupil energy and
-spectral/field applicability cannot be replaced by a scalar blur radius. Numeric profiles require
-owned or reusable-data provenance.
+The complex pupil is evaluated by summing the declared amplitude and phase over a bounded, regular
+pupil grid. The PSF shape is normalized separately from the pupil throughput. A single blur radius
+cannot stand in for coherent phase, pupil energy, or the wavelength and field range where the
+profile applies. Numeric profiles need provenance showing the data is owned or reusable.
 
 ```ts
 export function parseLensComplexPupilProfile(

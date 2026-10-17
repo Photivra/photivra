@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Wide-gamut and HDR output primitives (standalone; output wiring belongs to the
  * SDR/export stages):
  * - RGB ↔ XYZ matrices derived numerically from primary and white chromaticities

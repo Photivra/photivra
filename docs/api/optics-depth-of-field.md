@@ -43,8 +43,8 @@ from {@link calculateDefocusCircle} equals the supplied circle of confusion.
 The circle of confusion must be smaller than the aperture diameter f/N;
 otherwise the near limit would fall inside the focal length.
 
-The model is geometric and does not include diffraction, aberrations,
-focus breathing, pupil magnification, or macro/high-magnification effects.
+The model is geometric. It does not include diffraction, aberrations,
+focus breathing, pupil magnification or macro (high-magnification) effects.
 
 ```ts
 export function calculateDepthOfField(

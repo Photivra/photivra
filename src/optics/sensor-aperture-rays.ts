@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Ideal symmetric thin-lens pupil rays; no scene intersection or radiometry is performed. */
+/**
+ * Ideal rays through a symmetric thin-lens pupil. This module does not intersect rays with the
+ * scene and does no radiometry.
+ */
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError, requirePositiveFinite } from "../core/validation.js";
@@ -41,7 +44,10 @@ export interface SensorApertureRays {
   radiometryCalculated: false;
   apertureAreaApplied: false;
 }
-/** Uniform-area polar midpoint rule, normalized as an average, never a second f-number factor. */
+/**
+ * Polar midpoint rule with equal-area cells. Weights are normalized as an average, so they never
+ * apply the f-number a second time.
+ */
 export function calculateSensorApertureRays(input: CalculateSensorApertureRaysInput): CalculationResult<SensorApertureRays> {
   requireInputObject(input, "calculateSensorApertureRays input");
   const owned = structuredClone(input), pupil = owned.pupil;
@@ -55,7 +61,7 @@ export function calculateSensorApertureRays(input: CalculateSensorApertureRaysIn
   pupil.evidence = parseEvidenceList(pupil.evidence, "circularPupil.evidence");
   const focus = parseFocusPlane(owned.focus);
   const v = calculateFocusPlaneImageDistance({ focalLengthMm: owned.focalLengthMm, focus }).value.imageDistanceMm;
-  // Reuse the established rotation/time validation and forward-hemisphere gate.
+  // Reuse the existing rotation and time validation, and the check that rays point forward.
   const inverse = calculateInverseCameraRotationImageMapping({ focalLengthMm: owned.focalLengthMm,
     imagePointMm: { x: owned.sourcePointNativeSensorMm.x, y: -owned.sourcePointNativeSensorMm.y },
     angularVelocityRadPerSec: owned.angularVelocityRadPerSec, timeSecondsFromExposureStart: owned.timeSecondsFromOpeningReference,

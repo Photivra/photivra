@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Calculates ideal regular-polygon aperture geometry and the corresponding straight-edge
- * diffraction-ray directions. This models only geometry/symmetry. It does not calculate diffraction
- * intensity, wavelength-dependent star length, blade curvature, lens aberrations, coatings, or sensor
- * blooming.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Geometry of an ideal regular-polygon aperture, and the directions of the diffraction rays (the
+ * "sunstar" spikes) its straight edges produce.
+ *
+ * This models only geometry and symmetry. It does not calculate diffraction intensity,
+ * wavelength-dependent star length, blade curvature, lens aberrations, coatings or sensor blooming.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -44,9 +44,9 @@ export interface IdealApertureGeometry {
   /**
    * Diffraction-ray directions in degrees, normalized to [0, 360).
    *
-   * Each ray is perpendicular to a blade edge. Parallel opposite edges overlap
-   * for even blade counts; odd blade counts therefore produce twice as many
-   * visible ray directions.
+   * Each ray is perpendicular to a blade edge. With an even blade count,
+   * opposite edges are parallel and their rays overlap. An odd blade count
+   * therefore gives twice as many visible ray directions.
    */
   sunstarRayAnglesDegrees: readonly number[];
   /** Unit-circumradius regular-polygon vertices. */
@@ -59,12 +59,12 @@ function normalizeDegrees(value: number): number {
 }
 
 /**
- * Calculates ideal regular-polygon aperture geometry and the corresponding
- * straight-edge diffraction-ray directions.
+ * Calculates ideal regular-polygon aperture geometry and the directions of
+ * the diffraction rays from its straight edges.
  *
- * This models only geometry/symmetry. It does not calculate diffraction
+ * This models only geometry and symmetry. It does not calculate diffraction
  * intensity, wavelength-dependent star length, blade curvature, lens
- * aberrations, coatings, or sensor blooming.
+ * aberrations, coatings or sensor blooming.
  */
 export function calculateIdealApertureGeometry(
   input: CalculateIdealApertureInput

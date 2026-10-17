@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Sampled lens PSF
- * shapes bind exact generic optical state, field, wavelength and signed defocus support. Interpolation
- * stays within declared applicability and preserves normalized shape separately from throughput.
- * MTF-only data lacks phase/spatial information and does not authorize rendering a unique PSF.
- * Resolve the bounded sampled PSF for a declared optical state and support point without extrapolation
- * or silently inventing missing dimensions. Sampled lens PSF shapes bind exact generic optical state,
- * field, wavelength and signed defocus support. Interpolation stays within declared applicability and
- * preserves normalized shape separately from throughput. MTF-only data lacks phase/spatial information
- * and does not authorize rendering a unique PSF.
- * @see docs/PSF_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Sampled lens PSF (point-spread function) profiles, and MTF-only diagnostic profiles.
+ *
+ * The parsers validate untrusted input and return the normalized typed contract. Unknown enum
+ * values, missing required fields and incompatible scientific data are rejected.
+ *
+ * The resolver finds the sampled PSF for a declared optical state and query point. It never
+ * extrapolates and never invents missing dimensions.
+ *
+ * A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+ * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+ * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+ * has no phase or spatial information, so it cannot justify rendering one unique PSF.
+ * @see docs/PSF_FOUNDATION.md for the equations, units, coordinate conventions, known blockers and
+ * support limits.
  */
 
 import {
@@ -56,17 +58,17 @@ export type LensPsfUncertainty =
 
 /**
  * Kernel interpolation between regular-grid nodes.
- * - `bounded-regular-grid-multilinear`: legacy weighted sum of kernel values. Blending kernels whose
- *   peaks sit at different positions produces multiple peaks.
- * - `bounded-regular-grid-centroid-aligned`: each node kernel is shifted so its intensity centroid
- *   sits at the weighted (interpolated) centroid before the same multilinear weights are applied,
- *   so shifted or asymmetric PSFs blend into one peak at the interpolated position.
- * - `rotationally-symmetric-radial-field-centroid-aligned`: for a rotationally symmetric lens, nodes
- *   are declared only along the +X field axis (fieldYmm = [0], fieldXmm >= 0); a query at field
- *   (x, y) is interpolated at radius hypot(x, y) with centroid alignment and the kernel is then
- *   rotated by atan2(y, x) about its centre (square sample pitch required).
- * Shifts and rotations use bilinear resampling, which slightly smooths the kernel (at most about
- * one sample); outside-kernel samples are zero and the result is renormalised to unit energy.
+ * - `bounded-regular-grid-multilinear`: the legacy weighted sum of kernel values. Blending kernels
+ *   whose peaks sit at different positions gives several peaks.
+ * - `bounded-regular-grid-centroid-aligned`: each node kernel is first shifted so its intensity
+ *   centroid sits at the weighted (interpolated) centroid. Then the same multilinear weights are
+ *   applied. Shifted or asymmetric PSFs therefore blend into one peak at the interpolated position.
+ * - `rotationally-symmetric-radial-field-centroid-aligned`: for a rotationally symmetric lens. Nodes
+ *   are declared only along the +X field axis (fieldYmm = [0], fieldXmm >= 0). A query at field
+ *   (x, y) is interpolated, with centroid alignment, at radius hypot(x, y). The kernel is then
+ *   rotated by atan2(y, x) about its centre. The sample pitch must be square.
+ * Shifts and rotations use bilinear resampling. This smooths the kernel slightly (by at most about
+ * one sample). Samples outside the kernel are zero, and the result is renormalised to unit energy.
  */
 export type LensSampledPsfInterpolation =
   | "bounded-regular-grid-multilinear"
@@ -967,7 +969,7 @@ function sameKernelGeometry(
   );
 }
 
-/** Private engine-owned profile declarations registered by markEngineOwnedLensSampledPsfProfile. */
+/** Private profile declarations owned by the engine, registered by markEngineOwnedLensSampledPsfProfile. */
 const ENGINE_OWNED_PROFILES = new WeakSet<object>();
 /** Deep-frozen parse of a deep-frozen engine-owned declaration. */
 const PARSED_OWNED_PROFILES = new WeakMap<object, LensSampledPsfProfile>();
@@ -975,11 +977,13 @@ const PARSED_OWNED_PROFILES = new WeakMap<object, LensSampledPsfProfile>();
 const TRUSTED_NODE_INDEX = new WeakMap<LensSampledPsfProfile, ReadonlyMap<string, LensSampledPsfProfile["nodes"][number]>>();
 
 /**
- * Internal: registers a private, engine-owned profile declaration (a structured clone that is never
- * exposed to supplied code) so repeated resolveLensSampledPsf calls reuse one parse. The first resolve
- * parses it exactly as untrusted input, then deep-freezes the declaration and caches the frozen parse
- * with its node index. A frozen declaration cannot change, so the cached parse stays exact; caller
- * objects that were never registered are always parsed again.
+ * Internal: registers a private profile declaration owned by the engine, so that repeated
+ * resolveLensSampledPsf calls reuse one parse. The declaration is a structured clone that caller code
+ * never sees.
+ *
+ * The first resolve parses it exactly like untrusted input. It then deep-freezes the declaration and
+ * caches the frozen parse with its node index. A frozen declaration cannot change, so the cached
+ * parse stays exact. Caller objects that were never registered are always parsed again.
  */
 export function markEngineOwnedLensSampledPsfProfile(value: unknown): void {
   if (typeof value === "object" && value !== null) ENGINE_OWNED_PROFILES.add(value);
@@ -995,7 +999,7 @@ function parseOwnedOrUntrustedProfile(value: unknown): LensSampledPsfProfile {
   try {
     freezeOwnedData(value);
   } catch {
-    // Outside freezeOwnedData's plain-data contract (e.g. typed-array storage): do not cache.
+    // Not plain data that freezeOwnedData accepts (for example typed-array storage), so do not cache.
     ENGINE_OWNED_PROFILES.delete(value);
     return parsed;
   }
@@ -1006,15 +1010,15 @@ function parseOwnedOrUntrustedProfile(value: unknown): LensSampledPsfProfile {
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
- * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
- * support. Interpolation stays within declared applicability and preserves normalized shape separately
- * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
- * unique PSF.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns LensSampledPsfProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+ * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+ * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+ * has no phase or spatial information, so it cannot justify rendering one unique PSF.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns LensSampledPsfProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1774,9 +1778,9 @@ function normalizedKernel(
 }
 
 /**
- * Centroid-aligned interpolation: every node kernel is translated so that its intensity centroid
- * lands on the weighted centroid, then the multilinear weights are applied. A single exact node is
- * returned unchanged.
+ * Centroid-aligned interpolation. Each node kernel is shifted so its intensity centroid lands on the
+ * weighted centroid. Then the multilinear weights are applied. A single exact node is returned
+ * unchanged.
  */
 function interpolateKernelCentroidAligned(
   weighted: readonly WeightedNode[]
@@ -1860,15 +1864,15 @@ function weightedScalar(
 }
 
 /**
- * Resolve the bounded sampled PSF for a declared optical state and support point without extrapolation
- * or silently inventing missing dimensions.
+ * Resolves the sampled PSF for a declared optical state and query point. It never extrapolates and
+ * never invents missing dimensions.
  *
- * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
- * support. Interpolation stays within declared applicability and preserves normalized shape separately
- * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
- * unique PSF.
- * @param input - ResolveLensSampledPsfInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<ResolvedLensSampledPsf>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+ * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+ * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+ * has no phase or spatial information, so it cannot justify rendering one unique PSF.
+ * @param input - ResolveLensSampledPsfInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<ResolvedLensSampledPsf>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1926,10 +1930,10 @@ export function resolveLensSampledPsf(
         node
           .bestFocusImagePlaneOffsetMicrometers
     );
-  // A multilinear blend is a convex combination, so it cannot exceed its largest node value; its
-  // floating-point weights, however, can sum to a few ulps above 1. A result above 1 that lies within
-  // 8·ε·(node count)·max of the largest node is that rounding and is clamped to the largest node value
-  // (≤ 1, so the result is again a declared value). Results that were already within [0, 1] are unchanged.
+  // A multilinear blend is a convex combination, so it cannot exceed its largest node value. But its
+  // floating-point weights can sum to a few ulps above 1. A result above 1 that lies within
+  // 8·ε·(node count)·max of the largest node is that rounding error. It is clamped to the largest node
+  // value (≤ 1, so the result is again a declared value). Results already within [0, 1] are unchanged.
   const blended =
     weightedScalar(
       weighted,
@@ -2044,15 +2048,15 @@ export function resolveLensSampledPsf(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
- * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
- * support. Interpolation stays within declared applicability and preserves normalized shape separately
- * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
- * unique PSF.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns LensMtfDiagnosticProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+ * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+ * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+ * has no phase or spatial information, so it cannot justify rendering one unique PSF.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns LensMtfDiagnosticProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -2224,15 +2228,15 @@ export function parseLensMtfDiagnosticProfile(
 }
 
 /**
- * Explain why MTF-only evidence cannot determine a unique renderable PSF; return blockers instead of
- * fabricating phase information.
+ * Explains why MTF-only evidence cannot determine one unique renderable PSF. Returns blockers instead
+ * of making up phase information.
  *
- * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
- * support. Interpolation stays within declared applicability and preserves normalized shape separately
- * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
- * unique PSF.
- * @param profile - LensMtfDiagnosticProfile. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns MtfOnlyPsfRenderabilityAssessment. Read structured blockers before consuming an authorization.
+ * A sampled lens PSF is tied to an exact generic optical state and to declared ranges of field
+ * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
+ * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
+ * has no phase or spatial information, so it cannot justify rendering one unique PSF.
+ * @param profile - LensMtfDiagnosticProfile. See that type for coordinates, units and profile binding.
+ * @returns MtfOnlyPsfRenderabilityAssessment. Read the structured blockers before relying on any authorization.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

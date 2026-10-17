@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * `simulateCapture()` is the newcomer path: a small input becomes a complete native environment RAW
- * request (scene radiance → optics → spectral EQE → charge → readout/ADC), which then runs through the
- * existing native RAW development task and, optionally, the existing JPEG encoder. It adds no physics:
- * every number is computed by the existing public contracts (generic tier presets, exposure metering and
- * mode resolution, colorimetry, native environment RAW, native RAW development, print JPEG).
+ * `simulateCapture()` is the easy starting point. It turns a small input into a complete native
+ * environment RAW request: scene radiance → optics → spectral EQE (external quantum efficiency) →
+ * charge → readout and ADC. That request then runs through the existing native RAW development task
+ * and, optionally, the existing JPEG encoder.
  *
- * Everything the facade decides on the caller's behalf — defaults, derived values and fixed modelling
- * choices — is listed in `result.assumptions`, so nothing is hidden. The complete underlying request is
- * returned in `result.request` (the per-site inputs through `request.siteInput(index)`).
+ * It adds no physics of its own. Every number comes from existing public contracts: generic tier
+ * presets, exposure metering and mode resolution, colorimetry, native environment RAW, native RAW
+ * development and print JPEG.
  *
- * 2.0 options are opt-in and compose existing public contracts only; with none of them given the request,
- * RAW, samples and JPEG are byte-identical to the 1.0 facade:
+ * Everything the facade decides for the caller is listed in `result.assumptions`: defaults, derived
+ * values and fixed modelling choices. Nothing is hidden. The complete underlying request is returned
+ * in `result.request`; get the per-site inputs with `request.siteInput(index)`.
+ *
+ * The 2.0 options are opt-in and only combine existing public contracts. If none is given, the
+ * request, RAW, samples and JPEG are byte-identical to the 1.0 facade:
  * - output formats: `png` (`serializePngImage`; sRGB, or Display P3 / Rec. 2020 / Rec. 2100 PQ / HLG through
  *   the colorimetry matrices and transfer functions and `createHdrImageEncodingTask`) and `dng`
  *   (`serializeNativeRawDng` of the packed native RAW; no linear master is declared);
@@ -79,7 +81,7 @@ import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlan
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
   type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
-/** Version of the facade's request construction; changes whenever the same input builds a different request. */
+/** Version of how the facade builds requests. It changes whenever the same input would build a different request. */
 export const SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const;
 
 export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shutter-priority" | "program";
@@ -91,17 +93,22 @@ export type SimulateCaptureWhiteBalance =
   | { kelvin: number; tint?: number }
   | { channelGains: { red: number; green: number; blue: number } };
 /**
- * PNG colour encoding. `srgb` is the developed sRGB output. The others convert the developed linear
- * colour (camera → XYZ → linear sRGB/D65, unclipped) through CIE XYZ into the target primaries:
- * `display-p3` (SMPTE EG 432-1 primaries, sRGB transfer), `rec2020` (ITU-R BT.2020 primaries and OETF),
- * `rec2100-pq` / `rec2100-hlg` (BT.2020 primaries, SMPTE ST 2084 PQ / ARIB STD-B67 HLG, 16-bit full range).
+ * PNG colour encoding. `srgb` is the developed sRGB output. The others take the developed linear
+ * colour (camera → XYZ → linear sRGB/D65, unclipped) and convert it through CIE XYZ into the target
+ * primaries:
+ * - `display-p3`: Display P3 primaries (W3C CSS Color 4 `display-p3`; also SMPTE EG 432-1) with the
+ *   sRGB transfer function;
+ * - `rec2020`: ITU-R BT.2020 primaries and OETF;
+ * - `rec2100-pq` / `rec2100-hlg`: BT.2020 primaries with ITU-R BT.2100 PQ (also SMPTE ST 2084) or
+ *   BT.2100 HLG (also ARIB STD-B67), 16-bit full range.
  */
 export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "rec2100-pq" | "rec2100-hlg";
 /** Built-in Bayer demosaic kernels (`createBuiltInBayerDemosaicProfiles`). */
 export type SimulateCaptureDemosaic = "bilinear" | "malvar-he-cutler";
 /**
- * `margin` renders the kernel reach as extra native sites around the output; `mirror` renders exactly the
- * output and reads reflect-101 images of the missing border sites (CFA-consistency validated).
+ * `margin` renders extra native sites around the output, as far as the kernel reaches. `mirror` renders
+ * exactly the output and reads mirrored (reflect-101) copies of the missing border sites. Mirroring is
+ * checked to keep the CFA (colour filter array) pattern consistent.
  */
 export type SimulateCaptureBorderHandling = "margin" | "mirror";
 export type SimulateCaptureLensDistortion =
@@ -112,7 +119,7 @@ export interface SimulateCaptureMotion {
   angularVelocityRadPerSec?: { pitch?: number; yaw?: number; roll?: number };
   /** Default "global". `rolling` derives the exposure schedule from the body's rolling readout declaration. */
   shutter?: "global" | "rolling";
-  /** Rolling only: first-to-last line skew over the simulated frame, s. Default: the body's declared readout skew. */
+  /** Rolling shutter only: time from the first to the last line over the simulated frame, in s. Default: the body's declared readout skew. */
   rollingShutterSkewSeconds?: number;
 }
 
@@ -166,7 +173,7 @@ export interface SimulateCaptureOptions {
     format?: SimulateCaptureOutputFormat;
     /** Default "identity". */
     toneCurve?: SdrToneCurve;
-    /** Required by the luminance tone curves (see `SdrToneCurveParameters`); the facade invents none. */
+    /** Required by the luminance tone curves (see `SdrToneCurveParameters`). The facade does not make one up. */
     toneCurveParameters?: SdrToneCurveParameters;
     /** Default "clip". */
     highlightMode?: RawHighlightMode;
@@ -230,7 +237,7 @@ export interface SimulateCaptureResult {
     width: number;
     height: number;
     format: SimulateCaptureOutputFormat;
-    /** Interleaved RGB, row-major from the top-left; sRGB-encoded (W3C CSS Color 4 sRGB; also IEC 61966-2-1) unless `colorEncoding` says otherwise. */
+    /** Interleaved RGB, row by row from the top-left. sRGB-encoded (W3C CSS Color 4 sRGB; also IEC 61966-2-1) unless `colorEncoding` says otherwise. */
     samples: Uint8Array | Uint16Array;
     /** Baseline JPEG bytes when format is "jpeg". */
     jpeg?: Uint8Array;
@@ -320,8 +327,9 @@ const CHANNELS = ["red", "green", "blue"] as const;
 type Channel = typeof CHANNELS[number];
 /**
  * Synthetic colorimetric sensor: channel EQE(λ) = a·cmf(λ)·(555 nm/λ), with cmf = x̄, ȳ, z̄. The λ factor turns
- * the energy-weighted CMF into a photon-counting response, so channel counts are proportional to CIE XYZ
- * (the Luther–Ives condition holds up to quadrature error) and the camera→XYZ matrix is diagonal.
+ * the energy-weighted CMF (colour-matching function) into a photon-counting response. So channel counts are
+ * proportional to CIE XYZ (the Luther–Ives condition holds, up to quadrature error), and the camera→XYZ
+ * matrix is diagonal.
  */
 const EQE_SCALE: Readonly<Record<Channel, number>> = Object.freeze({ red: 0.5, green: 0.5, blue: 0.25 });
 const CMF_KEY: Readonly<Record<Channel, "x" | "y" | "z">> = Object.freeze({ red: "x", green: "y", blue: "z" });
@@ -393,8 +401,9 @@ function bilinearPhaseProfiles(): RawFrameReconstructionPhaseProfile[] {
     limitations: ["Bilinear interpolation of the RGGB mosaic; no edge-directed demosaic, false-colour suppression or calibration."] } })) as unknown as RawFrameReconstructionPhaseProfile[];
 }
 function defaultProgramLine(): ExposureProgramLineProfile {
-  // Engine-authored generic educational program line relative to the f/8, 1/125 s reference: opens the aperture
-  // first toward f/4 for less light, then lengthens the shutter; closes toward f/16, then shortens the shutter.
+  // Generic educational program line written for the engine, relative to the f/8, 1/125 s reference. For less light
+  // it first opens the aperture toward f/4, then lengthens the shutter. For more light it first closes toward
+  // f/16, then shortens the shutter.
   return parseExposureProgramLineProfile({ schemaVersion: "0.1.0", profileId: "facade-generic-program-line", profileVersion: "1.0.0",
     scientificStatus: "approximation", policyKind: "generic-program-line", interpolation: "log2-aperture-shutter", evidence: FACADE_EVIDENCE,
     limitations: ["Generic educational program line authored for the capture facade; not any manufacturer's program."],
@@ -415,10 +424,10 @@ function pngColourEncoding(encoding: SimulateCaptureColorEncoding): PngColourEnc
   return { kind: "cicp", primaries: "bt2020", transfer: encoding === "rec2100-pq" ? "pq" : "hlg", fullRange: true };
 }
 /**
- * Develops the packed RAW to unclipped linear sRGB/D65 with the exact operator inside
- * `createNativeRawDevelopmentTask` (same validation, demosaic kernels, border handling, per-site white-level
- * clipping, white balance, highlight mode and camera→XYZ→linear-sRGB matrices), stopping before tone,
- * gamut clipping and quantization. It reads the RAW without taking ownership.
+ * Develops the packed RAW to unclipped linear sRGB/D65, using the exact operator inside
+ * `createNativeRawDevelopmentTask`. Validation, demosaic kernels, border handling, per-site white-level
+ * clipping, white balance, highlight mode and the camera→XYZ→linear-sRGB matrices are all the same. It
+ * stops before tone mapping, gamut clipping and quantization. It reads the RAW without taking ownership.
  */
 async function developLinearSrgb(input: NativeRawDevelopmentInput, afterRow: (completed: number, total: number) => Promise<void>):
   Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
@@ -450,9 +459,11 @@ function linearSrgbToTarget(target: "srgb" | "display-p3" | "rec2020"): readonly
 /** Knee of the `perceptual` gamut mapping: chroma below 90 % of the gamut-boundary chroma (at constant L*, h) is untouched. */
 const PERCEPTUAL_GAMUT_KNEE_FRACTION = 0.9;
 /**
- * SDR encoding from linear sRGB/D65: matrix to the target primaries; either component clip to [0, 1] or, with
- * `mapping`, CIELAB hue/lightness-preserving chroma compression (`prepareRgbGamutMapping`); then the target
- * transfer and nearest-ties-up codes.
+ * SDR encoding from linear sRGB/D65:
+ * 1. Convert to the target primaries with a matrix.
+ * 2. Either clip each component to [0, 1], or, with `mapping`, compress chroma while keeping CIELAB hue
+ *    and lightness (`prepareRgbGamutMapping`).
+ * 3. Apply the target transfer function and round to the nearest code (ties round up).
  */
 function encodeSdrFromLinear(rgb: Float64Array, encoding: "srgb" | "display-p3" | "rec2020", bitDepth: 8 | 16, mapping?: PreparedRgbGamutMapping):
   { samples: Uint8Array | Uint16Array; diagnostics: SdrRenderingResult["diagnostics"]; adjustedPixelCount: number; lightnessClippedPixelCount: number } {
@@ -948,7 +959,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         spectralSampling: spectralSamplingByChannel[channel], colorSamplingProfile, spectralResponseProfile: spectralResponseProfiles[channel],
         responseApplication: { applicationProfile: c.applicationProfile, sourcePlane, operatingConditions }, operatingRangeProfile: c.operatingRangeProfile, localExposure },
       sceneBindings, optics, motion, temporalSampleCount, fieldThroughput, psf, ...(pupilRecord ? { pupil: pupilRecord } : {}), ...(lensFieldMapping ? { lensFieldMapping } : {}) };
-    // Charge completeness must cover the site's own exposure window (shifted by s·τ under a rolling shutter).
+    // The charge completeness profile must cover the site's own exposure window (shifted by s·τ under a rolling shutter).
     const window = rollingSchedule ? calculateCaptureExposureWindows({ ...exposureWindow, nativeRaster, samplePointsNative: [{ x: x + 0.5, y: y + 0.5 }] }).value.samples[0]! :
       { startOffsetSecondsFromOpeningReference: 0, endOffsetSecondsFromOpeningReference: shutterSeconds };
     return { environment, operatingTemperatureC: OPERATING_TEMPERATURE_C,

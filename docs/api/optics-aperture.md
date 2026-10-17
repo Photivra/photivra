@@ -15,12 +15,12 @@ export interface ApertureVertex {
 
 ## calculateIdealApertureGeometry
 
-Calculates ideal regular-polygon aperture geometry and the corresponding
-straight-edge diffraction-ray directions.
+Calculates ideal regular-polygon aperture geometry and the directions of
+the diffraction rays from its straight edges.
 
-This models only geometry/symmetry. It does not calculate diffraction
+This models only geometry and symmetry. It does not calculate diffraction
 intensity, wavelength-dependent star length, blade curvature, lens
-aberrations, coatings, or sensor blooming.
+aberrations, coatings or sensor blooming.
 
 ```ts
 export function calculateIdealApertureGeometry(
@@ -58,9 +58,9 @@ export interface IdealApertureGeometry {
   /**
    * Diffraction-ray directions in degrees, normalized to [0, 360).
    *
-   * Each ray is perpendicular to a blade edge. Parallel opposite edges overlap
-   * for even blade counts; odd blade counts therefore produce twice as many
-   * visible ray directions.
+   * Each ray is perpendicular to a blade edge. With an even blade count,
+   * opposite edges are parallel and their rays overlap. An odd blade count
+   * therefore gives twice as many visible ray directions.
    */
   sunstarRayAnglesDegrees: readonly number[];
   /** Unit-circumradius regular-polygon vertices. */
