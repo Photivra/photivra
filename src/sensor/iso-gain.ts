@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Derive one explicit readout regime per exposure-index (ISO) setting from declared sensor
- * parameters, so that ISO changes RAW brightness the way a camera's programmable gain does.
+ * ISO gain: builds one explicit readout regime for each ISO (exposure index) setting from declared
+ * sensor parameters, so that raising ISO brightens the RAW the way a camera's programmable gain does.
  *
  * Model (exposure index S = 10 / H of CIPA DC-004-2020, free at https://www.cipa.jp/e/std/std-sec.html,
  * also specified in ISO 12232:2019; EMVA Standard 1288 Release 4.0 linear camera model,
@@ -13,15 +12,18 @@
  *   d = R / a                       post-ADC digital gain beyond the analog range
  *   g(S) = Q0 / (span * a)          electrons per code (1/K), span = digitalSaturation - black
  *   Q_preADC(S) = Q0 / a            electrons that drive the ADC to digital saturation
- * so the electrons that reach digital saturation are Q0 * S0 / S. Because every exposure-index
- * definition (CIPA DC-004; ISO 12232) puts the reference exposure at H_ref proportional to 1/S (standard output
- * sensitivity and REI S = 10 / H in CIPA DC-004; ISO 12232's saturation-based S_sat = 78 / H_sat, for
- * which no free source was found), an exposure that is correct
- * for S produces the same black-subtracted code fraction of digital saturation at every S. Read
- * noise in electrons is declared per conversion-gain mode (dual conversion gain: a high-conversion-gain
- * mode at high S has lower input-referred read noise); it is never derived from S.
+ * So the electrons needed to reach digital saturation are Q0 * S0 / S.
  *
- * Inputs are explicit declarations (Photivra presets use synthetic educational values); no camera
+ * Every exposure-index definition (CIPA DC-004; ISO 12232) puts the reference exposure H_ref in
+ * proportion to 1/S: standard output sensitivity and REI (recommended exposure index) use S = 10 / H in
+ * CIPA DC-004, and ISO 12232's saturation-based speed uses S_sat = 78 / H_sat (no free source was found
+ * for the latter). So a correct exposure for S gives the same black-subtracted fraction of digital
+ * saturation at every S.
+ *
+ * Read noise in electrons is declared per conversion-gain mode, never derived from S. (With dual
+ * conversion gain, the high-conversion-gain mode used at high S has lower input-referred read noise.)
+ *
+ * Inputs are explicit declarations; Photivra presets use synthetic teaching values. No camera
  * calibration is implied.
  * @see docs/MOTION_AND_SIGNAL.md for equations, sources and limits.
  */
@@ -39,7 +41,7 @@ export interface IsoGainConversionGainMode {
   mode: SensorReadoutExposureIndexGain["conversionGainMode"];
   minimumExposureIndex: number;
   readNoiseRmsElectrons: EvidenceBackedFact<number>;
-  /** Optional storage limit of this mode; every regime's pre-ADC threshold must stay at or below it. */
+  /** Optional charge storage limit of this mode. Every regime's pre-ADC threshold must be at or below it. */
   maximumChargeElectrons?: EvidenceBackedFact<number>;
 }
 
@@ -78,11 +80,11 @@ function positiveFact(value: unknown, path: string): EvidenceBackedFact<number> 
 }
 
 /**
- * Derive per-exposure-index readout regimes and their signal-chain bands (see the module comment
- * for the equations). The result is validated by parseSensorReadoutConversionProfile semantics;
- * each regime carries an `exposureIndexGain` record of its derivation.
- * @param input - CreateIsoGainReadoutRegimesInput; untrusted values are validated.
- * @returns IsoGainReadoutRegimes.
+ * Builds a readout regime and signal-chain band for each exposure index (see the module comment
+ * for the equations). The result is checked with the same rules as parseSensorReadoutConversionProfile.
+ * Each regime carries an `exposureIndexGain` record of how it was derived.
+ * @param input - The sensor parameters and ISO settings; untrusted values are validated.
+ * @returns The readout regimes and bands.
  */
 export function createIsoGainReadoutRegimes(input: CreateIsoGainReadoutRegimesInput): IsoGainReadoutRegimes {
   const r = requireAllowlistedRecord(input, ["regimeIdPrefix", "scientificStatus", "baseExposureIndex", "exposureIndices",
@@ -151,7 +153,7 @@ export function createIsoGainReadoutRegimes(input: CreateIsoGainReadoutRegimesIn
       limitations: r.limitations as readonly string[]
     };
   });
-  // Reuse the authoritative regime parser for ADC/limitation/consistency validation.
+  // Reuse the regime parser to check the ADC, limitations and consistency.
   const parsed = parseSensorReadoutConversionProfile({ schemaVersion: "0.1.0", profileId: prefix + "validation", colorSamplingProfileId: "validation",
     channelId: "validation", regimeSelectionOwnedBy: "explicit-upstream-camera-state-not-inferred-from-iso", regimes, evidence }).regimes;
   return { regimes: parsed, standardRegimeBands: indices.map((exposureIndex, i) => ({ minimumExposureIndex: exposureIndex,
