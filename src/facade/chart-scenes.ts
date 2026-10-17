@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Engine-authored procedural test charts for the capture facade. Every chart is a planar, Lambertian
  * reflectance pattern defined analytically in normalized frame coordinates; no third-party chart data
  * (for example ColorChecker reflectances) is bundled. Coloured patches take caller-supplied spectra.

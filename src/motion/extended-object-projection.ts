@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Evaluates multiple explicit metric points on one rigidly translating object at deterministic
  * physical times. This is geometry only. It does not synthesize a blur kernel, visibility, radiance
  * integration, deformation, camera rotation or a universal scale.

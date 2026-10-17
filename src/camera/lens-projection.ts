@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Ideal lens projection (mapping) functions between a scene direction and an image-plane point.
  * A radial projection maps the field angle theta (angle from the optical axis) to image radius r:
  *   rectilinear       r = f tan(theta)          (gnomonic / pinhole)
@@ -21,8 +20,8 @@
  * would need a calibrated polynomial (for example Kannala-Brandt) with defensible provenance.
  * Camera frame: +X right, +Y up, +Z along the optical axis toward the scene. Image-plane coordinates
  * use the same non-inverted +X right / +Y up convention as the rest of the engine.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Estimates sensor-plane blur from a controlled constant-angular-velocity handheld shake profile, with
  * optional equivalent stabilization attenuation. With focusDistanceM supplied, angular motion is
  * projected using the same ideal thin-lens sensor-plane distance as the other focus-aware projection

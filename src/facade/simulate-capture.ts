@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * `simulateCapture()` is the newcomer path: a small input becomes a complete native environment RAW
  * request (scene radiance → optics → spectral EQE → charge → readout/ADC), which then runs through the
  * existing native RAW development task and, optionally, the existing JPEG encoder. It adds no physics:

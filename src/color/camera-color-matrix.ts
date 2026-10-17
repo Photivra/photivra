@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Fits a 3×3 camera-RGB → CIE XYZ matrix from caller-supplied spectral data.
  *
  * For each training reflectance R_j under illuminant S:

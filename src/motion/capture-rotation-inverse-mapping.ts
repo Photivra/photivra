@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Calculates an instantaneous inverse capture-scan mapping for stationary world rays under pure camera
  * rotation. The destination native sensor location is authoritative for local exposure timing. At an
  * explicit phase within that local window, the captured image-plane ray is analytically mapped back to

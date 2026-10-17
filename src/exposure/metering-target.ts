@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Freezes one metering result into the stable relative exposure target consumed by downstream
  * camera-control policy. The target copies the meter snapshot by value. Future scene/light changes do
  * not mutate this object, which is the engine seam needed for AE-lock behavior.

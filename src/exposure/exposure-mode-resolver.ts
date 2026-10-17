@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Resolves Manual exposure with either manual ISO or Auto ISO. Aperture and shutter are always
  * caller-owned and are never changed. The relative meter target is normalized by an explicit reference
  * exposure anchor; no ISO-100 or other hidden absolute calibration is assumed.

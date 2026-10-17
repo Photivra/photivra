@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * HDR → SDR tone-mapping operators and exposure fusion. All are named rendering choices
  * (approximations), not perceptual or display-calibrated models:
  * - Reinhard et al. 2002 global photographic operator: log-average key, L = a·L_w/L̄_w,

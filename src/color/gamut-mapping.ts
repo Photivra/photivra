@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Perceptual gamut mapping into a bounded linear RGB cube [0, 1]³ by hue- and
  * lightness-preserving chroma reduction toward the neutral axis in CIE LCh(ab).
  *

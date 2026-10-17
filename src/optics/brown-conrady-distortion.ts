@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Generic Brown-Conrady lens distortion: radial (k1, k2, k3) plus tangential/decentering (p1, p2)
  * terms on normalized image-plane coordinates (x, y) = point / normalizationRadiusMm, r^2 = x^2 + y^2:
  *   x_d = x (1 + k1 r^2 + k2 r^4 + k3 r^6) + 2 p1 x y + p2 (r^2 + 2 x^2)
@@ -19,8 +18,8 @@
  * injective on its boundary is injective, so these conditions make the inverse single-valued; the
  * Jacobian and boundary conditions are checked at samples, not proven between them.
  * The inverse uses damped Newton iteration seeded by the radial-only inverse.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

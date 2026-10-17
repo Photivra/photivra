@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Longitudinal (axial) chromatic aberration: wavelength-dependent focal length and the resulting
  * per-wavelength image-plane defocus for a sensor focused at a reference wavelength.
  *
@@ -24,8 +23,8 @@
  * D |dz| / v(lambda) with D = f_ref / N the entrance-pupil diameter (same thin-lens form as
  * calculateDefocusCircle()). The defocus also feeds calculateDefocusWavefront() so a complex-pupil
  * PSF can be evaluated per wavelength.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

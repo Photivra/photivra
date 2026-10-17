@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Applies a generic radial lens-distortion field mapping to one ideal image-plane point. The mapping
  * is rotationally symmetric about the optical axis: p_distorted = p_ideal * (1 + k1 r² + k2 r⁴ + k3
  * r⁶) where r is normalized by the caller-declared physical reference radius. The profile is accepted
  * only when the radial mapping is strictly monotonic over its declared operating radius, which makes
  * inverse destination-to-source sampling well-defined.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

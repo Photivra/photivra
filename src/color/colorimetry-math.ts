@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Shared colorimetric value types (CIE XYZ tristimulus, xy chromaticity, 3×3
  * row-major matrices) and exact linear-algebra helpers used by the colorimetry
  * modules. Pure mathematics; no colour-science constants live here.

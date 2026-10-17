@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Illuminant spectra and correlated-colour-temperature (CCT) helpers.
  *
  * - Planckian radiator: exact Planck law with the exact SI defining constants

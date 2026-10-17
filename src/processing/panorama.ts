@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Panorama stitching from known camera rotations (no feature matching). The reference frame is the
  * camera frame of rotation zero (+X right, +Y up, +Z forward, the engine camera basis). Each frame's
  * rotation uses the engine's physical pitch/yaw/roll right-hand convention (`applyPhysicalCameraRotation`,

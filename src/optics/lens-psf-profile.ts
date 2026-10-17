@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
  * missing required fields and incompatible scientific data fail at this boundary. Sampled lens PSF
  * shapes bind exact generic optical state, field, wavelength and signed defocus support. Interpolation

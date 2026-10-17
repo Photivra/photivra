@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Calculates Gaussian thin-lens image distance: 1/f = 1/s + 1/v where f is focal length, s is object
  * distance, and v is image distance. This is a paraxial ideal-lens model. It does not model real-lens
  * focus breathing, pupil magnification, principal-plane movement, or aberrations.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

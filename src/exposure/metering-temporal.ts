@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Meters a declared weighted time-average of scene-radiance-derived relative pre-exposure samples.
  * Every temporal sample must already be explicitly bound to one #85 temporal illumination profile and
  * one capture time in the first-opening-boundary-phase reference. Spatial metering is performed first

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Turns a facade scene (an engine chart, a caller reflectance function or a caller radiance function) and
  * an illuminant into a scene radiance provider for the existing native environment RAW contract
  * (`NativeEnvironmentRawProvider.evaluateRadiance` and, for pupil sampling, `evaluateApertureRadiance`).

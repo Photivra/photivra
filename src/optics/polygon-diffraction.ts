@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Calculates continuous monochromatic Fraunhofer PSF density for a uniformly illuminated, zero-phase,
  * on-axis ideal straight-edged regular polygon. Physical area is explicit; f/N may supply the
  * equal-area diameter only under a declared nominal-area convention. No phase aberration, clipping,
@@ -9,8 +8,8 @@
  * (lambda * propagationDistance)². Parseval normalization is over the infinite plane, NOT over the
  * supplied point list. Downstream quadrature must preserve density × area and report
  * truncation/convergence.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";

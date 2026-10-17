@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * CIELAB / CIELCh(ab) conversions and colour-difference formulae.
  *
  * - CIELAB (W3C CSS Color 4 Lab; also CIE 15:2018 §8.2.1) with the exact rational constants ε = (6/29)³ and

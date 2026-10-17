@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Parses generic body metering capability metadata. This profile declares which engine-owned metering
  * profiles/modes a generic body can select. It deliberately does not duplicate target/calibration
  * values from those metering profiles.

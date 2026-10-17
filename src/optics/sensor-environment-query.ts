@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Generate an environment radiance request from physical sensor support using the existing focus-aware
  * ideal projection and analytic inverse camera rotation. Native Y is explicitly inverted; the provider
  * direction is opposite the exposure-start look ray. No scene intersection, radiance or renderer
@@ -12,8 +11,8 @@
  * rotated to exposure-start axes. The local area factor 1 / det(d distorted / d ideal) is reported
  * for the caller to apply exactly once to irradiance. Omitting the mapping keeps the existing
  * rectilinear computation unchanged.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";

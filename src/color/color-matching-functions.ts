@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * CIE colour-matching functions (CMFs) and spectrum → CIE XYZ integration.
  *
  * Two CMF sources are supported:

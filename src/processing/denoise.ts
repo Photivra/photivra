@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Image-domain denoising, sharpening and synthetic film grain on linear or developed RGB:
  * - Bilateral filter (Tomasi & Manduchi, ICCV 1998): Gaussian spatial and Gaussian range weights,
  *   range distance Euclidean over the three channels of the supplied data.

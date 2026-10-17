@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Returns the versioned ideal camera basis, independent of rendering/serializer state.
  * Validates the entire capture and explicit transform policy across untrusted JSON boundaries.
  * @see docs/CAPTURE_COLOR.md for equations, coordinate/unit conventions, blockers and support limits.

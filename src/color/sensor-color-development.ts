@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Validated 3×3 matrices only; retains the declared determinant/inverse bounds.
  * Internal adapter for validated normalized sensor RGB and a declared D65 profile. The caller owns
  * profile evidence, CFA/basis binding and one-time WB authorization.

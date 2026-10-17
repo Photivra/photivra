@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Typed-array CFA reconstruction on a linear mosaic plane (for example black-subtracted normalized
  * RAW values or a merged HDR mosaic):
  * - `createCfaPlaneReconstructionTask` executes explicit per-phase linear kernels (the existing

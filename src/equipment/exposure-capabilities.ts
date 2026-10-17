@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Parses a generic Photivra body exposure-capability profile. This is capability metadata only. ISO
  * values do not imply noise/gain topology, and shutter-duration capability does not imply one shutter
  * mechanism or sensor-readout schedule.

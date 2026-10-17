@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Parses one generic relative exposure-metering profile. Schema 0.1.0 is approximation-only and
  * consumes relative pre-exposure linear signal. It deliberately does not claim luminance, spectral
  * radiance, sensor-plane irradiance, or a specific manufacturer's meter calibration.

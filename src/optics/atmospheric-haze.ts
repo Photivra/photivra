@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Atmospheric haze as a scene-radiance modifier along a horizontal, homogeneous line of sight
  * (Koschmieder 1924, Beitr. Phys. freien Atmos. 12:33; Middleton, Vision Through the Atmosphere,
  * 1952; McCartney, Optics of the Atmosphere, 1976, ch. 1):
@@ -18,8 +17,8 @@
  * Meteorological visibility: Koschmieder's relation V = -ln(epsilon) / beta for a black target at
  * contrast threshold epsilon (0.02 gives 3.912 / beta; the WMO meteorological optical range uses
  * 0.05, about 3.0 / beta; WMO-No. 8, 2018, vol. I ch. 9).
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

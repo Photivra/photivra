@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Resolves a deterministic video frame sequence from the existing "video" optical capture state
  * (frameRateHz) and a shutter angle. Each frame is an ordinary ResolvedReleaseFrame, so the existing
  * production capture snapshot / image-formation plan consumes it unchanged; an optional electronic

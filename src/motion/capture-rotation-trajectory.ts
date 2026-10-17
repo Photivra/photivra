@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Evaluates pure-camera-rotation trajectories for stationary reference rays over each point's local
  * exposure window. This is a temporal-geometry bridge, not a finished rolling-shutter image mapping.
  * The native sample point defines where a stationary world ray would land in the reference

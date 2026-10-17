@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Calculates exact thin-lens depth-of-field limits from the hyperfocal distance H = f^2/(Nc) + f:
  * near = s(H - f)/(H + s - 2f), far = s(H - f)/(H - s), infinite (null) when s >= H.
  * The model is geometric and does not include diffraction, aberrations, focus breathing, pupil
  * magnification, or macro/high-magnification effects.
  * Calculates the geometric defocus-circle diameter at the sensor plane for a subject plane away from
  * the selected focus plane.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

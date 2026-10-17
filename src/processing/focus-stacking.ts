@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Focus stacking of registered frames focused at different distances. Sharpness per frame and pixel
  * is the locally averaged Laplacian energy S_k = G_σ ⊗ (∇²Y_k)² of Rec.709-weighted luma Y (a
  * Laplacian-based focus measure, cf. Nayar & Nakagawa 1994 and the survey of Pertuz, Puig & García

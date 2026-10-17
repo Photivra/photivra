@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Calculates generic field-dependent illumination falloff as a multiplicative linear-light throughput
  * factor. The profile is accepted only when its relative throughput remains strictly positive and
  * never exceeds the optical-axis normalization of 1 throughout the complete declared operating
  * envelope.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

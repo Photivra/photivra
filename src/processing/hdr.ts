@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * HDR from linear RAW brackets and HDR output encoding.
  *
  * Merge (`createHdrBracketMergeTask`): per sample, every frame whose code is below its white level and

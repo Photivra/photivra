@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Wavefront parameterisation for the complex-pupil PSF reference. Generates the declared pupil grid
  * (relative amplitude plus optical path difference in micrometres) consumed unchanged by
  * calculateLensComplexPupilPsf(); this module adds no propagation of its own.

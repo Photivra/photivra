@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Parses generic WB presets and AWB policies. Preset gains and AWB correction strength are
  * profile-owned. Labels are not treated as universal Kelvin aliases or manufacturer-specific behavior.
  * Resolves a profile-owned WB preset without universal label/Kelvin rules.

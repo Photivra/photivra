@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Maps one stationary-world ray to its image-plane location after pure camera rotation at an arbitrary
  * physical time from exposure start. The initial image point defines the world ray in the camera frame
  * at t=0. Constant angular velocity is integrated as one axis-angle rotation vector, avoiding

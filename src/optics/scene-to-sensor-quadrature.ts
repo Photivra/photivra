@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Calculate the existing paraxial optical bridge at every requested node. Exact identity/coverage and
  * provider bindings are checked before returning physical W/m²/nm samples. Image coordinates belong to
  * the spatial plan, so callers cannot attach a field-throughput result from a different point.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";

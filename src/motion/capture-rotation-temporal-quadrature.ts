@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Builds deterministic temporal quadrature nodes for pure-camera-rotation capture geometry over each
  * destination point's local exposure interval. The first model uses an equal-width midpoint rule.
  * Every node reuses calculateCaptureRotationInverseMappings(), so the instantaneous geometry has one

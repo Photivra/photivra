@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Shared cancellable task shell and typed-image contracts for the standalone image-processing
  * operators (demosaic, HDR merge/encode, tone mapping, exposure fusion, focus stacking, panorama,
  * denoise, sharpening and synthetic grain). Each operator is a synchronous row generator; this shell

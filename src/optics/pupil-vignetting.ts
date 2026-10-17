@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Physical vignetting models derived from pupil geometry, separate from the caller-coefficient
  * calculateIlluminationVignetting() polynomial. Apply at most one field-throughput model to a
  * signal; these results are not added on top of a supplied field-throughput profile.
@@ -28,8 +27,8 @@
  * polygon pupil for calculatePolygonPupilFraunhoferPsf() or as a mask for createWavefrontPupilGrid().
  * The combined relative illumination cos^4(theta) x open-area ratio assumes an object at infinity,
  * the stop imaged without pupil aberration and object-space field angle equal to the chief-ray angle.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

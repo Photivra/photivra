@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Guide-number relations and manufacturer-independent through-the-lens (TTL) flash exposure with a
  * pre-flash. The pre-flash is measured with the existing relative exposure meter; the solved power
  * fraction is applied to a ManualFlashProfile, whose pulse is then placed by the existing front/rear

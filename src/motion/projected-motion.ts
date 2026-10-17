@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Calculates sensor-plane motion during an exposure using ideal rectilinear projection and constant
  * linear object velocity. Without focusDistanceM, nominal focal length is the backwards-compatible
  * pinhole projection distance. With focusDistanceM, the selected thin-lens sensor-plane image distance

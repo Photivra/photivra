@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Von Kries-type linear chromatic adaptation transforms (CATs) on CIE XYZ:
  *   M = C⁻¹ · diag(Dᵢ) · C,  Dᵢ = D · (Y_s / Y_d) · (ρᵢ,d / ρᵢ,s) + 1 − D
  * where C maps XYZ to a cone-like ("sharpened") space, ρ_s and ρ_d are the source and

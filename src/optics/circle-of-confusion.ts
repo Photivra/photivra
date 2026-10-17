@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Estimates a circle-of-confusion criterion for equivalent final viewing by scaling a caller-supplied
  * reference criterion in proportion to sensor diagonal. This is a viewing/acceptability convention,
  * not a physical blur threshold.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

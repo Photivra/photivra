@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Parses the declared approximation used to reduce renderer/provider scene information into the scalar
  * relative-linear domain consumed by metering. This profile explicitly does not authorize a calibrated
  * luminance or spectral-to-photometric conversion claim.
