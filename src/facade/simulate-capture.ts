@@ -74,6 +74,7 @@ import { createRollingShutterCaptureExposureSchedule, resolveElectronicRollingSh
 import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
+import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
 import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
@@ -268,6 +269,14 @@ export interface SimulateCaptureResult {
     siteInput(nativeIndex: number): SimulateEnvironmentSensorRawFrameInput["sites"][number];
     development: Omit<NativeRawDevelopmentInput, "raw">;
     whiteBalanceState: ResolvedWhiteBalanceState | null;
+    /**
+     * Present with lens.diffraction (2.1): the engine-built Airy profile, the equivalent environment sampled PSF
+     * selection, and how it was applied. With `object-space-convolution` the site inputs declare no PSF and the
+     * provider answers with the PSF-convolved radiance; putting `psf` into each site input and using the plain
+     * scene provider gives the same expected signal (to float rounding) through the per-tap environment quadrature.
+     */
+    diffraction?: { profile: DiffractionLimitedPsfProfile; psf: Extract<CalculateEnvironmentSensorPhotoSignalInput["psf"], { kind: "sampled-local" }>;
+      execution: "object-space-convolution" | "environment-psf-quadrature" };
   };
   exposure: {
     mode: SimulateCaptureExposureMode;
@@ -634,6 +643,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   if (shutterKind !== "global" && shutterKind !== "rolling") fail("motion.shutter must be global or rolling.");
   if (motionOptions.rollingShutterSkewSeconds !== undefined && shutterKind !== "rolling") fail("motion.rollingShutterSkewSeconds needs motion.shutter \"rolling\".");
   const rollingSkewOption = motionOptions.rollingShutterSkewSeconds === undefined ? undefined : positive(motionOptions.rollingShutterSkewSeconds, "motion.rollingShutterSkewSeconds");
+  // Diffraction runs as an object-space convolution when every PSF tap's source is another site centre seen
+  // through one linear map (still camera, rectilinear, no distortion or field throughput); otherwise per tap.
+  const diffractionObjectSpace = diffractionRadiusOption !== undefined && !rotating && !lensFieldMapping && !vignetting;
 
   // Output and sensor
   const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep",
@@ -989,7 +1001,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       outputQuantity: "outgoing-spectral-radiance" as const, outputUnit: "W/m^2/sr/nm" as const, scientificStatus: "approximation" as const,
       uncertainty: { kind: "not-quantified" as const, limitation: "Analytic planar scene." },
       fidelity: { spectral: "wavelength-resolved" as const, material: "spectral-data" as const, visibility: "resolved" as const, directTransport: "approximation" as const, indirectTransport: "not-modeled" as const },
-      wavelengthChangingTransportModeled: false, volumetricTransportModeled: false, polarizationModeled: false, evidence, limitations: ["Engine-authored planar chart or caller scene function."] } };
+      wavelengthChangingTransportModeled: false, volumetricTransportModeled: false, polarizationModeled: false, evidence, limitations: ["Engine-authored planar chart or caller scene function.",
+        ...(diffractionObjectSpace ? ["Radiance is the scene radiance convolved with the lens diffraction PSF mapped onto the scene plane (object-space convolution, request.diffraction)."] : [])] } };
   const lensId = lens.exposure.profileId;
   const opticsProfile = { schemaVersion: "0.1.0" as const, profileId: lensId + ":facade-transmission", profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, lensProfileId: lensId,
     scientificStatus: "approximation" as const, applicability: { focalLengthMm: { minimum: capabilities.selectedFocalLengthMm, maximum: capabilities.selectedFocalLengthMm },
@@ -1026,13 +1039,17 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     assume("lens.diffraction", "model", { model: diffraction.model, aperture: "circular-aperture", fNumber, workingFNumber: diffraction.workingFNumber,
       kernelRadiusSamples, samplePitchMicrometers: pitch, maximumTruncatedEnergyFraction: diffraction.maximumTruncatedEnergyFraction,
       truncatedEnergyByWavelength: diffraction.wavelengths.map((w) => ({ wavelengthNm: w.wavelengthNm, truncatedEnergyFraction: w.truncatedEnergyFraction })),
-      execution: "environment-psf-quadrature" },
+      execution: diffractionObjectSpace ? "object-space-convolution" : "environment-psf-quadrature" },
       "Scalar Fraunhofer diffraction of an ideal, aberration-free circular pupil (Airy pattern, createDiffractionLimitedPsfProfile) at the resolved f-number, in focus, with D = f/N and the thin-lens image distance (working f-number N·v/f). " +
       "One kernel per spectral node, binned into site-sized cells over a " + (2 * kernelRadiusSamples + 1) + " × " + (2 * kernelRadiusSamples + 1) + " window" +
       (diffractionRadiusOption === null ? " (reaching the third dark ring at the longest node)" : "") + "; the Airy tail energy outside it (listed per wavelength) is put back by unit-sum renormalization. " +
-      "Applied through the environment PSF quadrature (one scene query per kernel tap). No defocus, aberration or pupil clipping; the sensor pixel aperture is still point-sampled at the site centre.");
+      (diffractionObjectSpace ? "Applied as an object-space convolution: the scene radiance on the site lattice is convolved once per spectral node (calculateIrradianceConvolution) and the provider answers each site query with it, so the site inputs declare no PSF; this equals the per-tap environment PSF quadrature for this still, distortion-free planar scene (request.diffraction.psf). " :
+        "Applied through the environment PSF quadrature (one scene query per kernel tap), because camera rotation, a lens field mapping or vignetting moves the taps off the site lattice. ") +
+      "No defocus, aberration or pupil clipping; the sensor pixel aperture is still point-sampled at the site centre.");
   }
-  const psf = lensPsf ?? diffractionPsf ?? { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
+  const psf = lensPsf ?? (diffractionObjectSpace ? { kind: "not-applied" as const, evidence,
+    limitation: "No environment PSF: lens diffraction is applied upstream by the scene provider as an object-space convolution (request.diffraction)." } : undefined) ??
+    diffractionPsf ?? { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
   const pupilRecord = pupil ? { kind: "ideal-uniform-circular-pupil" as const, radialSampleCount: pupil.radialSamples, angularSampleCount: pupil.angularSamples, evidence,
     limitation: "Ideal uniform circular pupil; finite ray sampling, no convergence claim." } : undefined;
   const chargeSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.chargeSampling, completenessProfileId: IDS.completeness, scientificStatus: "approximation" as const,
@@ -1069,6 +1086,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     ({ ...request, sites: Array.from({ length: request.width }, (_, j) => siteInput(request.y * nativeWidth + request.x + j)) });
   const yieldControl = createHostYield().yieldControl;
   const perSite = queriesPerSite * (diffraction && psf === diffractionPsf ? (2 * diffraction.kernelRadiusSamples + 1) ** 2 : 1);
+  const rawProvider = diffraction && diffractionObjectSpace ? createDiffractedPlanarProvider({ base: provider, psf: diffractionPsf!.configuration.psf,
+    wavelengthsNm: diffraction.profile.axes.wavelengthNm, kernelRadius: diffraction.kernelRadiusSamples, nativeWidth, nativeHeight, outputWidth: width,
+    sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit }) : provider;
   const evaluations = nativeWidth * nativeHeight * perSite;
   // The native task admits at most 100 000 radiance queries per tile.
   const tileWidth = Math.max(1, Math.min(256, Math.floor(100_000 / perSite)));
@@ -1089,7 +1109,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const rawTick = progress("raw", plan.tileCount);
   const rawTask: NativeEnvironmentRawTask = createNativeEnvironmentRawTask(environmentRaw, {
     readTile: async (request) => { const tile = await readTile(request); rawTick(); return tile; },
-    evaluateRadiance: provider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
+    evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
   await runTask(rawTask);
   let rawOutput = rawTask.takeOutput();
   const providerEvaluationCount = rawOutput.providerEvaluationCount;
@@ -1115,7 +1135,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     // retained optical stage, and is faster: retaining the optical stage takes the first pass off the lean executor.
     const wbTask = createNativeEnvironmentRawTask(finalRawInput, {
       readTile: async (request) => { const tile = await readTile(request); wbTick(); return tile; },
-      evaluateRadiance: provider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
+      evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
     await runTask(wbTask);
     rawOutput = wbTask.takeOutput();
   }
@@ -1209,7 +1229,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
     image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}), ...(dng ? { dng: dng.bytes } : {}) },
     raw: developed.raw, plan,
-    request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState },
+    request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState,
+      ...(diffraction ? { diffraction: { profile: diffraction, psf: diffractionPsf!, execution: diffractionObjectSpace ? "object-space-convolution" as const : "environment-psf-quadrature" as const } } : {}) },
     exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds),
       meteredSceneLuminanceCdPerSquareMeter: meteredLuminance, resolution },
     scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
@@ -1222,7 +1243,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
         "resolve" + (mode === "manual" ? "Manual" : mode === "aperture-priority" ? "AperturePriority" : mode === "shutter-priority" ? "ShutterPriority" : "ProgramAuto") + "ExposureMode",
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
-        ...(diffraction ? ["createDiffractionLimitedPsfProfile"] : []),
+        ...(diffraction ? ["createDiffractionLimitedPsfProfile", ...(diffractionObjectSpace ? ["resolveLensPsfConvolutionKernels", "calculateIrradianceConvolution"] : [])] : []),
         "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []),
         ...(linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["createNativeRawDevelopmentTask"]),

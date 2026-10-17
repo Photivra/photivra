@@ -2,7 +2,10 @@
 
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { InvalidConfigurationError, simulateCapture, type SimulateCaptureOptions } from "../src/index.js";
+import { InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, simulateCapture,
+  type SimulateCaptureOptions } from "../src/index.js";
+import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
+import { scaledTimeout } from "./helpers/test-timeout.js";
 
 const scene = { preset: "slanted-edge" } as const;
 
@@ -63,4 +66,55 @@ describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", (
       expect(hex(JSON.stringify({ a: r.assumptions, c: r.provenance.composedContracts, d: { ...r.diagnostics, timingsMs: 0 } }))).toBe(meta);
     });
   }
+});
+
+describe("lens.diffraction object-space convolution equals the per-tap environment PSF quadrature", () => {
+  /*
+   * Presets whose material boundaries do not pass exactly through the site lattice. Where a boundary does (the
+   * checkerboard's u = ±0.5 column at this frame size, the Siemens star's diagonals, the grey-ramp steps), a tap
+   * that sits exactly on the boundary picks its material by the last bit of its coordinate, which the two paths
+   * compute in different orders: point-sampling ambiguity of the scene, not a difference of the optics.
+   */
+  const options = (preset: "slanted-edge" | "point-grid" | "step-wedge"): SimulateCaptureOptions => ({ scene: { preset }, output: { width: 10, height: 8 },
+    lens: { fNumber: 16, diffraction: "circular-aperture" }, sensor: { spectralStepNanometers: 80 } });
+
+  it("gives the same expected electrons at every site (relative 1e-12; only the summation order differs)", async () => {
+    for (const preset of ["slanted-edge", "point-grid"] as const) {
+      const r = await simulateCapture(options(preset)), d = r.request.diffraction!;
+      expect(d.execution).toBe("object-space-convolution");
+      const native = r.raw.plan.exposure.geometry.nativeRaster, sharp = createPlanarSceneRadianceProvider({ scene: { preset }, illuminant: { kind: "planckian", temperatureKelvin: 6500 },
+        illuminanceLux: r.scene.illuminant.illuminanceLux, distanceM: r.scene.distanceM, framedWidthM: r.scene.framedWidthM, aspect: 0.8,
+        sceneId: "facade-scene", providerProfileId: "facade-provider" });
+      const diffracted = createDiffractedPlanarProvider({ base: sharp, psf: d.psf.configuration.psf, wavelengthsNm: d.profile.profile.axes.wavelengthNm,
+        kernelRadius: d.profile.kernelRadiusSamples, nativeWidth: native.pixelWidth, nativeHeight: native.pixelHeight, outputWidth: 10, sitePitchMicrometers: 6,
+        distanceM: r.scene.distanceM, metresPerFrameUnit: r.scene.framedWidthM / 2 });
+      const electrons = (environment: unknown, evaluate: unknown): number => (calculateEnvironmentSensorPhotoSignal({ ...(environment as object), evaluateRadiance: evaluate } as never)
+        .value as unknown as { photo: { value: { photoSignal: { expectedGeneratedElectronCount: number } } } }).photo.value.photoSignal.expectedGeneratedElectronCount;
+      let largest = 0;
+      for (let i = 0; i < native.pixelWidth * native.pixelHeight; i++) {
+        const environment = r.request.siteInput(i).environment as unknown as Record<string, unknown>;
+        expect((environment.psf as { kind: string }).kind).toBe("not-applied");
+        const method = electrons(environment, diffracted.evaluateRadiance.bind(diffracted));
+        const reference = electrons({ ...environment, psf: d.psf }, sharp.evaluateRadiance.bind(sharp));
+        largest = Math.max(largest, Math.abs(method - reference) / reference);
+      }
+      expect(largest).toBeLessThan(1e-12);
+    }
+  }, scaledTimeout(60_000));
+
+  it("gives the same RAW codes as the facade's per-tap path with the same profile", async () => {
+    for (const preset of ["slanted-edge", "point-grid"] as const) {
+      const fast = await simulateCapture(options(preset));
+      const perTap = await simulateCapture({ ...options(preset), lens: { fNumber: 16, psf: fast.request.diffraction!.psf } });
+      expect(Array.from(perTap.raw.codes)).toEqual(Array.from(fast.raw.codes));
+      expect(fast.diagnostics.providerEvaluationCount * 225).toBe(perTap.diagnostics.providerEvaluationCount);
+    }
+  }, scaledTimeout(60_000));
+
+  it("falls back to the per-tap quadrature when the taps leave the site lattice (camera rotation)", async () => {
+    const r = await simulateCapture({ ...options("slanted-edge"), output: { width: 4, height: 4 }, lens: { fNumber: 4, diffraction: "circular-aperture" },
+      motion: { angularVelocityRadPerSec: { yaw: 0.01 } }, sensor: { spectralStepNanometers: 40, temporalSampleCount: 2 } });
+    expect(r.request.diffraction!.execution).toBe("environment-psf-quadrature");
+    expect((r.request.siteInput(0).environment as unknown as { psf: { kind: string } }).psf.kind).toBe("sampled-local");
+  }, scaledTimeout(30_000));
 });
