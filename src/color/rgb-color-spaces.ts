@@ -34,7 +34,7 @@ import {
   type CieXyzTristimulus,
   type ColorMatrix3x3
 } from "./colorimetry-math.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** RGB primaries as CIE 1931 xy chromaticities. */
@@ -54,6 +54,7 @@ export interface RgbToXyzMatrices {
 /** Internal: derivation from primaries and white (see {@link calculateRgbToXyzMatrices}) without an envelope. */
 export function rgbToXyzMatrices(primaries: RgbPrimaryChromaticities, white: CieXyChromaticity): RgbToXyzMatrices {
   const p = requireRecordValue(primaries, "primaries");
+  rejectUnknownFields(p, ["red", "green", "blue"], "primaries");
   const columns = (["red", "green", "blue"] as const).map((k) => xyzOfChromaticity(parseChromaticity(p[k], "primaries." + k)));
   const basis: ColorMatrix3x3 = [
     [columns[0]!.x, columns[1]!.x, columns[2]!.x],

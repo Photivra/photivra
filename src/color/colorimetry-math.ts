@@ -9,6 +9,7 @@
 
 import { InvalidScientificInputError, InvalidScientificResultError } from "../core/validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { rejectUnknownFields } from "../core/record-validation.js";
 
 /** Three-component vector (dimensionless unless documented otherwise). */
 export type ColorVector3 = readonly [number, number, number];
@@ -63,19 +64,27 @@ export function requireRecordValue(value: unknown, path: string): Record<string,
   return value as Record<string, unknown>;
 }
 
+const XYZ_FIELDS: readonly string[] = Object.freeze(["x", "y", "z"]);
+const CHROMATICITY_FIELDS: readonly string[] = Object.freeze(["x", "y"]);
+
+/** Parses an XYZ tristimulus record with exactly the fields x, y and z; any other field is rejected. */
 export function parseXyz(value: unknown, path: string): CieXyzTristimulus {
   const r = requireRecordValue(value, path);
+  rejectUnknownFields(r, XYZ_FIELDS, path);
   return { x: requireFiniteNumber(r.x, path + ".x"), y: requireFiniteNumber(r.y, path + ".y"), z: requireFiniteNumber(r.z, path + ".z") };
 }
 
-/** Parses a white point: finite, non-negative components with Y > 0. */
+/** Parses a white point: finite, non-negative components with Y > 0; fields other than x, y, z are rejected. */
 export function parseWhiteXyz(value: unknown, path: string): CieXyzTristimulus {
   const r = requireRecordValue(value, path);
+  rejectUnknownFields(r, XYZ_FIELDS, path);
   return { x: requireNonNegativeNumber(r.x, path + ".x"), y: requirePositiveNumber(r.y, path + ".y"), z: requireNonNegativeNumber(r.z, path + ".z") };
 }
 
+/** Parses a CIE 1931 xy chromaticity with exactly the fields x and y, inside the spectrum-locus triangle bound. */
 export function parseChromaticity(value: unknown, path: string): CieXyChromaticity {
   const r = requireRecordValue(value, path);
+  rejectUnknownFields(r, CHROMATICITY_FIELDS, path);
   const x = requireFiniteNumber(r.x, path + ".x");
   const y = requireFiniteNumber(r.y, path + ".y");
   if (x < 0 || y <= 0 || x + y > 1) {

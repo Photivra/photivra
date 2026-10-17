@@ -56,7 +56,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat02", "cat16", "von-kries-hpe", "xyz-scaling"])
+CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat16", "von-kries-hpe", "xyz-scaling"])
 ```
 
 ## ChromaticAdaptationMatrix
@@ -79,7 +79,7 @@ export interface ChromaticAdaptationMatrix {
 Supported linear chromatic-adaptation transforms.
 
 ```ts
-export type ChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe" | "xyz-scaling";
+export type ChromaticAdaptationTransform = "bradford" | "cat16" | "von-kries-hpe" | "xyz-scaling";
 ```
 
 ## resolveChromaticAdaptationConeMatrix

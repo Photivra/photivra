@@ -15,6 +15,8 @@ BOLTZMANN_CONSTANT_JOULES_PER_KELVIN = 1.380649e-23
 Chromaticity for CCT and Duv: the locus point (Planckian or CIE daylight) offset by
 Duv along the unit normal of the Planckian locus at the same temperature in the CIE
 1960 UCS. For `cie-daylight`, Duv = 0 returns the daylight-locus point itself.
+Throws InvalidScientificInputError when the offset point is not a physical chromaticity
+(x ≥ 0, y > 0, x + y ≤ 1), for example 2000 K with Duv +0.02 (x + y ≈ 1.06).
 
 ```ts
 export function calculateChromaticityFromCorrelatedColorTemperature(input: {

@@ -10,6 +10,24 @@ import { describe, expect, it } from "vitest";
 
 import {
   InvalidConfigurationError,
+  calculateAtmosphericHaze,
+  calculateChromaticallyAdaptedXyz,
+  calculateChromaticityFromCorrelatedColorTemperature,
+  calculateCielabFromCielch,
+  calculateCielabFromXyz,
+  calculateCielchFromCielab,
+  calculateColorDifference,
+  calculateCorrelatedColorTemperature,
+  calculateGamutMappedColor,
+  calculateLensProjectionDirection,
+  calculateLensProjectionImagePoint,
+  calculatePlanckianChromaticity,
+  calculateRgbToXyzMatrices,
+  calculateXyzFromCielab,
+  createCieDaylightSpectrum,
+  createColorimetricMidpointQuadrature,
+  createPlanckianSpectrum,
+  estimateCorrelatedColorTemperatureMcCamy,
   calculateEffectiveSaturationCode,
   createSimulatedCapture,
   parseFlashSyncCapabilityProfile,
@@ -241,5 +259,57 @@ describe("record-taking functions are strict at every level (2.0.0)", () => {
       kind: "tabulated", observer: "caller-defined", datasetId: "synthetic",
       samples: [{ wavelengthNanometers: 400, xBar: 0, yBar: 0, zBar: 0 }, { wavelengthNanometers: 700, xBar: 1, yBar: 1, zBar: 1 }]
     });
+  });
+});
+
+describe("nested records of colour, haze and projection functions are strict (2.0.0)", () => {
+  const lab = { lStar: 50, aStar: 10, bStar: -5 }, sample = { lStar: 52, aStar: 12, bStar: -3 };
+  const d65 = { x: 0.95047, y: 1, z: 1.08883 }, d50 = { x: 0.9642, y: 1, z: 0.8249 };
+  const xy = { x: 0.3127, y: 0.329 };
+  const table = [{ wavelengthNanometers: 400, value: 1 }, { wavelengthNanometers: 500, value: 2 }, { wavelengthNanometers: 600, value: 3 }];
+
+  it("rejects an unknown field in every nested colour record (Lab, LCh, XYZ, whites, chromaticities, factors)", () => {
+    expectStrictAtEveryLevel(calculateColorDifference, { reference: lab, sample, formula: "ciede2000" as const, parametricFactors: { lightness: 2, chroma: 1, hue: 1 } });
+    expectStrictAtEveryLevel(calculateColorDifference, { reference: lab, sample, formula: "cie94" as const, cie94Factors: { lightness: 2, chroma: 1, hue: 1, k1: 0.048, k2: 0.014 } });
+    expectStrictAtEveryLevel(calculateCielabFromXyz, { xyz: { x: 0.3, y: 0.3, z: 0.3 }, referenceWhiteXyz: d65 });
+    expectStrictAtEveryLevel(calculateXyzFromCielab, { lab, referenceWhiteXyz: d65 });
+    expectStrictAtEveryLevel(calculateCielchFromCielab, { lab });
+    expectStrictAtEveryLevel(calculateCielabFromCielch, { lch: { lStar: 50, chromaStar: 10, hueDegrees: 30 } });
+    expectStrictAtEveryLevel(calculateChromaticallyAdaptedXyz, { transform: "bradford" as const, xyz: { x: 0.3, y: 0.3, z: 0.3 }, sourceWhiteXyz: d65, destinationWhiteXyz: d50 });
+    expectStrictAtEveryLevel(calculateGamutMappedColor, { colorSpace: "srgb" as const, method: "cielab-hue-preserving-chroma-compression" as const, kneeFraction: 0.8, xyz: { x: 0.3, y: 0.3, z: 0.3 } });
+    expectStrictAtEveryLevel(calculateRgbToXyzMatrices, { primaries: { red: { x: 0.64, y: 0.33 }, green: { x: 0.3, y: 0.6 }, blue: { x: 0.15, y: 0.06 } }, whiteChromaticity: xy });
+    expectStrictAtEveryLevel(estimateCorrelatedColorTemperatureMcCamy, { chromaticity: xy });
+    // A CIE 1931 chromaticity has only x and y: a luminance "Y" is not silently dropped.
+    expect(() => estimateCorrelatedColorTemperatureMcCamy({ chromaticity: { ...xy, Y: 1 } as never }))
+      .toThrow(new InvalidConfigurationError('chromaticity has unknown field "Y".'));
+    // CIEDE2000 parametric factors are as strict as the CIE94 factors (a misspelt kL is not ignored).
+    expect(() => calculateColorDifference({ reference: lab, sample, formula: "ciede2000", parametricFactors: { lightness: 2, chroma: 1, hue: 1, lightnes: 1 } as never }))
+      .toThrow(new InvalidConfigurationError('calculateColorDifference parametricFactors input has unknown field "lightnes".'));
+  });
+
+  it("rejects an unknown field in each Planckian-locus kind, wavelength range and daylight basis", () => {
+    expectStrictAtEveryLevel(calculateCorrelatedColorTemperature, { chromaticity: xy, locus: { kind: "planck-analytic-cmf" as const } });
+    expectStrictAtEveryLevel(calculateChromaticityFromCorrelatedColorTemperature,
+      { correlatedColorTemperatureKelvin: 5000, duv: 0.001, whiteLocus: "planckian" as const, locus: { kind: "planck-analytic-cmf" as const } });
+    expectStrictAtEveryLevel(calculatePlanckianChromaticity, { temperatureKelvin: 5000, locus: { kind: "planck-integration" as const,
+      colorMatchingFunctions: { kind: "analytic-cie-1931-multi-lobe-fit" as const },
+      quadratureNodes: [{ wavelengthNanometers: 450, wavelengthMeasureNanometers: 100 }, { wavelengthNanometers: 550, wavelengthMeasureNanometers: 100 }, { wavelengthNanometers: 650, wavelengthMeasureNanometers: 100 }] } });
+    expectStrictAtEveryLevel(createPlanckianSpectrum, { temperatureKelvin: 5000, wavelengthRangeNanometers: { minimum: 380, maximum: 780 } });
+    expect(() => createPlanckianSpectrum({ temperatureKelvin: 5000, wavelengthRangeNanometers: { minimum: 380, maximum: 780, step: 5 } as never }))
+      .toThrow(new InvalidConfigurationError('wavelengthRangeNanometers has unknown field "step".'));
+    expectStrictAtEveryLevel(createColorimetricMidpointQuadrature, { wavelengthRangeNanometers: { minimum: 380, maximum: 780 }, maximumSubintervalWidthNanometers: 10 });
+    expectStrictAtEveryLevel(createCieDaylightSpectrum, { correlatedColorTemperatureKelvin: 6504, coefficientRounding: "none" as const,
+      basis: { s0: table, s1: table, s2: table, datasetId: "synthetic-basis" } });
+  });
+
+  it("rejects an unknown field in the haze extinction model and projection vectors", () => {
+    const extinction = { referenceWavelengthNm: 550, rayleighExtinctionPerMeter: 1e-5, aerosolExtinctionPerMeter: 1e-5, angstromExponent: 1, rayleighExponent: 4 };
+    expectStrictAtEveryLevel(calculateAtmosphericHaze, { pathLengthM: 1000, wavelengthNm: 450, sceneRadiance: 1, airlightRadiance: 1, extinction });
+    // The harm: a misspelt optional exponent used to fall back to the default 4 silently.
+    const withoutExponent: Partial<typeof extinction> = { ...extinction }; delete withoutExponent.rayleighExponent;
+    expect(() => calculateAtmosphericHaze({ pathLengthM: 1000, wavelengthNm: 450, sceneRadiance: 1, airlightRadiance: 1,
+      extinction: { ...withoutExponent, rayleighExponet: 3.6 } as never })).toThrow(new InvalidConfigurationError('extinction has unknown field "rayleighExponet".'));
+    expectStrictAtEveryLevel(calculateLensProjectionImagePoint, { projectionModel: "rectilinear" as const, focalLengthMm: 10, direction: { x: 0.1, y: 0, z: 1 } });
+    expectStrictAtEveryLevel(calculateLensProjectionDirection, { projectionModel: "rectilinear" as const, focalLengthMm: 10, imagePointMm: { x: 1, y: 0 } });
   });
 });

@@ -36,7 +36,7 @@ Model `0.1.0` exposes both row-major matrices, the observer, the reference illum
 | preserve-intent | Convert the color basis only; retain resolved WB as intent without applying it. XYZ reference white must match the documented D65 convention exactly. |
 | apply-resolved-rgb-gains | Convert XYZ to the camera RGB basis, then multiply the resolved #108 red/green/blue gains. Caller must bind gains to the exact camera profile/version. No AWB estimator or implicit adopted-white adaptation runs. |
 | adopted-white-xyz-scaling | In XYZ, multiply X and Z by target-D65/adopted-white ratios, leave Y unchanged, then convert to linear RGB. Requires explicit adopted white; consumes no RGB gains. Reports approximation provenance. |
-| adopted-white-xyz-scaling + `transform` | Optional `transform: "bradford" \| "cat02" \| "cat16" \| "von-kries-hpe"` replaces the diagonal XYZ scaling with complete (D = 1) cone-space adaptation from the adopted white to D65 ([Colorimetry](COLORIMETRY.md#chromatic-adaptation)). Model `capture-color-<transform>-adaptation`, applied-transform profile `photivra-<transform>-adaptation`, still approximation provenance. Omitting `transform` keeps the original diagonal model and its IDs unchanged. |
+| adopted-white-xyz-scaling + `transform` | Optional `transform: "bradford" \| "cat16" \| "von-kries-hpe"` replaces the diagonal XYZ scaling with complete (D = 1) cone-space adaptation from the adopted white to D65 ([Colorimetry](COLORIMETRY.md#chromatic-adaptation)). Model `capture-color-<transform>-adaptation`, applied-transform profile `photivra-<transform>-adaptation`, still approximation provenance. Omitting `transform` keeps the original diagonal model and its IDs unchanged. |
 
 ("#108" in the table is the resolved white-balance state.)
 

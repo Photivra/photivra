@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  InvalidScientificInputError,
   calculateCaptureColorTransform,
   calculateCielabFromXyz,
   calculateGamutMappedColor,
@@ -262,6 +263,13 @@ describe("Kelvin + tint white balance", () => {
     expect(() => resolveColorTemperatureWhiteBalance({ stateId: "x", intent: { ...intent, version: "9" as "0.1.0" }, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera })).toThrow();
     expect(() => resolveColorTemperatureWhiteBalance({ stateId: "x", intent, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera: { ...camera, xyzToCameraRgb: [[-1, 0, 0], [0, 1, 0], [0, 0, 1]] } })).toThrow();
     expect(() => resolveColorTemperatureWhiteBalance({ stateId: "x", intent: createColorTemperatureWhiteBalanceIntent({ intentId: "t", colorTemperatureKelvin: 5000, tint: 0.2 }), whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera })).toThrow();
+    // 2000 K with tint (Duv) +0.02 lies outside x + y <= 1. With a camera matrix that keeps every gain positive it used to
+    // resolve to an adopted white the engine then rejects as input; it now fails closed before any gain is computed.
+    const lenient = { ...camera, xyzToCameraRgb: [[0.8, 0.3, -0.1], [-0.3, 1.2, 0.1], [0, 0.3, 0.7]] as [[number, number, number], [number, number, number], [number, number, number]] };
+    expect(() => resolveColorTemperatureWhiteBalance({ stateId: "x", intent: createColorTemperatureWhiteBalanceIntent({ intentId: "t", colorTemperatureKelvin: 2000, tint: 0.02 }),
+      whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera: lenient })).toThrow(InvalidScientificInputError);
+    expect(resolveColorTemperatureWhiteBalance({ stateId: "x", intent: createColorTemperatureWhiteBalanceIntent({ intentId: "t", colorTemperatureKelvin: 2000, tint: 0.005 }),
+      whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera: lenient }).channelGains.green).toBe(1);
   });
 });
 
@@ -296,6 +304,8 @@ describe("capture-colour cone-space adaptation option", () => {
   it("fails closed on unknown or contradictory transform declarations", () => {
     const r = request("bradford");
     expect(() => parseCaptureColorTransformInput({ ...r, whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "hunt" } })).toThrow();
+    // CAT02 is not part of 2.0 (no free source prints its matrix).
+    expect(() => parseCaptureColorTransformInput({ ...r, whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "cat02" } })).toThrow();
     expect(() => parseCaptureColorTransformInput({ ...r, whiteBalance: { kind: "preserve-intent", transform: "bradford" } })).toThrow();
     expect(parseCaptureColorTransformInput(r).whiteBalance).toEqual({ kind: "adopted-white-xyz-scaling", transform: "bradford" });
   });

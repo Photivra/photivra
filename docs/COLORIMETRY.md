@@ -63,7 +63,7 @@ Spectra are either tabulated (linear interpolation, fail-closed outside the tabl
 | `calculatePlanckianChromaticity` | The default locus, or Planck × CMF integration with caller CMFs and nodes (`planck-integration`) | approximation / calculated |
 | `estimateCorrelatedColorTemperatureMcCamy` | McCamy (1992), Color Res. Appl. 17(2):142–144: n = (x − 0.3320)/(0.1858 − y), CCT = 449n³ + 3525n² + 6823.3n + 5520.33 | approximation |
 | `calculateCorrelatedColorTemperature` | Nearest point on the chosen Planckian locus in CIE 1960 uv (the CCT/Duv definition as stated in Smet et al. 2023, free; also CIE 15:2018): the root of the analytic temperature derivative of the squared uv distance, by safeguarded Newton iteration (see below). Signed Duv: positive above the locus (greenish), negative below (magenta). The sign follows Ohno (CORM 2011 slides, free, slide 5), and the engine documents and tests it. Fails closed for \|Duv\| > 0.05, the range over which Smet et al. evaluate CCT methods (CIE 15:2018, paid, gives the same limit) | follows the locus model |
-| `calculateChromaticityFromCorrelatedColorTemperature` | Locus point (Planckian or CIE daylight) offset by Duv along the unit normal of the Planckian locus in uv | follows the locus model |
+| `calculateChromaticityFromCorrelatedColorTemperature` | Locus point (Planckian or CIE daylight) offset by Duv along the unit normal of the Planckian locus in uv. Fails closed when the offset point is not a chromaticity (x ≥ 0, y > 0, x + y ≤ 1), the same domain every chromaticity input must satisfy: for example 2000 K with Duv +0.02 would give x + y ≈ 1.06 | follows the locus model |
 
 **The Planckian locus** is the chromaticity of a Planckian radiator, x(T) = X/(X + Y + Z) and y(T) = Y/(X + Y + Z) with X = Σ L(λᵢ, T) x̄(λᵢ) Δλᵢ (and likewise Y, Z), where L is Planck's law above. The constant 2hc² cancels. The default locus samples the CMFs and 1/λ⁵ once, so each temperature costs one exponential per node, and the CCT search caches its 201-point coarse scan per locus. The 2.0.0 default replaced the Kang et al. (2002) cubic spline (often called the Kim spline; see `THIRD_PARTY.md`), whose coefficients were removed by owner decision (October 17, 2026).
 
@@ -107,20 +107,19 @@ This is the one-step two-illuminant form of Li et al. (2017), applied to every c
 | `transform` | Cone matrix C (published constants) |
 | --- | --- |
 | `bradford` | Linearized Bradford: Lam (1985), Univ. of Bradford thesis; Luo & Rhodes (1999); ICC.1:2010 Annex E |
-| `cat02` | Moroney et al. (2002), *The CIECAM02 color appearance model*, IS&T/SID CIC10 (also CIE 159:2004) |
 | `cat16` | Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), Color Res. Appl. 42(6):703–718 (no free primary source; see below) |
 | `von-kries-hpe` | Hunt–Pointer–Estévez cones (equal-energy normalized) as used in CIECAM02 (Moroney et al. 2002; also CIE 159:2004) |
 | `xyz-scaling` | Identity: diagonal scaling in XYZ (the weakest model) |
 
 `calculateDegreeOfAdaptation()` implements the CIECAM02 formula D = F[1 − (1/3.6)·exp((−L_A − 42)/92)], with F = 1.0, 0.9 or 0.8 for average, dim or dark surround. The matrix is calculated exactly. How well a linear CAT predicts corresponding colours is a property of that model and is not claimed here. The test suite checks that the Bradford cone matrix equals ICC.1:2010 Annex E Eq. (E.1), and that the D65→D50 matrix equals the Annex E construction (Eq. E.2–E.4) evaluated independently in the test, to 1e-12. D65 comes from its ITU-R BT.709-6 chromaticity and D50 is the ICC PCS illuminant (0.9642, 1.0, 0.8249). ICC.1:2010 is free to download under a permissive ICC copyright licence.
 
-**Free sources for the cone matrices.** The CAT16 matrix has no free primary source: Li et al. (2017) and CIE 248:2022 are both paid. For CAT02, the RIT open repository lists Moroney et al. (2002) at <https://repository.rit.edu/other/143> with a full-text download link, and states no licence. On October 17, 2026 the download returned a bot-check page instead of the PDF, so we could not confirm that the free copy prints the CAT02 matrix. Its other source, CIE 159:2004, is paid. Both matrices stay in the engine pending a separate owner decision.
+**Free sources for the cone matrices.** The CAT16 matrix has no free primary source: Li et al. (2017) and CIE 248:2022 are both paid. CAT02 is not part of 2.0: no free source prints its matrix (owner decision, October 17, 2026), so `transform: "cat02"` is rejected.
 
 ### Scene adaptation in the capture colour transform
 
 `calculateCaptureColorTransform()` keeps its default unchanged. `whiteBalance: { kind: "adopted-white-xyz-scaling" }` with no `transform` is still the original XYZ-diagonal scaling. Its model id stays `capture-color-xyz-diagonal-adaptation` and its applied-transform id stays `photivra-xyz-diagonal-adaptation`. That default is documented as an approximation, not as provisional.
 
-Adding `transform: "bradford" | "cat02" | "cat16" | "von-kries-hpe"` selects complete (D = 1) cone-space adaptation to D65:
+Adding `transform: "bradford" | "cat16" | "von-kries-hpe"` selects complete (D = 1) cone-space adaptation to D65:
 
 - model id `capture-color-<transform>-adaptation`;
 - applied-transform profile `photivra-<transform>-adaptation`;

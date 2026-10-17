@@ -54,7 +54,7 @@ import {
   type Cie1960UvChromaticity,
   type CieXyChromaticity
 } from "./colorimetry-math.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Exact SI defining constants (BIPM SI Brochure, 9th edition, 2019). */
@@ -95,6 +95,7 @@ export function createPlanckianSpectrum(input: { temperatureKelvin: number; wave
   requireInputKeys(input, "createPlanckianSpectrum", ["temperatureKelvin", "wavelengthRangeNanometers"]);
   const temperatureKelvin = requirePositiveNumber(input.temperatureKelvin, "temperatureKelvin");
   const range = requireRecordValue(input.wavelengthRangeNanometers, "wavelengthRangeNanometers");
+  rejectUnknownFields(range, ["minimum", "maximum"], "wavelengthRangeNanometers");
   const spectrum: ColorimetricSpectrum = {
     kind: "function",
     wavelengthRangeNanometers: { minimum: range.minimum as number, maximum: range.maximum as number },
@@ -201,6 +202,7 @@ export function createCieDaylightSpectrum(input: {
     coefficientRounding: input.coefficientRounding
   }).value;
   const basis = requireRecordValue(input.basis, "basis");
+  rejectUnknownFields(basis, ["s0", "s1", "s2", "datasetId"], "basis");
   if (typeof basis.datasetId !== "string" || basis.datasetId.trim().length === 0) {
     throw new InvalidConfigurationError("basis.datasetId must be a non-empty string.");
   }
@@ -349,8 +351,12 @@ export function estimatePlanckianLocusChromaticity(input: { temperatureKelvin: n
 
 function prepareLocus(model: PlanckianLocusModel): PreparedLocus {
   const record = requireRecordValue(model, "locus");
-  if (record.kind === "planck-analytic-cmf") return analyticCmfLocus();
+  if (record.kind === "planck-analytic-cmf") {
+    rejectUnknownFields(record, ["kind"], "locus");
+    return analyticCmfLocus();
+  }
   if (record.kind !== "planck-integration") throw new InvalidConfigurationError("locus.kind is not supported.");
+  rejectUnknownFields(record, ["kind", "colorMatchingFunctions", "quadratureNodes"], "locus");
   const m = model as Extract<PlanckianLocusModel, { kind: "planck-integration" }>;
   const cmf = prepareColorMatchingFunctions(m.colorMatchingFunctions);
   return preparePlanckIntegrationLocus(m.colorMatchingFunctions, m.quadratureNodes, "planck-integration-" + cmf.sourceKind);
@@ -493,6 +499,8 @@ export type WhiteLocus = "planckian" | "cie-daylight";
  * Chromaticity for CCT and Duv: the locus point (Planckian or CIE daylight) offset by
  * Duv along the unit normal of the Planckian locus at the same temperature in the CIE
  * 1960 UCS. For `cie-daylight`, Duv = 0 returns the daylight-locus point itself.
+ * Throws InvalidScientificInputError when the offset point is not a physical chromaticity
+ * (x ≥ 0, y > 0, x + y ≤ 1), for example 2000 K with Duv +0.02 (x + y ≈ 1.06).
  */
 export function calculateChromaticityFromCorrelatedColorTemperature(input: {
   correlatedColorTemperatureKelvin: number;
@@ -512,6 +520,10 @@ export function calculateChromaticityFromCorrelatedColorTemperature(input: {
   const normal = locusNormal(locus.sample(1 / t));
   const base = uvOfChromaticity(input.whiteLocus === "cie-daylight" ? daylightChromaticity(t) : locus.chromaticity(t));
   const value = chromaticityOfUv({ u: base.u + duv * normal.u, v: base.v + duv * normal.v });
+  // The same domain parseChromaticity enforces on input, so every result can be passed back in.
+  if (!(value.x >= 0) || !(value.y > 0) || !(value.x + value.y <= 1)) {
+    throw new InvalidScientificInputError("correlatedColorTemperatureKelvin and duv give a chromaticity outside x >= 0, y > 0, x + y <= 1.");
+  }
   const assumptions = ["White locus: " + input.whiteLocus + "; Duv offset along the Planckian-locus normal (" + locus.model + ") in CIE 1960 uv"];
   const exactDaylightPoint = input.whiteLocus === "cie-daylight" && duv === 0;
   return locus.approximation && !exactDaylightPoint

@@ -13,8 +13,6 @@
  * - Bradford (linearized): Lam (1985) thesis, University of Bradford; Luo & Rhodes
  *   (1999); as used in ICC.1:2010 Annex E. The original blue-channel non-linearity is
  *   omitted, as in common practice.
- * - CAT02: Moroney et al. (2002), "The CIECAM02 color appearance model", IS&T/SID CIC10
- *   (also CIE 159:2004).
  * - CAT16: Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), "Comprehensive
  *   color solutions: CAM16, CAT16, and CAM16-UCS", Color Res. Appl. 42(6):703–718.
  * - von Kries with Hunt–Pointer–Estévez cones (equal-energy normalized), as used in
@@ -48,13 +46,12 @@ import { requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Supported linear chromatic-adaptation transforms. */
-export type ChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe" | "xyz-scaling";
+export type ChromaticAdaptationTransform = "bradford" | "cat16" | "von-kries-hpe" | "xyz-scaling";
 
-export const CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat02", "cat16", "von-kries-hpe", "xyz-scaling"]);
+export const CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat16", "von-kries-hpe", "xyz-scaling"]);
 
 const CONE_MATRICES: Readonly<Record<ChromaticAdaptationTransform, ColorMatrix3x3>> = Object.freeze({
   bradford: [[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]],
-  cat02: [[0.7328, 0.4296, -0.1624], [-0.7036, 1.6975, 0.0061], [0.0030, 0.0136, 0.9834]],
   cat16: [[0.401288, 0.650173, -0.051461], [-0.250268, 1.204414, 0.045854], [-0.002079, 0.048952, 0.953127]],
   "von-kries-hpe": [[0.38971, 0.68898, -0.07868], [-0.22981, 1.18340, 0.04641], [0, 0, 1]],
   "xyz-scaling": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
