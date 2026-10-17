@@ -31,7 +31,9 @@ Complete colour and WB through the engine's own upstream contract before handing
 
 **Size limits.**
 
-- Maximum raster: 24,000,000 pixels, with each dimension at most 16,384.
+- Maximum raster: 24,000,000 pixels by default, with each dimension at most 16,384. From 2.2 the optional
+  `maximumPixels` input raises the pixel limit up to `NATIVE_CAPTURE_SDR_LIMITS.ceilingPixels` (2^27); see the
+  quick start's [Large images](QUICK_START.md#large-images).
 - Every tile is at most 256 × 32 pixels. Right and bottom edge tiles use whatever size remains.
 
 **Tile format.**

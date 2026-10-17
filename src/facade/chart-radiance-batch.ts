@@ -19,12 +19,15 @@
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 import { resolveChartScene, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 import { buildPlanarSceneRadianceProvider, calculateIlluminantIrradianceScale, resolveCaptureIlluminant, type CaptureIlluminant,
   type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
 export const CHART_RADIANCE_BATCH_SCHEMA_VERSION = "0.1.0" as const;
-export const CHART_RADIANCE_BATCH_LIMITS = Object.freeze({ maximumQueries: 24_000_000, maximumWavelengths: 256, maximumChannels: 4 });
+/** `maximumQueries` is the default batch limit; a request may raise it with its own `maximumQueries`, up to `ceilingQueries`. */
+export const CHART_RADIANCE_BATCH_LIMITS = Object.freeze({ maximumQueries: 24_000_000, ceilingQueries: FULL_RESOLUTION_CEILING_PIXELS, maximumWavelengths: 256,
+  maximumChannels: 4 });
 
 export interface ChartRadianceBatchInput {
   schemaVersion: typeof CHART_RADIANCE_BATCH_SCHEMA_VERSION;
@@ -42,6 +45,11 @@ export interface ChartRadianceBatchInput {
   wavelengthIndices?: Uint8Array | Uint16Array;
   /** Spectral integration: per channel (1–4), one finite weight per wavelength. */
   channelWeights?: readonly (readonly number[])[];
+  /**
+   * Optional opt-in batch limit: an integer from 1 to `CHART_RADIANCE_BATCH_LIMITS.ceilingQueries`. Default
+   * `CHART_RADIANCE_BATCH_LIMITS.maximumQueries` (24 000 000). It does not change the values.
+   */
+  maximumQueries?: number;
 }
 
 /** Validated plan with the resolved chart, illuminant and irradiance scale. Arrays are borrowed. */
@@ -63,14 +71,16 @@ export interface ChartRadianceBatchPlan {
 
 export function calculateChartRadianceBatchPlan(input: ChartRadianceBatchInput): ChartRadianceBatchPlan {
   const r = requireAllowlistedRecord(input, ["schemaVersion", "scene", "illuminant", "illuminanceLux", "aspect", "points", "wavelengthsNanometers",
-    "wavelengthIndices", "channelWeights"], "Invalid chart radiance batch input.");
+    "wavelengthIndices", "channelWeights", "maximumQueries"], "Invalid chart radiance batch input.");
   if (r.schemaVersion !== CHART_RADIANCE_BATCH_SCHEMA_VERSION) throw new InvalidConfigurationError("Unsupported chart radiance batch schema.");
   if (typeof r.aspect !== "number" || !(r.aspect > 0 && r.aspect <= Number.MAX_VALUE)) throw new InvalidConfigurationError("aspect must be positive.");
   const chart = resolveChartScene({ scene: r.scene as ChartScene, aspect: r.aspect });
   const illuminant = resolveCaptureIlluminant(r.illuminant as CaptureIlluminant);
   const irradianceScale = calculateIlluminantIrradianceScale(illuminant.shape, r.illuminanceLux as number);
   const L = CHART_RADIANCE_BATCH_LIMITS, points = r.points;
-  if (!(points instanceof Float32Array || points instanceof Float64Array) || points.length % 2 !== 0 || points.length / 2 > L.maximumQueries) {
+  const maximumQueries = resolveRaisedLimit(r.maximumQueries, L.maximumQueries, L.ceilingQueries,
+    "Chart radiance batch maximumQueries must be an integer from 1 to " + L.ceilingQueries + ".");
+  if (!(points instanceof Float32Array || points instanceof Float64Array) || points.length % 2 !== 0 || points.length / 2 > maximumQueries) {
     throw new InvalidConfigurationError("points must be an interleaved Float32Array or Float64Array of (u, v) pairs.");
   }
   for (let i = 0; i < points.length; i++) if (!Number.isFinite(points[i]!)) throw new InvalidConfigurationError("Chart points must be finite.");

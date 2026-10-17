@@ -80,7 +80,8 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `subjectDistanceM` | 5 | Distance of the scene plane. |
 | `illuminant` | Planckian 6500 K | Also `"cie-a"`, `{ kind: "planckian", temperatureKelvin }`, `{ kind: "daylight", correlatedColorTemperatureKelvin, basis }` or `{ kind: "spectrum", spectrum }`. |
 | `illuminanceLux` | 21 481 (π·80 000/11.7) | See [Exposure](#exposure). |
-| `output.width`, `output.height` | 64 × 64 | Output pixels. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
+| `output.width`, `output.height` | 64 × 64 | Output pixels, 1–4094 each. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
+| `output.maximumPixels` | off | Opt-in large images (2.2): the most native sensor sites the capture may allocate, up to `NATIVE_RAW_LIMITS.ceilingPixels` (2^27). Sides may then reach 16 384 sites including the margin (see [Large images](#large-images)). |
 | `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"`, `"png"` and `"dng"` (see [Output formats](#output-formats)). |
 | `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"` and `"rec2020"`. |
 | `output.bitDepth` | 8 | PNG only: 8 or 16. |
@@ -650,6 +651,75 @@ import { simulateCapture } from "@photivra/engine";
 const probe = await simulateCapture({ scene: { preset: "slanted-edge" }, output: { width: 32, height: 32, demosaic: "ahd" } });
 console.log(probe.diagnostics.options, probe.diagnostics.timingsMs.total, probe.diagnostics.timingsMs.demosaic);
 ```
+
+## Large images
+
+By default a capture is at most 4094 × 4094 output pixels and every full-resolution stage admits at most
+24 000 000 pixels (PNG: 100 000 000). Large images are slow and memory-hungry, so from 2.2 they are an
+opt-in that the application decides on, for example after checking the device:
+
+- `simulateCapture`: `output.maximumPixels`, the most native sensor sites (output plus the demosaic margin
+  on each side) the capture may allocate. A 12 252 × 8 168 output with the default margin needs
+  12 254 × 8 170 = 100 115 180; passing `NATIVE_RAW_LIMITS.ceilingPixels` is simplest. Each side may then
+  reach 16 384 sites including the margin. `output.demosaic: "ahd"` still admits at most 2^26 = 67 108 864
+  native sites, checked before any work.
+- The stages directly: `maximumPixels` on `calculateNativeRawPlan` / `createNativeRawTask` (and so on every
+  native environment and development task built from that input), `createNativeCaptureSdrTask`,
+  `calculateIrradianceConvolution`, `calculateTemporalExposureSum`, `createPrintJpegTask` and
+  `serializePngImage`; `maximumRegionSites` on `simulatePackedSensorRaw`; `maximumQueries` on
+  `calculateChartRadianceBatch`.
+
+Each value must be an integer from 1 to the stage's ceiling (`ceilingPixels`, `ceilingRegionSites`,
+`ceilingQueries`), all 2^27 = 134 217 728 = 16 384 × 8 192. That covers 12 252 × 8 168 (100.07 MP) and
+11 552 × 8 664 (100.09 MP) sensors plus their margin with about a third to spare. It is also the size at
+which the pipeline's largest single array, the interleaved float64 RGB of the development (24 bytes per
+pixel), reaches 3 GiB: JavaScript engines cap an `ArrayBuffer` at about 4 GiB or less, so a higher ceiling
+could not be honoured anyway. The per-side limit (16 384) and every byte budget (`maximumOutputBytes` and
+similar) still apply. A raised native RAW limit raises the native environment whole-event query budget
+ceiling in proportion (2 000 000 000 per 24 000 000 pixels), and a raised Print JPEG limit raises its
+`maximumEncodedBytes` ceiling the same way (256 000 000 bytes per 24 000 000 pixels). Leaving the inputs out
+changes nothing: requests, plans and output bytes stay as they were.
+
+```ts
+import { NATIVE_RAW_LIMITS, simulateCapture } from "@photivra/engine";
+
+// The same capture with large images allowed; at 16 × 16 the output is identical to the default.
+const large = await simulateCapture({ scene: { preset: "slanted-edge" }, output: { width: 16, height: 16, maximumPixels: NATIVE_RAW_LIMITS.ceilingPixels } });
+console.log(large.plan.maximumPixels, large.plan.pixelCount);
+```
+
+**Measured cost.** One fresh Node process per stage and size (Node 24.21.0, 4-vCPU Intel Xeon 2.80 GHz,
+Linux, one run each, single thread). Synthetic inputs: a gradient with pseudo-random noise for the
+encoders, repeating patterns elsewhere; the PNG and JPEG times depend on the image content. *Peak
+memory* is the process's peak resident memory minus the idle runtime (about 125 MB), per pixel; it
+includes the stage's input and output arrays. Not a performance claim, but it shows how the cost grows.
+
+| Stage (as measured) | 1 MP | 24 MP | 100.07 MP | Per MP | Peak memory per pixel |
+| --- | --- | --- | --- | --- | --- |
+| Irradiance convolution, radius 2 (25 taps), float32 in | 0.32 s | 6.5 s | 27.7 s | 0.28 s | 12 B (4 in, 8 out) |
+| Temporal exposure sum, 8 nodes | 0.56 s | 9.7 s | 42.0 s | 0.42 s | 12 B (4 in, 8 out) |
+| Packed sensor RAW (`simulatePackedSensorRaw`) | 0.60 s | 11.9 s | 48.2 s | 0.48 s | 11 B measured; the all-zero dark plane was never touched, so count 16 B of input plus the output |
+| Chart radiance batch, one wavelength | 0.13 s | 2.6 s | 13.0 s | 0.13 s | 17 B (9 in, 8 out) |
+| PNG, 8-bit sRGB | 0.31 s | 2.7 s | 22.7 s | 0.23 s | 8 B (3 in) |
+| PNG, 16-bit sRGB | 0.57 s | 5.1 s | 40.7 s | 0.41 s | 15 B (6 in) |
+| Print JPEG, 1:1, quantization step 2 | 0.84 s | 19.5 s | 69.7 s | 0.70 s | 10 B (3 in; 2.6–2.9 B out) |
+| Native capture SDR, 8-bit (tiles from the caller) | 0.07 s | 1.6 s | 5.8 s | 0.06 s | 4 B (3 out) |
+| Native RAW DNG writer | 0.07 s | 1.7 s | 6.4 s | 0.06 s | 17 B (7 in, 2 out) |
+| Native RAW development to 8-bit sRGB | 0.34 s | 5.2 s | 20.5 s | 0.21 s | 10 B (7 in, 3 out) |
+| `simulateCapture`, default options, slanted edge, sRGB 8-bit | 129 s | — (16 MP: 1 973 s) | about 3.4 h (extrapolated) | 123–129 s | 34 B at 16 MP (fixed part about 360 MB) |
+
+**What this means for a 100 MP capture.** The full capture was measured at 0.26, 1, 4 and 16 MP: 133, 129, 125 and 123 s per MP, almost all of it
+the per-site RAW simulation. At that rate a 100 MP capture with default options takes about 12 300 s
+(3.4 h) on one core of this host; the options in [Cost of each option](#cost-of-each-option) multiply
+that. The 100 MP time is extrapolated, not measured. Memory: about 360 MB of fixed working state, then a
+peak during development of about 34 bytes per pixel (7 B packed RAW, 24 B float64 linear RGB, 3 B 8-bit
+samples), measured 541 MB above the idle runtime at 16 MP, so about 3.4 GB at 100 MP. JPEG and PNG
+encoding add their own rows above; `whiteBalance: "auto"` renders the RAW twice.
+
+Browsers are tighter than Node: a tab may have a few GB at most, a single `ArrayBuffer` may be limited
+to 2–4 GB, and mobile browsers kill tabs earlier. A 100 MP capture can therefore fail in a browser with a
+`RangeError` or an out-of-memory crash even where it runs in Node. Run large captures in a Web Worker,
+pass `signal` so they can be cancelled, and offer them only on devices that can afford them.
 
 ## Not available
 

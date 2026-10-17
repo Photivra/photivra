@@ -218,6 +218,13 @@ export interface SimulateCaptureOptions {
     borderHandling?: SimulateCaptureBorderHandling;
     /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
     dng?: { capturedAtUtc?: string };
+    /**
+     * Opt-in large images: the most native sensor sites (the output plus the demosaic margin on each side) the
+     * capture may allocate, an integer up to `NATIVE_RAW_LIMITS.ceilingPixels` (2^27). With it, `width` and
+     * `height` may each reach 16 384 sites including the margin; without it they stay at most 4094. Time and
+     * memory grow with the pixel count (see "Large images" in the quick start); browsers may fail at large sizes.
+     */
+    maximumPixels?: number;
   };
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;

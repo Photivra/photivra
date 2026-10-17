@@ -9,12 +9,14 @@ import { LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "../color/c
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 import { encodeSrgbComponent } from "../color/srgb-transfer.js";
 import { InvalidScientificResultError } from "../core/validation.js";
 import { parseSdrRenderingProfile, prepareSdrPixelTone, type SdrPixelTone, type SdrRenderingProfile, type SdrRenderingResult } from "./sdr-rendering.js";
 
 export const NATIVE_CAPTURE_SDR_SCHEMA_VERSION = "0.1.0" as const;
-export const NATIVE_CAPTURE_SDR_LIMITS = Object.freeze({ maximumPixels: 24_000_000,
+/** `maximumPixels` is the default pixel limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`. */
+export const NATIVE_CAPTURE_SDR_LIMITS = Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumDimension: 16_384, tileWidth: 256, tileHeight: 32, maximumTileStorageSamples: 32_768 });
 /** Input. The capture holds only metadata; float samples are read from external storage. Samples must already have colour and white balance applied. */
 export interface NativeCaptureSdrInput {
@@ -24,6 +26,11 @@ export interface NativeCaptureSdrInput {
   profile: SdrRenderingProfile;
   /** Limit on the size of the integer output. Checked before anything is allocated or any tile is read. */
   maximumOutputBytes: number;
+  /**
+   * Optional opt-in pixel limit for large captures: an integer from 1 to `NATIVE_CAPTURE_SDR_LIMITS.ceilingPixels`.
+   * Default `NATIVE_CAPTURE_SDR_LIMITS.maximumPixels` (24 000 000). `maximumOutputBytes` still applies.
+   */
+  maximumPixels?: number;
 }
 /** Tile request. Coordinates are absolute in the selected plane's declared pixel grid, never relative to a crop. */
 export interface NativeCaptureSdrTileRequest {
@@ -74,7 +81,9 @@ export type NativeCaptureSdrTaskState = "ready" | "running" | "completed" | "can
 
 /** Validates the input and plans the task, including its limits, without reading samples or allocating an image. */
 export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): NativeCaptureSdrPlan {
-  const r = requireAllowlistedRecord(input, ["capture", "sourcePlaneId", "outputImageStateId", "profile", "maximumOutputBytes"], "Invalid native SDR input.");
+  const r = requireAllowlistedRecord(input, ["capture", "sourcePlaneId", "outputImageStateId", "profile", "maximumOutputBytes", "maximumPixels"], "Invalid native SDR input.");
+  const maximumPixels = resolveRaisedLimit(r.maximumPixels, NATIVE_CAPTURE_SDR_LIMITS.maximumPixels, NATIVE_CAPTURE_SDR_LIMITS.ceilingPixels,
+    "Native SDR maximumPixels must be an integer from 1 to " + NATIVE_CAPTURE_SDR_LIMITS.ceilingPixels + ".");
   // Only external-storage manifests are accepted, so unrelated inline sample buffers are never copied.
   const c = r.capture as SimulatedCapture | undefined;
   if (!c || !Array.isArray(c.planes) || c.planes.length > 32 || c.planes.some(p => !p || p.storage?.kind === "inline-float64")) {
@@ -96,7 +105,7 @@ export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): Nat
   const outputBytes = pixels * 3 * (profile.bitDepth / 8);
   const scale = 2 ** profile.renderingExposureEv / plane.referenceWhiteValue;
   if (!Number.isFinite(scale) || scale <= 0) throw new InvalidConfigurationError("Native SDR scale is unrepresentable.");
-  if (pixels > NATIVE_CAPTURE_SDR_LIMITS.maximumPixels || plane.pixelWidth > NATIVE_CAPTURE_SDR_LIMITS.maximumDimension ||
+  if (pixels > maximumPixels || plane.pixelWidth > NATIVE_CAPTURE_SDR_LIMITS.maximumDimension ||
       plane.pixelHeight > NATIVE_CAPTURE_SDR_LIMITS.maximumDimension || typeof r.maximumOutputBytes !== "number" ||
       !Number.isSafeInteger(r.maximumOutputBytes) || r.maximumOutputBytes < outputBytes) {
     throw new InvalidConfigurationError("Native SDR raster/output exceeds declared admission limits.");

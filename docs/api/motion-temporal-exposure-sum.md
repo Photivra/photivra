@@ -24,11 +24,12 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## TEMPORAL_EXPOSURE_SUM_LIMITS
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+`maximumPixels` is the default grid limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`.
 
 ```ts
 TEMPORAL_EXPOSURE_SUM_LIMITS = Object.freeze({
   maximumPixels: 24_000_000,
+  ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumDimension: 16_384,
   maximumTemporalSamples: 256,
   maximumDisplacementSites: 4_096,
@@ -63,6 +64,11 @@ export interface TemporalExposureSumInput {
   /** Quadrature weights `[k][row]` (nodes × height), finite and non-negative, for example seconds of each row's window near t_k. */
   rowWeights: Float32Array | Float64Array;
   boundary: "zero-outside-grid";
+  /**
+   * Optional opt-in grid limit for large images: an integer from 1 to `TEMPORAL_EXPOSURE_SUM_LIMITS.ceilingPixels`.
+   * Default `TEMPORAL_EXPOSURE_SUM_LIMITS.maximumPixels` (24 000 000). It does not change the result.
+   */
+  maximumPixels?: number;
 }
 ```
 

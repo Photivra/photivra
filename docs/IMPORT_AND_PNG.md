@@ -114,7 +114,7 @@ Each `colourEncoding` kind accepts only its own fields (`srgb`: `kind`, `renderi
 
 ### Pixels and compression
 
-- Colour type 2 (truecolour), bit depth 8 (`Uint8Array`) or 16 (`Uint16Array`, written big-endian), no interlacing, at most 65535 pixels per side and 100 000 000 pixels.
+- Colour type 2 (truecolour), bit depth 8 (`Uint8Array`) or 16 (`Uint16Array`, written big-endian), no interlacing, at most 65535 pixels per side and 100 000 000 pixels. From 2.2 the optional `maximumPixels` input raises the pixel limit up to `PNG_ENCODER_LIMITS.ceilingPixels` (2^27 = 134 217 728), for example for a 12 252 × 8 168 (100.07 MP) image; the bytes written do not depend on it. Measured memory and time are in the quick start's [Large images](QUICK_START.md#large-images).
 - Filtering: one PNG filter type for every row (`none`, `sub`, `up`, `average`, `paeth`) or `adaptive` (default), the specification's suggested heuristic: per row, the type with the minimum sum of absolute signed filtered bytes (ties go to the lower type).
 - Compression: zlib (RFC 1950) holding either stored DEFLATE blocks or one fixed-Huffman block (RFC 1951) with a greedy LZ77 matcher (3-byte hash, 32 KiB window, at most 64 chain probes). This is a deterministic, modest compressor, not a size-optimal one. Output bytes depend only on the input; a platform `CompressionStream` is deliberately not used, because its output is not specified byte for byte. IDAT is split into 1 MiB chunks. The fixed-Huffman codes are precomputed bit-reversed, the LZ77 hash rolls from byte to byte, and each filter type has its own loop; `test/png-encoder.test.ts` pins a SHA-256 over every filter and compression mode, so these speed-ups keep the output bytes unchanged.
 

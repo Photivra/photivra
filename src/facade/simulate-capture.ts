@@ -48,7 +48,7 @@ import { createColorTemperatureWhiteBalanceIntent, resolveColorTemperatureWhiteB
   resolveManualWhiteBalance, estimateAutoWhiteBalance, type ResolvedWhiteBalanceState } from "../color/white-balance.js";
 import { createCaptureWhiteBalanceIntent, type CaptureWhiteBalanceIntent } from "../capture/simulated-capture.js";
 import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "../capture/sensor-raw-producer.js";
-import { calculateNativeRawPlan, type NativeRawInput, type NativeRawOutput, type NativeRawPlan } from "../capture/native-raw.js";
+import { calculateNativeRawPlan, nativeRawMaximumProviderEvaluations, NATIVE_RAW_LIMITS, type NativeRawInput, type NativeRawOutput, type NativeRawPlan } from "../capture/native-raw.js";
 import { createNativeEnvironmentRawTask, type NativeEnvironmentRawInput,
   type NativeEnvironmentRawTask, type NativeEnvironmentRawTile } from "../capture/native-environment-raw.js";
 import { createNativeRawDevelopmentTask, type NativeRawDevelopmentInput, type RawHighlightDiagnostics } from "../capture/native-raw-development.js";
@@ -56,18 +56,19 @@ import type { RawFrameReconstructionPhaseProfile } from "../capture/raw-frame-re
 import type { ExportSensorColorProfile } from "../capture/photographic-export.js";
 import { parseSdrRenderingProfile, type SdrRenderingProfile, type SdrToneCurve, type SdrToneCurveParameters, type SdrRenderingResult } from "../output/sdr-rendering.js";
 import type { RawHighlightMode } from "../color/sensor-color-development.js";
-import { createPrintJpegTask } from "../output/print-jpeg.js";
+import { createPrintJpegTask, PRINT_JPEG_LIMITS } from "../output/print-jpeg.js";
 import type { SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
 import { checkNativeRawIntegrity, prepareNativeRawDevelopment } from "../capture/native-raw-development.js";
 import { createRawPixelDeveloper, normalizedRawSite, rawSiteSaturated, type RawDevelopmentSource } from "../capture/raw-development-kernel.js";
 import { createAhdDemosaicTask } from "../processing/demosaic.js";
+import { PROCESSING_MAX_PIXELS } from "../processing/processing-task.js";
 import { renderSdrRunInto, type SdrPixelCounts } from "../output/native-capture-sdr.js";
 import { prepareSdrPixelTone } from "../output/sdr-rendering.js";
 import { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION as BUILT_IN_DEMOSAIC_VERSION, createBuiltInBayerDemosaicProfiles } from "../sensor/raw-reconstruction.js";
 import { transformOrientedRasterPointToNative } from "../output/capture-geometry.js";
 import { resolveCaptureColorModel } from "../color/capture-color.js";
 import { evaluateBt709Oetf, evaluateSrgbEncoding, resolveRgbColorSpace } from "../color/rgb-color-spaces.js";
-import { serializePngImage, type PngColourEncoding } from "../output/png-encoder.js";
+import { serializePngImage, PNG_ENCODER_LIMITS, type PngColourEncoding } from "../output/png-encoder.js";
 import { parseLensProjectionModel, type LensProjectionModel } from "../camera/lens-projection.js";
 import { prepareEnvironmentLensFieldMapping, type EnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
 import type { RadialDistortionProfile } from "../optics/radial-distortion.js";
@@ -231,6 +232,13 @@ export interface SimulateCaptureOptions {
     borderHandling?: SimulateCaptureBorderHandling;
     /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
     dng?: { capturedAtUtc?: string };
+    /**
+     * Opt-in large images: the most native sensor sites (the output plus the demosaic margin on each side) the
+     * capture may allocate, an integer up to `NATIVE_RAW_LIMITS.ceilingPixels` (2^27). With it, `width` and
+     * `height` may each reach 16 384 sites including the margin; without it they stay at most 4094. Time and
+     * memory grow with the pixel count (see "Large images" in the quick start); browsers may fail at large sizes.
+     */
+    maximumPixels?: number;
   };
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
@@ -648,8 +656,9 @@ async function developAhd(v: ReturnType<typeof prepareNativeRawDevelopment>, raw
   const intent = v.plan.exposure.whiteBalanceIntent, gains = intent ? [intent.channelGains.red, intent.channelGains.green, intent.channelGains.blue] : [1, 1, 1];
   const m = v.color.normalizedCameraChannelsToXyz;
   const cameraToXyz = [0, 1, 2].map((r) => [0, 1, 2].map((c) => m[r]![c]! * gains[c]!)) as unknown as ColorMatrix3x3;
+  // A caller-raised pixel limit already bounds the raster, so its working memory is not capped again at the 1 GiB default.
   const task = createAhdDemosaicTask({ plane: { width: W, height: H, captureModeId: v.plan.frame.modeId, colorSamplingProfile: v.plan.frame.colorSamplingProfile, samples },
-    channelRoles: { red: "red", green: "green", blue: "blue" }, cameraToXyz }, { yieldControl: async () => { await host.yieldControl(); host.checkAbort(); } });
+    channelRoles: { red: "red", green: "green", blue: "blue" }, cameraToXyz, ...(v.plan.maximumPixels === undefined ? {} : { maximumWorkingBytes: Number.MAX_SAFE_INTEGER }) }, { yieldControl: async () => { await host.yieldControl(); host.checkAbort(); } });
   const demosaicStarted = clockMs();
   await task.run();
   host.onDemosaicMs?.(clockMs() - demosaicStarted);
@@ -819,9 +828,12 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   // Output and sensor
   const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep",
-    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng"]);
-  const width = integerIn(pick(outputOptions, "width", "output.width", DEFAULTS.width, "64 × 64 output pixels."), "output.width", 1, 4094);
-  const height = integerIn(pick(outputOptions, "height", "output.height", DEFAULTS.height, "64 × 64 output pixels."), "output.height", 1, 4094);
+    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng", "maximumPixels"]);
+  // Opt-in large images: a caller-raised native pixel limit. Without it the 4094-pixel sides are unchanged.
+  const raisedPixels = outputOptions.maximumPixels === undefined ? undefined : integerIn(outputOptions.maximumPixels, "output.maximumPixels", 1, NATIVE_RAW_LIMITS.ceilingPixels);
+  const maximumSide = raisedPixels === undefined ? 4094 : NATIVE_RAW_LIMITS.maximumDimension;
+  const width = integerIn(pick(outputOptions, "width", "output.width", DEFAULTS.width, "64 × 64 output pixels."), "output.width", 1, maximumSide);
+  const height = integerIn(pick(outputOptions, "height", "output.height", DEFAULTS.height, "64 × 64 output pixels."), "output.height", 1, maximumSide);
   const format = pick<SimulateCaptureOutputFormat>(outputOptions, "format", "output.format", DEFAULTS.format, "8-bit sRGB samples.");
   if (!["srgb-8", "srgb-16", "jpeg", "png", "dng"].includes(format)) fail("output.format must be srgb-8, srgb-16, jpeg, png or dng.");
   let dngCapturedAtUtc: string | undefined;
@@ -886,6 +898,13 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   // Geometry: the demosaic border (if any) on each side; output crop is the active area.
   const nativeWidth = width + 2 * margin, nativeHeight = height + 2 * margin;
+  if (raisedPixels !== undefined) {
+    if (nativeWidth > NATIVE_RAW_LIMITS.maximumDimension || nativeHeight > NATIVE_RAW_LIMITS.maximumDimension || nativeWidth * nativeHeight > raisedPixels) {
+      fail("output.maximumPixels (" + raisedPixels + ") must cover the native sensor raster of " + nativeWidth + " × " + nativeHeight +
+        " sites (the output plus the demosaic margin), at most " + NATIVE_RAW_LIMITS.maximumDimension + " per side.");
+    }
+    if (ahd && nativeWidth * nativeHeight > PROCESSING_MAX_PIXELS) fail("output.demosaic \"ahd\" admits at most " + PROCESSING_MAX_PIXELS + " native sites.");
+  }
   const imagingArea = { widthMm: nativeWidth * pitch / 1000, heightMm: nativeHeight * pitch / 1000 };
   const geometry = { imagingArea, nativeRaster: { pixelWidth: nativeWidth, pixelHeight: nativeHeight }, orientation: "landscape" as const,
     activeCaptureRect: { x: margin, y: margin, width, height }, outputRaster: { pixelWidth: width, pixelHeight: height } };
@@ -1148,7 +1167,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       whiteBalanceIntent: intent, adoptedWhiteXyz: null,
       models: [{ profile: { id: "photivra-simulate-capture", version: SIMULATE_CAPTURE_FACADE_VERSION }, scientificStatus: "approximation", publicEvidenceIds: ["photivra:simulate-capture-facade"] }] },
     frameId: IDS.frame, modeId: IDS.mode, captureModeProfile, colorSamplingProfile, bindingProfile, exposureWindow,
-    maximumOutputBytes: nativeWidth * nativeHeight * 7, tileWidth });
+    maximumOutputBytes: nativeWidth * nativeHeight * 7, tileWidth, ...(raisedPixels === undefined ? {} : { maximumPixels: raisedPixels }) });
   const sceneBinding = { sceneStateId: IDS.sceneState, providerSceneId: IDS.scene, evidence };
 
   // Shared per-site environment pieces (identical objects for every site keep the native task's shared-state fast path).
@@ -1305,7 +1324,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   // The native task admits at most 100 000 radiance queries per tile.
   const tileWidth = Math.max(1, Math.min(256, Math.floor(100_000 / perSite)));
   const environmentRaw: NativeEnvironmentRawInput = { raw: buildRawInput(intentOf(whiteBalanceState)), sceneBinding,
-    maximumProviderEvaluations: Math.min(2_000_000_000, Math.max(nativeWidth * nativeHeight, evaluations)) };
+    maximumProviderEvaluations: Math.min(nativeRawMaximumProviderEvaluations(raisedPixels === undefined ? {} : { maximumPixels: raisedPixels }),
+      Math.max(nativeWidth * nativeHeight, evaluations)) };
 
   async function runTask<T extends { run(): Promise<void>; cancel(): void; dispose(): void; readonly state: string }>(task: T): Promise<void> {
     const onAbort = (): void => task.cancel();
@@ -1442,7 +1462,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     // The encoder reads every pixel once, in source tiles of at most 256 × 32 aligned to the crop origin.
     const reads = Math.ceil(height / 32) * Math.ceil(width / 256), jpegTick = progress("jpeg", reads);
     const jpegTask = createPrintJpegTask({ source, crop: { x: 0, y: 0, width, height }, outputWidth: width, outputHeight: height, quantizationStep: jpegStep!,
-      maximumEncodedBytes: Math.max(65536, width * height * 6), maximumProviderReads: reads }, {
+      maximumEncodedBytes: Math.max(65536, width * height * 6), maximumProviderReads: reads,
+      // The JPEG records its admission plan, so the raised limit is passed (and recorded) only when the image needs it.
+      ...(raisedPixels === undefined || width * height <= PRINT_JPEG_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) }, {
       readTile: async (request) => {
         jpegTick();
         const out = new Uint8Array(request.width * request.height * 3);
@@ -1459,7 +1481,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   let png: Uint8Array | undefined;
   if (format === "png") {
     const pngStarted = clockMs();
-    png = serializePngImage({ width, height, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!) });
+    png = serializePngImage({ width, height, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!),
+      ...(raisedPixels === undefined || width * height <= PNG_ENCODER_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) });
     encodeMs = clockMs() - pngStarted;
     assume("output.png", "model", { encoder: "serializePngImage", bitDepth: pngBitDepth, colourEncoding: pngColourEncoding(colorEncoding!) },
       "Deterministic PNG (8/16-bit RGB, in-house zlib) with the colour encoding signalled in the file: the sRGB chunk for sRGB, otherwise a cICP chunk with ITU-T H.273 primaries/transfer code points. No mastering-display (mDCV) or content-light-level (cLLI) metadata is written.");

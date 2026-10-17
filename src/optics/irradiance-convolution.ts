@@ -29,10 +29,13 @@
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 
 export const IRRADIANCE_CONVOLUTION_SCHEMA_VERSION = "0.1.0" as const;
+/** `maximumPixels` is the default grid limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`. */
 export const IRRADIANCE_CONVOLUTION_LIMITS = Object.freeze({
   maximumPixels: 24_000_000,
+  ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumDimension: 16_384,
   maximumKernelRadius: 32,
   maximumPatchCount: 4_096,
@@ -60,6 +63,11 @@ export interface IrradianceConvolutionInput {
    */
   kernels: Float32Array | Float64Array;
   boundary: "zero-outside-grid";
+  /**
+   * Optional opt-in grid limit for large images: an integer from 1 to `IRRADIANCE_CONVOLUTION_LIMITS.ceilingPixels`.
+   * Default `IRRADIANCE_CONVOLUTION_LIMITS.maximumPixels` (24 000 000). It does not change the result.
+   */
+  maximumPixels?: number;
 }
 
 /** Validated, immutable geometry of a convolution request. Sample arrays are borrowed, not copied. */
@@ -88,13 +96,15 @@ function positiveInteger(value: unknown, maximum: number): number {
 /** Validates the request and returns its plan. Every sample and weight is checked once. */
 export function calculateIrradianceConvolutionPlan(input: IrradianceConvolutionInput): IrradianceConvolutionPlan {
   const r = requireAllowlistedRecord(input, ["schemaVersion", "width", "height", "samples", "kernelRadius", "patchWidth",
-    "patchHeight", "kernels", "boundary"], "Invalid irradiance convolution input.");
+    "patchHeight", "kernels", "boundary", "maximumPixels"], "Invalid irradiance convolution input.");
   const L = IRRADIANCE_CONVOLUTION_LIMITS;
   if (r.schemaVersion !== IRRADIANCE_CONVOLUTION_SCHEMA_VERSION || r.boundary !== "zero-outside-grid") {
     throw new InvalidConfigurationError("Unsupported irradiance convolution schema or boundary.");
   }
   const width = positiveInteger(r.width, L.maximumDimension), height = positiveInteger(r.height, L.maximumDimension);
-  if (width * height > L.maximumPixels) throw new InvalidConfigurationError("Irradiance convolution grid exceeds the pixel limit.");
+  const maximumPixels = resolveRaisedLimit(r.maximumPixels, L.maximumPixels, L.ceilingPixels,
+    "Irradiance convolution maximumPixels must be an integer from 1 to " + L.ceilingPixels + ".");
+  if (width * height > maximumPixels) throw new InvalidConfigurationError("Irradiance convolution grid exceeds the pixel limit.");
   const radius = r.kernelRadius;
   if (typeof radius !== "number" || !Number.isSafeInteger(radius) || radius < 0 || radius > L.maximumKernelRadius) {
     throw new InvalidConfigurationError("Invalid irradiance convolution kernel radius.");

@@ -722,6 +722,15 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ImageFormationStageId`](api/core-image-formation.md#imageformationstageid) | Type |
 | [`ImageFormationTemporalContract`](api/core-image-formation.md#imageformationtemporalcontract) | Type |
 
+## core/pixel-limits.ts
+
+[Detailed contracts](api/core-pixel-limits.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/core/pixel-limits.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`FULL_RESOLUTION_CEILING_PIXELS`](api/core-pixel-limits.md#full_resolution_ceiling_pixels) | Runtime |
+| [`FULL_RESOLUTION_DEFAULT_PIXELS`](api/core-pixel-limits.md#full_resolution_default_pixels) | Runtime |
+
 ## core/scientific-assurance.ts
 
 [Detailed contracts](api/core-scientific-assurance.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/core/scientific-assurance.ts)
@@ -1945,6 +1954,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | --- | --- |
 | [`createPrintJpegTask`](api/output-print-jpeg.md#createprintjpegtask) | Runtime |
 | [`parsePrintJpegInput`](api/output-print-jpeg.md#parseprintjpeginput) | Runtime |
+| [`PRINT_JPEG_LIMITS`](api/output-print-jpeg.md#print_jpeg_limits) | Runtime |
 | [`PRINT_JPEG_SCHEMA_VERSION`](api/output-print-jpeg.md#print_jpeg_schema_version) | Runtime |
 | [`PrintJpegInput`](api/output-print-jpeg.md#printjpeginput) | Type |
 | [`PrintJpegOutput`](api/output-print-jpeg.md#printjpegoutput) | Type |

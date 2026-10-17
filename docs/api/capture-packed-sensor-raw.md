@@ -14,11 +14,12 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## PACKED_SENSOR_RAW_LIMITS
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+`maximumRegionSites` is the default region limit; a request may raise it with its own `maximumRegionSites`, up to `ceilingRegionSites`.
 
 ```ts
 PACKED_SENSOR_RAW_LIMITS = Object.freeze({
   maximumRegionSites: 24_000_000,
+  ceilingRegionSites: FULL_RESOLUTION_CEILING_PIXELS,
   maximumNativeSites: 0xffffffff,
   maximumDimension: 65_535,
   maximumAdcBitDepth: 16,
@@ -103,6 +104,11 @@ export interface PackedSensorRawInput {
   fixedPatternNoise?: PackedSensorFixedPatternNoise;
   /** Optional (2.0), at most 8. */
   additionalChargeComponents?: readonly PackedSensorAdditionalChargeComponent[];
+  /**
+   * Optional opt-in region limit for large sensors: an integer from 1 to `PACKED_SENSOR_RAW_LIMITS.ceilingRegionSites`.
+   * Default `PACKED_SENSOR_RAW_LIMITS.maximumRegionSites` (24 000 000). It does not change the result.
+   */
+  maximumRegionSites?: number;
 }
 ```
 

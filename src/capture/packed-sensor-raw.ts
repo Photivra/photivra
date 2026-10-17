@@ -21,6 +21,7 @@
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 import { adcTransfer, resolveSensorReadoutRegime, samplePoisson, type ResolvedSensorReadoutRegime,
   type SensorReadoutConversionProfile } from "../sensor/raw-readout.js";
 import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, sampleDeterministicStandardNormal,
@@ -31,8 +32,10 @@ import type { SensorAdditionalChargeSamplingModel } from "../sensor/raw-readout.
 import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "./sensor-raw-producer.js";
 
 export const PACKED_SENSOR_RAW_SCHEMA_VERSION = "0.1.0" as const;
+/** `maximumRegionSites` is the default region limit; a request may raise it with its own `maximumRegionSites`, up to `ceilingRegionSites`. */
 export const PACKED_SENSOR_RAW_LIMITS = Object.freeze({
   maximumRegionSites: 24_000_000,
+  ceilingRegionSites: FULL_RESOLUTION_CEILING_PIXELS,
   maximumNativeSites: 0xffffffff,
   maximumDimension: 65_535,
   maximumAdcBitDepth: 16,
@@ -81,6 +84,11 @@ export interface PackedSensorRawInput {
   fixedPatternNoise?: PackedSensorFixedPatternNoise;
   /** Optional (2.0), at most 8. */
   additionalChargeComponents?: readonly PackedSensorAdditionalChargeComponent[];
+  /**
+   * Optional opt-in region limit for large sensors: an integer from 1 to `PACKED_SENSOR_RAW_LIMITS.ceilingRegionSites`.
+   * Default `PACKED_SENSOR_RAW_LIMITS.maximumRegionSites` (24 000 000). It does not change the result.
+   */
+  maximumRegionSites?: number;
 }
 
 /** Validated plan. Arrays are borrowed, not copied. */
@@ -142,7 +150,7 @@ function maximumOf(values: Float32Array | Float64Array, count: number): number {
 /** Validates the request (every array value once) and returns its plan. */
 export function calculatePackedSensorRawPlan(input: PackedSensorRawInput): PackedSensorRawPlan {
   const r = requireAllowlistedRecord(input, ["schemaVersion", "nativeWidth", "nativeHeight", "region", "captureSeedUint32", "photoElectrons",
-    "darkElectrons", "physicalChargeCapacityElectrons", "readoutProfile", "regimeId", "fixedPatternNoise", "additionalChargeComponents"],
+    "darkElectrons", "physicalChargeCapacityElectrons", "readoutProfile", "regimeId", "fixedPatternNoise", "additionalChargeComponents", "maximumRegionSites"],
   "Invalid packed sensor RAW input.");
   const L = PACKED_SENSOR_RAW_LIMITS;
   if (r.schemaVersion !== PACKED_SENSOR_RAW_SCHEMA_VERSION) throw new InvalidConfigurationError("Unsupported packed sensor RAW schema.");
@@ -151,7 +159,9 @@ export function calculatePackedSensorRawPlan(input: PackedSensorRawInput): Packe
   const g = requireAllowlistedRecord(r.region, ["x", "y", "width", "height"], "Invalid packed sensor RAW region.");
   const x = integer(g.x, 0, nativeWidth - 1), y = integer(g.y, 0, nativeHeight - 1);
   const width = integer(g.width, 1, nativeWidth - x), height = integer(g.height, 1, nativeHeight - y);
-  if (width * height > L.maximumRegionSites) throw new InvalidConfigurationError("Packed sensor RAW region exceeds the site limit.");
+  const maximumRegionSites = resolveRaisedLimit(r.maximumRegionSites, L.maximumRegionSites, L.ceilingRegionSites,
+    "Packed sensor RAW maximumRegionSites must be an integer from 1 to " + L.ceilingRegionSites + ".");
+  if (width * height > maximumRegionSites) throw new InvalidConfigurationError("Packed sensor RAW region exceeds the site limit.");
   const captureSeedUint32 = integer(r.captureSeedUint32, 0, 0xffffffff);
   const capacity = r.physicalChargeCapacityElectrons;
   if (typeof capacity !== "number" || !(capacity > 0 && capacity <= Number.MAX_VALUE)) {

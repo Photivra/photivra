@@ -29,10 +29,10 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## NATIVE_RAW_LIMITS
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+`maximumPixels` is the default pixel limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`.
 
 ```ts
-NATIVE_RAW_LIMITS = Object.freeze({ maximumPixels: 24_000_000, maximumDimension: 16_384,
+NATIVE_RAW_LIMITS = Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS, maximumDimension: 16_384,
   tileWidth: 256, tileHeight: 1, outputBytesPerPixel: 7 })
 ```
 
@@ -76,6 +76,13 @@ export interface NativeRawInput {
   maximumOutputBytes: number;
   /** Optional tile width for execution, in native sites, 1–256. Default 256. It does not affect sampling. */
   tileWidth?: number;
+  /**
+   * Optional opt-in pixel limit for large sensors: an integer from 1 to `NATIVE_RAW_LIMITS.ceilingPixels`.
+   * Default `NATIVE_RAW_LIMITS.maximumPixels` (24 000 000). `maximumOutputBytes` still applies. A raised limit
+   * also raises the native environment tasks' whole-event query budget ceiling in proportion
+   * (2 000 000 000 per 24 000 000 pixels). It does not affect sampling.
+   */
+  maximumPixels?: number;
 }
 ```
 
@@ -115,6 +122,8 @@ export interface NativeRawPlan {
   tileCount: number;
   /** Present only when an execution tile width was given. Otherwise the plan keeps its earlier shape. */
   tileWidth?: number;
+  /** Present only when a pixel limit was given. Otherwise the plan keeps its earlier shape. */
+  maximumPixels?: number;
   upstreamRadiometryVerified: false;
   seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
 }

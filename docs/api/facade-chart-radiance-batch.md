@@ -24,10 +24,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## CHART_RADIANCE_BATCH_LIMITS
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+`maximumQueries` is the default batch limit; a request may raise it with its own `maximumQueries`, up to `ceilingQueries`.
 
 ```ts
-CHART_RADIANCE_BATCH_LIMITS = Object.freeze({ maximumQueries: 24_000_000, maximumWavelengths: 256, maximumChannels: 4 })
+CHART_RADIANCE_BATCH_LIMITS = Object.freeze({ maximumQueries: 24_000_000, ceilingQueries: FULL_RESOLUTION_CEILING_PIXELS, maximumWavelengths: 256,
+  maximumChannels: 4 })
 ```
 
 ## CHART_RADIANCE_BATCH_SCHEMA_VERSION
@@ -59,6 +60,11 @@ export interface ChartRadianceBatchInput {
   wavelengthIndices?: Uint8Array | Uint16Array;
   /** Spectral integration: per channel (1–4), one finite weight per wavelength. */
   channelWeights?: readonly (readonly number[])[];
+  /**
+   * Optional opt-in batch limit: an integer from 1 to `CHART_RADIANCE_BATCH_LIMITS.ceilingQueries`. Default
+   * `CHART_RADIANCE_BATCH_LIMITS.maximumQueries` (24 000 000). It does not change the values.
+   */
+  maximumQueries?: number;
 }
 ```
 
