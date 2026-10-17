@@ -22,6 +22,17 @@ export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput;
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
+## PRINT_JPEG_LIMITS
+
+Admission limits. `maximumPixels` is the default source limit; a request may raise it with its own
+`maximumPixels`, up to `ceilingPixels`. A raised limit raises the `maximumEncodedBytes` ceiling in proportion
+(256 000 000 bytes per 24 000 000 source pixels).
+
+```ts
+PRINT_JPEG_LIMITS=Object.freeze({maximumPixels:24_000_000,ceilingPixels:FULL_RESOLUTION_CEILING_PIXELS,maximumDimension:16_384,
+  maximumEncodedBytes:256_000_000,maximumProviderReads:1_000_000})
+```
+
 ## PRINT_JPEG_SCHEMA_VERSION
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -57,6 +68,12 @@ export interface PrintJpegInput {
    * carries 72/1 with ResolutionUnit = 2; that is the standard's unknown-resolution marker, not a print size.
    */
   pixelsPerInch?:number;
+  /**
+   * Optional opt-in source pixel limit for large images: an integer from 1 to `PRINT_JPEG_LIMITS.ceilingPixels`.
+   * Default `PRINT_JPEG_LIMITS.maximumPixels` (24 000 000). When given it is recorded in the XMP export plan, like the
+   * other admission budgets; the image data are unchanged.
+   */
+  maximumPixels?:number;
 }
 ```
 

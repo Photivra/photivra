@@ -104,7 +104,7 @@ export function validatePackedNativeRaw(raw: NativeRawOutput): NativeRawOutput["
   const {engineApiVersion,resolvedGeometry,equivalentFocalLength35Mm,...exposure}=p.exposure;
   void engineApiVersion;void resolvedGeometry;
   const {capture,containerBitDepth,...frame}=p.frame;void containerBitDepth;
-  const input: NativeRawInput={exposure,...frame,maximumOutputBytes:p.outputBytes,...(p.tileWidth===undefined?{}:{tileWidth:p.tileWidth}),...(p.exposureWindow?{exposureWindow:p.exposureWindow}:{})};
+  const input: NativeRawInput={exposure,...frame,maximumOutputBytes:p.outputBytes,...(p.tileWidth===undefined?{}:{tileWidth:p.tileWidth}),...(p.maximumPixels===undefined?{}:{maximumPixels:p.maximumPixels}),...(p.exposureWindow?{exposureWindow:p.exposureWindow}:{})};
   const plan=calculateNativeRawPlan(input);
   // The recomputed 35 mm-equivalent focal length (also inside frame.capture, the same exposure record) may
   // differ by a few ULPs, so records parse in every JavaScript engine. Every other field must match exactly.

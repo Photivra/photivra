@@ -20,7 +20,11 @@ This page uses a few terms throughout:
 
 Limits:
 
-- at most 24 million sites;
+- at most 24 million sites by default. From 2.2 a caller can raise this with `maximumPixels`, up to
+  `NATIVE_RAW_LIMITS.ceilingPixels` (2^27 = 134,217,728) for sensors up to about 100 MP; the plan then records
+  `maximumPixels`, and the native environment tasks' whole-event query budget ceiling grows in proportion
+  (2,000,000,000 per 24,000,000 pixels). Memory and time per megapixel are in the quick start's
+  [Large images](QUICK_START.md#large-images) table;
 - at most 16,384 pixels per dimension;
 - at most 256 sites per tile;
 - an explicitly admitted payload of seven bytes per site.

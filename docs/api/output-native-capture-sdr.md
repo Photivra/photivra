@@ -24,10 +24,10 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## NATIVE_CAPTURE_SDR_LIMITS
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+`maximumPixels` is the default pixel limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`.
 
 ```ts
-NATIVE_CAPTURE_SDR_LIMITS = Object.freeze({ maximumPixels: 24_000_000,
+NATIVE_CAPTURE_SDR_LIMITS = Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumDimension: 16_384, tileWidth: 256, tileHeight: 32, maximumTileStorageSamples: 32_768 })
 ```
 
@@ -51,6 +51,11 @@ export interface NativeCaptureSdrInput {
   profile: SdrRenderingProfile;
   /** Limit on the size of the integer output. Checked before anything is allocated or any tile is read. */
   maximumOutputBytes: number;
+  /**
+   * Optional opt-in pixel limit for large captures: an integer from 1 to `NATIVE_CAPTURE_SDR_LIMITS.ceilingPixels`.
+   * Default `NATIVE_CAPTURE_SDR_LIMITS.maximumPixels` (24 000 000). `maximumOutputBytes` still applies.
+   */
+  maximumPixels?: number;
 }
 ```
 

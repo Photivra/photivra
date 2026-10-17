@@ -49,7 +49,9 @@ The current Path-A executor compares complete
 existing public whole-event bound is **2,000,000,000** dynamic provider/
 scientific evaluations; the unchanged per-source-tile logical bound is
 **100,000**. Native RAW limits of 24,000,000 sites, 16,384 per dimension
-and a 7-byte/site packed output are unchanged. The output-byte budget is
+and a 7-byte/site packed output are unchanged. (From 2.2 a request that raises
+the native RAW `maximumPixels` above 24,000,000 also raises the whole-event
+bound in proportion, 2,000,000,000 per 24,000,000 pixels; the defaults stay.) The output-byte budget is
 **not** a total memory budget.
 
 | #251 case | Committed pupil / temporal | Logical spectral/source work | Geometry requests | Current Path-A admission |

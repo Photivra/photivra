@@ -17,6 +17,7 @@ import {
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   calculateNativeRawPlan,
+  nativeRawMaximumProviderEvaluations,
   type NativeRawPlan
 } from "./native-raw.js";
 import type { NativeEnvironmentRawInput } from "./native-environment-raw.js";
@@ -124,7 +125,7 @@ export function prepareBrowserNativeReferenceEventPlan(
     typeof maximumProviderEvaluations !== "number" ||
     !Number.isSafeInteger(maximumProviderEvaluations) ||
     maximumProviderEvaluations < rawPlan.pixelCount ||
-    maximumProviderEvaluations > 2_000_000_000
+    maximumProviderEvaluations > nativeRawMaximumProviderEvaluations(rawPlan)
   ) {
     throw new InvalidConfigurationError(
       "Browser-native reference event requires the existing bounded whole-event provider-evaluation budget."

@@ -13,9 +13,11 @@ PNG_ENCODER_ID = "photivra-png-rgb-v1" as const
 ## PNG_ENCODER_LIMITS
 
 Limits, checked before allocation. 100 MP (megapixels) of 16-bit RGB is about 600 MB of filtered scanlines.
+`maximumPixels` is the default; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`.
 
 ```ts
-PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, maximumIccProfileBytes: 4_000_000 })
+PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
+  maximumIccProfileBytes: 4_000_000 })
 ```
 
 ## PngCicpPrimaries
@@ -74,6 +76,11 @@ export interface PngEncodeInput {
   compression?: "stored" | "fixed-huffman";
   /** PNG filter type 0..4 for every row, or the specification's minimum-sum-of-absolute-differences heuristic. Default "adaptive". */
   filter?: "none" | "sub" | "up" | "average" | "paeth" | "adaptive";
+  /**
+   * Optional opt-in pixel limit: an integer from 1 to `PNG_ENCODER_LIMITS.ceilingPixels`. Default
+   * `PNG_ENCODER_LIMITS.maximumPixels` (100 000 000). It does not change the encoded bytes.
+   */
+  maximumPixels?: number;
 }
 ```
 

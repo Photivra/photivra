@@ -24,10 +24,13 @@
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 
 export const TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION = "0.1.0" as const;
+/** `maximumPixels` is the default grid limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`. */
 export const TEMPORAL_EXPOSURE_SUM_LIMITS = Object.freeze({
   maximumPixels: 24_000_000,
+  ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumDimension: 16_384,
   maximumTemporalSamples: 256,
   maximumDisplacementSites: 4_096,
@@ -48,6 +51,11 @@ export interface TemporalExposureSumInput {
   /** Quadrature weights `[k][row]` (nodes × height), finite and non-negative, for example seconds of each row's window near t_k. */
   rowWeights: Float32Array | Float64Array;
   boundary: "zero-outside-grid";
+  /**
+   * Optional opt-in grid limit for large images: an integer from 1 to `TEMPORAL_EXPOSURE_SUM_LIMITS.ceilingPixels`.
+   * Default `TEMPORAL_EXPOSURE_SUM_LIMITS.maximumPixels` (24 000 000). It does not change the result.
+   */
+  maximumPixels?: number;
 }
 
 /** One temporal node: integer source offset of the top-left tap and the four bilinear weights (float64). */
@@ -79,14 +87,16 @@ function positiveInteger(value: unknown, maximum: number): number {
 
 /** Validates the request (every value once) and returns its plan. */
 export function calculateTemporalExposureSumPlan(input: TemporalExposureSumInput): TemporalExposureSumPlan {
-  const r = requireAllowlistedRecord(input, ["schemaVersion", "width", "height", "samples", "displacements", "rowWeights", "boundary"],
+  const r = requireAllowlistedRecord(input, ["schemaVersion", "width", "height", "samples", "displacements", "rowWeights", "boundary", "maximumPixels"],
     "Invalid temporal exposure sum input.");
   const L = TEMPORAL_EXPOSURE_SUM_LIMITS;
   if (r.schemaVersion !== TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION || r.boundary !== "zero-outside-grid") {
     throw new InvalidConfigurationError("Unsupported temporal exposure sum schema or boundary.");
   }
   const width = positiveInteger(r.width, L.maximumDimension), height = positiveInteger(r.height, L.maximumDimension);
-  if (width * height > L.maximumPixels) throw new InvalidConfigurationError("Temporal exposure sum grid exceeds the pixel limit.");
+  const maximumPixels = resolveRaisedLimit(r.maximumPixels, L.maximumPixels, L.ceilingPixels,
+    "Temporal exposure sum maximumPixels must be an integer from 1 to " + L.ceilingPixels + ".");
+  if (width * height > maximumPixels) throw new InvalidConfigurationError("Temporal exposure sum grid exceeds the pixel limit.");
   const samples = r.samples, displacements = r.displacements, weights = r.rowWeights;
   if (!(displacements instanceof Float64Array) || displacements.length < 2 || displacements.length % 2 !== 0 ||
       displacements.length / 2 > L.maximumTemporalSamples) {

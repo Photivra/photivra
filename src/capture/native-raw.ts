@@ -9,6 +9,7 @@ import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit, scaleBudgetCeiling } from "../core/pixel-limits.js";
 import { calculateSiteEffectiveSaturationCode, createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
 import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence, type HostYieldGate } from "./host-yield-cadence.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
@@ -20,8 +21,11 @@ import { SENSOR_RAW_PRODUCER_NOISE_MODEL, calculateNativeRawSite, parseNativeRaw
   type SensorRawProducerExposureWindowInput } from "./sensor-raw-producer.js";
 
 export const NATIVE_RAW_SCHEMA_VERSION = "0.1.0" as const;
-export const NATIVE_RAW_LIMITS = Object.freeze({ maximumPixels: 24_000_000, maximumDimension: 16_384,
+/** `maximumPixels` is the default pixel limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`. */
+export const NATIVE_RAW_LIMITS = Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS, maximumDimension: 16_384,
   tileWidth: 256, tileHeight: 1, outputBytesPerPixel: 7 });
+/** Default whole-event radiance query budget ceiling of the native environment tasks; it scales with a raised `maximumPixels`. */
+const DEFAULT_MAXIMUM_PROVIDER_EVALUATIONS = 2_000_000_000;
 /** A shooting event and where its source came from. Not a finished float master or committed RAW frame. */
 export type NativeRawExposureInput = Omit<SimulatedCaptureInput, "planes" | "source"> & {source:CaptureExposureSource};
 export type NativeRawExposure = Omit<SimulatedCapture, "schemaVersion" | "planes" | "source"> & {source:CaptureExposureSource};
@@ -36,6 +40,13 @@ export interface NativeRawInput {
   maximumOutputBytes: number;
   /** Optional tile width for execution, in native sites, 1–256. Default 256. It does not affect sampling. */
   tileWidth?: number;
+  /**
+   * Optional opt-in pixel limit for large sensors: an integer from 1 to `NATIVE_RAW_LIMITS.ceilingPixels`.
+   * Default `NATIVE_RAW_LIMITS.maximumPixels` (24 000 000). `maximumOutputBytes` still applies. A raised limit
+   * also raises the native environment tasks' whole-event query budget ceiling in proportion
+   * (2 000 000 000 per 24 000 000 pixels). It does not affect sampling.
+   */
+  maximumPixels?: number;
 }
 export interface NativeRawPlan {
   schemaVersion: typeof NATIVE_RAW_SCHEMA_VERSION;
@@ -47,6 +58,8 @@ export interface NativeRawPlan {
   tileCount: number;
   /** Present only when an execution tile width was given. Otherwise the plan keeps its earlier shape. */
   tileWidth?: number;
+  /** Present only when a pixel limit was given. Otherwise the plan keeps its earlier shape. */
+  maximumPixels?: number;
   upstreamRadiometryVerified: false;
   seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
 }
@@ -111,13 +124,15 @@ function windows(exposure: NativeRawExposure, schedule: SensorRawProducerExposur
 }
 /** Plans the task and checks the image size, resources and profiles before any callback or output allocation. No placeholder plane is made. */
 export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
-  const r=requireAllowlistedRecord(input,["exposure","frameId","modeId","captureModeProfile","colorSamplingProfile","bindingProfile","exposureWindow","maximumOutputBytes","tileWidth"],"Invalid native RAW input.");
+  const r=requireAllowlistedRecord(input,["exposure","frameId","modeId","captureModeProfile","colorSamplingProfile","bindingProfile","exposureWindow","maximumOutputBytes","tileWidth","maximumPixels"],"Invalid native RAW input.");
   if(r.tileWidth!==undefined&&(typeof r.tileWidth!=="number"||!Number.isSafeInteger(r.tileWidth)||r.tileWidth<1||r.tileWidth>NATIVE_RAW_LIMITS.tileWidth))
     throw new InvalidConfigurationError("Native RAW tile width must be an integer from 1 to 256.");
   const tileWidth=(r.tileWidth as number|undefined)??NATIVE_RAW_LIMITS.tileWidth;
+  const maximumPixels=resolveRaisedLimit(r.maximumPixels,NATIVE_RAW_LIMITS.maximumPixels,NATIVE_RAW_LIMITS.ceilingPixels,
+    "Native RAW maximumPixels must be an integer from 1 to "+NATIVE_RAW_LIMITS.ceilingPixels+".");
   const exposure=normalizeCaptureExposureMetadata(r.exposure,ENGINE_API_VERSION,true),native=exposure.geometry.nativeRaster;
   const pixelCount=native.pixelWidth*native.pixelHeight,outputBytes=pixelCount*NATIVE_RAW_LIMITS.outputBytesPerPixel;
-  if(pixelCount>NATIVE_RAW_LIMITS.maximumPixels||native.pixelWidth>NATIVE_RAW_LIMITS.maximumDimension||native.pixelHeight>NATIVE_RAW_LIMITS.maximumDimension||
+  if(pixelCount>maximumPixels||native.pixelWidth>NATIVE_RAW_LIMITS.maximumDimension||native.pixelHeight>NATIVE_RAW_LIMITS.maximumDimension||
     !Number.isSafeInteger(r.maximumOutputBytes)||typeof r.maximumOutputBytes!=="number"||r.maximumOutputBytes<outputBytes)throw new InvalidConfigurationError("Native RAW raster exceeds output admission budget.");
   const frame={frameId:requirePublicOpaqueId(r.frameId,"Invalid RAW frame ID."),capture:exposure,
     modeId:requirePublicOpaqueId(r.modeId,"Invalid RAW mode ID."),containerBitDepth:16 as const,
@@ -138,8 +153,16 @@ export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
   return freezeOwnedData({schemaVersion:NATIVE_RAW_SCHEMA_VERSION,exposure,frame,pixelCount,outputBytes,
     tileCount:Math.ceil(native.pixelWidth/tileWidth)*native.pixelHeight,
     ...(r.tileWidth===undefined?{}:{tileWidth}),
+    ...(r.maximumPixels===undefined?{}:{maximumPixels}),
     ...(schedule?{exposureWindow:schedule}:{}),upstreamRadiometryVerified:false as const,
     seedSchedule:"murmur3-capture-seed-native-index-stream-v2" as const});
+}
+/**
+ * Internal: the largest whole-event radiance query budget a native environment task admits for this plan:
+ * 2 000 000 000, scaled in proportion when the plan raised its pixel limit above 24 000 000. Not exported from the package.
+ */
+export function nativeRawMaximumProviderEvaluations(plan: Pick<NativeRawPlan,"maximumPixels">): number {
+  return plan.maximumPixels===undefined?DEFAULT_MAXIMUM_PROVIDER_EVALUATIONS:scaleBudgetCeiling(DEFAULT_MAXIMUM_PROVIDER_EVALUATIONS,plan.maximumPixels);
 }
 /**
  * Runs validated per-site events (EQE photo signal, dark signal, charge completeness) through the shared

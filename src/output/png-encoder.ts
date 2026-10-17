@@ -21,10 +21,15 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 
 export const PNG_ENCODER_ID = "photivra-png-rgb-v1" as const;
-/** Limits, checked before allocation. 100 MP (megapixels) of 16-bit RGB is about 600 MB of filtered scanlines. */
-export const PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, maximumIccProfileBytes: 4_000_000 });
+/**
+ * Limits, checked before allocation. 100 MP (megapixels) of 16-bit RGB is about 600 MB of filtered scanlines.
+ * `maximumPixels` is the default; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`.
+ */
+export const PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
+  maximumIccProfileBytes: 4_000_000 });
 
 /** ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020). */
 export type PngCicpPrimaries = "bt709" | "display-p3" | "bt2020";
@@ -61,6 +66,11 @@ export interface PngEncodeInput {
   compression?: "stored" | "fixed-huffman";
   /** PNG filter type 0..4 for every row, or the specification's minimum-sum-of-absolute-differences heuristic. Default "adaptive". */
   filter?: "none" | "sub" | "up" | "average" | "paeth" | "adaptive";
+  /**
+   * Optional opt-in pixel limit: an integer from 1 to `PNG_ENCODER_LIMITS.ceilingPixels`. Default
+   * `PNG_ENCODER_LIMITS.maximumPixels` (100 000 000). It does not change the encoded bytes.
+   */
+  maximumPixels?: number;
 }
 
 // Maps, not plain objects: a lookup must never reach Object.prototype names such as "constructor" or "toString".
@@ -278,9 +288,11 @@ function finite(value: number, minimum: number, maximum: number, message: string
  */
 export function serializePngImage(input: PngEncodeInput): Uint8Array {
   if (input === null || typeof input !== "object") fail("input must be an object.");
-  for (const key of Object.keys(input)) if (!["width", "height", "bitDepth", "samples", "colourEncoding", "masteringDisplay", "contentLightLevel", "compression", "filter"].includes(key)) fail("unknown input field.");
+  for (const key of Object.keys(input)) if (!["width", "height", "bitDepth", "samples", "colourEncoding", "masteringDisplay", "contentLightLevel", "compression", "filter", "maximumPixels"].includes(key)) fail("unknown input field.");
   const { width, height, bitDepth, samples } = input;
-  if (![width, height].every((v) => Number.isSafeInteger(v) && v >= 1 && v <= PNG_ENCODER_LIMITS.maximumDimension) || width * height > PNG_ENCODER_LIMITS.maximumPixels) fail("dimensions are out of range.");
+  const maximumPixels = resolveRaisedLimit(input.maximumPixels, PNG_ENCODER_LIMITS.maximumPixels, PNG_ENCODER_LIMITS.ceilingPixels,
+    "PNG encoder: maximumPixels must be an integer from 1 to " + PNG_ENCODER_LIMITS.ceilingPixels + ".");
+  if (![width, height].every((v) => Number.isSafeInteger(v) && v >= 1 && v <= PNG_ENCODER_LIMITS.maximumDimension) || width * height > maximumPixels) fail("dimensions are out of range.");
   if (bitDepth !== 8 && bitDepth !== 16) fail("bitDepth must be 8 or 16.");
   if (bitDepth === 8 ? !(samples instanceof Uint8Array) : !(samples instanceof Uint16Array)) fail("samples must be a Uint8Array for 8-bit or a Uint16Array for 16-bit.");
   if (samples.length !== width * height * 3) fail("samples must hold width x height RGB triples.");

@@ -3063,6 +3063,16 @@
       "kind": "type"
     },
     {
+      "name": "FULL_RESOLUTION_CEILING_PIXELS",
+      "source": "src/core/pixel-limits.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FULL_RESOLUTION_DEFAULT_PIXELS",
+      "source": "src/core/pixel-limits.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "FullAutoExposureModeResolution",
       "source": "src/exposure/exposure-mode-resolver.ts",
       "kind": "type"
@@ -5270,6 +5280,11 @@
     {
       "name": "PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION",
       "source": "src/output/print-contrast-reference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PRINT_JPEG_LIMITS",
+      "source": "src/output/print-jpeg.ts",
       "kind": "runtime"
     },
     {

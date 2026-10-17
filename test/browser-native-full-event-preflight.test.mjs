@@ -135,7 +135,9 @@ describe('#224 full-native static Path-A work preflight (never qualified)', () =
     expect(executor).toContain(
       'committedSourceSampleCount > eventPlan.maximumProviderEvaluations'
     );
-    expect(plan).toContain('maximumProviderEvaluations > 2_000_000_000');
+    // The default ceiling is 2,000,000,000; only a plan that raised its native RAW pixel limit scales it (2.2).
+    expect(plan).toContain('maximumProviderEvaluations > nativeRawMaximumProviderEvaluations(rawPlan)');
+    expect(readFileSync('src/capture/native-raw.ts', 'utf8')).toContain('DEFAULT_MAXIMUM_PROVIDER_EVALUATIONS = 2_000_000_000');
     expect(accounting).toContain('Decomposing one legacy provider evaluation');
   });
 });

@@ -8,6 +8,7 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, scaleBudgetCeiling } from "../core/pixel-limits.js";
 
 /**
  * Identifies the exact byte output of the baseline encoder.
@@ -65,6 +66,11 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
   return encoder.finish();
 }
 /**
+ * Largest byte budget the internal writer accepts: the Print JPEG budget ceiling at the largest opt-in source
+ * (256 000 000 bytes per 24 000 000 pixels at 2^27 pixels). Each caller enforces its own smaller budget.
+ */
+const EXPORT_JPEG_MAXIMUM_OUTPUT_BYTES=scaleBudgetCeiling(256_000_000,FULL_RESOLUTION_CEILING_PIXELS);
+/**
  * Internal size-limited JPEG writer. The reference export and the scalable export use exactly the same
  * DCT and entropy-coding equations.
  *
@@ -77,7 +83,7 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
   writeRgbBlock(samples:readonly number[]):void; finish():Uint8Array; dispose():void;
 } {
   const {width,height,quantizationStep:q}=input;
-  if(![width,height,q,input.maximumOutputBytes].every(Number.isSafeInteger)||width<1||height<1||width>65535||height>65535||q<1||q>255||input.maximumOutputBytes<1||input.maximumOutputBytes>256_000_000)
+  if(![width,height,q,input.maximumOutputBytes].every(Number.isSafeInteger)||width<1||height<1||width>65535||height>65535||q<1||q>255||input.maximumOutputBytes<1||input.maximumOutputBytes>EXPORT_JPEG_MAXIMUM_OUTPUT_BYTES)
     throw new InvalidConfigurationError("Invalid bounded JPEG encoding plan.");
   const density=input.densityDotsPerInch;
   if(density!==undefined&&(!Number.isSafeInteger(density)||density<1||density>65535))

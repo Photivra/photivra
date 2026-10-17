@@ -4,7 +4,7 @@
  * Native RAW capture from a scene-radiance provider: source radiance → optics → EQE (external quantum
  * efficiency) → packed RAW codes for the full native sensor, within fixed work limits.
  */
-import { calculateNativeRawPlan, createNativeRawTaskWithCadence, type NativeRawInput, type NativeRawOutput,
+import { calculateNativeRawPlan, createNativeRawTaskWithCadence, nativeRawMaximumProviderEvaluations, type NativeRawInput, type NativeRawOutput,
   type NativeRawPlan, type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "./native-raw.js";
 import { createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
 import type { SensorRawProducerSiteInput } from "./sensor-raw-producer.js";
@@ -185,7 +185,7 @@ function admitNativeEnvironmentInput(input:NativeEnvironmentRawInput):{plan:Retu
   const plan=calculateNativeRawPlan(input.raw),sceneBinding=parseSceneBinding(r.sceneBinding);
   const retention=r.opticalStage===undefined?undefined:parseNativeEnvironmentOpticalStageRetention(r.opticalStage);
   if(sceneBinding.sceneStateId!==plan.exposure.sceneStateId||plan.exposure.sceneTimeSeconds!==0||!plan.exposureWindow||
-    typeof r.maximumProviderEvaluations!=="number"||!Number.isSafeInteger(r.maximumProviderEvaluations)||r.maximumProviderEvaluations<plan.pixelCount||r.maximumProviderEvaluations>2_000_000_000)
+    typeof r.maximumProviderEvaluations!=="number"||!Number.isSafeInteger(r.maximumProviderEvaluations)||r.maximumProviderEvaluations<plan.pixelCount||r.maximumProviderEvaluations>nativeRawMaximumProviderEvaluations(plan))
     throw new InvalidConfigurationError("Native environment requires opening-reference scene binding, an explicit shutter event and bounded full-event query budget.");
   return {plan,sceneBinding,retention,maximum:r.maximumProviderEvaluations};
 }

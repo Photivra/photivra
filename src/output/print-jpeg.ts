@@ -11,9 +11,17 @@ import { decodeSrgbComponent, encodeSrgbComponent } from "../color/srgb-transfer
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
+import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit, scaleBudgetCeiling } from "../core/pixel-limits.js";
 import type { NativeRawTaskState } from "../capture/native-raw.js";
 import type { RasterRect } from "./capture-geometry.js";
 export const PRINT_JPEG_SCHEMA_VERSION="0.2.0" as const;
+/**
+ * Admission limits. `maximumPixels` is the default source limit; a request may raise it with its own
+ * `maximumPixels`, up to `ceilingPixels`. A raised limit raises the `maximumEncodedBytes` ceiling in proportion
+ * (256 000 000 bytes per 24 000 000 source pixels).
+ */
+export const PRINT_JPEG_LIMITS=Object.freeze({maximumPixels:24_000_000,ceilingPixels:FULL_RESOLUTION_CEILING_PIXELS,maximumDimension:16_384,
+  maximumEncodedBytes:256_000_000,maximumProviderReads:1_000_000});
 let srgbDecode:Float64Array|undefined;
 /** decodeSrgbComponent(v/255) for every 8-bit code v, computed once with the same function (identical values). */
 function srgbDecodeTable():Float64Array{return srgbDecode??=Float64Array.from({length:256},(_,v)=>decodeSrgbComponent(v/255));}
@@ -44,6 +52,12 @@ export interface PrintJpegInput {
    * carries 72/1 with ResolutionUnit = 2; that is the standard's unknown-resolution marker, not a print size.
    */
   pixelsPerInch?:number;
+  /**
+   * Optional opt-in source pixel limit for large images: an integer from 1 to `PRINT_JPEG_LIMITS.ceilingPixels`.
+   * Default `PRINT_JPEG_LIMITS.maximumPixels` (24 000 000). When given it is recorded in the XMP export plan, like the
+   * other admission budgets; the image data are unchanged.
+   */
+  maximumPixels?:number;
 }
 export interface PrintJpegTileRequest {source:PrintJpegSource;x:number;y:number;width:number;height:number}
 export interface PrintJpegTile extends PrintJpegTileRequest {samples:Uint8Array}
@@ -94,18 +108,21 @@ function integer(v:unknown,min=1):number {
 }
 /** Validates the input only. Source detail, perception and printer suitability are checked by separate APIs. */
 export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput {
-  const r=requireAllowlistedRecord(input,["source","crop","outputWidth","outputHeight","quantizationStep","maximumEncodedBytes","maximumProviderReads","pixelsPerInch"],"Invalid Print JPEG input.");
+  const r=requireAllowlistedRecord(input,["source","crop","outputWidth","outputHeight","quantizationStep","maximumEncodedBytes","maximumProviderReads","pixelsPerInch","maximumPixels"],"Invalid Print JPEG input.");
   const s=requireAllowlistedRecord(r.source,["captureId","imageStateId","artifactId","sha256","width","height","encoding"],"Invalid Print source.");
   if(typeof s.sha256!=="string"||!/^[a-f0-9]{64}$/.test(s.sha256)||s.encoding!=="encoded-srgb-8-rgb")throw new InvalidConfigurationError("Print requires identified encoded sRGB source bytes.");
   const source:PrintJpegSource={captureId:requirePublicOpaqueId(s.captureId,"Invalid capture ID."),imageStateId:requirePublicOpaqueId(s.imageStateId,"Invalid image state ID."),artifactId:requirePublicOpaqueId(s.artifactId,"Invalid artifact ID."),sha256:s.sha256,width:integer(s.width),height:integer(s.height),encoding:s.encoding};
   const c=requireAllowlistedRecord(r.crop,["x","y","width","height"],"Invalid Print crop."),crop={x:integer(c.x,0),y:integer(c.y,0),width:integer(c.width),height:integer(c.height)};
   const outputWidth=integer(r.outputWidth),outputHeight=integer(r.outputHeight),quantizationStep=integer(r.quantizationStep),maximumEncodedBytes=integer(r.maximumEncodedBytes),maximumProviderReads=integer(r.maximumProviderReads);
-  if(source.width>16_384||source.height>16_384||source.width*source.height>24_000_000||crop.x+crop.width>source.width||crop.y+crop.height>source.height||
-    outputWidth>crop.width||outputHeight>crop.height||quantizationStep>255||maximumEncodedBytes>256_000_000||maximumProviderReads>1_000_000||
+  const L=PRINT_JPEG_LIMITS,maximumPixels=resolveRaisedLimit(r.maximumPixels,L.maximumPixels,L.ceilingPixels,"Print maximumPixels must be an integer from 1 to "+L.ceilingPixels+".");
+  const encodedBytesCeiling=r.maximumPixels===undefined?L.maximumEncodedBytes:scaleBudgetCeiling(L.maximumEncodedBytes,maximumPixels);
+  if(source.width>L.maximumDimension||source.height>L.maximumDimension||source.width*source.height>maximumPixels||crop.x+crop.width>source.width||crop.y+crop.height>source.height||
+    outputWidth>crop.width||outputHeight>crop.height||quantizationStep>255||maximumEncodedBytes>encodedBytesCeiling||maximumProviderReads>L.maximumProviderReads||
     Math.abs(outputWidth*crop.height-outputHeight*crop.width)>.5*(crop.width+crop.height))throw new InvalidConfigurationError("Print requires bounded native/downsampled aspect-preserving crop output.");
   const ppi=r.pixelsPerInch;
   if(ppi!==undefined&&(typeof ppi!=="number"||!Number.isFinite(ppi)||ppi<1||ppi>65535))throw new InvalidConfigurationError("Print density requires finite pixels per inch from 1 to 65535.");
-  return freezeOwnedData({source,crop,outputWidth,outputHeight,quantizationStep,maximumEncodedBytes,maximumProviderReads,...(ppi===undefined ? {} : {pixelsPerInch:ppi})});
+  return freezeOwnedData({source,crop,outputWidth,outputHeight,quantizationStep,maximumEncodedBytes,maximumProviderReads,...(ppi===undefined ? {} : {pixelsPerInch:ppi}),
+    ...(r.maximumPixels===undefined ? {} : {maximumPixels})});
 }
 /** Creates the export task. Filtering weights each source pixel by its exact area overlap, after decoding the declared 8-bit SDR source. */
 export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvider):PrintJpegTask {
