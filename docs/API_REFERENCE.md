@@ -1,6 +1,6 @@
 # Public API reference
 
-Generated from the exact root exports for **@photivra/engine 2.2.1 / root contract 2.2.1** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
+Generated from the exact root exports for **@photivra/engine 2.3.0 / root contract 2.3.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
 
 Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
 
@@ -824,6 +824,20 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ResolveGenericEquipmentExposureCapabilitiesInput`](api/equipment-exposure-capabilities.md#resolvegenericequipmentexposurecapabilitiesinput) | Type |
 | [`WidestAvailableFNumberCapability`](api/equipment-exposure-capabilities.md#widestavailablefnumbercapability) | Type |
 
+## equipment/generic-prime-lenses.ts
+
+[Detailed contracts](api/equipment-generic-prime-lenses.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/equipment/generic-prime-lenses.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateGenericPrimeMinimumFocusDistanceM`](api/equipment-generic-prime-lenses.md#calculategenericprimeminimumfocusdistancem) | Runtime |
+| [`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`](api/equipment-generic-prime-lenses.md#generic_prime_equivalent_focal_lengths_mm) | Runtime |
+| [`GENERIC_PRIME_MINIMUM_FOCUS`](api/equipment-generic-prime-lenses.md#generic_prime_minimum_focus) | Runtime |
+| [`GENERIC_PRIME_THIRD_STOP_F_NUMBERS`](api/equipment-generic-prime-lenses.md#generic_prime_third_stop_f_numbers) | Runtime |
+| [`GenericPrimeEquivalentFocalLengthMm`](api/equipment-generic-prime-lenses.md#genericprimeequivalentfocallengthmm) | Type |
+| [`GenericPrimeLens`](api/equipment-generic-prime-lenses.md#genericprimelens) | Type |
+| [`resolveGenericPrimeLens`](api/equipment-generic-prime-lenses.md#resolvegenericprimelens) | Runtime |
+
 ## equipment/generic-tier-assets.ts
 
 [Detailed contracts](api/equipment-generic-tier-assets.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/equipment/generic-tier-assets.ts)
@@ -1106,24 +1120,40 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`BarGroupsChartScene`](api/facade-chart-scenes.md#bargroupschartscene) | Type |
+| [`calculateBarGroupTargets`](api/facade-chart-scenes.md#calculatebargrouptargets) | Runtime |
 | [`calculatePointGridCenters`](api/facade-chart-scenes.md#calculatepointgridcenters) | Runtime |
+| [`calculateSlantedSquareEdges`](api/facade-chart-scenes.md#calculateslantedsquareedges) | Runtime |
 | [`calculateStepWedgeReflectances`](api/facade-chart-scenes.md#calculatestepwedgereflectances) | Runtime |
+| [`CHART_CONTINUOUS_LEVELS`](api/facade-chart-scenes.md#chart_continuous_levels) | Runtime |
 | [`CHART_SCENE_DEFAULTS`](api/facade-chart-scenes.md#chart_scene_defaults) | Runtime |
 | [`CHART_SCENE_PRESETS`](api/facade-chart-scenes.md#chart_scene_presets) | Runtime |
 | [`CHART_SPECTRAL_RANGE_NANOMETERS`](api/facade-chart-scenes.md#chart_spectral_range_nanometers) | Runtime |
+| [`ChartBarGroupTarget`](api/facade-chart-scenes.md#chartbargrouptarget) | Type |
+| [`ChartElementScene`](api/facade-chart-scenes.md#chartelementscene) | Type |
+| [`ChartRectangle`](api/facade-chart-scenes.md#chartrectangle) | Type |
 | [`ChartReflectance`](api/facade-chart-scenes.md#chartreflectance) | Type |
 | [`ChartScene`](api/facade-chart-scenes.md#chartscene) | Type |
 | [`ChartScenePresetId`](api/facade-chart-scenes.md#chartscenepresetid) | Type |
+| [`ChartSlantedSquare`](api/facade-chart-scenes.md#chartslantedsquare) | Type |
 | [`CheckerboardChartScene`](api/facade-chart-scenes.md#checkerboardchartscene) | Type |
+| [`CompositeChartElement`](api/facade-chart-scenes.md#compositechartelement) | Type |
+| [`CompositeChartScene`](api/facade-chart-scenes.md#compositechartscene) | Type |
+| [`DeadLeavesChartScene`](api/facade-chart-scenes.md#deadleaveschartscene) | Type |
+| [`FiducialChartScene`](api/facade-chart-scenes.md#fiducialchartscene) | Type |
 | [`GreyRampChartScene`](api/facade-chart-scenes.md#greyrampchartscene) | Type |
+| [`HyperbolicWedgeChartScene`](api/facade-chart-scenes.md#hyperbolicwedgechartscene) | Type |
+| [`LineGridChartScene`](api/facade-chart-scenes.md#linegridchartscene) | Type |
 | [`PatchChartScene`](api/facade-chart-scenes.md#patchchartscene) | Type |
 | [`PointGridChartScene`](api/facade-chart-scenes.md#pointgridchartscene) | Type |
 | [`resolveChartScene`](api/facade-chart-scenes.md#resolvechartscene) | Runtime |
 | [`ResolvedChartScene`](api/facade-chart-scenes.md#resolvedchartscene) | Type |
 | [`SiemensStarChartScene`](api/facade-chart-scenes.md#siemensstarchartscene) | Type |
 | [`SlantedEdgeChartScene`](api/facade-chart-scenes.md#slantededgechartscene) | Type |
+| [`SlantedSquaresChartScene`](api/facade-chart-scenes.md#slantedsquareschartscene) | Type |
 | [`StepWedgeChartScene`](api/facade-chart-scenes.md#stepwedgechartscene) | Type |
 | [`UniformChartScene`](api/facade-chart-scenes.md#uniformchartscene) | Type |
+| [`ZonePlateChartScene`](api/facade-chart-scenes.md#zoneplatechartscene) | Type |
 
 ## facade/scene-radiance.ts
 
@@ -1134,6 +1164,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`CallerRadianceScene`](api/facade-scene-radiance.md#callerradiancescene) | Type |
 | [`CallerReflectanceScene`](api/facade-scene-radiance.md#callerreflectancescene) | Type |
 | [`CaptureIlluminant`](api/facade-scene-radiance.md#captureilluminant) | Type |
+| [`CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE`](api/facade-scene-radiance.md#chart_size_default_surround_reflectance) | Runtime |
+| [`ChartSizeOption`](api/facade-scene-radiance.md#chartsizeoption) | Type |
 | [`createPlanarSceneRadianceProvider`](api/facade-scene-radiance.md#createplanarsceneradianceprovider) | Runtime |
 | [`PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W`](api/facade-scene-radiance.md#photopic_maximum_luminous_efficacy_lm_per_w) | Runtime |
 | [`PlanarSceneRadianceProvider`](api/facade-scene-radiance.md#planarsceneradianceprovider) | Type |
@@ -1147,6 +1179,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`IdealReferenceResult`](api/facade-simulate-capture.md#idealreferenceresult) | Type |
+| [`SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES`](api/facade-simulate-capture.md#simulate_capture_box_aperture_default_samples) | Runtime |
 | [`SIMULATE_CAPTURE_COST_OPTIONS`](api/facade-simulate-capture.md#simulate_capture_cost_options) | Runtime |
 | [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
 | [`SIMULATE_CAPTURE_FACADE_VERSION`](api/facade-simulate-capture.md#simulate_capture_facade_version) | Runtime |
@@ -1161,10 +1195,23 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureMotion`](api/facade-simulate-capture.md#simulatecapturemotion) | Type |
 | [`SimulateCaptureOptions`](api/facade-simulate-capture.md#simulatecaptureoptions) | Type |
 | [`SimulateCaptureOutputFormat`](api/facade-simulate-capture.md#simulatecaptureoutputformat) | Type |
+| [`SimulateCapturePixelAperture`](api/facade-simulate-capture.md#simulatecapturepixelaperture) | Type |
 | [`SimulateCaptureProgress`](api/facade-simulate-capture.md#simulatecaptureprogress) | Type |
 | [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
 | [`SimulateCaptureSensorAntiAliasing`](api/facade-simulate-capture.md#simulatecapturesensorantialiasing) | Type |
 | [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
+| [`simulateIdealReference`](api/facade-simulate-capture.md#simulateidealreference) | Runtime |
+
+## facade/subject-framing.ts
+
+[Detailed contracts](api/facade-subject-framing.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/subject-framing.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateSubjectDistanceForFraming`](api/facade-subject-framing.md#calculatesubjectdistanceforframing) | Runtime |
+| [`CalculateSubjectDistanceForFramingInput`](api/facade-subject-framing.md#calculatesubjectdistanceforframinginput) | Type |
+| [`SubjectFraming`](api/facade-subject-framing.md#subjectframing) | Type |
+| [`SubjectFramingFit`](api/facade-subject-framing.md#subjectframingfit) | Type |
 
 ## gpu/image-kernel-accelerator.ts
 

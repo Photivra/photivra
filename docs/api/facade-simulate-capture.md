@@ -2,6 +2,38 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## IdealReferenceResult
+
+Result of {@link simulateIdealReference}: an ideal reference image, not a capture (no RAW, plan or request).
+
+```ts
+export interface IdealReferenceResult {
+  kind: "ideal-reference";
+  /** Human-readable label for a user interface. */
+  label: string;
+  facadeVersion: typeof SIMULATE_CAPTURE_FACADE_VERSION;
+  engineApiVersion: string;
+  image: { width: number; height: number; format: SimulateCaptureOutputFormat; samples: Uint8Array | Uint16Array; png?: Uint8Array; colorEncoding?: SimulateCaptureColorEncoding };
+  /** The resolved exposure of the capture this reference matches. */
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  scene: SimulateCaptureResult["scene"];
+  region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number };
+  diagnostics: { sampleCount: number; timingsMs: { reference: number; total: number } };
+  provenance: { scientificStatus: "approximation"; cameraPresetId: string; cameraPresetVersion: string; evidence: readonly EvidenceProvenance[];
+    composedContracts: readonly string[]; limitations: readonly string[] };
+  /** The capture request's assumptions, then `reference.kind`, `reference.excludes`, `reference.exposure` and `reference.sampling`. */
+  assumptions: readonly SimulateCaptureAssumption[];
+}
+```
+
+## SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES
+
+Default midpoint samples per axis of `sensor.pixelAperture: "box"`.
+
+```ts
+SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES = 4
+```
+
 ## SIMULATE_CAPTURE_COST_OPTIONS
 
 Options reported in `diagnostics.options` (2.1), in this order, when they ran: the ones that change how much work
@@ -9,7 +41,7 @@ a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.tempor
 
 ```ts
 SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
-  "lens.diffraction", "sensor.antiAliasing", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const)
 ```
@@ -144,6 +176,14 @@ export interface SimulateCaptureOptions {
   lens?: {
     /** Must lie in the lens capability (the generic primes are 50 mm). Default: the lens's shortest focal length. */
     focalLengthMm?: number;
+    /**
+     * Opt-in (2.3): a lens of the generic prime family by its full-frame-equivalent focal length
+     * (`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`). Its physical focal length is the equivalent ÷ the diagonal crop
+     * factor of the simulated frame (output width × height × pixel pitch); it replaces the tier lens's focal length and
+     * f-number range (the tier lens's transmission is kept). An f-number outside the prime's range, or a subject or
+     * focus distance below its minimum focus distance, is rejected. Not combinable with `focalLengthMm`.
+     */
+    prime?: number;
     /** Aperture for manual and aperture-priority modes. Default 8. */
     fNumber?: number;
     /** Focus distance in metres. Default: the subject distance. */
@@ -183,6 +223,14 @@ export interface SimulateCaptureOptions {
   scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
+  /**
+   * Opt-in (2.3) fixed-size chart: place the scene at this physical size on the plane at the subject distance,
+   * centred on the optical axis, instead of sizing it to fill the frame. Outside it the plane is a neutral surround
+   * (default 18 %). Chart presets are resolved in the chart's own frame (aspect heightM / widthM); caller functions
+   * are called only on the chart and receive chart-local `chartU`, `chartV`. `result.scene.chart` reports the
+   * framed width, the fraction of the frame the chart covers and the thin-lens magnification.
+   */
+  chartSize?: ChartSizeOption;
   /** Default: Planckian 6500 K (a blackbody stand-in for daylight; CIE D65 is not bundled). */
   illuminant?: CaptureIlluminant;
   /** Illuminance on the scene plane, lux. Default about 21 481 lux (see `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` and the assumptions). */
@@ -225,6 +273,15 @@ export interface SimulateCaptureOptions {
      * memory grow with the pixel count (see "Large images" in the quick start); browsers may fail at large sizes.
      */
     maximumPixels?: number;
+    /**
+     * Opt-in (2.3) region rendering: render only this rectangle, in output-pixel coordinates of the whole frame
+     * `width` × `height` (x right, y down from its top-left). The pixels are byte-identical to the same pixels of
+     * the whole render: framing, metering, exposure, noise seeds (absolute native site indices), rolling-shutter row
+     * timing, diffraction and demosaic all use the whole frame. Use it to tile a large frame across workers or to
+     * render a 100 % crop. `result.image` is the region; `result.region` reports it. Not combinable with
+     * `whiteBalance: "auto"`, whose statistics would come from the region only.
+     */
+    region?: { x: number; y: number; width: number; height: number };
   };
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
@@ -242,6 +299,13 @@ export interface SimulateCaptureOptions {
      * Multiplies the scene queries by the number of split points. Default off (the tiers declare no filter).
      */
     antiAliasing?: SimulateCaptureSensorAntiAliasing;
+    /**
+     * Opt-in (2.3) pixel aperture. `"point"` (default): each site samples the irradiance at its centre.
+     * `"box"`: each site integrates the irradiance over its whole square photosite (fill factor 1) with an
+     * N × N midpoint rule, N = `samplesPerAxis` (1–16, default 4), so detail finer than a pixel averages out as
+     * on a real sensor (pixel MTF |sinc(f·p)|) instead of aliasing. Multiplies the scene queries by N².
+     */
+    pixelAperture?: SimulateCapturePixelAperture;
   };
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
@@ -256,6 +320,14 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" | "dng";
+```
+
+## SimulateCapturePixelAperture
+
+Pixel aperture (2.3): centre sampling, or the square photosite integrated with an N × N midpoint rule.
+
+```ts
+export type SimulateCapturePixelAperture = "point" | "box" | { kind: "box"; samplesPerAxis?: number };
 ```
 
 ## SimulateCaptureProgress
@@ -293,9 +365,19 @@ export interface SimulateCaptureResult {
     /** Lossless uncompressed CFA DNG of the packed RAW when format is "dng" (`serializeNativeRawDng`); `samples` are then sRGB 8-bit. */
     dng?: Uint8Array;
   };
-  /** Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. */
+  /**
+   * Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. With
+   * `output.region` (2.3): the region's native sites only, with `plan` describing that raster (its active area is the
+   * region); `request.environmentRaw` and `request.siteInput` stay those of the whole frame.
+   */
   raw: NativeRawOutput;
   plan: NativeRawPlan;
+  /**
+   * 2.3, present with `output.region`: the rendered rectangle in output pixels of the whole `frameWidth` × `frameHeight`
+   * frame, and the native sites rendered for it (`nativeRect`, in the whole frame's native raster: the region, the
+   * demosaic reach on each side clipped to the raster, and its origin rounded down to the 2 × 2 CFA repeat).
+   */
+  region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number; nativeRect: { x: number; y: number; width: number; height: number } };
   /** The complete underlying request. */
   request: {
     environmentRaw: NativeEnvironmentRawInput;
@@ -330,6 +412,14 @@ export interface SimulateCaptureResult {
     /** Physical size of the framed scene plane, metres. */
     framedWidthM: number;
     framedHeightM: number;
+    /**
+     * 2.3, present with `chartSize`: the chart's physical size and surround, the fraction of the frame width and
+     * height it covers (above 1 when it is larger than the frame and cropped), the thin-lens magnification
+     * v/d (image distance over subject distance, the scale the facade's framing uses) and the chart's size on the
+     * sensor in millimetres and output pixels.
+     */
+    chart?: { widthM: number; heightM: number; surroundReflectance: number; frameWidthFraction: number; frameHeightFraction: number;
+      magnification: number; imageWidthMm: number; imageHeightMm: number; imageWidthPixels: number; imageHeightPixels: number };
     /**
      * SHA-256 of the canonical scene description, recorded as the capture source digest. Caller spectra (a
      * `spectrum` or `daylight` illuminant, chart reflectance spectra) are part of the description: tabulated
@@ -402,3 +492,18 @@ export type SimulateCaptureWhiteBalance =
   | { kelvin: number; tint?: number }
   | { channelGains: { red: number; green: number; blue: number } };
 ```
+
+## simulateIdealReference
+
+The ideal reference of a capture request (2.3): the same scene, framing, chart size, output size, region and pixel
+grid as `simulateCapture(options)` would use, rendered with no camera effects (no lens blur, diffraction, defocus,
+distortion, vignetting, anti-aliasing filter, mosaic or demosaic, noise, dark signal or motion), at the capture's
+own exposure and developed with its white balance, colour matrices, tone curve and encoding (the
+`reference.exposure` assumption). Deterministic and cheap: no RAW is simulated. Formats srgb-8, srgb-16 and png.
+The result is labelled `kind: "ideal-reference"`; it is not a capture.
+
+```ts
+export async function simulateIdealReference(options: SimulateCaptureOptions): Promise<IdealReferenceResult>;
+```
+
+This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.

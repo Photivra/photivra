@@ -32,6 +32,29 @@ export type CaptureIlluminant =
   | { kind: "spectrum"; spectrum: ColorimetricSpectrum; label?: string };
 ```
 
+## CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE
+
+Default surround of a fixed-size chart: an 18 % grey plane.
+
+```ts
+CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE = 0.18
+```
+
+## ChartSizeOption
+
+2.3: a chart's physical size on the scene plane (`simulateCapture` `chartSize`, `createPlanarSceneRadianceProvider` `chartSize`).
+
+```ts
+export interface ChartSizeOption {
+  /** Chart width in metres, (0, 10 000]. */
+  widthM: number;
+  /** Chart height in metres. Default: widthM × the frame aspect (height / width), so the chart has the frame's shape. */
+  heightM?: number;
+  /** Neutral reflectance of the plane around the chart, lit by the same illuminant. Default 0.18. */
+  surroundReflectance?: number;
+}
+```
+
 ## createPlanarSceneRadianceProvider
 
 Public scene-preset provider. Places an engine chart (or a caller reflectance or radiance function) on
@@ -51,6 +74,11 @@ export function createPlanarSceneRadianceProvider(input: {
   aspect: number;
   sceneId: string;
   providerProfileId: string;
+  /**
+   * 2.3, opt-in: place the chart at this physical size, centred, instead of filling the frame; the chart preset
+   * is resolved with aspect heightM / widthM and the rest of the plane is the surround.
+   */
+  chartSize?: ChartSizeOption;
 }): PlanarSceneRadianceProvider & { chart: ResolvedChartScene | null };
 ```
 
@@ -76,6 +104,13 @@ export interface PlanarSceneRadianceProvider {
   evaluateApertureRadiance(request: Readonly<SceneRadianceEvaluationRequest>, ray: Readonly<SensorApertureRay>): SceneRadianceEvaluationResult;
   /** Spectral radiance at a plane point (frame units), the same value the callbacks return. */
   radianceAt(u: number, v: number, wavelengthNanometers: number): number;
+  /**
+   * 2.3, chart scenes only: the chart material at a plane point (frame units), or `materials.length` for the
+   * surround of a fixed-size chart; `materialRadiance` gives that material's spectral radiance, the same value
+   * `radianceAt` returns at its points.
+   */
+  chartMaterialAt?(u: number, v: number): number;
+  materialRadiance?(material: number, wavelengthNanometers: number): number;
 }
 ```
 
@@ -118,5 +153,12 @@ export interface ScenePlanePoint {
   u: number;
   v: number;
   wavelengthNanometers: number;
+  /**
+   * 2.3, only with a fixed-size chart (`chartSize`): the point in chart-local frame units (±1 at the chart's
+   * left/right edges, v up on the same scale, ±chart height/width at its top/bottom). The function is then
+   * called only for points on the chart; the surround is the placement's surround reflectance.
+   */
+  chartU?: number;
+  chartV?: number;
 }
 ```

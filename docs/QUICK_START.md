@@ -64,6 +64,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | --- | --- | --- |
 | `camera` | `"professional"` | A generic tier id (`"consumer"`, `"prosumer"`, `"professional"`) or a full `GenericEquipmentTierPreset` record. A record must have exactly the preset shape (unknown fields at the top level, in `body`, `lens` or `lens.matchedReference` are rejected) and each profile is re-checked by its own parser. Tier values are synthetic educational designs, not real cameras. |
 | `lens.focalLengthMm` | 50 | Must lie in the lens capability; the generic primes are 50 mm. |
+| `lens.prime` | off | 2.3: a generic prime by full-frame-equivalent focal length (see [Generic prime lenses](#generic-prime-lenses-23)). |
 | `lens.fNumber` | 8 | Used in `manual` and `aperture-priority`; resolved automatically otherwise. Must lie in f/4–f/16. |
 | `lens.focusDistanceM` | the subject distance | |
 | `lens.pupilSampling` | off | `{ radialSamples, angularSamples }` traces an ideal circular pupil, which renders defocus. Off means one chief ray per sample. Angular samples 4–64, at most 256 rays. |
@@ -78,10 +79,12 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `exposure.compensationStops` | 0 | Applied to the meter target. |
 | `scene` | required | A chart preset or a caller function (below). |
 | `subjectDistanceM` | 5 | Distance of the scene plane. |
+| `chartSize` | fill the frame | 2.3: `{ widthM, heightM?, surroundReflectance? }` places the chart at its physical size (see [Fixed-size chart](#fixed-size-chart-23)). |
 | `illuminant` | Planckian 6500 K | Also `"cie-a"`, `{ kind: "planckian", temperatureKelvin }`, `{ kind: "daylight", correlatedColorTemperatureKelvin, basis }` or `{ kind: "spectrum", spectrum }`. |
 | `illuminanceLux` | 21 481 (π·80 000/11.7) | See [Exposure](#exposure). |
 | `output.width`, `output.height` | 64 × 64 | Output pixels, 1–4094 each. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
 | `output.maximumPixels` | off | Opt-in large images (2.2): the most native sensor sites the capture may allocate, up to `NATIVE_RAW_LIMITS.ceilingPixels` (2^27). Sides may then reach 16 384 sites including the margin (see [Large images](#large-images)). |
+| `output.region` | whole frame | 2.3: `{ x, y, width, height }` renders that rectangle of the frame, byte-identical to the whole render (see [Region rendering](#region-rendering-23)). |
 | `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"`, `"png"` and `"dng"` (see [Output formats](#output-formats)). |
 | `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"` and `"rec2020"`. |
 | `output.bitDepth` | 8 | PNG only: 8 or 16. |
@@ -99,6 +102,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
 | `sensor.antiAliasing` | off | 2.1: an optical low-pass (anti-aliasing) filter: `{ kind: "four-spot", separationSites? }`, `{ kind: "two-spot", axis, separationSites? }` or `{ kind: "point-splitting", components }` (see [Anti-aliasing filter](#anti-aliasing-filter)). |
+| `sensor.pixelAperture` | `"point"` | 2.3: `"box"` or `{ kind: "box", samplesPerAxis }` integrates each square photosite (see [Pixel aperture](#pixel-aperture-23)). |
 | `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
 | `motion.shutter` | `"global"` | Or `"rolling"`. |
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
@@ -117,10 +121,91 @@ The scene is a plane perpendicular to the optical axis at `subjectDistanceM`. Th
 chart so that it exactly fills the active frame. Chart coordinates use frame units: `u` runs from −1
 at the left edge to +1 at the right edge, and `v` points up on the same scale (±height/width).
 
+### Fixed-size chart (2.3)
+
+With `chartSize: { widthM, heightM?, surroundReflectance? }` the chart keeps its physical size instead
+of filling the frame. It is centred on the optical axis on the plane at `subjectDistanceM`; the rest of
+the plane is a neutral Lambertian surround (default 18 %) under the same light, and the meter sees it.
+`heightM` defaults to `widthM` × the frame aspect. A chart preset is resolved in the chart's own frame
+(u = ±1 at the chart's edges, aspect heightM/widthM), so composite layouts and LW/PH frequencies refer
+to the chart, not the camera frame. A reflectance or radiance function is called only for points on the
+chart, with chart-local `chartU` and `chartV` (same convention) next to the frame `u`, `v` and plane
+`xM`, `yM`.
+
+The frame covers `scene.framedWidthM` of the plane, from the facade's thin-lens framing: magnification
+m = v/d with the image distance v = f·s/(s − f) at the focus distance s, and the frame spans sensor width/m.
+`result.scene.chart` (and the assumption `scene.chartSize`) reports `frameWidthFraction` and
+`frameHeightFraction` (the chart's share of the frame; above 1 when it is larger than the frame and
+cropped), the `magnification` and the chart's image size in millimetres and output pixels. To fill the
+frame width with a W-metre chart, put it at d = f·(1 + W/sensor width): with the facade's 50 mm prime,
+0.384 mm of sensor (64 pixels of 6 µm) and an A3 chart (0.42 m), d = 0.05·(1 + 420/0.384) ≈ 54.7 m.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const a3 = await simulateCapture({ scene: { preset: "siemens-star" }, chartSize: { widthM: 0.42 }, subjectDistanceM: 80, output: { width: 64, height: 48 } });
+console.log(a3.scene.chart?.frameWidthFraction, a3.scene.chart?.magnification, a3.scene.framedWidthM);
+```
+
 The simulated sensor has real pixels of `sensor.pixelPitchMicrometers`. A 64 × 64 capture with 6 µm
 pixels is therefore a 0.38 mm crop of a large sensor, not a downscaled full frame. This keeps the
 signal per pixel, and so the noise and the ISO behaviour, physically consistent with the tier's
 sensor values.
+
+### Generic prime lenses (2.3)
+
+`lens.prime` picks a lens of the engine's generic prime family by its full-frame-equivalent focal
+length: 10, 12, 14, 16, 20, 24, 28, 35, 40, 50, 85, 105, 135, 200, 300, 400, 500, 600, 800 or 1200 mm
+(`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`). They are educational lenses defined by three rules, not
+real products, and carry no brand:
+
+- **Focal length** = equivalent ÷ the diagonal crop factor of the sensor (`calculateEquivalentFocalLength35Mm`,
+  36 × 24 mm reference). In `simulateCapture` the sensor is the simulated frame, output width × height ×
+  pixel pitch: to simulate a whole full-frame sensor at 768 × 512, set the pitch to 36 mm / 768 = 46.875 µm.
+- **Aperture range:** widest f/2.8 (10–16 mm), f/1.8 (20–28 mm), f/1.4 (35–85 mm), f/2 (105–135 mm),
+  f/2.8 (200–300 mm), f/4 (400–600 mm), f/5.6 (800 mm), f/8 (1200 mm); narrowest f/16 up to 16 mm, f/22 up
+  to 135 mm, f/32 beyond. Any f-number inside the range is accepted; `fNumbers` lists the marked
+  third-stop values within it (`GENERIC_PRIME_THIRD_STOP_F_NUMBERS`: 1, 1.1, 1.2, 1.4, …, 22, 25, 29, 32,
+  the conventional rounded values of 2^(k/6)). An f-number outside the range is rejected.
+- **Minimum focus** = max(0.10 m, f·(1 + 1/0.15)): the thin-lens object distance at 0.15× magnification,
+  never closer than 10 cm (`GENERIC_PRIME_MINIMUM_FOCUS`). A subject or focus distance below it is
+  rejected. This is a generic thin-lens approximation, measured from the lens, not a real lens's
+  specification.
+
+The prime replaces the tier lens's focal length and f-number range; the tier lens's transmission is
+kept, and the assumption `lens.prime` records the resolved lens. `resolveGenericPrimeLens` gives the
+same lens for any sensor size. `lens.focalLengthMm` keeps working as before and cannot be combined with
+`lens.prime`.
+
+### Fitting a chart to the frame (2.3)
+
+`calculateSubjectDistanceForFraming({ sensor, focalLengthMm | equivalentFocalLengthMm, chart, fit? })`
+returns the distance at which a chart of physical size `chart` (`{ widthM, heightM? }`, as for
+`chartSize`; `heightM` defaults to the sensor's shape) fills the frame. Thin lens: magnification
+m = f/(d − f), so d = f·(1 + 1/m) with m = sensor side ÷ chart side. `fit` chooses the side:
+`contain` (default: the whole chart is visible and its limiting side fills the frame; for a 3:2 chart on
+a 3:2 sensor this is the width fit), `width`, `height` or `cover` (the chart fills the frame and is
+cropped on its other side). The result reports the magnification, image distance, framed plane size,
+`coverage` (the fraction of the frame width and height the chart covers), the generic prime of that
+equivalent focal length if there is one, the prime family's minimum focus distance at that focal length
+and `belowMinimumFocus`, plus assumptions in the same form as `simulateCapture`. It is the same framing
+`simulateCapture` uses, so `chartSize` at the returned distance gives `frameWidthFraction` 1 (tested).
+
+An A3 chart (0.42 × 0.28 m) on a full-frame sensor: 0.127 m at 10 mm, 0.633 m at 50 mm, 2.53 m at
+200 mm and 15.2 m at 1200 mm (magnification 0.0857, minimum focus 0.10, 0.38, 1.53 and 9.2 m). On a
+small 4.8 × 3.6 mm phone sensor (crop 7.2) the equivalent primes are 1.39–166 mm and the contain fit is
+limited by the width: 0.123, 0.614, 2.45 and 14.7 m, covering 89 % of the frame height. An A4 chart
+(0.297 m) would need 0.093 m at 10 mm, below the 0.10 m minimum focus (`belowMinimumFocus: true`).
+
+```ts
+import { calculateSubjectDistanceForFraming, simulateCapture } from "@photivra/engine";
+
+const fit = calculateSubjectDistanceForFraming({ sensor: { widthMm: 36, heightMm: 24 }, equivalentFocalLengthMm: 50, chart: { widthM: 0.42, heightM: 0.28 } });
+console.log(fit.subjectDistanceM, fit.magnification, fit.belowMinimumFocus, fit.prime?.fNumbers);
+const capture = await simulateCapture({ scene: { preset: "siemens-star" }, lens: { prime: 50, fNumber: 5.6 }, chartSize: { widthM: 0.42, heightM: 0.28 },
+  subjectDistanceM: fit.subjectDistanceM, sensor: { pixelPitchMicrometers: 36000 / 768 }, output: { width: 768, height: 512, region: { x: 368, y: 240, width: 32, height: 32 } } });
+console.log(capture.scene.chart?.frameWidthFraction);
+```
 
 ### ISO and pixel size
 
@@ -211,8 +296,46 @@ are spectrally flat.
 | `point-grid` | `columns` (5), `rows` (3), `radius` (0.01), `pointReflectance` (0.9), `backgroundReflectance` (0.02) | Small disks centred in equal cells, for PSF and defocus inspection. |
 | `patches` | `patches` (required), `columns`, `gapFraction` (0.1), `backgroundReflectance` (0.18) | Caller reflectance per patch, row-major. Use it for a ColorChecker-like chart with reflectance data you are entitled to use; the engine does not ship such data because its licence is unclear. |
 
-`resolveChartScene()`, `calculateStepWedgeReflectances()` and `calculatePointGridCenters()` expose
-the same definitions for analysis code. `createPlanarSceneRadianceProvider()` turns any of these
+### Chart elements and composite charts (2.3)
+
+2.3 adds generic, unbranded test-pattern elements and a `composite` preset that lays them out, so an
+application can build its own chart from engine parts. Frequencies in LW/PH (line widths per picture
+height, as in ISO 12233) refer to the height of the chart: the preset's own frame, or the composite's
+frame for its elements. One line width is PH/LW. Continuous patterns are stored as
+`CHART_CONTINUOUS_LEVELS` (1024) equal neutral levels, like the grey ramp; the step is below 0.1 % of
+the range, far below sensor noise.
+
+| Preset | Parameters (defaults) | Definition and source |
+| --- | --- | --- |
+| `siemens-star` `profile` | `"bar"` (default) or `"sine"` | `sine`: R(θ) = mid + amp·sin(2π·cycles·(θ/2π + ½)) between the dark and light reflectances, with zero crossings at the bar star's sector edges. `profile` appears in the parameters only when given, so 2.2 scene digests are unchanged. |
+| `dead-leaves` | `radiusMinimum` (0.01), `radiusMaximum` (0.5), `minimumReflectance` (0.2), `maximumReflectance` (0.6), `seed` (1) | Matheron's dead-leaves model in the scale-invariant form used for texture measurement by Cao, Guichard and Hornung (2010): opaque disks with uniform (Poisson) centres, radius density ∝ r⁻³ on [rMin, rMax] (frame units, rMin ≥ 0.002), grey uniform in the reflectance range. Disks are drawn front to back until the chart and 0.1 frame units around it are completely covered (backward "perfect simulation", Kendall and Thönnes 1999), so the texture is an exact sample of the stationary model there; farther out it is the mean grey. Seeded with the engine's xorshift32 stream and only correctly rounded arithmetic: the same seed gives the same disks on every platform. `diskCount` is reported. |
+| `bar-groups` | `lineWidthsPerPictureHeight` ([100, 200, 400, 800]), `numerals` (true), `darkReflectance` (0.05), `lightReflectance` (0.8) | One group of three dark bars and two gaps (five line widths) per frequency, left to right: vertical bars in the upper row (horizontal resolution), horizontal bars below (vertical resolution) and, with `numerals`, the LW/PH value in engine-drawn seven-segment digits. The three-bar group is the concept of the USAF-1951 target (a US-government publication); the arrangement is the engine's own. A group that does not fit its cell is rejected. |
+| `hyperbolic-wedge` | `orientation` (`horizontal`), `lineCount` (5), `minimumLineWidthsPerPictureHeight` (100), `maximumLineWidthsPerPictureHeight` (1000), dark/light (0.05/0.8) | `lineCount` dark lines and the gaps between them, all one line width wide, whose width shrinks along the axis so the frequency rises linearly from the minimum to the maximum LW/PH; the line edges are hyperbolas. `horizontal`: axis left to right, nearly horizontal lines (vertical resolution). |
+| `zone-plate` | `radiusFraction` (0.9), `maximumCyclesPerPictureHeight` (200), `darkReflectance` (0.1), `lightReflectance` (0.7), `backgroundReflectance` (0.18) | R(r) = mid + amp·cos(π·k·r²): the quadratic-phase chirp of a Fresnel zone plate, whose local frequency k·r rises linearly from 0 at the centre to the maximum at the rim. |
+| `slanted-squares` | `columns` (3), `rows` (2), `sizeFraction` (0.5), `angleDegrees` (5), `darkReflectance` (0.15), `lightReflectance` (0.6) | A dark square rotated clockwise by the angle, centred in each cell: two near-vertical and two near-horizontal slanted edges each, 4:1 contrast by default (Burns 2000). |
+| `line-grid` | `spacing` (1/3), `lineWidth` (0.01), `lineReflectance` (0.42), `backgroundReflectance` (0.6) | Lines at every multiple of `spacing` from the centre in u and v: a distortion and registration grid. |
+| `fiducial` | `radiusFraction` (0.8), `ringFraction` (0.18), `inverted` (false), `darkReflectance` (0.05), `lightReflectance` (0.8), `backgroundReflectance` (0.18) | A 2 × 2 checker disk in a dark ring, for registration; `inverted` swaps the checker phase (an orientation cue). |
+| `composite` | `background` (`{ preset: "uniform", reflectance: 0.18 }`), `elements` (required, 1–256) | Each element is `{ scene, centerU, centerV, width, height, mask? }`: any preset except `composite`, drawn inside its placement rectangle (frame units of the composite), clipped to the rectangle or, with `mask: "ellipse"`, to the inscribed ellipse. Later elements cover earlier ones. An element sees its own frame (u = ±1 across its width, aspect = height/width) but LW/PH frequencies keep the composite's picture height. Nested defaults are reported by path, for example `scene.elements.3.parameters.cycles`. |
+
+The engine provides only these generic parts. A product's own layout, label or brand belongs in the
+application: build it as a `composite`.
+
+```ts
+import { calculateBarGroupTargets, simulateCapture, type ChartScene } from "@photivra/engine";
+
+const chart: ChartScene = { preset: "composite", background: { preset: "line-grid", spacing: 1 / 6, lineWidth: 0.004 }, elements: [
+  { scene: { preset: "siemens-star", profile: "sine", cycles: 64 }, centerU: 0, centerV: 0, width: 0.6, height: 0.6, mask: "ellipse" },
+  { scene: { preset: "bar-groups", lineWidthsPerPictureHeight: [100, 200, 400] }, centerU: -0.7, centerV: 0.45, width: 0.5, height: 0.3 },
+  { scene: { preset: "slanted-squares", columns: 1, rows: 1 }, centerU: 0.7, centerV: 0.4, width: 0.3, height: 0.3 }] };
+const capture = await simulateCapture({ scene: chart, output: { width: 96, height: 64 } });
+console.log(capture.scene.parameters, calculateBarGroupTargets({ scene: chart, aspect: 64 / 96 })[0]?.verticalBars);
+```
+
+`resolveChartScene()`, `calculateStepWedgeReflectances()`, `calculatePointGridCenters()` and, from 2.3,
+`calculateBarGroupTargets()` (each group's LW/PH, line width and bar rectangles) and
+`calculateSlantedSquareEdges()` (each square's centre and its four edges' midpoints and directions, for
+slanted-edge regions of interest) expose the same definitions for analysis code, in the chart's frame
+units (composite elements mapped into the composite's frame). `createPlanarSceneRadianceProvider()` turns any of these
 scenes into a provider for the native environment RAW contract.
 
 Instead of a chart you can pass a function. `{ kind: "reflectance-function", sceneId, evaluate }`
@@ -438,8 +561,32 @@ The optics options feed only what the environment site contract accepts:
     vignetting, the per-tap quadrature runs instead (much slower). `request.diffraction` holds the profile,
     the equivalent `sampled-local` PSF and which execution ran.
   - Not modelled: defocus, aberrations, pupil clipping, a polygonal (bladed) aperture (the tiers declare
-    no blade count) and the pixel aperture (each site is still sampled at its centre). It cannot be
+    no blade count) and, unless `sensor.pixelAperture` is `"box"` (2.3), the pixel aperture (each site
+    is sampled at its centre). It cannot be
     combined with `lens.psf` or `lens.pupilSampling`.
+
+### Pixel aperture (2.3)
+
+By default each site samples the irradiance at its centre (`sensor.pixelAperture: "point"`). Scene
+detail finer than a pixel then aliases at full contrast: a whole-frame render of a chart whose finest
+features are below the effective pitch shows false patterns that a real sensor would average away.
+`sensor.pixelAperture: "box"` integrates the irradiance over the whole square photosite (fill factor 1,
+the environment's uniform geometric-aperture response) with an N × N midpoint rule, N =
+`samplesPerAxis` (1–16, default 4; `{ kind: "box", samplesPerAxis }`).
+
+- An ideal square aperture of width p has the pixel MTF |sinc(f·p)| = |sin(πfp)/(πfp)| (the detector
+  footprint MTF; G. D. Boreman, *Modulation Transfer Function in Optical and Electro-Optical Systems*,
+  SPIE Press 2001, chapter 2): 0.64 at the Nyquist frequency 1/(2p), zero at
+  1/p.
+- The N-point midpoint rule has the response |sin(πfp)/(N·sin(πfp/N))| instead: within 2.6 % of the
+  sinc below Nyquist for N = 4 (0.4 % at 3/16 cycles per pixel), with the same zeros at multiples of 1/p
+  except at multiples of N/p, where it returns to 1 and scene detail still aliases. A test measures the
+  RAW modulation of a sinusoid at 3/16 cycles per pixel for N = 2, 4 and 8 and finds this response to two
+  decimals.
+- No microlens, carrier diffusion or crosstalk is modelled. It multiplies the scene queries by N² (see
+  [Cost of each option](#cost-of-each-option)). With `lens.diffraction` the object-space convolution
+  still applies: one convolution per distinct sub-site node offset, and a test checks that it gives the
+  same RAW codes as the per-tap PSF quadrature. `diagnostics.options` lists `sensor.pixelAperture.box`.
 
 The default frame is a 0.38 mm crop behind a 50 mm lens, a field of well under a degree. Projection
 and distortion effects therefore only become visible with larger pixels (or a custom lens). The
@@ -626,6 +773,14 @@ performance claim, but the ratios carry over roughly.
 | `output.format: "dng"` | 0.50 s (1.0×) | 2.27 s (0.9×) | Lossless CFA DNG of the RAW; encode 4 ms at 128 |
 | `output.highlightMode: "reconstruct"` | 0.50 s (1.0×) | 2.20 s (0.9×) | Near-clipped highlights blend smoothly toward neutral instead of clipping per channel; no measurable cost |
 | `output.whiteBalance: "auto"` | 0.77 s (1.6×) | 4.76 s (1.9×) | Grey-world white balance; renders the RAW a second time (2.24 s at 128) |
+| `sensor.pixelAperture` box 2 × 2 (2.3) | 0.76 s (1.6×) | 4.65 s (1.8×) | Photosite integration, coarse (response within 11 % of the box MTF below Nyquist) |
+| `sensor.pixelAperture: "box"` (4 × 4, 2.3) | 2.54 s (5.2×) | 20.0 s (7.8×) | Photosite integration: fine detail averages out instead of aliasing (within 2.6 % of the box MTF below Nyquist) |
+| `sensor.pixelAperture` box 8 × 8 (2.3) | 11.4 s (23×) | 56.2 s (22×) | Within 0.7 % of the box MTF below Nyquist |
+| box 4 × 4 + `lens.diffraction` (2.3) | 4.38 s (8.9×) | 26.4 s (10×) | Both; 16 convolution lattices (6.4 s of convolution at 128) |
+
+The 2.3 rows were measured later on the same kind of host, against a default of 0.49 s and 2.57 s in
+the same session. The box aperture multiplies the scene queries by N² but the run time by less (5–8×
+for 16 queries), because part of each site's work does not grow with the queries.
 
 Ratios below about 1.1× are within the run-to-run spread (the three default runs at 128 × 128 took
 2.23–2.50 s). The radiance work dominates: options that multiply the scene queries per site
@@ -725,6 +880,103 @@ to 2–4 GB, and mobile browsers kill tabs earlier. A 100 MP capture can therefo
 `RangeError` or an out-of-memory crash even where it runs in Node. Run large captures in a Web Worker,
 pass `signal` so they can be cancelled, and offer them only on devices that can afford them.
 
+## Region rendering (2.3)
+
+`output.region: { x, y, width, height }` renders only that rectangle of the whole `output.width` ×
+`output.height` frame (output pixels, x right and y down from the top-left). The result is
+byte-identical to the same pixels of the whole render, so an application can split a large frame into
+tiles, render them in separate Web Workers and stitch them, or render a 100 % crop of a frame it never
+renders in full. Tests stitch irregular tile grids (odd and even offsets) and compare them byte for byte
+with the whole render for the bilinear and AHD demosaics, mirror borders, diffraction with
+anti-aliasing and the box aperture, camera rotation with a rolling shutter, a fixed-size composite chart
+and a Display P3 PNG.
+
+How it stays identical:
+
+- **Everything frame-wide uses the whole frame:** framing, the meter (it reads the scene, not the RAW),
+  exposure, white balance, the diffraction kernels, the scene digest and `request.environmentRaw` (the
+  whole frame's request; `request.siteInput` takes whole-frame native indices).
+- **Noise and timing:** every site keeps its absolute native index in the whole frame's native raster,
+  so its noise seeds, CFA phase and exposure window are the whole render's. Under a rolling shutter a
+  row's timing comes from its global row, never from its row within the tile.
+- **Demosaic margin:** the native sites rendered are the region plus the demosaic reach on each side
+  (1 site for bilinear, 5 for AHD), clipped to the frame's native raster, with the origin rounded down
+  to the 2 × 2 CFA repeat. Inside the frame those border sites are real rendered sites; at the frame's
+  own edges the region raster ends exactly where the whole frame's does, so `borderHandling: "mirror"`
+  mirrors at the same place. AHD reads at most 5 sites away, so its edge-directed choices see the same
+  neighbourhood.
+- **Diffraction:** the object-space convolution is computed in whole-width bands of 32 native rows
+  around the region's rows, as in the whole render (the same bands, kernels and summation order). A
+  frame split into k tile columns therefore repeats that convolution k times; tile by rows (full-width
+  strips) to avoid it.
+
+Measured on one core (Node 24, 4-vCPU Intel Xeon 2.80 GHz, built `dist`, one run each): a 256 × 256
+slanted edge took 8.45 s whole, 9.03 s as four 256 × 64 strips and 8.44 s as four 128 × 128 tiles run
+one after another; with `lens.diffraction` 10.2 s whole and 12.9 s as four tiles (the repeated
+convolution bands). A 64 × 64 crop of a 4000 × 3000 frame took 0.63 s, the same as a plain 64 × 64
+capture. Tiles in parallel workers divide the wall time by the number of cores.
+
+`result.image` holds the region, `result.raw` and `result.plan` describe the region's native sites (the
+plan's active area is the region; `result.region.nativeRect` gives them in the whole frame), and
+`result.region` reports the rectangle and the frame. `diagnostics.options` lists `output.region`.
+`output.whiteBalance: "auto"` is refused with a region, because grey-world statistics of a tile differ
+from the whole frame's; measure white balance once (or use `"scene-illuminant"` or a fixed setting) and
+pass it to every tile. A DNG of a region is a DNG of the region's sites.
+
+```ts
+import { simulateCapture, type SimulateCaptureOptions } from "@photivra/engine";
+
+const frame: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, output: { width: 96, height: 64 } };
+// Two horizontal strips; in an application each would run in its own Web Worker.
+const strips = await Promise.all([0, 32].map((y) => simulateCapture({ ...frame, output: { ...frame.output, region: { x: 0, y, width: 96, height: 32 } } })));
+const stitched = new Uint8Array(96 * 64 * 3);
+strips.forEach((strip, i) => stitched.set(strip.image.samples as Uint8Array, i * 96 * 32 * 3));
+console.log(strips[0]!.region, stitched.length);
+```
+
+## Ideal reference (2.3)
+
+`simulateIdealReference(options)` takes the same options as `simulateCapture` and returns what the camera
+would have recorded **without any camera effects**: the same scene, framing, chart size, output size,
+region and pixel grid, but no lens blur, diffraction, defocus, projection or distortion, vignetting,
+anti-aliasing filter, colour mosaic or demosaicing (every pixel has all three channels), photon, dark or
+read noise, dark signal, ADC rounding, or camera motion and rolling shutter. A comparison view can show
+it next to a capture as "the chart without the effects applied". The result is labelled
+`kind: "ideal-reference"` with a `label` for the user interface; it has no RAW, plan or request.
+
+**Exposure convention: exposure-matched.** Each pixel's channels are the expected (noise-free) signal the
+capture's own sensor would record at the capture's resolved exposure (f-number, shutter, ISO,
+illuminance and lens transmission), from the facade's environment chain evaluated once per channel at the
+optical axis with ideal optics. They are normalized like the RAW development, (code − black)/(white −
+black) = e·d/(G·(W − B)) for a linear readout, clipped at white, and developed with the capture's own
+white balance, camera → XYZ → sRGB matrices, highlight mode, tone curve and encoding. So a uniform patch
+renders at the capture's mean level at any exposure (tests check within one 8-bit code across shutter,
+ISO, f-number, pixel size, tone curve and a tungsten illuminant), and what differs between the two images
+is the camera effects plus noise. A fixed mapping such as "reflectance → sRGB, 18 % → 118" was not
+chosen: it would differ from the capture by the exposure itself, which is not a camera artefact, and an
+over- or under-exposed capture would look wrong only because of the convention. The assumption
+`reference.exposure` records the convention and the per-channel scale, `reference.excludes` the effects
+left out and `reference.sampling` the pixel sampling.
+
+**Pixel sampling** follows the request: each pixel samples the scene at its centre, like the default
+point aperture, or with `sensor.pixelAperture: "box"` averages it over the photosite with the same N × N
+midpoint rule. Formats: `srgb-8`, `srgb-16` and `png` (any colour encoding and gamut mapping); `dng`
+(no RAW) and `jpeg` (compression artefacts) are refused, and so is `whiteBalance: "auto"` (the capture
+measures it from its own noisy RAW; use `"scene-illuminant"` or a fixed setting for both).
+
+It is deterministic and cheap: no RAW is simulated, a chart's materials are evaluated once, and each
+pixel costs one material lookup per sample. Measured for a 768 × 512 composite chart with 18 elements
+(Node 24, one core, one run): 0.44 s with point sampling and 1.61 s with the 4 × 4 box, against 49.3 s
+for the default capture of the same request.
+
+```ts
+import { simulateIdealReference, simulateCapture, type SimulateCaptureOptions } from "@photivra/engine";
+
+const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, output: { width: 64, height: 48 }, lens: { diffraction: "circular-aperture" } };
+const [capture, reference] = await Promise.all([simulateCapture(request), simulateIdealReference(request)]);
+console.log(reference.kind, reference.label, capture.image.samples.length === reference.image.samples.length);
+```
+
 ## Not available
 
 The facade offers no atmospheric haze or polarizer (see [Optics](#optics)), flash, video, HDR brackets
@@ -742,6 +994,15 @@ provided, for rights reasons.
   <https://www.cipa.jp/e/std/std-sec.html> (standard output sensitivity S = 10/H, §3.2; reference
   level tied to 18 % grey, §5.2 and Explanation 1, 2.2; focal-plane exposure H = 0.65·L·t/N², §5.5
   and Explanation 4).
+- F. Cao, F. Guichard, H. Hornung, "Dead leaves model for measuring texture quality on a digital
+  camera", Proc. SPIE 7537, Digital Photography VI, 2010; A. B. Lee, D. Mumford, J. Huang, "Occlusion
+  models for natural images", *International Journal of Computer Vision* 41, 2001 (the dead-leaves
+  model and its r⁻³ radius law); W. S. Kendall, E. Thönnes, "Perfect simulation in stochastic geometry",
+  *Pattern Recognition* 32(9), 1999 (drawing the leaves front to back until covered). The engine's
+  implementation and parameters are its own.
+- USAF-1951 resolution target (MIL-STD-150A, a US-government publication) for the
+  three-bar group concept; the engine's arrangement, frequencies and numerals are its own. J. W. Goodman,
+  *Introduction to Fourier Optics*, 4th ed., 2017 (Fresnel zone plate, a quadratic-phase chirp).
 - P. D. Burns, "Slanted-Edge MTF for Digital Camera and Scanner Analysis", Proc. IS&T PICS 2000,
   free at <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2000/PICS-0-81/1621.pdf>
   (slanted-edge geometry; also ISO 12233:2017).

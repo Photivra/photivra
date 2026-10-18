@@ -1,6 +1,6 @@
 {
-  "packageVersion": "2.2.1",
-  "engineApiVersion": "2.2.1",
+  "packageVersion": "2.3.0",
+  "engineApiVersion": "2.3.0",
   "exports": [
     {
       "name": "AbsoluteUncertaintyEstimate",
@@ -203,6 +203,11 @@
       "kind": "type"
     },
     {
+      "name": "BarGroupsChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "BilateralFilterInput",
       "source": "src/processing/denoise.ts",
       "kind": "type"
@@ -316,6 +321,11 @@
       "name": "CalculateAtmosphericHazeInput",
       "source": "src/optics/atmospheric-haze.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateBarGroupTargets",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateBrownConradyDistortionMapping",
@@ -680,6 +690,11 @@
     {
       "name": "calculateGamutMappedColor",
       "source": "src/color/gamut-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateGenericPrimeMinimumFocusDistanceM",
+      "source": "src/equipment/generic-prime-lenses.ts",
       "kind": "runtime"
     },
     {
@@ -1288,6 +1303,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateSlantedSquareEdges",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateStabilizedCaptureTemporalSamples",
       "source": "src/stabilization/system.ts",
       "kind": "runtime"
@@ -1311,6 +1331,16 @@
       "name": "calculateStepWedgeReflectances",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "calculateSubjectDistanceForFraming",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSubjectDistanceForFramingInput",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "type"
     },
     {
       "name": "calculateSubjectFramingCrop",
@@ -1768,6 +1798,11 @@
       "kind": "type"
     },
     {
+      "name": "CHART_CONTINUOUS_LEVELS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CHART_RADIANCE_BATCH_LIMITS",
       "source": "src/facade/chart-radiance-batch.ts",
       "kind": "runtime"
@@ -1788,9 +1823,24 @@
       "kind": "runtime"
     },
     {
+      "name": "CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CHART_SPECTRAL_RANGE_NANOMETERS",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "ChartBarGroupTarget",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartElementScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
     },
     {
       "name": "ChartRadianceBatchInput",
@@ -1808,6 +1858,11 @@
       "kind": "type"
     },
     {
+      "name": "ChartRectangle",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "ChartReflectance",
       "source": "src/facade/chart-scenes.ts",
       "kind": "type"
@@ -1819,6 +1874,16 @@
     },
     {
       "name": "ChartScenePresetId",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartSizeOption",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartSlantedSquare",
       "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
@@ -2045,6 +2110,16 @@
     {
       "name": "ComposeSpectralCoverageInput",
       "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CompositeChartElement",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CompositeChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -2425,6 +2500,11 @@
     {
       "name": "CreateWavefrontPupilGridInput",
       "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DeadLeavesChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -2863,6 +2943,11 @@
       "kind": "type"
     },
     {
+      "name": "FiducialChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "FieldOfView",
       "source": "src/camera/field-of-view.ts",
       "kind": "type"
@@ -3123,6 +3208,21 @@
       "kind": "runtime"
     },
     {
+      "name": "GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_PRIME_MINIMUM_FOCUS",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_PRIME_THIRD_STOP_F_NUMBERS",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "GENERIC_RELEASE_CAPABILITY_SCHEMA_VERSION",
       "source": "src/equipment/release-capabilities.ts",
       "kind": "runtime"
@@ -3210,6 +3310,16 @@
     {
       "name": "GenericOpticalEvidence",
       "source": "src/optics/profile-contract.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericPrimeEquivalentFocalLengthMm",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericPrimeLens",
+      "source": "src/equipment/generic-prime-lenses.ts",
       "kind": "type"
     },
     {
@@ -3363,6 +3473,11 @@
       "kind": "type"
     },
     {
+      "name": "HyperbolicWedgeChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "IdealApertureGeometry",
       "source": "src/optics/aperture.ts",
       "kind": "type"
@@ -3375,6 +3490,11 @@
     {
       "name": "IdealPolygonDiffraction",
       "source": "src/optics/polygon-diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IdealReferenceResult",
+      "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
     {
@@ -3965,6 +4085,11 @@
     {
       "name": "LinearPolarizationState",
       "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LineGridChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -6278,6 +6403,11 @@
       "kind": "runtime"
     },
     {
+      "name": "resolveGenericPrimeLens",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveHighSpeedFlashSync",
       "source": "src/exposure/flash.ts",
       "kind": "runtime"
@@ -7738,6 +7868,11 @@
       "kind": "type"
     },
     {
+      "name": "SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SIMULATE_CAPTURE_COST_OPTIONS",
       "source": "src/facade/simulate-capture.ts",
       "kind": "runtime"
@@ -7808,6 +7943,11 @@
       "kind": "type"
     },
     {
+      "name": "SimulateCapturePixelAperture",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
       "name": "SimulateCaptureProgress",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
@@ -7851,6 +7991,11 @@
       "name": "SimulateEnvironmentSensorRawFrameInput",
       "source": "src/capture/environment-raw-producer.ts",
       "kind": "type"
+    },
+    {
+      "name": "simulateIdealReference",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
     },
     {
       "name": "simulatePackedSensorRaw",
@@ -7899,6 +8044,11 @@
     },
     {
       "name": "SlantedEdgeChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SlantedSquaresChartScene",
       "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
@@ -8113,8 +8263,18 @@
       "kind": "type"
     },
     {
+      "name": "SubjectFraming",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "type"
+    },
+    {
       "name": "SubjectFramingCrop",
       "source": "src/output/subject-framing-crop.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SubjectFramingFit",
+      "source": "src/facade/subject-framing.ts",
       "kind": "type"
     },
     {
@@ -8400,6 +8560,11 @@
     {
       "name": "ZernikeOrder",
       "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ZonePlateChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     }
   ]

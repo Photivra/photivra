@@ -130,6 +130,13 @@ export interface ScenePlanePoint {
   u: number;
   v: number;
   wavelengthNanometers: number;
+  /**
+   * 2.3, only with a fixed-size chart (`chartSize`): the point in chart-local frame units (±1 at the chart's
+   * left/right edges, v up on the same scale, ±chart height/width at its top/bottom). The function is then
+   * called only for points on the chart; the surround is the placement's surround reflectance.
+   */
+  chartU?: number;
+  chartV?: number;
 }
 /** Caller Lambertian reflectance (in [0, 1]) lit by the facade illuminant. */
 export interface CallerReflectanceScene { kind: "reflectance-function"; sceneId: string; evaluate(point: Readonly<ScenePlanePoint>): number }
@@ -140,6 +147,12 @@ export interface PlanarSceneGeometry {
   distanceM: number;
   /** Metres per frame unit on the plane (half the framed width). */
   metresPerFrameUnit: number;
+  /**
+   * 2.3, opt-in fixed-size chart: the chart is `widthM` × `heightM` on the plane, centred on the optical axis;
+   * outside it the plane is a neutral Lambertian surround of `surroundReflectance`, lit by the same illuminant.
+   * A chart preset is then resolved in its own frame (aspect heightM / widthM). Without it the chart fills the frame.
+   */
+  chart?: { widthM: number; heightM: number; surroundReflectance: number };
 }
 
 export interface PlanarSceneRadianceProvider {
@@ -149,6 +162,13 @@ export interface PlanarSceneRadianceProvider {
   evaluateApertureRadiance(request: Readonly<SceneRadianceEvaluationRequest>, ray: Readonly<SensorApertureRay>): SceneRadianceEvaluationResult;
   /** Spectral radiance at a plane point (frame units), the same value the callbacks return. */
   radianceAt(u: number, v: number, wavelengthNanometers: number): number;
+  /**
+   * 2.3, chart scenes only: the chart material at a plane point (frame units), or `materials.length` for the
+   * surround of a fixed-size chart; `materialRadiance` gives that material's spectral radiance, the same value
+   * `radianceAt` returns at its points.
+   */
+  chartMaterialAt?(u: number, v: number): number;
+  materialRadiance?(material: number, wavelengthNanometers: number): number;
 }
 
 const UNCERTAINTY = Object.freeze({ kind: "not-quantified" as const, limitation: "Analytic planar Lambertian scene; no measured scene, BRDF or illumination." });
@@ -171,9 +191,19 @@ export function buildPlanarSceneRadianceProvider(input: {
   const scale = geometry.metresPerFrameUnit, distance = geometry.distanceM, sceneId = input.sceneId, providerProfileId = input.providerProfileId;
   const evidence = input.evidence, limitations = input.limitations;
   const caller = "kind" in scene ? scene : undefined, chart = caller ? undefined : scene as ResolvedChartScene;
+  const placed = geometry.chart, half = placed ? placed.widthM / 2 : 0, chartAspect = placed ? placed.heightM / placed.widthM : 0;
   function radianceAt(u: number, v: number, nm: number): number {
+    if (placed) {
+      // Fixed-size chart (2.3): chart-local frame units from the plane point in metres.
+      const xM = u * scale, yM = v * scale, cu = xM / half, cv = yM / half;
+      if (!(Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect)) return placed.surroundReflectance * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
+      if (chart) return chart.reflectanceAt(cu, cv, nm) * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
+      return callerValue(Object.freeze({ xM, yM, u, v, wavelengthNanometers: nm, chartU: cu, chartV: cv }), nm);
+    }
     if (chart) return chart.reflectanceAt(u, v, nm) * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
-    const point = Object.freeze({ xM: u * scale, yM: v * scale, u, v, wavelengthNanometers: nm });
+    return callerValue(Object.freeze({ xM: u * scale, yM: v * scale, u, v, wavelengthNanometers: nm }), nm);
+  }
+  function callerValue(point: Readonly<ScenePlanePoint>, nm: number): number {
     const value = caller!.evaluate(point);
     if (caller!.kind === "reflectance-function") {
       if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) throw new InvalidConfigurationError("Scene reflectance function must return a value in [0, 1].");
@@ -187,8 +217,27 @@ export function buildPlanarSceneRadianceProvider(input: {
       wavelengthBasis: request.wavelengthBasis as SceneRadianceEvaluationResult["wavelengthBasis"], quantity: "outgoing-spectral-radiance", unit: "W/m^2/sr/nm",
       spectralRadianceWattsPerSquareMeterSteradianNanometer: radiance, scientificStatus: "approximation", uncertainty: UNCERTAINTY, evidence, limitations };
   }
+  const chartAccess = chart ? {
+    chartMaterialAt(u: number, v: number): number {
+      if (!placed) return chart.materialAt(u, v);
+      const cu = u * scale / half, cv = v * scale / half;
+      return Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect ? chart.materialAt(cu, cv) : chart.materials.length;
+    },
+    materialRadiance(material: number, nm: number): number {
+      const m = chart.materials[material];
+      let value: number;
+      if (m === undefined) value = placed ? placed.surroundReflectance : NaN;
+      else if (m.kind === "neutral") value = m.reflectance;
+      else {
+        value = m.spectrum.evaluate(nm);
+        if (!(value >= 0 && value <= 1)) throw new InvalidConfigurationError("Chart reflectance spectrum left [0, 1].");
+      }
+      if (!(value >= 0)) throw new InvalidConfigurationError("Unknown chart material.");
+      return value * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
+    }
+  } : {};
   return {
-    sceneId, providerProfileId, radianceAt,
+    sceneId, providerProfileId, radianceAt, ...chartAccess,
     evaluateRadiance(request): SceneRadianceEvaluationResult {
       const target = request.target;
       if (target.kind !== "environment-direction") throw new InvalidConfigurationError("Planar scene provider needs environment-direction queries.");
@@ -204,6 +253,34 @@ export function buildPlanarSceneRadianceProvider(input: {
       return result(request, radianceAt((origin.x + d.x * t) / scale, (origin.y + d.y * t) / scale, request.wavelengthNanometers));
     }
   };
+}
+
+/** 2.3: a chart's physical size on the scene plane (`simulateCapture` `chartSize`, `createPlanarSceneRadianceProvider` `chartSize`). */
+export interface ChartSizeOption {
+  /** Chart width in metres, (0, 10 000]. */
+  widthM: number;
+  /** Chart height in metres. Default: widthM × the frame aspect (height / width), so the chart has the frame's shape. */
+  heightM?: number;
+  /** Neutral reflectance of the plane around the chart, lit by the same illuminant. Default 0.18. */
+  surroundReflectance?: number;
+}
+/** Default surround of a fixed-size chart: an 18 % grey plane. */
+export const CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE = 0.18;
+/** Internal: validates a chart size and fills its defaults; `defaulted` names the fields taken from defaults. */
+export function resolveChartSizeOption(value: unknown, frameAspect: number): { widthM: number; heightM: number; surroundReflectance: number; defaulted: ("heightM" | "surroundReflectance")[] } {
+  requireInputObject(value, "chartSize");
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) if (!["widthM", "heightM", "surroundReflectance"].includes(key)) throw new InvalidConfigurationError("Unknown chartSize field: " + key + ".");
+  const size = (x: unknown, name: string): number => {
+    if (typeof x !== "number" || !Number.isFinite(x) || x <= 0 || x > 10_000) throw new InvalidConfigurationError("chartSize." + name + " must be a positive number of metres up to 10000.");
+    return x;
+  };
+  const defaulted: ("heightM" | "surroundReflectance")[] = [];
+  const widthM = size(record.widthM, "widthM");
+  const heightM = record.heightM === undefined ? (defaulted.push("heightM"), widthM * frameAspect) : size(record.heightM, "heightM");
+  const surround = record.surroundReflectance === undefined ? (defaulted.push("surroundReflectance"), CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE) : record.surroundReflectance;
+  if (typeof surround !== "number" || !Number.isFinite(surround) || surround < 0 || surround > 1) throw new InvalidConfigurationError("chartSize.surroundReflectance must be a reflectance in [0, 1].");
+  return { widthM, heightM, surroundReflectance: surround, defaulted };
 }
 
 /**
@@ -223,9 +300,14 @@ export function createPlanarSceneRadianceProvider(input: {
   aspect: number;
   sceneId: string;
   providerProfileId: string;
+  /**
+   * 2.3, opt-in: place the chart at this physical size, centred, instead of filling the frame; the chart preset
+   * is resolved with aspect heightM / widthM and the rest of the plane is the surround.
+   */
+  chartSize?: ChartSizeOption;
 }): PlanarSceneRadianceProvider & { chart: ResolvedChartScene | null } {
   requireInputObject(input, "createPlanarSceneRadianceProvider input");
-  const keys = ["scene", "illuminant", "illuminanceLux", "distanceM", "framedWidthM", "aspect", "sceneId", "providerProfileId"];
+  const keys = ["scene", "illuminant", "illuminanceLux", "distanceM", "framedWidthM", "aspect", "sceneId", "providerProfileId", "chartSize"];
   for (const key of Object.keys(input)) if (!keys.includes(key)) throw new InvalidConfigurationError("createPlanarSceneRadianceProvider input has unknown field \"" + key + "\".");
   for (const key of ["illuminanceLux", "distanceM", "framedWidthM", "aspect"] as const) {
     const value = input[key];
@@ -234,11 +316,13 @@ export function createPlanarSceneRadianceProvider(input: {
   for (const key of ["sceneId", "providerProfileId"] as const) if (typeof input[key] !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input[key])) throw new InvalidConfigurationError(key + " must be a public opaque ID.");
   requireInputObject(input.scene, "scene");
   const caller = "kind" in input.scene ? requireCallerScene(input.scene) : undefined;
-  const chart = caller ? null : resolveChartScene({ scene: input.scene as ChartScene, aspect: input.aspect });
+  const size = input.chartSize === undefined ? undefined : resolveChartSizeOption(input.chartSize, input.aspect);
+  const chart = caller ? null : resolveChartScene({ scene: input.scene as ChartScene, aspect: size ? size.heightM / size.widthM : input.aspect });
   const illuminant = resolveCaptureIlluminant(input.illuminant);
   const provider = buildPlanarSceneRadianceProvider({ scene: chart ?? caller!, sceneId: input.sceneId, providerProfileId: input.providerProfileId, illuminant,
     irradianceScale: calculateIlluminantIrradianceScale(illuminant.shape, input.illuminanceLux),
-    geometry: { distanceM: input.distanceM, metresPerFrameUnit: input.framedWidthM / 2 },
+    geometry: { distanceM: input.distanceM, metresPerFrameUnit: input.framedWidthM / 2,
+      ...(size ? { chart: { widthM: size.widthM, heightM: size.heightM, surroundReflectance: size.surroundReflectance } } : {}) },
     evidence: [{ sourceOrigin: "photivra", sourceReference: "photivra:planar-scene-provider", reuseStatus: "photivra-owned" }],
     limitations: ["Planar Lambertian scene under uniform illumination; no shadows, inter-reflection, gloss or fluorescence."] });
   return { ...provider, chart };

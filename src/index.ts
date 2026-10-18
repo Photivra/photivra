@@ -1767,12 +1767,19 @@ export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_L
   type SimulateCaptureOptions, type SimulateCaptureResult, type SimulateCaptureAssumption, type SimulateCaptureProgress,
   type SimulateCaptureExposureMode, type SimulateCaptureOutputFormat, type SimulateCaptureWhiteBalance, type SimulateCaptureColorEncoding,
   type SimulateCaptureDemosaic, type SimulateCaptureBorderHandling, type SimulateCaptureLensDistortion, type SimulateCaptureMotion,
-  type SimulateCaptureSensorAntiAliasing, type SimulateCaptureCostOption } from "./facade/simulate-capture.js";
+  type SimulateCaptureSensorAntiAliasing, type SimulateCaptureCostOption, type SimulateCapturePixelAperture, SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES,
+  simulateIdealReference, type IdealReferenceResult } from "./facade/simulate-capture.js";
+export { GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM, GENERIC_PRIME_THIRD_STOP_F_NUMBERS, GENERIC_PRIME_MINIMUM_FOCUS, resolveGenericPrimeLens,
+  calculateGenericPrimeMinimumFocusDistanceM, type GenericPrimeLens, type GenericPrimeEquivalentFocalLengthMm } from "./equipment/generic-prime-lenses.js";
+export { calculateSubjectDistanceForFraming, type CalculateSubjectDistanceForFramingInput, type SubjectFraming, type SubjectFramingFit } from "./facade/subject-framing.js";
 export { CHART_SCENE_PRESETS, CHART_SCENE_DEFAULTS, CHART_SPECTRAL_RANGE_NANOMETERS, resolveChartScene, calculateStepWedgeReflectances,
   calculatePointGridCenters, type ChartScene, type ChartScenePresetId, type ChartReflectance, type ResolvedChartScene, type UniformChartScene,
   type SlantedEdgeChartScene, type SiemensStarChartScene, type StepWedgeChartScene, type GreyRampChartScene, type CheckerboardChartScene,
-  type PointGridChartScene, type PatchChartScene } from "./facade/chart-scenes.js";
-export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider,
+  type PointGridChartScene, type PatchChartScene, CHART_CONTINUOUS_LEVELS, calculateBarGroupTargets, calculateSlantedSquareEdges,
+  type DeadLeavesChartScene, type BarGroupsChartScene, type HyperbolicWedgeChartScene, type ZonePlateChartScene, type SlantedSquaresChartScene,
+  type LineGridChartScene, type FiducialChartScene, type CompositeChartScene, type CompositeChartElement, type ChartElementScene,
+  type ChartRectangle, type ChartBarGroupTarget, type ChartSlantedSquare } from "./facade/chart-scenes.js";
+export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider, CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE, type ChartSizeOption,
   type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
   type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
 export { CHART_RADIANCE_BATCH_SCHEMA_VERSION, CHART_RADIANCE_BATCH_LIMITS, calculateChartRadianceBatchPlan, calculateChartRadianceBatch,
