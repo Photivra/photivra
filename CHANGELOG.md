@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.5.0 — unreleased (prepared October 18, 2026)
+## 2.5.0 — published October 18, 2026
 
 A minor release for whole-frame views and chart framing: `simulateCapture` accepts pixel pitches up to 1000 µm, so a whole sensor frame can be rendered at a small output size with the real sensor's prime, minimum focus and framing, and `calculateChartFraming` reports how much of the frame a chart covers at any distance. Both are additive: every request that 2.4.1 accepted gives byte-identical results (the engine version recorded in captures aside). Root exports grow from 1,714 to 1,717 symbols; none is removed.
 
