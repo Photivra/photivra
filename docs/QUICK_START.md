@@ -192,7 +192,8 @@ cropped on its other side). The result reports the magnification, image distance
 `coverage` (the fraction of the frame width and height the chart covers), the generic prime of that
 equivalent focal length if there is one, the prime family's minimum focus distance at that focal length
 and `belowMinimumFocus`, plus assumptions in the same form as `simulateCapture`. It is the same framing
-`simulateCapture` uses, so `chartSize` at the returned distance gives `frameWidthFraction` 1 (tested).
+`simulateCapture` uses, so `chartSize` at the returned distance gives `frameWidthFraction` 1 (tested). For the coverage at any other distance, see
+[Chart coverage at any distance](#chart-coverage-at-any-distance-25).
 
 An A3 chart (0.42 × 0.28 m) on a full-frame sensor: 0.127 m at 10 mm, 0.633 m at 50 mm, 2.53 m at
 200 mm and 15.2 m at 1200 mm (magnification 0.0857, minimum focus 0.10, 0.38, 1.53 and 9.2 m). On a
@@ -209,6 +210,33 @@ const capture = await simulateCapture({ scene: { preset: "siemens-star" }, lens:
   subjectDistanceM: fit.subjectDistanceM, sensor: { pixelPitchMicrometers: 36000 / 768 }, output: { width: 768, height: 512, region: { x: 368, y: 240, width: 32, height: 32 } } });
 console.log(capture.scene.chart?.frameWidthFraction);
 ```
+
+### Chart coverage at any distance (2.5)
+
+`calculateChartFraming({ sensor, focalLengthMm | equivalentFocalLengthMm, chart, subjectDistanceM, focusDistanceM? })`
+answers the inverse question: how much of the frame does a chart of physical size `chart` (`{ widthM, heightM? }`, as
+for `chartSize`) cover at a given distance? It uses the facade's own thin-lens framing: image distance
+v = f·s/(s − f) at the focus distance s (default: the subject distance), magnification m = v/d on the chart plane at
+d, and a frame that spans sensor side ÷ m. The result reports the magnification, image distance, framed plane size,
+`coverage` (`frameWidthFraction` and `frameHeightFraction`; above 1 when the chart is larger than the frame and
+cropped), the chart's image size in millimetres, the generic prime of that equivalent focal length if there is one,
+the prime family's minimum focus distance and `belowMinimumFocus` (the subject or focus distance is closer than it,
+which `simulateCapture` with `lens.prime` refuses), plus assumptions.
+
+An A3 chart (0.42 × 0.28 m) with the 50 mm full-frame prime covers 130 % of the frame width at 0.5 m (cropped),
+61.4 % at 1 m, 29.9 % at 2 m and 11.8 % at 5 m (magnification 0.111, 0.0526, 0.0256 and 0.0101).
+
+```ts
+import { calculateChartFraming } from "@photivra/engine";
+
+const coverage = calculateChartFraming({ sensor: { widthMm: 36, heightMm: 24 }, equivalentFocalLengthMm: 50, chart: { widthM: 0.42, heightM: 0.28 }, subjectDistanceM: 2 });
+console.log(coverage.coverage.frameWidthFraction, coverage.magnification, coverage.belowMinimumFocus);
+```
+
+Tests check that at `calculateSubjectDistanceForFraming`'s distance the coverage is 1 on the fitted side (every fit,
+three sensor shapes, four primes), and that at any distance it equals `result.scene.chart` from `simulateCapture` with
+`chartSize` (magnification, both coverage fractions, the chart's image size and the framed size, within 1e-12
+relative), including a separate `lens.focusDistanceM`.
 
 ### Whole-frame views (2.5)
 
