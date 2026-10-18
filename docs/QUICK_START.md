@@ -425,8 +425,12 @@ The optics options feed only what the environment site contract accepts:
     site-sized cells, one kernel per spectral node.
   - The kernel window reaches the third dark ring at the longest node by default (2, 4 and 7 sites at
     f/4, f/8 and f/16 with 6 µm pixels); set `kernelRadiusSamples` (0–32) to change it. The Airy tail
-    outside the window (2–5 % of the energy with the default) is listed per wavelength in the
+    outside the window (2–6 % of the energy with the default) is listed per wavelength in the
     `lens.diffraction` assumption and put back by renormalizing each kernel to unit sum.
+  - The default window is capped at 32 sites, the convolution limit. Small pixels at large f-numbers
+    reach the cap before the third dark ring, so more of the tail is renormalized: 7 % at 1 µm and
+    f/16, 15 % at 0.5 µm and f/16. The assumption's explanation then says the window is capped and
+    how many sites the third ring would need.
   - It runs as an object-space convolution: the scene radiance on the site lattice is convolved once per
     spectral node and the provider answers each site query with it. That is the same sum as the
     environment PSF quadrature (one scene query per kernel tap) for this still, distortion-free planar

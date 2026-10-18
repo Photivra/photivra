@@ -179,7 +179,7 @@ export interface SimulateCaptureOptions {
      * Opt-in (2.1) diffraction blur of an ideal, aberration-free, in-focus lens with a circular pupil at the
      * capture's resolved f-number: the engine builds the Airy kernels (`createDiffractionLimitedPsfProfile`)
      * on the site pitch. `kernelRadiusSamples` (0–32) sets the kernel window; default: the third dark ring at
-     * the longest spectral node. Not combinable with `psf` or `pupilSampling`. Default off.
+     * the longest spectral node, capped at 32 sites. Not combinable with `psf` or `pupilSampling`. Default off.
      */
     diffraction?: SimulateCaptureLensDiffraction;
   };
@@ -1255,7 +1255,10 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     const lambdaN = wavelengths[wavelengths.length - 1]! / 1000 * fNumber * imageDistanceMm / focalLengthMm;
     // The environment resolves the PSF at each pre-filter source point, up to the largest split offset outside the imaging area.
     const aaReachMm = antiAliasing ? Math.max(...antiAliasing.components.map((c) => Math.max(Math.abs(c.offsetMicrometers.x), Math.abs(c.offsetMicrometers.y)))) / 1000 : 0;
-    const kernelRadiusSamples = diffractionRadiusOption ?? Math.min(32, Math.max(1, Math.ceil(AIRY_THIRD_ZERO_PER_LAMBDA_N * lambdaN / pitch)));
+    // The default reach is capped at the 32-site convolution limit; a capped window ends inside the third dark ring, and the
+    // larger tail energy outside it is listed per wavelength like any other (2.2.1 states the cap in the explanation).
+    const thirdRingSites = Math.max(1, Math.ceil(AIRY_THIRD_ZERO_PER_LAMBDA_N * lambdaN / pitch));
+    const kernelRadiusSamples = diffractionRadiusOption ?? Math.min(32, thirdRingSites);
     diffraction = createDiffractionLimitedPsfProfile({ aperture: "circular", focalLengthMm, apertureFNumber: fNumber, focus: { kind: "finite", distanceM: focusDistanceM },
       wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: aaReachMm === 0 ? { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 } :
         { x: imagingArea.widthMm / 2 + aaReachMm, y: imagingArea.heightMm / 2 + aaReachMm },
@@ -1269,7 +1272,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       execution: diffractionObjectSpace ? "object-space-convolution" : "environment-psf-quadrature" },
       "Scalar Fraunhofer diffraction of an ideal, aberration-free circular pupil (Airy pattern, createDiffractionLimitedPsfProfile) at the resolved f-number, in focus, with D = f/N and the thin-lens image distance (working f-number N·v/f). " +
       "One kernel per spectral node, binned into site-sized cells over a " + (2 * kernelRadiusSamples + 1) + " × " + (2 * kernelRadiusSamples + 1) + " window" +
-      (diffractionRadiusOption === null ? " (reaching the third dark ring at the longest node)" : "") + "; the Airy tail energy outside it (listed per wavelength) is put back by unit-sum renormalization. " +
+      (diffractionRadiusOption !== null ? "" : thirdRingSites > 32 ? " (capped at 32 sites; the third dark ring at the longest node needs " + thirdRingSites + ")" :
+        " (reaching the third dark ring at the longest node)") + "; the Airy tail energy outside it (listed per wavelength) is put back by unit-sum renormalization. " +
       (diffractionObjectSpace ? "Applied as an object-space convolution: the scene radiance on the site lattice is convolved once per spectral node (calculateIrradianceConvolution) and the provider answers each site query with it, so the site inputs declare no PSF; this equals the per-tap environment PSF quadrature for this still, distortion-free planar scene (request.diffraction.psf). " :
         "Applied through the environment PSF quadrature (one scene query per kernel tap), because camera rotation, a lens field mapping or vignetting moves the taps off the site lattice. ") +
       "No defocus, aberration or pupil clipping; the sensor pixel aperture is still point-sampled at the site centre.");

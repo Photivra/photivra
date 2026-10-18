@@ -9,7 +9,9 @@
  * PSF tap then maps to a site displacement with the per-site quadrature's inverse support
  * (`sensorPsfSourcePoint`): tap (kx, ky) is the source at native offset (−(kx − cx)·pₓ, +(ky − cy)·p_y)
  * from the destination, so its weight lands at displacement u = (kx − cx)·pₓ/sₓ, v = −(ky − cy)·p_y/s_y
- * sites (p: PSF sample pitch, s: site pitch).
+ * sites (p: PSF sample pitch, s: site pitch). When p equals s the displacement is taken as the tap offset itself
+ * (kx − cx, −(ky − cy)): the rounded quotient (n·p)/p misses the integer n by one unit in the last place for some
+ * pitches (for example 3 · 1.6 / 1.6), which split the tap bilinearly or reached one site past the window (2.2.1).
  *
  * - **Exact site sampling.** When every displacement is an integer (equal pitches, integer centre), each
  *   tap's weight goes to one kernel cell. For a destination whose PSF equals its patch's, the
@@ -134,10 +136,13 @@ export function resolveLensPsfConvolutionKernels(input: LensPsfConvolutionKernel
       const resolved = resolveLensSampledPsf({ ...state, fieldPointMm, wavelengthNm }).value, k = resolved.kernel, share = weight / totalWeight;
       throughput += share * resolved.relativePupilThroughputFactor;
       if (resolved.resolutionStatus !== "exact-grid-sample") interpolated = true;
+      const equalX = k.samplePitchMicrometersX === sx, equalY = k.samplePitchMicrometersY === sy;
       for (let ky = 0; ky < k.heightSamples; ky++) for (let kx = 0; kx < k.widthSamples; kx++) {
         const intensity = k.normalizedIntensity[ky * k.widthSamples + kx]!;
         if (intensity === 0) continue;
-        const u = (kx - k.centerSampleX) * k.samplePitchMicrometersX / sx, v = -(ky - k.centerSampleY) * k.samplePitchMicrometersY / sy;
+        // With equal pitches the displacement is the tap offset itself: (n·p)/p can miss n by one unit in the last place.
+        const u = equalX ? kx - k.centerSampleX : (kx - k.centerSampleX) * k.samplePitchMicrometersX / sx;
+        const v = equalY ? -(ky - k.centerSampleY) : -(ky - k.centerSampleY) * k.samplePitchMicrometersY / sy;
         const u0 = Math.floor(u), v0 = Math.floor(v), fu = u - u0, fv = v - v0, w = share * intensity;
         if (fu !== 0 || fv !== 0) exact = false;
         for (let corner = 0; corner < 4; corner++) {
