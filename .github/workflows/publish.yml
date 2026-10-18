@@ -15,8 +15,11 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # About 3 minutes normally.
-    timeout-minutes: 10
+    # About 10 to 14 minutes, most of it the coverage gate: 9m20s for 2.2.1
+    # and 9m33s for 2.3.0 (coverage 8m09s and 8m18s). 2.4.0 hit the old
+    # 10-minute limit twice with coverage still running after 9m40s; the same
+    # coverage gate took 11m36s in CI on that commit. 25 leaves headroom.
+    timeout-minutes: 25
     outputs:
       package_name: ${{ steps.package.outputs.name }}
       package_version: ${{ steps.package.outputs.version }}
