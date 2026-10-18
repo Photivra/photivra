@@ -497,7 +497,7 @@ import { simulateCapture } from "@photivra/engine";
 const shot = await simulateCapture({
   scene: { preset: "siemens-star" },
   output: { width: 8, height: 8, format: "png",
-    metadata: { description: "Siemens star at f/8", software: "My Viewer 1.0", copyright: "CC BY 4.0", comment: "Test run 3" } }
+    metadata: { description: "Siemens star at f/8", software: "My Viewer 1.0", copyright: "Rights held by the photographer", comment: "Test run 3" } }
 });
 console.log(shot.image.png?.length, shot.assumptions.find((a) => a.id === "output.metadata")?.value);
 ```

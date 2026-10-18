@@ -71,7 +71,7 @@ function tiffIfd0(bytes: Uint8Array): Map<number, { type: number; data: Uint8Arr
 }
 const tiffAscii = (entry: { data: Uint8Array } | undefined): string | undefined => entry ? latin1.decode(entry.data.subarray(0, entry.data.length - 1)) : undefined;
 
-const META = { description: "Test chart <A & B>", software: "Example Viewer 1.2", copyright: "\u00a9 2026 test owner", comment: "Line one\nLine two" } as const satisfies OutputTextMetadata;
+const META = { description: "Test chart <A & B>", software: "Example Viewer 1.2", copyright: "Rechte: Prüfgruppe", comment: "Line one\nLine two" } as const satisfies OutputTextMetadata;
 const UNICODE = { description: "Mesure de netteté – 日本語", software: "Тест 1.0", copyright: "Rights: test owner", comment: "Smile 🙂" } as const satisfies OutputTextMetadata;
 
 /**
