@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Whole-frame views at large pixel pitches.** `simulateCapture` `sensor.pixelPitchMicrometers` now accepts 0.5–1000 µm (0.5–100 before). Pitch = sensor width ÷ output width renders the whole frame at a small output size (36 mm at 48 pixels is 750 µm, 44 mm at 48 pixels 917 µm), so `lens.prime` (crop factor, minimum focus), `calculateSubjectDistanceForFraming` and `chartSize` match the real sensor. Above 100 µm the new assumption `sensor.wholeFrameView` records the frame size and states that the noise is that of a binned, downsized view: each pixel's shot noise equals the real photosites in its square summed, while read noise and dark current are applied once per output pixel. Tested at 100–1000 µm: brightness against 6 µm at area ratios up to 27 778 (each CFA channel's RAW mean within half a code, sRGB mean within one, identical saturation), photon transfer at ISO 12 800 within 12 %, diffraction kernels far below a pixel, the four-spot filter, AHD, 2 × 2 and 4 × 4 box apertures, rotation blur and a rolling shutter (each matching the same framing at 1/100 of the pitch), byte-identical region tiles, and a clean `unsupported-float32-domain` from the `webgpu-f32` sensor stage above its 2^24 e⁻ capacity (see the quick start's "Whole-frame views (2.5)").
+
+### Changed
+
+- **Diffraction cells far larger than the Airy pattern are integrated in real space.** `createDiffractionLimitedPsfProfile` (and so `lens.diffraction`) integrates cells with β = pitch/(λ·N_w) ≥ 192 from the Airy encircled energy 1 − J₀² − J₁² (Hankel expansion, DLMF 10.17.3) instead of the frequency-domain quadrature, whose work grows as β²: a 48 × 32 view of a 44 mm frame at f/1.4 with diffraction takes 1.0 s instead of 296 s. Same model; the two methods agree within 2e-12 at β = 192–400. `quadrature.method` gains `"real-space-encircled-energy-gauss-legendre"` and `"frequency-domain-and-real-space"`, with `quadrature.realSpaceWavelengthsNm` listing the real-space wavelengths; profiles below the threshold are unchanged. Every `simulateCapture` pitch up to 100 µm stays below it.
+
+Requests at 0.5–100 µm are byte-identical to 2.4.1 (the hash locks and the facade fingerprints of 15 default-path results). Root exports stay at 1,714 symbols.
+
 ## 2.4.1 — published October 18, 2026
 
 A republication of 2.4.0. 2.4.0 was tagged and released on GitHub on October 18, 2026 but never reached npm: the Publish npm workflow's verify job hit its 10-minute limit during the coverage gate on both attempts and was cancelled before the publish job ran. 2.4.1 carries the 2.4.0 contents unchanged (caller text metadata in JPEG, PNG and DNG outputs, `output.metadata`, `serializeNativeRawDng` `textMetadata` and `OutputTextMetadata`; see the 2.4.0 entry below) plus the publish-workflow fix. Apart from the engine version that captures record, every request, plan, RAW, image, encoded file and hash lock is byte-identical to 2.4.0, and without `output.metadata` to 2.3.0. Root exports stay at 1,714 symbols; none is added or removed.

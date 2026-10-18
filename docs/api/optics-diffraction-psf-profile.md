@@ -71,7 +71,14 @@ export interface DiffractionLimitedPsfProfile {
   wavelengths: readonly DiffractionLimitedPsfWavelength[];
   /** Largest truncated energy over the wavelengths. */
   maximumTruncatedEnergyFraction: number;
-  quadrature: { method: "polar-frequency-domain-trapezoid-gauss-legendre"; maximumRadialNodes: number; maximumAngularNodes: number };
+  /**
+   * How the cells were integrated. 2.5: wavelengths with β = p·f_c ≥ 192 (cells far larger than the pattern) use the real-space
+   * encircled-energy method; `realSpaceWavelengthsNm` lists them, and `method` is `"frequency-domain-and-real-space"` when both ran.
+   * `maximumRadialNodes` counts frequency-domain radial nodes (0 when only the real-space method ran); `maximumAngularNodes` the
+   * angular nodes of either method (for the real-space method, all θ nodes of one wavelength).
+   */
+  quadrature: { method: "polar-frequency-domain-trapezoid-gauss-legendre" | "real-space-encircled-energy-gauss-legendre" | "frequency-domain-and-real-space";
+    maximumRadialNodes: number; maximumAngularNodes: number; realSpaceWavelengthsNm?: readonly number[] };
 }
 ```
 

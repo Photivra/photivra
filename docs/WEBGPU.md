@@ -86,7 +86,7 @@ Two more stages were added for #277 in 2.0, scene radiance of the engine's chart
   - Samples finite, non-negative and ≤ 2^100; row weights in [0, 2^16]; 1–256 nodes; displacements within ±4096 sites; ≤ 24 MP (2.2: up to 2^27 with the input's `maximumPixels`).
 - **Sensor stage:**
   - The packed input itself supports one readout regime with a uint16 ADC (≤ 16 bits), ≤ 16 read-noise components, one physical capacity for the frame, photo and dark charge, an optional fixed-pattern noise profile and up to 8 additional stored-charge components (2.0). The per-site producer allows 32 components; use `simulateSensorRawFrame` for more than 8.
-  - On the GPU (`unsupported-float32-domain` otherwise): capacity ≤ 2^24 electrons; expected photo and dark electrons (after the fixed-pattern factors) and each additional component < 2^30 per site; the deterministic components' sum < 2^30 per site; 2^-60 ≤ 1/gain ≤ 2^60 and capacity/gain ≤ 2^30; each read-noise RMS 0 or in [2^-100, 2^100], with 7·ΣRMS ≤ 2^28 electrons and ≤ 2^20 codes; |fixed-pattern readout offset| ≤ 2^28 electrons and ≤ 2^20 codes.
+  - On the GPU (`unsupported-float32-domain` otherwise): capacity ≤ 2^24 electrons (2.5: `simulateCapture`'s tier capacity, 60 000 e⁻ × pitch²/36 µm², reaches it at 100 µm, so whole-frame pitches above that need `cpu-reference`); expected photo and dark electrons (after the fixed-pattern factors) and each additional component < 2^30 per site; the deterministic components' sum < 2^30 per site; 2^-60 ≤ 1/gain ≤ 2^60 and capacity/gain ≤ 2^30; each read-noise RMS 0 or in [2^-100, 2^100], with 7·ΣRMS ≤ 2^28 electrons and ≤ 2^20 codes; |fixed-pattern readout offset| ≤ 2^28 electrons and ≤ 2^20 codes.
 
 ## Equations
 

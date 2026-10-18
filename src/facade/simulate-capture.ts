@@ -287,7 +287,11 @@ export interface SimulateCaptureOptions {
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
   sensor?: {
-    /** Pixel pitch in micrometres. Default 6. */
+    /**
+     * Pixel pitch in micrometres, 0.5–1000. Default 6. The simulated sensor is output width × pitch wide. 2.5: above 100 µm the
+     * capture is a downsized view of a whole frame (for example 36 mm / 48 pixels = 750 µm), recorded in the assumption
+     * `sensor.wholeFrameView`: brightness is unchanged and the noise is that of a binned view, not of the real sensor's pixels.
+     */
     pixelPitchMicrometers?: number;
     /** Maximum spectral quadrature subinterval in nm. Default 20. */
     spectralStepNanometers?: number;
@@ -481,6 +485,10 @@ export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * sosReferenceLu
  * aperture with fill factor 1. At other areas the facade scales the electron-domain readout values by
  * area / this reference, so the same focal-plane exposure H gives the same output code (see `isoAreaScaledReadout`).
  */
+/** 2.5: the largest accepted pixel pitch, µm (44 mm ÷ 48 pixels ≈ 917 µm, a whole full-frame or larger sensor at a small output). */
+const SIMULATE_CAPTURE_PIXEL_PITCH_MAXIMUM_MICROMETERS = 1000;
+/** Pitches above this, µm, are larger than any camera photosite: the capture is a downsized whole-frame view (assumption sensor.wholeFrameView). */
+const SIMULATE_CAPTURE_PHOTOSITE_PITCH_MAXIMUM_MICROMETERS = 100;
 const ISO_REFERENCE_APERTURE_AREA_SQUARE_MICROMETERS = DEFAULTS.pixelPitchMicrometers * DEFAULTS.pixelPitchMicrometers;
 /** Demosaic border, native sites per side. */
 const MARGIN = 1;
@@ -1013,7 +1021,7 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
   const sensorOptions = allowKeys(top.sensor, "sensor", ["pixelPitchMicrometers", "spectralStepNanometers", "temporalSampleCount", "noiseSeed", "antiAliasing", "pixelAperture"]);
   const pitch = positive(pick(sensorOptions, "pixelPitchMicrometers", "sensor.pixelPitchMicrometers", DEFAULTS.pixelPitchMicrometers,
     "6 µm pixels (about a 24 MP full-frame sensor). The simulated sensor is width × pitch wide, so small images are a central crop of a large sensor, not a downscaled full frame."), "sensor.pixelPitchMicrometers");
-  if (pitch < 0.5 || pitch > 100) fail("sensor.pixelPitchMicrometers must be 0.5-100.");
+  if (pitch < 0.5 || pitch > SIMULATE_CAPTURE_PIXEL_PITCH_MAXIMUM_MICROMETERS) fail("sensor.pixelPitchMicrometers must be 0.5-" + SIMULATE_CAPTURE_PIXEL_PITCH_MAXIMUM_MICROMETERS + ".");
   const spectralStep = positive(pick(sensorOptions, "spectralStepNanometers", "sensor.spectralStepNanometers", DEFAULTS.spectralStepNanometers,
     "Spectral midpoint quadrature over 380-780 nm with subintervals of at most 20 nm."), "sensor.spectralStepNanometers");
   if (spectralStep < 1 || spectralStep > 100) fail("sensor.spectralStepNanometers must be 1-100.");
@@ -1257,6 +1265,16 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
       "falls with smaller pixels. Read noise and dark current stay per pixel in electrons. The charge capacity follows the scaled base-ISO saturation, so it is proportional to " +
       "the aperture area: a design consequence of holding the tier's ISO rating and highlight headroom fixed, not a measured full-well model (published sensor data grow less than " +
       "proportionally with area across technologies).");
+  }
+  // Whole-frame views (2.5): a pitch above 100 µm is larger than any camera photosite, so the capture is a downsized view of a frame width × pitch wide.
+  if (pitch > SIMULATE_CAPTURE_PHOTOSITE_PITCH_MAXIMUM_MICROMETERS) {
+    assume("sensor.wholeFrameView", "model", { pixelPitchMicrometers: pitch, frameWidthMm: width * pitch / 1000, frameHeightMm: height * pitch / 1000 },
+      "A pixel pitch above 100 µm is larger than any camera photosite, so each output pixel stands for a " + pitch + " µm square of a " + width * pitch / 1000 + " × " + height * pitch / 1000 +
+      " mm frame: a downsized view of the whole frame, with the framing, crop factor, generic prime and minimum focus of that frame. Its signal is the charge of the whole square " +
+      "(sensor.isoAreaNormalization), so its shot noise is that of all the real photosites in the square summed or averaged (Poisson counts add), and the image brightness is the " +
+      "same as at any other pitch. Read noise and dark current are applied once per output pixel, not once per real photosite, so in deep shadows the noise is lower than a real " +
+      "sensor's binned output. This is the noise of a binned, downsized view, not the real sensor's per-pixel noise. A point pixel aperture samples one point of each square; " +
+      "use sensor.pixelAperture box (or sensor.antiAliasing) to average scene detail finer than the pitch.");
   }
   assume("sensor.darkCurrent", "model", { electronsPerSecond: DARK_CURRENT_ELECTRONS_PER_SECOND, temperatureC: OPERATING_TEMPERATURE_C },
     "Synthetic uniform dark current of 1 e⁻/s per site at 20 °C (the tier presets declare none); dark shot noise follows from it.");

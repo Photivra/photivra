@@ -292,7 +292,11 @@ export interface SimulateCaptureOptions {
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
   sensor?: {
-    /** Pixel pitch in micrometres. Default 6. */
+    /**
+     * Pixel pitch in micrometres, 0.5–1000. Default 6. The simulated sensor is output width × pitch wide. 2.5: above 100 µm the
+     * capture is a downsized view of a whole frame (for example 36 mm / 48 pixels = 750 µm), recorded in the assumption
+     * `sensor.wholeFrameView`: brightness is unchanged and the noise is that of a binned view, not of the real sensor's pixels.
+     */
     pixelPitchMicrometers?: number;
     /** Maximum spectral quadrature subinterval in nm. Default 20. */
     spectralStepNanometers?: number;

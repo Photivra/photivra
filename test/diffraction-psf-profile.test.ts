@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import { calculateIdealPolygonDiffractionPsf, createDiffractionLimitedPsfProfile, parseLensSampledPsfProfile, resolveLensSampledPsf,
   InvalidConfigurationError, type CreateDiffractionLimitedPsfProfileInput } from "../src/index.js";
-import { calculateAiryCellEnergies } from "../src/optics/diffraction-psf-profile.js";
+import { AIRY_REAL_SPACE_MINIMUM_BETA, besselSquareSum, calculateAiryCellEnergies, calculateAiryCellEnergiesInFrequencyDomain,
+  calculateAiryCellEnergiesInRealSpace } from "../src/optics/diffraction-psf-profile.js";
+import { scaledTimeout } from "./helpers/test-timeout.js";
 
 const base: CreateDiffractionLimitedPsfProfileInput = { aperture: "circular", focalLengthMm: 50, apertureFNumber: 8, focus: { kind: "finite", distanceM: 5 },
   wavelengthsNm: [450, 550, 650], samplePitchMicrometers: 6, kernelRadiusSamples: 3, fieldHalfExtentMm: { x: 0.2, y: 0.2 }, profileId: "test-airy" };
@@ -98,6 +100,51 @@ describe("createDiffractionLimitedPsfProfile", () => {
     }
     expect(Math.abs(cells[1]! - sum)).toBeLessThan(1e-6);
   });
+
+  it("integrates cells far larger than the pattern in real space (2.5), in agreement with the frequency domain", () => {
+    // J0² + J1² from the Hankel expansion against Bessel's integral J_n(x) = (1/π)∫₀^π cos(nτ − x sin τ) dτ (DLMF 10.9.2; the periodic
+    // trapezoid rule converges exponentially once the step resolves the oscillation).
+    const bessel = (n: number, x: number): number => {
+      const steps = 4 * Math.ceil(x) + 400;
+      let sum = 0;
+      for (let k = 0; k <= steps; k++) sum += (k === 0 || k === steps ? 0.5 : 1) * Math.cos(n * Math.PI * k / steps - x * Math.sin(Math.PI * k / steps));
+      return sum / steps;
+    };
+    for (const x of [300, 301.7, 777.7, 2500, 12345.6]) {
+      const reference = bessel(0, x) ** 2 + bessel(1, x) ** 2;
+      expect(Math.abs(besselSquareSum(x) - reference) / reference).toBeLessThan(1e-11);
+    }
+    expect(() => besselSquareSum(299)).toThrow(InvalidConfigurationError);
+    // Both methods where both are practical; the real-space cells converge to 1e-17 when the panel counts double.
+    for (const [beta, radius] of [[192, 3], [250, 1], [300, 2], [400, 1]] as const) {
+      const frequency = calculateAiryCellEnergiesInFrequencyDomain(beta, radius).cells, real = calculateAiryCellEnergiesInRealSpace(beta, radius).cells;
+      const doubled = calculateAiryCellEnergiesInRealSpace(beta, radius, 2).cells;
+      for (let i = 0; i < real.length; i++) {
+        expect(Math.abs(real[i]! - frequency[i]!), `β ${beta} cell ${i}`).toBeLessThan(2e-12);
+        expect(Math.abs(real[i]! - doubled[i]!)).toBeLessThan(1e-17);
+        expect(real[i]!).toBeGreaterThan(0);
+      }
+    }
+    // The centre cell's leakage approaches 8√2/(π³β): the Airy encircled-energy tail 1 − EE(r) ≈ 2λN/(π²r), averaged over the square's edge.
+    for (const beta of [500, 2000, 8000]) {
+      const centre = calculateAiryCellEnergiesInRealSpace(beta, 1).cells[0]!, leak = 8 * Math.SQRT2 / Math.PI ** 3 / beta;
+      expect(Math.abs((1 - centre) / leak - 1)).toBeLessThan(50 / beta);
+    }
+    // The dispatcher switches at β = 192, above every β of a simulateCapture pitch up to 100 µm.
+    expect(AIRY_REAL_SPACE_MINIMUM_BETA).toBe(192);
+    expect(100 / (0.3805 * 1.4)).toBeLessThan(AIRY_REAL_SPACE_MINIMUM_BETA);
+    expect(calculateAiryCellEnergies(191.9, 1).realSpace).toBe(false);
+    expect(calculateAiryCellEnergies(192, 1)).toMatchObject({ realSpace: true, radialNodes: 0 });
+    // A 917 µm cell at f/1.4: 21 wavelengths in well under a second, all in real space.
+    const profile = createDiffractionLimitedPsfProfile({ ...base, apertureFNumber: 1.4, samplePitchMicrometers: 917, kernelRadiusSamples: 1,
+      wavelengthsNm: Array.from({ length: 21 }, (_, i) => 380 + 20 * i) }).value;
+    expect(profile.quadrature.method).toBe("real-space-encircled-energy-gauss-legendre");
+    expect(profile.quadrature.realSpaceWavelengthsNm).toHaveLength(21);
+    expect(profile.quadrature.maximumRadialNodes).toBe(0);
+    for (const w of profile.wavelengths) expect(w.centreSampleFraction).toBeGreaterThan(0.999);
+    // Every 2.1 profile keeps its record unchanged (no realSpaceWavelengthsNm).
+    expect(createDiffractionLimitedPsfProfile(base).value.quadrature).not.toHaveProperty("realSpaceWavelengthsNm");
+  }, scaledTimeout(60_000));
 
   it("captures more energy with a larger window and sums to one over a wide window", () => {
     const captured = [0, 2, 6, 16].map((kernelRadiusSamples) => createDiffractionLimitedPsfProfile({ ...base, wavelengthsNm: [550], kernelRadiusSamples })
