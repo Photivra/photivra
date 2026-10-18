@@ -100,6 +100,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
 | `sensor.antiAliasing` | off | 2.1: an optical low-pass (anti-aliasing) filter: `{ kind: "four-spot", separationSites? }`, `{ kind: "two-spot", axis, separationSites? }` or `{ kind: "point-splitting", components }` (see [Anti-aliasing filter](#anti-aliasing-filter)). |
+| `sensor.pixelAperture` | `"point"` | 2.3: `"box"` or `{ kind: "box", samplesPerAxis }` integrates each square photosite (see [Pixel aperture](#pixel-aperture-23)). |
 | `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
 | `motion.shutter` | `"global"` | Or `"rolling"`. |
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
@@ -503,8 +504,32 @@ The optics options feed only what the environment site contract accepts:
     vignetting, the per-tap quadrature runs instead (much slower). `request.diffraction` holds the profile,
     the equivalent `sampled-local` PSF and which execution ran.
   - Not modelled: defocus, aberrations, pupil clipping, a polygonal (bladed) aperture (the tiers declare
-    no blade count) and the pixel aperture (each site is still sampled at its centre). It cannot be
+    no blade count) and, unless `sensor.pixelAperture` is `"box"` (2.3), the pixel aperture (each site
+    is sampled at its centre). It cannot be
     combined with `lens.psf` or `lens.pupilSampling`.
+
+### Pixel aperture (2.3)
+
+By default each site samples the irradiance at its centre (`sensor.pixelAperture: "point"`). Scene
+detail finer than a pixel then aliases at full contrast: a whole-frame render of a chart whose finest
+features are below the effective pitch shows false patterns that a real sensor would average away.
+`sensor.pixelAperture: "box"` integrates the irradiance over the whole square photosite (fill factor 1,
+the environment's uniform geometric-aperture response) with an N × N midpoint rule, N =
+`samplesPerAxis` (1–16, default 4; `{ kind: "box", samplesPerAxis }`).
+
+- An ideal square aperture of width p has the pixel MTF |sinc(f·p)| = |sin(πfp)/(πfp)| (the detector
+  footprint MTF; G. D. Boreman, *Modulation Transfer Function in Optical and Electro-Optical Systems*,
+  SPIE Press 2001, chapter 2): 0.64 at the Nyquist frequency 1/(2p), zero at
+  1/p.
+- The N-point midpoint rule has the response |sin(πfp)/(N·sin(πfp/N))| instead: within 2.6 % of the
+  sinc below Nyquist for N = 4 (0.4 % at 3/16 cycles per pixel), with the same zeros at multiples of 1/p
+  except at multiples of N/p, where it returns to 1 and scene detail still aliases. A test measures the
+  RAW modulation of a sinusoid at 3/16 cycles per pixel for N = 2, 4 and 8 and finds this response to two
+  decimals.
+- No microlens, carrier diffusion or crosstalk is modelled. It multiplies the scene queries by N² (see
+  [Cost of each option](#cost-of-each-option)). With `lens.diffraction` the object-space convolution
+  still applies: one convolution per distinct sub-site node offset, and a test checks that it gives the
+  same RAW codes as the per-tap PSF quadrature. `diagnostics.options` lists `sensor.pixelAperture.box`.
 
 The default frame is a 0.38 mm crop behind a 50 mm lens, a field of well under a degree. Projection
 and distortion effects therefore only become visible with larger pixels (or a custom lens). The
@@ -691,6 +716,14 @@ performance claim, but the ratios carry over roughly.
 | `output.format: "dng"` | 0.50 s (1.0×) | 2.27 s (0.9×) | Lossless CFA DNG of the RAW; encode 4 ms at 128 |
 | `output.highlightMode: "reconstruct"` | 0.50 s (1.0×) | 2.20 s (0.9×) | Near-clipped highlights blend smoothly toward neutral instead of clipping per channel; no measurable cost |
 | `output.whiteBalance: "auto"` | 0.77 s (1.6×) | 4.76 s (1.9×) | Grey-world white balance; renders the RAW a second time (2.24 s at 128) |
+| `sensor.pixelAperture` box 2 × 2 (2.3) | 0.76 s (1.6×) | 4.65 s (1.8×) | Photosite integration, coarse (response within 11 % of the box MTF below Nyquist) |
+| `sensor.pixelAperture: "box"` (4 × 4, 2.3) | 2.54 s (5.2×) | 20.0 s (7.8×) | Photosite integration: fine detail averages out instead of aliasing (within 2.6 % of the box MTF below Nyquist) |
+| `sensor.pixelAperture` box 8 × 8 (2.3) | 11.4 s (23×) | 56.2 s (22×) | Within 0.7 % of the box MTF below Nyquist |
+| box 4 × 4 + `lens.diffraction` (2.3) | 4.38 s (8.9×) | 26.4 s (10×) | Both; 16 convolution lattices (6.4 s of convolution at 128) |
+
+The 2.3 rows were measured later on the same kind of host, against a default of 0.49 s and 2.57 s in
+the same session. The box aperture multiplies the scene queries by N² but the run time by less (5–8×
+for 16 queries), because part of each site's work does not grow with the queries.
 
 Ratios below about 1.1× are within the run-to-run spread (the three default runs at 128 × 128 took
 2.23–2.50 s). The radiance work dominates: options that multiply the scene queries per site

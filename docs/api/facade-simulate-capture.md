@@ -2,6 +2,14 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES
+
+Default midpoint samples per axis of `sensor.pixelAperture: "box"`.
+
+```ts
+SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES = 4
+```
+
 ## SIMULATE_CAPTURE_COST_OPTIONS
 
 Options reported in `diagnostics.options` (2.1), in this order, when they ran: the ones that change how much work
@@ -9,7 +17,7 @@ a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.tempor
 
 ```ts
 SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
-  "lens.diffraction", "sensor.antiAliasing", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const)
 ```
@@ -250,6 +258,13 @@ export interface SimulateCaptureOptions {
      * Multiplies the scene queries by the number of split points. Default off (the tiers declare no filter).
      */
     antiAliasing?: SimulateCaptureSensorAntiAliasing;
+    /**
+     * Opt-in (2.3) pixel aperture. `"point"` (default): each site samples the irradiance at its centre.
+     * `"box"`: each site integrates the irradiance over its whole square photosite (fill factor 1) with an
+     * N × N midpoint rule, N = `samplesPerAxis` (1–16, default 4), so detail finer than a pixel averages out as
+     * on a real sensor (pixel MTF |sinc(f·p)|) instead of aliasing. Multiplies the scene queries by N².
+     */
+    pixelAperture?: SimulateCapturePixelAperture;
   };
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
@@ -264,6 +279,14 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" | "dng";
+```
+
+## SimulateCapturePixelAperture
+
+Pixel aperture (2.3): centre sampling, or the square photosite integrated with an N × N midpoint rule.
+
+```ts
+export type SimulateCapturePixelAperture = "point" | "box" | { kind: "box"; samplesPerAxis?: number };
 ```
 
 ## SimulateCaptureProgress

@@ -7818,6 +7818,11 @@
       "kind": "type"
     },
     {
+      "name": "SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SIMULATE_CAPTURE_COST_OPTIONS",
       "source": "src/facade/simulate-capture.ts",
       "kind": "runtime"
@@ -7884,6 +7889,11 @@
     },
     {
       "name": "SimulateCaptureOutputFormat",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCapturePixelAperture",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
