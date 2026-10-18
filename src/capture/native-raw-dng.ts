@@ -26,6 +26,12 @@
  *   covers only Poisson photo and dark shot noise, Gaussian read noise and uniform quantization. It is an
  *   approximation: PRNU (photo-response non-uniformity), DSNU (dark-signal non-uniformity) and other
  *   fixed-pattern noise are not included.
+ * - Text (2.4, only with `textMetadata`): the caller's description is appended to ImageDescription after the
+ *   simulated-RAW statement and the copyright is written as Copyright (33432), each only when it is printable
+ *   ASCII (TIFF 6.0 §2: ASCII fields hold 7-bit codes). An XMP packet in tag 700 (BYTE; XMP Specification Part 3
+ *   §1.1.6, Table 13) always carries every given field in UTF-8: `dc:description` (the full ImageDescription text,
+ *   statement first, as XMP Part 3 §3.2.3 maps tag 270), `dc:rights`, `xmp:CreatorTool` and `exif:UserComment`.
+ *   The Software tag keeps naming the engine's writer. Without `textMetadata` the bytes are unchanged.
  * @see docs/NATIVE_RAW_AND_PRINT.md for the tag table, limits and the round trip through parseDngRawImage.
  */
 
@@ -40,6 +46,7 @@ import { transformOrientedRasterRectToNative } from "../output/capture-geometry.
 import type { NativeRawOutput } from "./native-raw.js";
 import { checkNativeRawIntegrity, validatePackedNativeRaw } from "./native-raw-development.js";
 import { parseExportSensorColorProfile, type ExportSensorColorProfile } from "./photographic-export.js";
+import { parseOutputTextMetadata, xmpTextMetadataPacket, type OutputTextMetadata } from "../output/text-metadata.js";
 import { packExportTiff, exportTiffAscii as ascii, exportTiffNumbers as numbers, exportTiffRationals as rationals,
   exportTiffBytes as rawBytes, exportTiffDoubles as doubles } from "./export-tiff.js";
 
@@ -63,6 +70,8 @@ export interface SerializeNativeRawDngInput {
   baselineExposureEv?: number;
   /** Optional UTC time of the capture, exactly YYYY-MM-DDTHH:mm:ss.sssZ. If omitted, no date tags are written; the engine never makes up a clock time. */
   capturedAtUtc?: string;
+  /** Optional (2.4) caller text: description, software, copyright, comment (see the module notes). If omitted, no text is added. */
+  textMetadata?: OutputTextMetadata;
 }
 export interface NativeRawDng {
   schemaVersion: typeof NATIVE_RAW_DNG_SCHEMA_VERSION;
@@ -106,7 +115,7 @@ const ORIENTATION = { landscape: 1, "portrait-clockwise": 6, "landscape-inverted
  * where its value comes from. The input arrays are copied before the first await.
  */
 export async function serializeNativeRawDng(input: SerializeNativeRawDngInput): Promise<NativeRawDng> {
-  const r = requireAllowlistedRecord(input, ["raw", "colorProfile", "noise", "baselineExposureEv", "capturedAtUtc"], "Invalid native RAW DNG input.");
+  const r = requireAllowlistedRecord(input, ["raw", "colorProfile", "noise", "baselineExposureEv", "capturedAtUtc", "textMetadata"], "Invalid native RAW DNG input.");
   const raw = r.raw as NativeRawOutput, plan = validatePackedNativeRaw(raw);
   const mosaic = plan.frame.colorSamplingProfile.layout;
   if (mosaic.kind === "periodic-mosaic") checkNativeRawIntegrity(raw, plan.exposure.geometry.nativeRaster.pixelWidth, mosaic.repeatWidthSites, mosaic.repeatHeightSites, 0, plan.exposure.geometry.nativeRaster.pixelHeight);
@@ -120,6 +129,8 @@ export async function serializeNativeRawDng(input: SerializeNativeRawDngInput): 
   const capturedAtUtc = r.capturedAtUtc as string | undefined;
   if (capturedAtUtc !== undefined && (typeof capturedAtUtc !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(capturedAtUtc) || Number.isNaN(Date.parse(capturedAtUtc))))
     fail("capturedAtUtc must be YYYY-MM-DDTHH:mm:ss.sssZ.");
+  let text: Readonly<OutputTextMetadata> | undefined;
+  try { text = parseOutputTextMetadata(r.textMetadata, "textMetadata"); } catch (error) { fail((error as Error).message); }
 
   const native = plan.exposure.geometry.nativeRaster, width = native.pixelWidth, height = native.pixelHeight, g = plan.exposure.resolvedGeometry;
   const active = g.activeCapture.nativeRect;
@@ -176,8 +187,13 @@ export async function serializeNativeRawDng(input: SerializeNativeRawDngInput): 
   const uniqueCameraModel = "Photivra Virtual Camera " + color.profileId + " " + color.profileVersion + " " + colorHash;
   const orientation = ORIENTATION[plan.exposure.geometry.orientation];
   const e = plan.exposure.exposure, software = "Photivra " + ENGINE_API_VERSION;
-  const description = "Simulated capture: packed native RAW from the Photivra engine (" + frame.frameId + "). Source " + plan.exposure.source.kind +
+  const statement = "Simulated capture: packed native RAW from the Photivra engine (" + frame.frameId + "). Source " + plan.exposure.source.kind +
     "; no linear master image or developed rendering is stored.";
+  const printableAscii = (value: string | undefined): value is string => value !== undefined && /^[\x20-\x7e]*$/.test(value);
+  const description = printableAscii(text?.description) ? statement + " " + text.description : statement;
+  const textTags = text === undefined ? [] : [
+    ...(printableAscii(text.copyright) ? [ascii(33432, text.copyright)] : []),
+    rawBytes(700, 1, xmpTextMetadataPacket({ ...text, description: text.description === undefined ? statement : statement + " " + text.description }))];
 
   const exif = [rawBytes(36864, 7, new TextEncoder().encode("0232")), rationals(33434, false, [e.shutterSeconds]), rationals(33437, false, [e.aperture]),
     ...(Number.isInteger(e.iso) && e.iso >= 1 && e.iso <= 65535 ? [numbers(34855, 3, [e.iso]), numbers(34864, 3, [2]), numbers(34866, 4, [e.iso])] : []),
@@ -194,7 +210,7 @@ export async function serializeNativeRawDng(input: SerializeNativeRawDngInput): 
     rationals(50730, true, [baseline]), numbers(50778, 3, [21]),
     rawBytes(50781, 1, Uint8Array.from(rawDataUniqueId.match(/../g)!.map((s) => parseInt(s, 16)))),
     numbers(50829, 4, [active.y, active.x, active.y + active.height, active.x + active.width]),
-    rationals(50964, true, forward.flat()), ...(noiseProfile ? [doubles(51041, noiseProfile)] : [])], exif, pixels);
+    rationals(50964, true, forward.flat()), ...(noiseProfile ? [doubles(51041, noiseProfile)] : []), ...textTags], exif, pixels);
   return Object.freeze({ schemaVersion: NATIVE_RAW_DNG_SCHEMA_VERSION, mediaType: "image/dng" as const, bytes, sha256: await sha256(bytes), rawDataUniqueId, uniqueCameraModel,
     activeArea: { ...active }, defaultCrop: { ...crop }, orientation, blackLevels, whiteLevel, cfaPattern, colorMatrix1: stored(colorMatrixTag), asShotNeutral: stored(neutralTag),
     noiseProfile, unrepresentedSaturationFlagCount: unrepresented, source: "packed-native-raw" as const, linearMasterDeclared: false as const });

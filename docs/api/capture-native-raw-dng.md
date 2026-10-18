@@ -80,5 +80,7 @@ export interface SerializeNativeRawDngInput {
   baselineExposureEv?: number;
   /** Optional UTC time of the capture, exactly YYYY-MM-DDTHH:mm:ss.sssZ. If omitted, no date tags are written; the engine never makes up a clock time. */
   capturedAtUtc?: string;
+  /** Optional (2.4) caller text: description, software, copyright, comment (see the module notes). If omitted, no text is added. */
+  textMetadata?: OutputTextMetadata;
 }
 ```

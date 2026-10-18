@@ -90,6 +90,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.bitDepth` | 8 | PNG only: 8 or 16. |
 | `output.gamutMapping` | `"clip"` | PNG only: or `"perceptual"`. |
 | `output.dng.capturedAtUtc` | none | DNG only: capture time for the date tags. |
+| `output.metadata` | none | 2.4: `{ description?, software?, copyright?, comment? }` written into JPEG, PNG and DNG files unchanged (see [Text metadata](#text-metadata-24)). |
 | `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or, from 2.1, `"ahd"` (see [Demosaic](#demosaic)). |
 | `output.borderHandling` | `"margin"` | Or `"mirror"`. |
 | `output.toneCurve` | `"identity"` | Any `SdrToneCurve`, for example `"positive-reinhard-per-channel"`. |
@@ -463,7 +464,8 @@ The DNG states only what the capture has:
 | ColorMatrix1 (D65), ForwardMatrix1, AnalogBalance, AsShotNeutral | The facade's diagonal camera→XYZ profile and the capture's white-balance intent |
 | BaselineExposure | 0: the RAW white level maps to display white, as in the facade's development |
 | NoiseProfile | Each channel's readout regime: conversion gain ÷ digital gain and the combined read noise (Poisson, Gaussian and quantization only) |
-| ImageDescription | States that it is a simulated packed RAW with no linear master or rendering stored |
+| ImageDescription | States that it is a simulated packed RAW with no linear master or rendering stored; with `output.metadata` (2.4) the caller's description follows when it is printable ASCII |
+| Copyright, XMP (tag 700) | Only with `output.metadata` (2.4); see [Text metadata](#text-metadata-24) |
 
 - Saturation flags of sites whose code is below WhiteLevel have no DNG field. They are counted in the
   assumptions.
@@ -481,6 +483,59 @@ const shot = await simulateCapture({ scene: { preset: "siemens-star" }, output: 
 const dng = parseDngRawImage({ bytes: shot.image.dng! });
 console.log(dng.width, dng.activeArea, dng.whiteLevel, dng.codes.length === shot.raw.codes.length);
 ```
+
+### Text metadata (2.4)
+
+`output.metadata` writes the caller's own text into the file. The engine writes the text exactly as
+given and adds no text of its own (in a DNG the description follows the existing simulated-RAW statement). It applies to formats `"jpeg"`, `"png"` and `"dng"` (and to a PNG
+`simulateIdealReference`); other formats reject it. Without it, every file is byte-identical to 2.3.0
+(hash locks in `test/output-text-metadata.test.ts`).
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const shot = await simulateCapture({
+  scene: { preset: "siemens-star" },
+  output: { width: 8, height: 8, format: "png",
+    metadata: { description: "Siemens star at f/8", software: "My Viewer 1.0", copyright: "© 2026 A. Author", comment: "Test run 3" } }
+});
+console.log(shot.image.png?.length, shot.assumptions.find((a) => a.id === "output.metadata")?.value);
+```
+
+| Field | JPEG | PNG | DNG |
+| --- | --- | --- | --- |
+| `description` | XMP `dc:description` | `Description` | ImageDescription after the simulated-RAW statement (ASCII only); XMP `dc:description` (statement, then the text) |
+| `software` | XMP `xmp:CreatorTool` | `Software` | XMP `xmp:CreatorTool` |
+| `copyright` | XMP `dc:rights` | `Copyright` | Copyright tag (ASCII only); XMP `dc:rights` |
+| `comment` | COM segment and XMP `exif:UserComment` | `Comment` | XMP `exif:UserComment` |
+
+Each field is optional, but at least one must be set. A field is a non-empty string of at most
+2048 UTF-8 bytes. Lone UTF-16 surrogates (which have no UTF-8 form), NUL, U+FFFE, U+FFFF and control
+characters other than line feed (`\n`) are rejected with an `InvalidConfigurationError` that names the
+field. Use `\n` for line breaks.
+
+Why these containers:
+
+- **JPEG: XMP plus COM.** The JPEG already carries one XMP packet in APP1 (the print plan). XMP allows only
+  one main packet per JPEG, of at most 65 502 bytes (XMP Part 3 §1.1.3, §1.1.3.1), so the fields go into
+  that packet as a second `rdf:Description` of the same resource, which XMP allows (Part 1 §7.4). XMP is the
+  smallest standard JPEG container with labelled, UTF-8 fields (Part 1 §8.3–8.4). A COM segment (ITU-T T.81
+  §B.2.4.5) has no field names or declared character set, so it carries only the comment, in UTF-8. Exif tags are not used: Exif ASCII fields are 7-bit, and
+  rewriting the Exif block would move every offset in it. The existing Exif Software tag keeps naming the
+  engine's JPEG writer.
+- **PNG: tEXt or iTXt.** One chunk per field with the predefined keywords (PNG Third Edition §11.3.3.1).
+  `tEXt` holds printable Latin-1 and line feed (§11.3.3.2). Text outside that range goes into an
+  uncompressed `iTXt` (§11.3.3.4; UTF-8, no language tag). The specification prefers iTXt for new text
+  (§12.9); `tEXt` is kept for Latin-1 text because every PNG reader supports it. The chunks go before the
+  first IDAT, as §12.9 recommends for short text.
+- **DNG: TIFF tags plus XMP.** TIFF ASCII fields hold only 7-bit codes (TIFF 6.0 §2), so the
+  description and copyright reach ImageDescription and Copyright only when they are printable ASCII.
+  An XMP packet in tag 700 (XMP Part 3 §1.1.6, Table 13) always carries every field in UTF-8. Its
+  `dc:description` repeats the full ImageDescription, statement first, because XMP maps tag 270 to
+  `dc:description` (Part 3 §3.2.3). The Software tag keeps naming the engine's DNG writer.
+
+Pillow 12.3 and ImageMagick 6.9 read the PNG text chunks and the JPEG comment, and Python's XML parser
+reads both XMP packets.
 
 ## Demosaic
 
@@ -1022,6 +1077,11 @@ provided, for rights reasons.
   free at <https://www.w3.org/TR/css-color-4/>; ITU-R BT.709-6 and BT.2020-2 (primaries and luminance
   coefficients), free at <https://www.itu.int/rec/R-REC-BT>; ITU-T H.273 (cICP code points); W3C PNG Specification, Third
   Edition (2025).
+- Text metadata (2.4), all free: ITU-T T.81 (1992) | ISO/IEC 10918-1, §B.2.4.5 comment segment, at
+  <https://www.w3.org/Graphics/JPEG/itu-t81.pdf>; Adobe XMP Specification Part 1 (2012, the text of
+  ISO 16684-1:2011) §7.4, §8.3, §8.4, Part 2 (2022) §3.4 and Part 3 (2020) §1.1.3, §1.1.6, §3.2.3, at
+  <https://github.com/adobe/XMP-Toolkit-SDK/tree/main/docs>; W3C PNG Specification, Third Edition (2025)
+  §11.3.3 and §12.9, at <https://www.w3.org/TR/png-3/>; TIFF Revision 6.0 (1992) §2.
 - Adobe DNG Specification 1.7.1.0 (2023); W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič,
   *Color Gamut Mapping*, Wiley 2008, §10.
 - K. Miyamoto, "Fish eye lens", *JOSA* 54, 1964; J. Kannala, S. Brandt, *IEEE TPAMI* 28, 2006

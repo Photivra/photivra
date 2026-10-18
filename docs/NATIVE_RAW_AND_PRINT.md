@@ -302,7 +302,7 @@ Speed-up depends on the work per site and the host. Cheap sites gain little: at 
 
 ## Native RAW DNG
 
-`serializeNativeRawDng({ raw, colorProfile, noise?, baselineExposureEv?, capturedAtUtc? })` writes a packed `NativeRawOutput` as a lossless, uncompressed 16-bit CFA DNG (DNG 1.4 tags, Adobe DNG Specification 1.7.1.0). It uses the TIFF/DNG tag writers of the paired photographic export.
+`serializeNativeRawDng({ raw, colorProfile, noise?, baselineExposureEv?, capturedAtUtc?, textMetadata? })` writes a packed `NativeRawOutput` as a lossless, uncompressed 16-bit CFA DNG (DNG 1.4 tags, Adobe DNG Specification 1.7.1.0). It uses the TIFF/DNG tag writers of the paired photographic export.
 
 Unlike `createPhotographicExportPair`, it needs no bounded `SensorRawFrame` or `SimulatedCapture` linear-master record, and it declares none. The ImageDescription states that the file holds a simulated packed RAW without a linear master or rendering. The result reports `source: "packed-native-raw"` and `linearMasterDeclared: false`.
 
@@ -317,6 +317,7 @@ Unlike `createPhotographicExportPair`, it needs no bounded `SensorRawFrame` or `
   - BaselineExposure as declared (default 0).
 - **Noise.** NoiseProfile per CFA plane, var(x) = S·x + O, with S = 1/(G·span) and O = (σ²/G² + 1/12)/span². It is written only when `noise` gives each channel's output-referred gain G (electrons per code) and read noise σ (electrons). It includes Poisson shot noise, Gaussian read noise and quantisation. It does not include PRNU, DSNU or other fixed-pattern noise.
 - **Exif.** ExposureTime, FNumber, ISO (as the recommended exposure index), FocalLength, ColorSpace uncalibrated, and PixelX/YDimension. Date tags are written only when `capturedAtUtc` is given.
+- **Text (2.4).** Only with `textMetadata` (`OutputTextMetadata`: `description`, `software`, `copyright`, `comment`). A printable-ASCII description is appended to ImageDescription after the statement, and a printable-ASCII copyright becomes Copyright (33432); TIFF ASCII fields hold 7-bit codes (TIFF 6.0 §2). An XMP packet in tag 700 (BYTE, XMP Specification Part 3 §1.1.6) carries every field in UTF-8: `dc:description` (the full ImageDescription text), `dc:rights`, `xmp:CreatorTool` and `exif:UserComment`. Software keeps naming the writer. Without `textMetadata` the bytes are unchanged. See "Text metadata (2.4)" in the [quick start](QUICK_START.md).
 - **Identity.** RawDataUniqueID is the first 128 bits of SHA-256 over a fixed header and the little-endian codes.
 
 The input arrays are copied before the first await and never modified.

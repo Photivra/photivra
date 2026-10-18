@@ -4613,6 +4613,11 @@
       "kind": "type"
     },
     {
+      "name": "OutputTextMetadata",
+      "source": "src/output/text-metadata.ts",
+      "kind": "type"
+    },
+    {
       "name": "PACKED_SENSOR_RAW_LIMITS",
       "source": "src/capture/packed-sensor-raw.ts",
       "kind": "runtime"
