@@ -107,7 +107,7 @@ describe("root exports reject malformed input with domain errors (API review #4)
   ]);
   const NO_INPUT_OBJECT = new Set([
     // Positional scalars or bound objects, a string id, raw bytes, result factories or no argument at all.
-    "approximationResult", "composeRelativeErrorBounds", "assessShutterAngleRule", "calculateCieIlluminantARelativeSpectralPower", "calculateHighlightPriorityPlacementSignal",
+    "approximationResult", "composeRelativeErrorBounds", "assessShutterAngleRule", "calculateCieIlluminantARelativeSpectralPower", "calculateGenericPrimeMinimumFocusDistanceM", "calculateHighlightPriorityPlacementSignal",
     "calculateShutterAngleExposureSeconds", "calculateShutterAngleFromExposureSeconds", "calculatedResult", "calibratedResult",
     "createCieIlluminantASpectrum", "createSrgbIccProfile", "estimateCie1931ColorMatchingFunctions", "estimatedResult",
     "evaluateBt709InverseOetf", "evaluateBt709Oetf", "evaluateHlgInverseOetf", "evaluateHlgOetf", "evaluatePqEotf", "evaluatePqInverseEotf",

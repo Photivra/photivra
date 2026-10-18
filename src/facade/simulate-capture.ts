@@ -81,6 +81,7 @@ import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
+import { resolveGenericPrimeLens, type GenericPrimeLens } from "../equipment/generic-prime-lenses.js";
 import { calculateEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
 import { calculateSiteEffectiveSaturationCode } from "../capture/raw-white-level.js";
 import { prepareSensorColorDevelopment } from "../color/sensor-color-development.js";
@@ -167,6 +168,14 @@ export interface SimulateCaptureOptions {
   lens?: {
     /** Must lie in the lens capability (the generic primes are 50 mm). Default: the lens's shortest focal length. */
     focalLengthMm?: number;
+    /**
+     * Opt-in (2.4): a lens of the generic prime family by its full-frame-equivalent focal length
+     * (`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`). Its physical focal length is the equivalent ÷ the diagonal crop
+     * factor of the simulated frame (output width × height × pixel pitch); it replaces the tier lens's focal length and
+     * f-number range (the tier lens's transmission is kept). An f-number outside the prime's range, or a subject or
+     * focus distance below its minimum focus distance, is rejected. Not combinable with `focalLengthMm`.
+     */
+    prime?: number;
     /** Aperture for manual and aperture-priority modes. Default 8. */
     fNumber?: number;
     /** Focus distance in metres. Default: the subject distance. */
@@ -844,14 +853,34 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
   const body = preset.body, lens = preset.lens;
 
   // Lens
-  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf", "diffraction"]);
-  const focalDefault = lens.exposure.focalLengthMmRange.value.minimum;
-  const focalLengthMm = positive(pick(lensOptions, "focalLengthMm", "lens.focalLengthMm", focalDefault, "The preset lens's focal length (the generic primes are 50 mm)."), "lens.focalLengthMm");
-  const capabilities = resolveGenericEquipmentExposureCapabilities({ bodyProfile: body.exposure, lensProfile: lens.exposure, selectedFocalLengthMm: focalLengthMm });
+  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf", "diffraction", "prime"]);
+  // Generic prime (2.4): resolved on the simulated frame's size, which the output and sensor sections validate again below.
+  let prime: GenericPrimeLens | undefined;
+  if (lensOptions.prime !== undefined) {
+    if (lensOptions.focalLengthMm !== undefined) fail("lens.prime and lens.focalLengthMm cannot both be given: the prime sets the focal length.");
+    const o = (typeof top.output === "object" && top.output !== null ? top.output : {}) as Record<string, unknown>, sn = (typeof top.sensor === "object" && top.sensor !== null ? top.sensor : {}) as Record<string, unknown>;
+    const frameW = positive(o.width ?? DEFAULTS.width, "output.width"), frameH = positive(o.height ?? DEFAULTS.height, "output.height"), framePitch = positive(sn.pixelPitchMicrometers ?? DEFAULTS.pixelPitchMicrometers, "sensor.pixelPitchMicrometers");
+    if (typeof lensOptions.prime !== "number") fail("lens.prime must be a generic prime's full-frame-equivalent focal length in mm.");
+    prime = resolveGenericPrimeLens({ equivalentFocalLengthMm: lensOptions.prime as number, activeImagingArea: { widthMm: frameW * framePitch / 1000, heightMm: frameH * framePitch / 1000 } });
+    assume("lens.prime", "model", { lensId: prime.lensId, equivalentFocalLengthMm: prime.equivalentFocalLengthMm, focalLengthMm: prime.focalLengthMm, cropFactor35Mm: prime.cropFactor35Mm,
+      widestFNumber: prime.widestFNumber, narrowestFNumber: prime.narrowestFNumber, minimumFocusDistanceM: prime.minimumFocusDistanceM },
+    "Generic prime (not a real product): focal length = equivalent ÷ the simulated frame's diagonal crop factor, f/" + prime.widestFNumber + "–f/" + prime.narrowestFNumber +
+      ", minimum focus max(0.10 m, f·(1 + 1/0.15)) (thin-lens approximation). It replaces the tier lens's focal length and f-number range; the tier lens's transmission is kept.");
+  }
+  const lensExposure = prime ? { ...lens.exposure, profileId: "photivra-" + prime.lensId + ":exposure",
+    focalLengthMmRange: { ...lens.exposure.focalLengthMmRange, value: { minimum: prime.focalLengthMm, maximum: prime.focalLengthMm } },
+    aperture: { ...lens.exposure.aperture, widestAvailableFNumber: { kind: "constant" as const, fNumber: { value: prime.widestFNumber, evidence: FACADE_EVIDENCE } },
+      narrowestAvailableFNumber: { value: prime.narrowestFNumber, evidence: FACADE_EVIDENCE } } } as typeof lens.exposure : lens.exposure;
+  const focalDefault = lensExposure.focalLengthMmRange.value.minimum;
+  const focalLengthMm = prime ? prime.focalLengthMm :
+    positive(pick(lensOptions, "focalLengthMm", "lens.focalLengthMm", focalDefault, "The preset lens's focal length (the generic primes are 50 mm)."), "lens.focalLengthMm");
+  const capabilities = resolveGenericEquipmentExposureCapabilities({ bodyProfile: body.exposure, lensProfile: lensExposure, selectedFocalLengthMm: focalLengthMm });
   const subjectDistanceM = positive(pick(top, "subjectDistanceM", "subjectDistanceM", DEFAULTS.subjectDistanceM, "Scene plane 5 m in front of the camera (the generic tiers' reference focus distance)."), "subjectDistanceM");
   if (subjectDistanceM * 1000 <= focalLengthMm * 2) fail("subjectDistanceM must exceed twice the focal length.");
   const focusDistanceM = positive(pick(lensOptions, "focusDistanceM", "lens.focusDistanceM", subjectDistanceM, "Focused on the scene plane."), "lens.focusDistanceM");
   if (focusDistanceM * 1000 <= focalLengthMm) fail("lens.focusDistanceM must exceed the focal length.");
+  if (prime && (subjectDistanceM < prime.minimumFocusDistanceM || focusDistanceM < prime.minimumFocusDistanceM))
+    fail("The " + prime.lensId + " focuses no closer than " + prime.minimumFocusDistanceM + " m (max(0.10 m, f·(1 + 1/0.15))); subjectDistanceM and lens.focusDistanceM must be at least that.");
   let pupil: { radialSamples: number; angularSamples: number } | undefined;
   if (lensOptions.pupilSampling === undefined) assume("lens.pupilSampling", "default", null,
     "No pupil sampling: each scene query follows the central (chief) ray, so defocus and depth of field are not rendered. Enable lens.pupilSampling for an ideal circular pupil.");
@@ -1151,6 +1180,8 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
   let fNumber: number, shutterSeconds: number;
   if (mode === "manual" || mode === "aperture-priority") {
     fNumber = positive(pick(lensOptions, "fNumber", "lens.fNumber", DEFAULTS.fNumber, "f/8."), "lens.fNumber");
+    if (prime && (fNumber < prime.widestFNumber || fNumber > prime.narrowestFNumber))
+      fail("lens.fNumber " + fNumber + " is outside the " + prime.lensId + " range f/" + prime.widestFNumber + "–f/" + prime.narrowestFNumber + ".");
   } else {
     if (lensOptions.fNumber !== undefined) fail("lens.fNumber is resolved automatically in " + mode + " mode; omit it.");
     fNumber = NaN;
@@ -1381,7 +1412,7 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
       fidelity: { spectral: "wavelength-resolved" as const, material: "spectral-data" as const, visibility: "resolved" as const, directTransport: "approximation" as const, indirectTransport: "not-modeled" as const },
       wavelengthChangingTransportModeled: false, volumetricTransportModeled: false, polarizationModeled: false, evidence, limitations: ["Engine-authored planar chart or caller scene function.",
         ...(diffractionObjectSpace ? ["Radiance is the scene radiance convolved with the lens diffraction PSF mapped onto the scene plane (object-space convolution, request.diffraction)."] : [])] } };
-  const lensId = lens.exposure.profileId;
+  const lensId = lensExposure.profileId;
   const opticsProfile = { schemaVersion: "0.1.0" as const, profileId: lensId + ":facade-transmission", profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, lensProfileId: lensId,
     scientificStatus: "approximation" as const, applicability: { focalLengthMm: { minimum: capabilities.selectedFocalLengthMm, maximum: capabilities.selectedFocalLengthMm },
       nominalFNumber: { minimum: capabilities.aperture.widestAvailableFNumber, maximum: capabilities.aperture.narrowestAvailableFNumber }, focus: { kind: "any" as const } },

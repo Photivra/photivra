@@ -64,6 +64,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | --- | --- | --- |
 | `camera` | `"professional"` | A generic tier id (`"consumer"`, `"prosumer"`, `"professional"`) or a full `GenericEquipmentTierPreset` record. A record must have exactly the preset shape (unknown fields at the top level, in `body`, `lens` or `lens.matchedReference` are rejected) and each profile is re-checked by its own parser. Tier values are synthetic educational designs, not real cameras. |
 | `lens.focalLengthMm` | 50 | Must lie in the lens capability; the generic primes are 50 mm. |
+| `lens.prime` | off | 2.4: a generic prime by full-frame-equivalent focal length (see [Generic prime lenses](#generic-prime-lenses-24)). |
 | `lens.fNumber` | 8 | Used in `manual` and `aperture-priority`; resolved automatically otherwise. Must lie in f/4–f/16. |
 | `lens.focusDistanceM` | the subject distance | |
 | `lens.pupilSampling` | off | `{ radialSamples, angularSamples }` traces an ideal circular pupil, which renders defocus. Off means one chief ray per sample. Angular samples 4–64, at most 256 rays. |
@@ -150,6 +151,61 @@ The simulated sensor has real pixels of `sensor.pixelPitchMicrometers`. A 64 × 
 pixels is therefore a 0.38 mm crop of a large sensor, not a downscaled full frame. This keeps the
 signal per pixel, and so the noise and the ISO behaviour, physically consistent with the tier's
 sensor values.
+
+### Generic prime lenses (2.4)
+
+`lens.prime` picks a lens of the engine's generic prime family by its full-frame-equivalent focal
+length: 10, 12, 14, 16, 20, 24, 28, 35, 40, 50, 85, 105, 135, 200, 300, 400, 500, 600, 800 or 1200 mm
+(`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`). They are educational lenses defined by three rules, not
+real products, and carry no brand:
+
+- **Focal length** = equivalent ÷ the diagonal crop factor of the sensor (`calculateEquivalentFocalLength35Mm`,
+  36 × 24 mm reference). In `simulateCapture` the sensor is the simulated frame, output width × height ×
+  pixel pitch: to simulate a whole full-frame sensor at 768 × 512, set the pitch to 36 mm / 768 = 46.875 µm.
+- **Aperture range:** widest f/2.8 (10–16 mm), f/1.8 (20–28 mm), f/1.4 (35–85 mm), f/2 (105–135 mm),
+  f/2.8 (200–300 mm), f/4 (400–600 mm), f/5.6 (800 mm), f/8 (1200 mm); narrowest f/16 up to 16 mm, f/22 up
+  to 135 mm, f/32 beyond. Any f-number inside the range is accepted; `fNumbers` lists the marked
+  third-stop values within it (`GENERIC_PRIME_THIRD_STOP_F_NUMBERS`: 1, 1.1, 1.2, 1.4, …, 22, 25, 29, 32,
+  the conventional rounded values of 2^(k/6)). An f-number outside the range is rejected.
+- **Minimum focus** = max(0.10 m, f·(1 + 1/0.15)): the thin-lens object distance at 0.15× magnification,
+  never closer than 10 cm (`GENERIC_PRIME_MINIMUM_FOCUS`). A subject or focus distance below it is
+  rejected. This is a generic thin-lens approximation, measured from the lens, not a real lens's
+  specification.
+
+The prime replaces the tier lens's focal length and f-number range; the tier lens's transmission is
+kept, and the assumption `lens.prime` records the resolved lens. `resolveGenericPrimeLens` gives the
+same lens for any sensor size. `lens.focalLengthMm` keeps working as before and cannot be combined with
+`lens.prime`.
+
+### Fitting a chart to the frame (2.4)
+
+`calculateSubjectDistanceForFraming({ sensor, focalLengthMm | equivalentFocalLengthMm, chart, fit? })`
+returns the distance at which a chart of physical size `chart` (`{ widthM, heightM? }`, as for
+`chartSize`; `heightM` defaults to the sensor's shape) fills the frame. Thin lens: magnification
+m = f/(d − f), so d = f·(1 + 1/m) with m = sensor side ÷ chart side. `fit` chooses the side:
+`contain` (default: the whole chart is visible and its limiting side fills the frame; for a 3:2 chart on
+a 3:2 sensor this is the width fit), `width`, `height` or `cover` (the chart fills the frame and is
+cropped on its other side). The result reports the magnification, image distance, framed plane size,
+`coverage` (the fraction of the frame width and height the chart covers), the generic prime of that
+equivalent focal length if there is one, the prime family's minimum focus distance at that focal length
+and `belowMinimumFocus`, plus assumptions in the same form as `simulateCapture`. It is the same framing
+`simulateCapture` uses, so `chartSize` at the returned distance gives `frameWidthFraction` 1 (tested).
+
+An A3 chart (0.42 × 0.28 m) on a full-frame sensor: 0.127 m at 10 mm, 0.633 m at 50 mm, 2.53 m at
+200 mm and 15.2 m at 1200 mm (magnification 0.0857, minimum focus 0.10, 0.38, 1.53 and 9.2 m). On a
+small 4.8 × 3.6 mm phone sensor (crop 7.2) the equivalent primes are 1.39–166 mm and the contain fit is
+limited by the width: 0.123, 0.614, 2.45 and 14.7 m, covering 89 % of the frame height. An A4 chart
+(0.297 m) would need 0.093 m at 10 mm, below the 0.10 m minimum focus (`belowMinimumFocus: true`).
+
+```ts
+import { calculateSubjectDistanceForFraming, simulateCapture } from "@photivra/engine";
+
+const fit = calculateSubjectDistanceForFraming({ sensor: { widthMm: 36, heightMm: 24 }, equivalentFocalLengthMm: 50, chart: { widthM: 0.42, heightM: 0.28 } });
+console.log(fit.subjectDistanceM, fit.magnification, fit.belowMinimumFocus, fit.prime?.fNumbers);
+const capture = await simulateCapture({ scene: { preset: "siemens-star" }, lens: { prime: 50, fNumber: 5.6 }, chartSize: { widthM: 0.42, heightM: 0.28 },
+  subjectDistanceM: fit.subjectDistanceM, sensor: { pixelPitchMicrometers: 36000 / 768 }, output: { width: 768, height: 512, region: { x: 368, y: 240, width: 32, height: 32 } } });
+console.log(capture.scene.chart?.frameWidthFraction);
+```
 
 ### ISO and pixel size
 

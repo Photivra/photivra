@@ -693,6 +693,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateGenericPrimeMinimumFocusDistanceM",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateGeometricFocusBreathing",
       "source": "src/optics/focus-breathing.ts",
       "kind": "runtime"
@@ -1326,6 +1331,16 @@
       "name": "calculateStepWedgeReflectances",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "calculateSubjectDistanceForFraming",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSubjectDistanceForFramingInput",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "type"
     },
     {
       "name": "calculateSubjectFramingCrop",
@@ -3193,6 +3208,21 @@
       "kind": "runtime"
     },
     {
+      "name": "GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_PRIME_MINIMUM_FOCUS",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_PRIME_THIRD_STOP_F_NUMBERS",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "GENERIC_RELEASE_CAPABILITY_SCHEMA_VERSION",
       "source": "src/equipment/release-capabilities.ts",
       "kind": "runtime"
@@ -3280,6 +3310,16 @@
     {
       "name": "GenericOpticalEvidence",
       "source": "src/optics/profile-contract.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericPrimeEquivalentFocalLengthMm",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericPrimeLens",
+      "source": "src/equipment/generic-prime-lenses.ts",
       "kind": "type"
     },
     {
@@ -6363,6 +6403,11 @@
       "kind": "runtime"
     },
     {
+      "name": "resolveGenericPrimeLens",
+      "source": "src/equipment/generic-prime-lenses.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveHighSpeedFlashSync",
       "source": "src/exposure/flash.ts",
       "kind": "runtime"
@@ -8218,8 +8263,18 @@
       "kind": "type"
     },
     {
+      "name": "SubjectFraming",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "type"
+    },
+    {
       "name": "SubjectFramingCrop",
       "source": "src/output/subject-framing-crop.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SubjectFramingFit",
+      "source": "src/facade/subject-framing.ts",
       "kind": "type"
     },
     {

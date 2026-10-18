@@ -824,6 +824,20 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ResolveGenericEquipmentExposureCapabilitiesInput`](api/equipment-exposure-capabilities.md#resolvegenericequipmentexposurecapabilitiesinput) | Type |
 | [`WidestAvailableFNumberCapability`](api/equipment-exposure-capabilities.md#widestavailablefnumbercapability) | Type |
 
+## equipment/generic-prime-lenses.ts
+
+[Detailed contracts](api/equipment-generic-prime-lenses.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/equipment/generic-prime-lenses.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateGenericPrimeMinimumFocusDistanceM`](api/equipment-generic-prime-lenses.md#calculategenericprimeminimumfocusdistancem) | Runtime |
+| [`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`](api/equipment-generic-prime-lenses.md#generic_prime_equivalent_focal_lengths_mm) | Runtime |
+| [`GENERIC_PRIME_MINIMUM_FOCUS`](api/equipment-generic-prime-lenses.md#generic_prime_minimum_focus) | Runtime |
+| [`GENERIC_PRIME_THIRD_STOP_F_NUMBERS`](api/equipment-generic-prime-lenses.md#generic_prime_third_stop_f_numbers) | Runtime |
+| [`GenericPrimeEquivalentFocalLengthMm`](api/equipment-generic-prime-lenses.md#genericprimeequivalentfocallengthmm) | Type |
+| [`GenericPrimeLens`](api/equipment-generic-prime-lenses.md#genericprimelens) | Type |
+| [`resolveGenericPrimeLens`](api/equipment-generic-prime-lenses.md#resolvegenericprimelens) | Runtime |
+
 ## equipment/generic-tier-assets.ts
 
 [Detailed contracts](api/equipment-generic-tier-assets.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/equipment/generic-tier-assets.ts)
@@ -1187,6 +1201,17 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureSensorAntiAliasing`](api/facade-simulate-capture.md#simulatecapturesensorantialiasing) | Type |
 | [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
 | [`simulateIdealReference`](api/facade-simulate-capture.md#simulateidealreference) | Runtime |
+
+## facade/subject-framing.ts
+
+[Detailed contracts](api/facade-subject-framing.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/subject-framing.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateSubjectDistanceForFraming`](api/facade-subject-framing.md#calculatesubjectdistanceforframing) | Runtime |
+| [`CalculateSubjectDistanceForFramingInput`](api/facade-subject-framing.md#calculatesubjectdistanceforframinginput) | Type |
+| [`SubjectFraming`](api/facade-subject-framing.md#subjectframing) | Type |
+| [`SubjectFramingFit`](api/facade-subject-framing.md#subjectframingfit) | Type |
 
 ## gpu/image-kernel-accelerator.ts
 

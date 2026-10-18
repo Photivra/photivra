@@ -176,6 +176,14 @@ export interface SimulateCaptureOptions {
   lens?: {
     /** Must lie in the lens capability (the generic primes are 50 mm). Default: the lens's shortest focal length. */
     focalLengthMm?: number;
+    /**
+     * Opt-in (2.4): a lens of the generic prime family by its full-frame-equivalent focal length
+     * (`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`). Its physical focal length is the equivalent ÷ the diagonal crop
+     * factor of the simulated frame (output width × height × pixel pitch); it replaces the tier lens's focal length and
+     * f-number range (the tier lens's transmission is kept). An f-number outside the prime's range, or a subject or
+     * focus distance below its minimum focus distance, is rejected. Not combinable with `focalLengthMm`.
+     */
+    prime?: number;
     /** Aperture for manual and aperture-priority modes. Default 8. */
     fNumber?: number;
     /** Focus distance in metres. Default: the subject distance. */
