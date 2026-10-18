@@ -1045,16 +1045,40 @@ How it stays identical:
   own edges the region raster ends exactly where the whole frame's does, so `borderHandling: "mirror"`
   mirrors at the same place. AHD reads at most 5 sites away, so its edge-directed choices see the same
   neighbourhood.
-- **Diffraction:** the object-space convolution is computed in whole-width bands of 32 native rows
-  around the region's rows, as in the whole render (the same bands, kernels and summation order). A
-  frame split into k tile columns therefore repeats that convolution k times; tile by rows (full-width
-  strips) to avoid it.
+- **Diffraction (2.6: region-limited):** the object-space convolution covers only the scene lattice the
+  region's native sites query: the native rectangle plus the anti-aliasing and box-aperture offsets on
+  each side, in bands of at most 32 native rows, with the kernel radius of real scene radiance around it.
+  Each kept value is the same gather as in the whole render (the same kernel, the same taps in the same
+  order, and every tap inside the grid), so the values are bit-identical while the work follows the
+  region plus its halo instead of the frame width. In 2.3–2.5 the bands spanned the whole frame width, so
+  a small crop of a wide frame paid for the full width and k tile columns repeated it k times. The noise
+  needs no frame-wide state: each site's stream is seeded by a hash of the capture seed and its absolute
+  native index (`seedSchedule: "murmur3-capture-seed-native-index-stream-v2"`), so it is counter-based,
+  not a position in one frame-wide stream; the demosaic and the filters read only the margin above.
 
 Measured on one core (Node 24, 4-vCPU Intel Xeon 2.80 GHz, built `dist`, one run each): a 256 × 256
 slanted edge took 8.45 s whole, 9.03 s as four 256 × 64 strips and 8.44 s as four 128 × 128 tiles run
 one after another; with `lens.diffraction` 10.2 s whole and 12.9 s as four tiles (the repeated
 convolution bands). A 64 × 64 crop of a 4000 × 3000 frame took 0.63 s, the same as a plain 64 × 64
 capture. Tiles in parallel workers divide the wall time by the number of cores.
+
+**A 100 % crop with the slow options (2.6).** A 192 × 128 region at the centre of a 6000 × 4000 frame at 6 µm,
+Siemens star, f/16, `output.maximumPixels: NATIVE_RAW_LIMITS.ceilingPixels` (one fresh Node 24.21.0 process per
+row, 4-vCPU Intel Xeon 2.80 GHz, built `dist`, one run each; `diagnostics.timingsMs`):
+
+| Options | 2.5.0 total (convolution) | 2.6 total (convolution) | Peak resident memory, 2.5.0 → 2.6 |
+| --- | --- | --- | --- |
+| defaults | 3.6 s (—) | 3.6 s (—) | 320 → 304 MB |
+| diffraction, four-spot filter, AHD | 60.8 s (50.2 s) | 11.8 s (1.7 s) | 556 → 379 MB |
+| diffraction, four-spot filter, AHD, box 2 × 2 | 228.7 s (195.8 s) | 39.6 s (6.5 s) | 1 285 → 545 MB |
+
+The samples are byte-identical between the two versions. What remains is the per-site work, which grows with the
+scene queries per site (20 spectral nodes × the filter spots × the box nodes: 80 per site with the filter, 320
+with the filter and the 2 × 2 box) and with the region's sites, not with the frame.
+
+`output.maximumPixels` is still needed for a region of a frame wider or taller than 4094 pixels: the request,
+plan and noise seeds are those of the whole frame, and the whole frame's native raster is checked against the
+limit. The allocations follow the region, so the opt-in costs no memory for the rest of the frame.
 
 `result.image` holds the region, `result.raw` and `result.plan` describe the region's native sites (the
 plan's active area is the region; `result.region.nativeRect` gives them in the whole frame), and
