@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { calculateIdealPolygonDiffractionPsf, createDiffractionLimitedPsfProfile, parseLensSampledPsfProfile, resolveLensSampledPsf,
   InvalidConfigurationError, type CreateDiffractionLimitedPsfProfileInput } from "../src/index.js";
 import { AIRY_REAL_SPACE_MINIMUM_BETA, besselSquareSum, calculateAiryCellEnergies, calculateAiryCellEnergiesInFrequencyDomain,
@@ -180,4 +181,45 @@ describe("createDiffractionLimitedPsfProfile", () => {
       expect(() => createDiffractionLimitedPsfProfile({ ...base, ...patch } as never)).toThrow(message);
     }
   });
+});
+
+describe("Airy cell construction (2.6): memoized, with the 2.5.0 values", () => {
+  // SHA-256 of the cell bytes recorded on 2.5.0 (frequency domain below β = 192, real space from it).
+  const locks: [number, number, string][] = [
+    [0.4, 3, "ba7fd98a848277ffa2157fad114101f3f0db92ab8d62fb0373eb30dd92e8b73f"],
+    [12.5, 5, "958bf878d5802650bf06e3b4775040f4e92bfba30b7bce6d5109d46db06005ea"],
+    [60, 1, "f43d3b640a66a1800a1ccd2f340e3641f07322253b373ccdadb69630050a6e0b"],
+    [123.3, 1, "29e0dde5430f94c7914e8160d2738b499e68427d5d97a55160b6ad9e4157c16e"],
+    [191.9, 2, "e45e23b47e8be573a39d4f484bf6cc6836118fc2e6362ff721cf521866436bdb"],
+    [250, 1, "5553c2cd9c85cd0ae2cbf7c843c15f7f916c25949de83cfe913403a24baf82d8"]];
+  const sha = (cells: Float64Array): string => createHash("sha256").update(new Uint8Array(cells.buffer, cells.byteOffset, cells.byteLength)).digest("hex");
+
+  it("gives the 2.5.0 cell bytes, first built and then from the cache", () => {
+    for (const [beta, radius, lock] of locks) {
+      const direct = beta >= AIRY_REAL_SPACE_MINIMUM_BETA ? calculateAiryCellEnergiesInRealSpace(beta, radius).cells : calculateAiryCellEnergiesInFrequencyDomain(beta, radius).cells;
+      expect(sha(direct)).toBe(lock);
+      const first = calculateAiryCellEnergies(beta, radius), second = calculateAiryCellEnergies(beta, radius);
+      expect([sha(first.cells), sha(second.cells)]).toEqual([lock, lock]);
+      expect(second).toEqual(first);
+    }
+  }, scaledTimeout(60_000));
+
+  it("hands out copies, so a caller cannot change later results", () => {
+    const first = calculateAiryCellEnergies(33.3, 2), kept = first.cells.slice();
+    first.cells.fill(7);
+    expect(Array.from(calculateAiryCellEnergies(33.3, 2).cells)).toEqual(Array.from(kept));
+  });
+
+  it("builds a repeated profile from the cache in a fraction of the first build's time", () => {
+    const input = { aperture: "circular" as const, focalLengthMm: 50, apertureFNumber: 16, focus: { kind: "finite" as const, distanceM: 4.2 },
+      wavelengthsNm: Array.from({ length: 20 }, (_, k) => 390 + 20 * k), samplePitchMicrometers: 517, kernelRadiusSamples: 1, fieldHalfExtentMm: { x: 1, y: 1 }, profileId: "cache-test" };
+    let started = performance.now();
+    const first = createDiffractionLimitedPsfProfile(input);
+    const firstMs = performance.now() - started;
+    started = performance.now();
+    const second = createDiffractionLimitedPsfProfile(input);
+    const secondMs = performance.now() - started;
+    expect(second).toEqual(first);
+    expect(secondMs).toBeLessThan(firstMs / 4);
+  }, scaledTimeout(60_000));
 });

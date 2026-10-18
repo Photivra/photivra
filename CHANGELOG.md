@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Diffraction kernels are reused and built faster.** `createDiffractionLimitedPsfProfile` (and so `lens.diffraction`) keeps the 256 most recently used Airy cell tables, keyed by β = pitch/(λ·N_w) and the kernel radius, and hands out copies; the frequency-domain quadrature takes cos θ and sin θ from a table computed with the same expressions. The values are unchanged (cell bytes locked against 2.5.0 at β = 0.4–250). A second build of the same profile in the same JavaScript realm (another tile of the frame in the same worker, or a capture that changes only the exposure, ISO, scene or output) takes milliseconds: 1–4 ms instead of 0.3–1.5 s at 375–912.5 µm, f/16, 20 wavelengths. A first build takes 15–30 % less (750 µm: 1.37 s instead of 1.63 s). The β ≥ 192 switch to the real-space method stays where it is: its Hankel expansion needs x = π·β/2 ≥ 300, so it cannot go below β = 191 without another Bessel method, whose cells would differ from today's in the last bits.
+
+Results are byte-identical to 2.5.0 (the hash locks and the facade fingerprints of 15 default-path results).
+
 ## 2.5.0 — published October 18, 2026
 
 A minor release for whole-frame views and chart framing: `simulateCapture` accepts pixel pitches up to 1000 µm, so a whole sensor frame can be rendered at a small output size with the real sensor's prime, minimum focus and framing, and `calculateChartFraming` reports how much of the frame a chart covers at any distance. Both are additive: every request that 2.4.1 accepted gives byte-identical results (the engine version recorded in captures aside). Root exports grow from 1,714 to 1,717 symbols; none is removed.
