@@ -32,7 +32,7 @@ Root exports grow from 1,680 to 1,713 symbols (33 added). Comparing the generate
 Each element is an analytic reflectance pattern written for the engine; continuous patterns are quantized to 1024 neutral levels (step below 0.1 % of the range, far below sensor noise).
 
 - **Dead leaves:** opaque disks with Poisson centres, radius density ∝ r⁻³, uniform grey, after F. Cao, F. Guichard and H. Hornung, "Dead leaves model for measuring texture quality on a digital camera", *Proc. SPIE* 7537 (2010), and A. B. Lee, D. Mumford and J. Huang, "Occlusion models for natural images", *IJCV* 41 (2001). Disks are drawn front to back until the area is covered, the backward perfect simulation of W. S. Kendall and E. Thönnes, "Perfect simulation in stochastic geometry", *Pattern Recognition* 32 (1999). Seeded with the engine's xorshift32 stream and only correctly rounded arithmetic; a test locks the texture's hash and disk count.
-- **Bar groups:** the three-bar group of the USAF-1951 target (MIL-STD-150A, US government, public domain) in the engine's own arrangement, at LW/PH frequencies (ISO 12233 convention) with engine-drawn seven-segment numerals. Tests check bar widths PH/LW and the bar sequence.
+- **Bar groups:** the three-bar group of the USAF-1951 target (MIL-STD-150A, a US-government publication) in the engine's own arrangement, at LW/PH frequencies (ISO 12233 convention) with engine-drawn seven-segment numerals. Tests check bar widths PH/LW and the bar sequence.
 - **Slanted squares:** rotated squares giving slanted edges for the method of P. D. Burns, "Slanted-Edge MTF for Digital Camera and Scanner Analysis", IS&T PICS 2000 (free). A test checks every reported edge against the pattern.
 - **Zone plate** cos(π·k·r²) (the Fresnel zone plate chirp; J. W. Goodman, *Introduction to Fourier Optics*), **hyperbolic wedge**, **line grid**, **fiducial**, **sine star**: definitions and tests in `test/chart-elements.test.ts`.
 - **Composite:** later elements cover earlier ones; LW/PH keeps the composite's picture height; nested defaults are reported by path; caller spectra in elements enter the scene digest.
@@ -66,7 +66,7 @@ Each region keeps the whole frame's absolute native site indices (noise seeds, C
 
 ## Rights and licensing
 
-- **No third-party code, data or constants added.** Every chart element, layout rule, numeral shape and lens rule is written for the engine. Cited papers and standards are used for definitions and relations, not copied. No chart layout of any vendor and no reflectance data set is included; the USAF-1951 concept is a US-government work in the public domain.
+- **No third-party code, data or constants added.** Every chart element, layout rule, numeral shape and lens rule is written for the engine. Cited papers and standards are used for definitions and relations, not copied. No chart layout of any vendor and no reflectance data set is included; the USAF-1951 three-bar concept comes from a US-government publication (MIL-STD-150A), and only the concept is used.
 - **No new runtime dependency.** `package.json` and `package-lock.json` changed only in their version fields.
 
 ## Privacy and security

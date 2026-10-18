@@ -4,8 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## BarGroupsChartScene
 
-2.3: groups of three dark bars on a light plate (the public-domain three-bar concept of the USAF-1951
-target, in the engine's own arrangement): one group per frequency, vertical bars (horizontal resolution)
+2.3: groups of three dark bars on a light plate (the three-bar concept of the US Air Force 1951 target,
+a US-government publication, in the engine's own arrangement): one group per frequency, vertical bars (horizontal resolution)
 in the upper row and horizontal bars (vertical resolution) below, optionally labelled with engine-drawn
 seven-segment numerals. Frequencies are line widths per picture height (LW/PH, as in ISO 12233), where
 the picture height is the chart's height: one bar is PH/LW wide.
