@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Subject distance for framing a chart (2.4). Thin lens: an object at distance d from a lens of focal length f
+ * Subject distance for framing a chart (2.3). Thin lens: an object at distance d from a lens of focal length f
  * images at v = f·d/(d − f) with magnification m = v/d = f/(d − f), so the distance for a magnification m is
  * d = f·(1 + 1/m). This is the same framing the capture facade uses (`scene.framing`, `chartSize`), so a chart
  * placed at the returned distance with `chartSize` fills the frame as reported.
@@ -61,7 +61,7 @@ function positive(value: unknown, name: string): number {
   return value;
 }
 
-/** The subject distance that fits a chart of a given physical size to the frame, with magnification, coverage and the minimum-focus check (2.4). */
+/** The subject distance that fits a chart of a given physical size to the frame, with magnification, coverage and the minimum-focus check (2.3). */
 export function calculateSubjectDistanceForFraming(input: CalculateSubjectDistanceForFramingInput): SubjectFraming {
   requireInputObject(input, "calculateSubjectDistanceForFraming input");
   for (const key of Object.keys(input)) if (!["sensor", "focalLengthMm", "equivalentFocalLengthMm", "chart", "fit"].includes(key))

@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSubjectDistanceForFraming
 
-The subject distance that fits a chart of a given physical size to the frame, with magnification, coverage and the minimum-focus check (2.4).
+The subject distance that fits a chart of a given physical size to the frame, with magnification, coverage and the minimum-focus check (2.3).
 
 ```ts
 export function calculateSubjectDistanceForFraming(input: CalculateSubjectDistanceForFramingInput): SubjectFraming;

@@ -6,7 +6,7 @@ import { GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM, InvalidConfigurationError, c
 const fullFrame = { widthMm: 36, heightMm: 24 };
 const a3 = { widthM: 0.42, heightM: 0.28 };
 
-describe("generic prime family (2.4)", () => {
+describe("generic prime family (2.3)", () => {
   it("derives the focal length, f-number range and minimum focus of every prime", () => {
     const expected: Record<number, [number, number]> = { 10: [2.8, 16], 16: [2.8, 16], 20: [1.8, 22], 28: [1.8, 22], 35: [1.4, 22], 85: [1.4, 22], 105: [2, 22], 135: [2, 22],
       200: [2.8, 32], 300: [2.8, 32], 400: [4, 32], 600: [4, 32], 800: [5.6, 32], 1200: [8, 32] };

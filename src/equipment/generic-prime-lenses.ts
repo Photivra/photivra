@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Generic prime lens family (2.4): educational lenses named by their full-frame-equivalent focal length,
+ * Generic prime lens family (2.3): educational lenses named by their full-frame-equivalent focal length,
  * written for this engine. They are not real products and carry no brand. Each lens is defined by three
  * rules only:
  * - actual focal length = equivalent focal length ÷ the sensor's diagonal crop factor

@@ -169,7 +169,7 @@ export interface SimulateCaptureOptions {
     /** Must lie in the lens capability (the generic primes are 50 mm). Default: the lens's shortest focal length. */
     focalLengthMm?: number;
     /**
-     * Opt-in (2.4): a lens of the generic prime family by its full-frame-equivalent focal length
+     * Opt-in (2.3): a lens of the generic prime family by its full-frame-equivalent focal length
      * (`GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM`). Its physical focal length is the equivalent ÷ the diagonal crop
      * factor of the simulated frame (output width × height × pixel pitch); it replaces the tier lens's focal length and
      * f-number range (the tier lens's transmission is kept). An f-number outside the prime's range, or a subject or
@@ -854,7 +854,7 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
 
   // Lens
   const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf", "diffraction", "prime"]);
-  // Generic prime (2.4): resolved on the simulated frame's size, which the output and sensor sections validate again below.
+  // Generic prime (2.3): resolved on the simulated frame's size, which the output and sensor sections validate again below.
   let prime: GenericPrimeLens | undefined;
   if (lensOptions.prime !== undefined) {
     if (lensOptions.focalLengthMm !== undefined) fail("lens.prime and lens.focalLengthMm cannot both be given: the prime sets the focal length.");

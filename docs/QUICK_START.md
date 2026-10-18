@@ -64,7 +64,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | --- | --- | --- |
 | `camera` | `"professional"` | A generic tier id (`"consumer"`, `"prosumer"`, `"professional"`) or a full `GenericEquipmentTierPreset` record. A record must have exactly the preset shape (unknown fields at the top level, in `body`, `lens` or `lens.matchedReference` are rejected) and each profile is re-checked by its own parser. Tier values are synthetic educational designs, not real cameras. |
 | `lens.focalLengthMm` | 50 | Must lie in the lens capability; the generic primes are 50 mm. |
-| `lens.prime` | off | 2.4: a generic prime by full-frame-equivalent focal length (see [Generic prime lenses](#generic-prime-lenses-24)). |
+| `lens.prime` | off | 2.3: a generic prime by full-frame-equivalent focal length (see [Generic prime lenses](#generic-prime-lenses-23)). |
 | `lens.fNumber` | 8 | Used in `manual` and `aperture-priority`; resolved automatically otherwise. Must lie in f/4–f/16. |
 | `lens.focusDistanceM` | the subject distance | |
 | `lens.pupilSampling` | off | `{ radialSamples, angularSamples }` traces an ideal circular pupil, which renders defocus. Off means one chief ray per sample. Angular samples 4–64, at most 256 rays. |
@@ -152,7 +152,7 @@ pixels is therefore a 0.38 mm crop of a large sensor, not a downscaled full fram
 signal per pixel, and so the noise and the ISO behaviour, physically consistent with the tier's
 sensor values.
 
-### Generic prime lenses (2.4)
+### Generic prime lenses (2.3)
 
 `lens.prime` picks a lens of the engine's generic prime family by its full-frame-equivalent focal
 length: 10, 12, 14, 16, 20, 24, 28, 35, 40, 50, 85, 105, 135, 200, 300, 400, 500, 600, 800 or 1200 mm
@@ -177,7 +177,7 @@ kept, and the assumption `lens.prime` records the resolved lens. `resolveGeneric
 same lens for any sensor size. `lens.focalLengthMm` keeps working as before and cannot be combined with
 `lens.prime`.
 
-### Fitting a chart to the frame (2.4)
+### Fitting a chart to the frame (2.3)
 
 `calculateSubjectDistanceForFraming({ sensor, focalLengthMm | equivalentFocalLengthMm, chart, fit? })`
 returns the distance at which a chart of physical size `chart` (`{ widthM, heightM? }`, as for
