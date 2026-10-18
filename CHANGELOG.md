@@ -10,7 +10,7 @@
 
 Defaults are unchanged: without `output.metadata` every request, RAW, image and encoded file is byte-identical to 2.3.0 (new hash locks on the facade's JPEG, PNG, Display P3 PNG, DNG and ideal-reference PNG bytes, recorded on 2.3.0, plus the existing integration locks).
 
-## 2.3.0 — unreleased (prepared October 18, 2026)
+## 2.3.0 — published October 18, 2026
 
 A minor release for building test charts and comparing captures: generic chart elements and a `composite` preset to lay them out, physical chart sizes (`chartSize`) with a framing-distance calculator and a generic prime lens family (`lens.prime`), an opt-in box pixel aperture, byte-identical region rendering for tiles and crops, and ideal reference images without camera effects (`simulateIdealReference`). Everything is opt-in: without the new inputs every request, plan, RAW, image, encoded file, scene digest and hash lock is byte-identical to 2.2.1 (the engine version recorded in captures aside). Root exports grow from 1,680 to 1,713 symbols; none is removed.
 
