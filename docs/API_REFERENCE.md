@@ -2077,6 +2077,14 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`CalculateSubjectFramingCropInput`](api/output-subject-framing-crop.md#calculatesubjectframingcropinput) | Type |
 | [`SubjectFramingCrop`](api/output-subject-framing-crop.md#subjectframingcrop) | Type |
 
+## output/text-metadata.ts
+
+[Detailed contracts](api/output-text-metadata.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/text-metadata.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`OutputTextMetadata`](api/output-text-metadata.md#outputtextmetadata) | Type |
+
 ## processing/demosaic.ts
 
 [Detailed contracts](api/processing-demosaic.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/processing/demosaic.ts)

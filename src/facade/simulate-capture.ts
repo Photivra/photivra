@@ -25,6 +25,8 @@
  * - motion: constant camera angular velocity and the electronic rolling-shutter exposure schedule.
  * The 2.1 options are opt-in in the same way: `lens.diffraction`, `output.demosaic: "ahd"` and
  * `sensor.antiAliasing` (a birefringent point-splitting low-pass filter in the sensor optical stack).
+ * The 2.4 `output.metadata` adds the caller's text to JPEG, PNG and DNG files (see `src/output/text-metadata.ts`);
+ * without it every encoded file is byte-identical to 2.3.
  * @see docs/QUICK_START.md
  */
 
@@ -69,6 +71,7 @@ import { transformOrientedRasterPointToNative } from "../output/capture-geometry
 import { resolveCaptureColorModel } from "../color/capture-color.js";
 import { evaluateBt709Oetf, evaluateSrgbEncoding, resolveRgbColorSpace } from "../color/rgb-color-spaces.js";
 import { serializePngImage, PNG_ENCODER_LIMITS, type PngColourEncoding } from "../output/png-encoder.js";
+import { addJpegTextMetadata, addPngTextMetadata, parseOutputTextMetadata, type OutputTextMetadata } from "../output/text-metadata.js";
 import { parseLensProjectionModel, type LensProjectionModel } from "../camera/lens-projection.js";
 import { prepareEnvironmentLensFieldMapping, type EnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
 import type { RadialDistortionProfile } from "../optics/radial-distortion.js";
@@ -258,6 +261,12 @@ export interface SimulateCaptureOptions {
     borderHandling?: SimulateCaptureBorderHandling;
     /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
     dng?: { capturedAtUtc?: string };
+    /**
+     * Opt-in (2.4) text written into the file for formats "jpeg", "png" and "dng": the caller's description,
+     * software, copyright and comment, unchanged (JPEG XMP + COM, PNG tEXt/iTXt, DNG TIFF tags + XMP; see the
+     * quick start). Each field is 1–2048 UTF-8 bytes with no control characters except line feed. Default: none.
+     */
+    metadata?: OutputTextMetadata;
     /**
      * Opt-in large images: the most native sensor sites (the output plus the demosaic margin on each side) the
      * capture may allocate, an integer up to `NATIVE_RAW_LIMITS.ceilingPixels` (2^27). With it, `width` and
@@ -560,6 +569,12 @@ const DARK_CURRENT_ELECTRONS_PER_SECOND = 1;
 const OPERATING_TEMPERATURE_C = 20;
 
 function fail(message: string): never { throw new InvalidConfigurationError(message); }
+/** Where `output.metadata` goes in each file format (reported in the `output.metadata` assumption). */
+const TEXT_METADATA_LAYOUT = Object.freeze({
+  jpeg: "XMP packet in APP1 (dc:description, xmp:CreatorTool, dc:rights, exif:UserComment), plus a COM segment holding the comment",
+  png: "One tEXt (printable Latin-1) or iTXt (UTF-8) chunk per field, keywords Description, Software, Copyright, Comment, before the first IDAT",
+  dng: "ImageDescription (statement, then the description) and Copyright when printable ASCII; an XMP packet in tag 700 with every field"
+});
 type ReadoutProfile = GenericEquipmentTierPreset["body"]["readout"][number]["profile"];
 /**
  * The readout profile with every regime's charge-domain transfer scaled by `areaScale`: system conversion gain
@@ -950,7 +965,7 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
 
   // Output and sensor
   const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep",
-    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng", "maximumPixels", "region"]);
+    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng", "maximumPixels", "region", "metadata"]);
   // Opt-in large images: a caller-raised native pixel limit. Without it the 4094-pixel sides are unchanged.
   const raisedPixels = outputOptions.maximumPixels === undefined ? undefined : integerIn(outputOptions.maximumPixels, "output.maximumPixels", 1, NATIVE_RAW_LIMITS.ceilingPixels);
   const maximumSide = raisedPixels === undefined ? 4094 : NATIVE_RAW_LIMITS.maximumDimension;
@@ -964,6 +979,12 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
     dngCapturedAtUtc = d.capturedAtUtc as string | undefined;
     if (dngCapturedAtUtc === undefined) assume("output.dng.capturedAtUtc", "default", null, "No capture time: the DNG carries no DateTimeOriginal (the engine never invents a wall clock).");
   } else if (outputOptions.dng !== undefined) fail("output.dng applies only to output.format \"dng\".");
+  const textMetadata = parseOutputTextMetadata(outputOptions.metadata, "output.metadata");
+  if (textMetadata && format !== "jpeg" && format !== "png" && format !== "dng") fail("output.metadata applies only to output.format \"jpeg\", \"png\" or \"dng\".");
+  const assumeTextMetadata = (layout: string): void => {
+    if (textMetadata) assume("output.metadata", "model", { fields: Object.keys(textMetadata), layout },
+      "The caller's text, written unchanged; the engine adds no text of its own (in the DNG the description follows the existing simulated-RAW statement). Without output.metadata the file is byte-identical to 2.3.");
+  };
   let colorEncoding: SimulateCaptureColorEncoding | undefined, pngBitDepth: 8 | 16 | undefined;
   if (format === "png") {
     colorEncoding = pick<SimulateCaptureColorEncoding>(outputOptions, "colorEncoding", "output.colorEncoding", "srgb",
@@ -1594,8 +1615,10 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
       const mapping = perceptual ? prepareRgbGamutMapping({ colorSpace: colorEncoding!, method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION }) : undefined;
       samples = encodeSdrFromLinear(rgb, colorEncoding!, pngBitDepth!, mapping).samples;
     }
-    const png = format === "png" ? serializePngImage({ width: outputWidth, height: outputHeight, bitDepth: pngBitDepth!, samples, colourEncoding: pngColourEncoding(colorEncoding!),
+    const encodedPng = format === "png" ? serializePngImage({ width: outputWidth, height: outputHeight, bitDepth: pngBitDepth!, samples, colourEncoding: pngColourEncoding(colorEncoding!),
       ...(raisedPixels === undefined || outputWidth * outputHeight <= PNG_ENCODER_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) }) : undefined;
+    const png = encodedPng && textMetadata ? addPngTextMetadata(encodedPng, textMetadata) : encodedPng;
+    if (png) assumeTextMetadata(TEXT_METADATA_LAYOUT.png);
     const referenceMs = clockMs() - referenceStarted;
     assume("reference.kind", "model", "ideal-reference",
       "An ideal reference, not a capture: the same scene, framing, chart size, output size, region and pixel grid as the capture request, with no camera effects.");
@@ -1699,8 +1722,10 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
         readNoiseRmsElectrons: resolved.combinedReadNoiseRmsElectrons }];
     }));
     const dngStarted = clockMs();
-    dng = await serializeNativeRawDng({ raw: rawOutput.raw, colorProfile, noise, ...(dngCapturedAtUtc === undefined ? {} : { capturedAtUtc: dngCapturedAtUtc }) });
+    dng = await serializeNativeRawDng({ raw: rawOutput.raw, colorProfile, noise, ...(dngCapturedAtUtc === undefined ? {} : { capturedAtUtc: dngCapturedAtUtc }),
+      ...(textMetadata ? { textMetadata } : {}) });
     encodeMs = clockMs() - dngStarted;
+    assumeTextMetadata(TEXT_METADATA_LAYOUT.dng);
     checkAbort();
     assume("output.dng", "model", { writer: "serializeNativeRawDng", schemaVersion: dng.schemaVersion, whiteLevel: dng.whiteLevel, blackLevels: dng.blackLevels,
       noiseProfile: dng.noiseProfile, unrepresentedSaturationFlagCount: dng.unrepresentedSaturationFlagCount },
@@ -1785,6 +1810,8 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
     const jpegEncodeStarted = clockMs();
     await runTask(jpegTask);
     jpeg = jpegTask.takeOutput().bytes;
+    if (textMetadata) jpeg = addJpegTextMetadata(jpeg, textMetadata);
+    assumeTextMetadata(TEXT_METADATA_LAYOUT.jpeg);
     encodeMs = clockMs() - jpegEncodeStarted;
     assume("output.jpeg", "model", { encoder: "photivra-print-jpeg", iccProfile: "photivra-srgb" }, "Baseline JPEG from the existing print JPEG encoder with an embedded sRGB ICC profile; the source digest covers a sample prefix, length and scene digest.");
   }
@@ -1794,6 +1821,8 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
     const pngStarted = clockMs();
     png = serializePngImage({ width: outputWidth, height: outputHeight, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!),
       ...(raisedPixels === undefined || outputWidth * outputHeight <= PNG_ENCODER_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) });
+    if (textMetadata) png = addPngTextMetadata(png, textMetadata);
+    assumeTextMetadata(TEXT_METADATA_LAYOUT.png);
     encodeMs = clockMs() - pngStarted;
     assume("output.png", "model", { encoder: "serializePngImage", bitDepth: pngBitDepth, colourEncoding: pngColourEncoding(colorEncoding!) },
       "Deterministic PNG (8/16-bit RGB, in-house zlib) with the colour encoding signalled in the file: the sRGB chunk for sRGB, otherwise a cICP chunk with ITU-T H.273 primaries/transfer code points. No mastering-display (mDCV) or content-light-level (cLLI) metadata is written.");

@@ -1769,6 +1769,7 @@ export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_L
   type SimulateCaptureDemosaic, type SimulateCaptureBorderHandling, type SimulateCaptureLensDistortion, type SimulateCaptureMotion,
   type SimulateCaptureSensorAntiAliasing, type SimulateCaptureCostOption, type SimulateCapturePixelAperture, SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES,
   simulateIdealReference, type IdealReferenceResult } from "./facade/simulate-capture.js";
+export { type OutputTextMetadata } from "./output/text-metadata.js";
 export { GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM, GENERIC_PRIME_THIRD_STOP_F_NUMBERS, GENERIC_PRIME_MINIMUM_FOCUS, resolveGenericPrimeLens,
   calculateGenericPrimeMinimumFocusDistanceM, type GenericPrimeLens, type GenericPrimeEquivalentFocalLengthMm } from "./equipment/generic-prime-lenses.js";
 export { calculateSubjectDistanceForFraming, type CalculateSubjectDistanceForFramingInput, type SubjectFraming, type SubjectFramingFit } from "./facade/subject-framing.js";

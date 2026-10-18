@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Text metadata in encoded files (`output.metadata`).** `simulateCapture` (and a PNG `simulateIdealReference`) takes an optional `output.metadata: { description?, software?, copyright?, comment? }` and writes the caller's text, unchanged, into the file: JPEG as an XMP `rdf:Description` in the existing APP1 packet (`dc:description`, `xmp:CreatorTool`, `dc:rights`, `exif:UserComment`) plus a COM segment for the comment; PNG as `tEXt` chunks (printable Latin-1) or uncompressed `iTXt` chunks (UTF-8) with the keywords Description, Software, Copyright and Comment before the first IDAT; DNG as an XMP packet in tag 700, with the description appended to ImageDescription after the simulated-RAW statement and a Copyright tag when the text is printable ASCII. The engine adds no text of its own beyond the DNG's existing simulated-RAW statement. Each field is 1–2048 UTF-8 bytes; NUL, lone surrogates, U+FFFE/U+FFFF and control characters other than line feed are rejected with an `InvalidConfigurationError` naming the field. Specifications: ITU-T T.81 §B.2.4.5, Adobe XMP Specification Parts 1–3, W3C PNG Third Edition §11.3.3, TIFF 6.0 (see the quick start's "Text metadata (2.4)").
+- **`serializeNativeRawDng` `textMetadata`.** The same fields for direct DNG writing.
+- **`OutputTextMetadata`** type. Root exports grow from 1,713 to 1,714 symbols; none is removed.
+
+Defaults are unchanged: without `output.metadata` every request, RAW, image and encoded file is byte-identical to 2.3.0 (new hash locks on the facade's JPEG, PNG, Display P3 PNG, DNG and ideal-reference PNG bytes, recorded on 2.3.0, plus the existing integration locks).
+
 ## 2.3.0 — published October 18, 2026
 
 A minor release for building test charts and comparing captures: generic chart elements and a `composite` preset to lay them out, physical chart sizes (`chartSize`) with a framing-distance calculator and a generic prime lens family (`lens.prime`), an opt-in box pixel aperture, byte-identical region rendering for tiles and crops, and ideal reference images without camera effects (`simulateIdealReference`). Everything is opt-in: without the new inputs every request, plan, RAW, image, encoded file, scene digest and hash lock is byte-identical to 2.2.1 (the engine version recorded in captures aside). Root exports grow from 1,680 to 1,713 symbols; none is removed.

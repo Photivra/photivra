@@ -267,6 +267,12 @@ export interface SimulateCaptureOptions {
     /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
     dng?: { capturedAtUtc?: string };
     /**
+     * Opt-in (2.4) text written into the file for formats "jpeg", "png" and "dng": the caller's description,
+     * software, copyright and comment, unchanged (JPEG XMP + COM, PNG tEXt/iTXt, DNG TIFF tags + XMP; see the
+     * quick start). Each field is 1–2048 UTF-8 bytes with no control characters except line feed. Default: none.
+     */
+    metadata?: OutputTextMetadata;
+    /**
      * Opt-in large images: the most native sensor sites (the output plus the demosaic margin on each side) the
      * capture may allocate, an integer up to `NATIVE_RAW_LIMITS.ceilingPixels` (2^27). With it, `width` and
      * `height` may each reach 16 384 sites including the margin; without it they stay at most 4094. Time and
