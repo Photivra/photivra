@@ -39,7 +39,14 @@
  * check the two methods against each other where both are practical (β from 192 to 400), the real-space cells
  * against the asymptotic leakage 8√2/(π³·β) of the centre cell, and convergence under doubled panel counts.
  * The β threshold lies above every β a `simulateCapture` pitch up to 100 µm can reach (at most 100/(0.3805·1.4) ≈ 188),
- * so those captures keep the frequency-domain values unchanged.
+ * so those captures keep the frequency-domain values unchanged. It cannot move much lower with this method: the innermost
+ * boundary Z = ½ needs x = π·β/2 ≥ 300 for the expansion, so β ≥ 191; below that J₀ and J₁ would need another method, and
+ * its cells would differ from the frequency-domain cells in the last bits, changing captures that exist today.
+ *
+ * **Reuse (2.6).** The cells depend only on (β, R) (and the test-only node scale), so `calculateAiryCellEnergies` keeps the
+ * 256 most recently used results and returns copies: tiles of one frame rendered in the same worker, and captures that
+ * change only the exposure, ISO, scene or output, reuse the kernels instead of integrating them again. The frequency-domain
+ * loop also takes cos θ and sin θ from a per-call table computed with the same expressions, so the values are unchanged.
  *
  * **Truncation and normalization.** The kernel is the (2R+1)² window of cells. The Airy tails fall only as
  * r⁻³, so a finite window always misses some energy: it is reported per wavelength, and the window is then
@@ -179,9 +186,22 @@ function sinc(x: number): number {
  * multiplies the node or panel counts (1 in production; the tests use 2 to check convergence).
  */
 export function calculateAiryCellEnergies(beta: number, radius: number, scale = 1): { cells: Float64Array; radialNodes: number; angularNodes: number; realSpace: boolean } {
-  return beta >= AIRY_REAL_SPACE_MINIMUM_BETA ? { ...calculateAiryCellEnergiesInRealSpace(beta, radius, scale), radialNodes: 0, realSpace: true } :
+  // 2.6: a pure function of (β, R, scale), so results are memoized (most recently used first) and handed out as copies.
+  // Tiles of one frame, and captures that change only the exposure or the scene, rebuild the same kernels.
+  const key = beta + "|" + radius + "|" + scale, cached = AIRY_CELL_CACHE.get(key);
+  if (cached) {
+    AIRY_CELL_CACHE.delete(key); AIRY_CELL_CACHE.set(key, cached);
+    return { ...cached, cells: cached.cells.slice() };
+  }
+  const result = beta >= AIRY_REAL_SPACE_MINIMUM_BETA ? { ...calculateAiryCellEnergiesInRealSpace(beta, radius, scale), radialNodes: 0, realSpace: true } :
     { ...calculateAiryCellEnergiesInFrequencyDomain(beta, radius, scale), realSpace: false };
+  AIRY_CELL_CACHE.set(key, { ...result, cells: result.cells.slice() });
+  if (AIRY_CELL_CACHE.size > AIRY_CELL_CACHE_ENTRIES) AIRY_CELL_CACHE.delete(AIRY_CELL_CACHE.keys().next().value!);
+  return result;
 }
+/** Memoized cell energies (2.6): 256 entries of (R + 1)² values, at most 256 × 33² × 8 bytes ≈ 2.2 MB. */
+const AIRY_CELL_CACHE_ENTRIES = 256;
+const AIRY_CELL_CACHE = new Map<string, { cells: Float64Array; radialNodes: number; angularNodes: number; realSpace: boolean }>();
 
 /** Hankel asymptotic coefficients a_k(ν) of DLMF 10.17.1 for ν = 0 and 1, k = 0..15. */
 const HANKEL = ((): { a0: Float64Array; a1: Float64Array } => {
@@ -264,6 +284,9 @@ export function calculateAiryCellEnergiesInFrequencyDomain(beta: number, radius:
   const quarter = Math.ceil(scale * (c + margin) / 4), radialNodes = Math.ceil(scale * (c + margin));
   const { nodes, weights } = gaussLegendre(radialNodes), size = radius + 1, cells = new Float64Array(size * size);
   const ca = new Float64Array(size), cb = new Float64Array(size), angularStep = (Math.PI / 2) / quarter;
+  // cos θ and sin θ of every angular node, computed once with the same expressions as inside the loop (same values).
+  const cosines = new Float64Array(quarter + 1), sines = new Float64Array(quarter + 1);
+  for (let k = 0; k <= quarter; k++) { const theta = k * angularStep; cosines[k] = Math.cos(theta); sines[k] = Math.sin(theta); }
   for (let r = 0; r < radialNodes; r++) {
     const t = nodes[r]!, rho = 1 - t * t;
     // H(1 − t²) without cancellation: acos(1 − t²) = 2·asin(t/√2), ρ·√(1 − ρ²) = ρ·t·√(2 − t²).
@@ -271,7 +294,7 @@ export function calculateAiryCellEnergiesInFrequencyDomain(beta: number, radius:
     // ∫₀¹ g(ρ) dρ = ∫₀¹ g(1 − t²)·2t dt; the 4 is the four symmetric quadrants of the angular trapezoid.
     const radialWeight = weights[r]! * 2 * t * rho * otf * 4 * angularStep;
     for (let k = 0; k <= quarter; k++) {
-      const theta = k * angularStep, x = beta * rho * Math.cos(theta), y = beta * rho * Math.sin(theta);
+      const x = beta * rho * cosines[k]!, y = beta * rho * sines[k]!;
       const w = radialWeight * (k === 0 || k === quarter ? 0.5 : 1) * sinc(x) * sinc(y);
       // cos(2π·i·x) and cos(2π·j·y) by the Chebyshev recurrence.
       const cx = Math.cos(2 * Math.PI * x), cy = Math.cos(2 * Math.PI * y);
