@@ -233,6 +233,16 @@ const coverage = calculateChartFraming({ sensor: { widthMm: 36, heightMm: 24 }, 
 console.log(coverage.coverage.frameWidthFraction, coverage.magnification, coverage.belowMinimumFocus);
 ```
 
+**Close-up light (2.6).** Focused close, the lens delivers less light: the working f-number is N·(1 + m) with m = v/s at
+the focus distance (ideal symmetric thin lens, unity pupil magnification), so the image-plane irradiance falls by
+1/(1 + m)² compared with the same f-number at infinity focus. `calculateChartFraming` and
+`calculateSubjectDistanceForFraming` report it as `closeUpTransmission` (1/(1 + m)²) and `closeUpLossStops` (2·log₂(1 + m),
+how many stops darker). Both come from the same function as the factor `simulateCapture` applies in the scene-to-sensor
+irradiance, so they cannot drift apart; a test checks the RAW signal ratio of a uniform chart at 0.35 m and 50 m against
+them within 0.5 %. With the 50 mm prime: 0.81 (0.30 stop darker) at 0.5 m, 0.90 (0.15 stop) at 1 m, 0.95 (0.07 stop) at
+2 m and 0.98 (0.03 stop) at 5 m. Show it to users as "about N stops darker at this distance"; it is the thin-lens
+model, not a measured lens (real lenses with non-unity pupil magnification differ).
+
 Tests check that at `calculateSubjectDistanceForFraming`'s distance the coverage is 1 on the fitted side (every fit,
 three sensor shapes, four primes), and that at any distance it equals `result.scene.chart` from `simulateCapture` with
 `chartSize` (magnification, both coverage fractions, the chart's image size and the framed size, within 1e-12
