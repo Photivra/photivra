@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.2.1 — unreleased (prepared October 18, 2026)
+## 2.2.1 — published October 18, 2026
 
 A patch release: `simulateCapture` `lens.diffraction` no longer fails for about a third of the combinations of real pixel pitches and f-numbers because of a floating-point rounding error in the kernel-to-site mapping, and the diffraction assumption states when its default window is capped at 32 sites. Captures that 2.2.0 completed are byte-identical (RAW codes, images, kernels and assumption values); only the explanation text of capped windows changes. No root export is added or removed (1,680 symbols).
 

@@ -1,6 +1,6 @@
 # 2.2.1 release candidate
 
-> **Candidate record, prepared October 18, 2026.** This is the production release request for `@photivra/engine@2.2.1`. Preparing it does not tag, publish or create a GitHub release. **Tagging `v2.2.1` triggers npm publishing and requires the owner's explicit approval.**
+> **Published October 18, 2026.** The owner tagged `v2.2.1` on `2a5825c` and published the GitHub release; npm publishing ran from the tag. See [Publication](#publication). The record below is kept as the release request it was.
 
 ## At a glance
 
@@ -58,8 +58,20 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 ## Remaining release checklist
 
 - [x] Fix with changelog entry; version surfaces aligned at 2.2.1 (`npm run release:prepare -- 2.2.1`); API reference regenerated.
-- [ ] Owner's review of this record.
-- [ ] Green CI on this update's pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.2.1`.** The tag triggers npm publishing. First confirm that 2.2.1 is not already on npm, and never move `v2.2.0`.
-- [ ] Owner steps after approval: tag the merged `main` commit `v2.2.1` and push the tag, let the Publish npm workflow run from it, then create the GitHub release "@photivra/engine 2.2.1" from the tag.
-- [ ] After publication: verify the npm version, dist-tag, integrity and provenance; publish GitHub release notes; update publication dates in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on this update's pull request (#340), then on `main` after merge ([CI run 858](https://github.com/Photivra/photivra/actions/runs/39086135717) on `2a5825c`).
+- [x] **The owner's explicit approval to tag `v2.2.1`.** The owner tagged `v2.2.1` on `2a5825c`; `v2.2.0` is unchanged.
+- [x] Owner steps after approval: the owner pushed the `v2.2.1` tag, the Publish npm workflow ran from it, and the owner created the GitHub release "@photivra/engine 2.2.1" from the tag.
+- [x] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.2.1` → `2a5825c3cc954f80e15251169ed8a1bc2fead8a5` (#340) |
+| Publish workflow | [Publish npm run 18](https://github.com/Photivra/photivra/actions/runs/39087857249), passed; the provenance was signed at 01:58 UTC and the registry records publication at 02:00 UTC |
+| npm | `@photivra/engine@2.2.1`, dist-tag `latest` |
+| Integrity | `sha512-EfO4Mwn1mZDaoKEkwLZ5Z72PsdjWOaGEj3Rwr/KkZwhzlzYhQc9QVgLyoeG+uxrIxJ7qDCJjwvl0nf3L6JASDQ==` (shasum `efcffbca08b2788b32031f0c91dc1f717ab7b4e2`) |
+| Provenance | Signed SLSA provenance for `2a5825c` from `.github/workflows/publish.yml` at `refs/tags/v2.2.1`, published to the Sigstore transparency log (log index 3304263933) |
+| Tarball contents | Byte-identical (same shasum and integrity, 824 files) to `npm pack` of a clean local build of `v2.2.1` (checked October 18, 2026) |
+| GitHub release | [@photivra/engine 2.2.1](https://github.com/Photivra/photivra/releases/tag/v2.2.1) |
