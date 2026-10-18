@@ -12,8 +12,10 @@ jobs:
   verify:
     name: verify (${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    # The primary leg normally takes about 3 minutes, the others under 2.
-    timeout-minutes: 15
+    # Measured in October 2026: the primary lts/* leg, which also runs the
+    # coverage gate, takes 12m56s-13m06s on push to main (about 9 minutes on
+    # some pull requests); the other legs take 3-5 minutes.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
