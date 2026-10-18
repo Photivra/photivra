@@ -1208,8 +1208,11 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`calculateChartFraming`](api/facade-subject-framing.md#calculatechartframing) | Runtime |
+| [`CalculateChartFramingInput`](api/facade-subject-framing.md#calculatechartframinginput) | Type |
 | [`calculateSubjectDistanceForFraming`](api/facade-subject-framing.md#calculatesubjectdistanceforframing) | Runtime |
 | [`CalculateSubjectDistanceForFramingInput`](api/facade-subject-framing.md#calculatesubjectdistanceforframinginput) | Type |
+| [`ChartFraming`](api/facade-subject-framing.md#chartframing) | Type |
 | [`SubjectFraming`](api/facade-subject-framing.md#subjectframing) | Type |
 | [`SubjectFramingFit`](api/facade-subject-framing.md#subjectframingfit) | Type |
 

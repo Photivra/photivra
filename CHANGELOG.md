@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`calculateChartFraming`: chart coverage at any subject distance.** `calculateChartFraming({ sensor, focalLengthMm | equivalentFocalLengthMm, chart, subjectDistanceM, focusDistanceM? })` returns the thin-lens magnification v/d (v at the focus distance, default the subject distance), the framed plane size, the chart's coverage of the frame width and height (above 1 when cropped), its image size in millimetres, the generic prime of that equivalent focal length and the minimum-focus check (`belowMinimumFocus`), with assumptions. It is the framing `simulateCapture` uses: tested equal to `result.scene.chart` with `chartSize` (within 1e-12 relative, including a separate focus distance) and to coverage 1 on the fitted side at `calculateSubjectDistanceForFraming`'s distance. New `CalculateChartFramingInput` and `ChartFraming`. Root exports grow from 1,714 to 1,717 symbols; none is removed.
+
 ## 2.4.1 — published October 18, 2026
 
 A republication of 2.4.0. 2.4.0 was tagged and released on GitHub on October 18, 2026 but never reached npm: the Publish npm workflow's verify job hit its 10-minute limit during the coverage gate on both attempts and was cancelled before the publish job ran. 2.4.1 carries the 2.4.0 contents unchanged (caller text metadata in JPEG, PNG and DNG outputs, `output.metadata`, `serializeNativeRawDng` `textMetadata` and `OutputTextMetadata`; see the 2.4.0 entry below) plus the publish-workflow fix. Apart from the engine version that captures record, every request, plan, RAW, image, encoded file and hash lock is byte-identical to 2.4.0, and without `output.metadata` to 2.3.0. Root exports stay at 1,714 symbols; none is added or removed.

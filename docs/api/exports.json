@@ -438,6 +438,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateChartFraming",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateChartFramingInput",
+      "source": "src/facade/subject-framing.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateChartRadianceBatch",
       "source": "src/facade/chart-radiance-batch.ts",
       "kind": "runtime"
@@ -1840,6 +1850,11 @@
     {
       "name": "ChartElementScene",
       "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartFraming",
+      "source": "src/facade/subject-framing.ts",
       "kind": "type"
     },
     {
