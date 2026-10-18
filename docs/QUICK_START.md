@@ -878,6 +878,49 @@ strips.forEach((strip, i) => stitched.set(strip.image.samples as Uint8Array, i *
 console.log(strips[0]!.region, stitched.length);
 ```
 
+## Ideal reference (2.3)
+
+`simulateIdealReference(options)` takes the same options as `simulateCapture` and returns what the camera
+would have recorded **without any camera effects**: the same scene, framing, chart size, output size,
+region and pixel grid, but no lens blur, diffraction, defocus, projection or distortion, vignetting,
+anti-aliasing filter, colour mosaic or demosaicing (every pixel has all three channels), photon, dark or
+read noise, dark signal, ADC rounding, or camera motion and rolling shutter. A comparison view can show
+it next to a capture as "the chart without the effects applied". The result is labelled
+`kind: "ideal-reference"` with a `label` for the user interface; it has no RAW, plan or request.
+
+**Exposure convention: exposure-matched.** Each pixel's channels are the expected (noise-free) signal the
+capture's own sensor would record at the capture's resolved exposure (f-number, shutter, ISO,
+illuminance and lens transmission), from the facade's environment chain evaluated once per channel at the
+optical axis with ideal optics. They are normalized like the RAW development, (code − black)/(white −
+black) = e·d/(G·(W − B)) for a linear readout, clipped at white, and developed with the capture's own
+white balance, camera → XYZ → sRGB matrices, highlight mode, tone curve and encoding. So a uniform patch
+renders at the capture's mean level at any exposure (tests check within one 8-bit code across shutter,
+ISO, f-number, pixel size, tone curve and a tungsten illuminant), and what differs between the two images
+is the camera effects plus noise. A fixed mapping such as "reflectance → sRGB, 18 % → 118" was not
+chosen: it would differ from the capture by the exposure itself, which is not a camera artefact, and an
+over- or under-exposed capture would look wrong only because of the convention. The assumption
+`reference.exposure` records the convention and the per-channel scale, `reference.excludes` the effects
+left out and `reference.sampling` the pixel sampling.
+
+**Pixel sampling** follows the request: each pixel samples the scene at its centre, like the default
+point aperture, or with `sensor.pixelAperture: "box"` averages it over the photosite with the same N × N
+midpoint rule. Formats: `srgb-8`, `srgb-16` and `png` (any colour encoding and gamut mapping); `dng`
+(no RAW) and `jpeg` (compression artefacts) are refused, and so is `whiteBalance: "auto"` (the capture
+measures it from its own noisy RAW; use `"scene-illuminant"` or a fixed setting for both).
+
+It is deterministic and cheap: no RAW is simulated, a chart's materials are evaluated once, and each
+pixel costs one material lookup per sample. Measured for a 768 × 512 composite chart with 18 elements
+(Node 24, one core, one run): 0.44 s with point sampling and 1.61 s with the 4 × 4 box, against 49.3 s
+for the default capture of the same request.
+
+```ts
+import { simulateIdealReference, simulateCapture, type SimulateCaptureOptions } from "@photivra/engine";
+
+const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, output: { width: 64, height: 48 }, lens: { diffraction: "circular-aperture" } };
+const [capture, reference] = await Promise.all([simulateCapture(request), simulateIdealReference(request)]);
+console.log(reference.kind, reference.label, capture.image.samples.length === reference.image.samples.length);
+```
+
 ## Not available
 
 The facade offers no atmospheric haze or polarizer (see [Optics](#optics)), flash, video, HDR brackets

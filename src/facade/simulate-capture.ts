@@ -81,6 +81,10 @@ import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
+import { calculateEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
+import { calculateSiteEffectiveSaturationCode } from "../capture/raw-white-level.js";
+import { prepareSensorColorDevelopment } from "../color/sensor-color-development.js";
+import type { SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { resolveAntiAliasingSpatialKernel, type AntiAliasingPointSplitComponent, type SensorOpticalStackProfile } from "../sensor/optical-stack.js";
 import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
@@ -778,6 +782,42 @@ function encodeSdrFromLinear(rgb: Float64Array, encoding: "srgb" | "display-p3" 
  * underlying request/plan, provenance and every assumption made. See docs/QUICK_START.md.
  */
 export async function simulateCapture(options: SimulateCaptureOptions): Promise<SimulateCaptureResult> {
+  return await runCapture(options, false) as SimulateCaptureResult;
+}
+
+/**
+ * The ideal reference of a capture request (2.3): the same scene, framing, chart size, output size, region and pixel
+ * grid as `simulateCapture(options)` would use, rendered with no camera effects (no lens blur, diffraction, defocus,
+ * distortion, vignetting, anti-aliasing filter, mosaic or demosaic, noise, dark signal or motion), at the capture's
+ * own exposure and developed with its white balance, colour matrices, tone curve and encoding (the
+ * `reference.exposure` assumption). Deterministic and cheap: no RAW is simulated. Formats srgb-8, srgb-16 and png.
+ * The result is labelled `kind: "ideal-reference"`; it is not a capture.
+ * @see docs/QUICK_START.md, "Ideal reference".
+ */
+export async function simulateIdealReference(options: SimulateCaptureOptions): Promise<IdealReferenceResult> {
+  return await runCapture(options, true) as IdealReferenceResult;
+}
+
+/** Result of {@link simulateIdealReference}: an ideal reference image, not a capture (no RAW, plan or request). */
+export interface IdealReferenceResult {
+  kind: "ideal-reference";
+  /** Human-readable label for a user interface. */
+  label: string;
+  facadeVersion: typeof SIMULATE_CAPTURE_FACADE_VERSION;
+  engineApiVersion: string;
+  image: { width: number; height: number; format: SimulateCaptureOutputFormat; samples: Uint8Array | Uint16Array; png?: Uint8Array; colorEncoding?: SimulateCaptureColorEncoding };
+  /** The resolved exposure of the capture this reference matches. */
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  scene: SimulateCaptureResult["scene"];
+  region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number };
+  diagnostics: { sampleCount: number; timingsMs: { reference: number; total: number } };
+  provenance: { scientificStatus: "approximation"; cameraPresetId: string; cameraPresetVersion: string; evidence: readonly EvidenceProvenance[];
+    composedContracts: readonly string[]; limitations: readonly string[] };
+  /** The capture request's assumptions, then `reference.kind`, `reference.excludes`, `reference.exposure` and `reference.sampling`. */
+  assumptions: readonly SimulateCaptureAssumption[];
+}
+
+async function runCapture(options: SimulateCaptureOptions, idealReference: boolean): Promise<SimulateCaptureResult | IdealReferenceResult> {
   const started = Date.now();
   requireInputObject(options, "simulateCapture options");
   const top = allowKeys(options, "simulateCapture options", ["camera", "lens", "exposure", "scene", "subjectDistanceM", "chartSize", "illuminant",
@@ -1445,6 +1485,114 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const environmentRaw: NativeEnvironmentRawInput = { raw: buildRawInput(intentOf(whiteBalanceState)), sceneBinding,
     maximumProviderEvaluations: Math.min(nativeRawMaximumProviderEvaluations(raisedPixels === undefined ? {} : { maximumPixels: raisedPixels }),
       Math.max(nativeWidth * nativeHeight, evaluations)) };
+
+  // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
+  if (idealReference) {
+    const referenceStarted = clockMs();
+    if (format !== "srgb-8" && format !== "srgb-16" && format !== "png") fail("simulateIdealReference supports output.format srgb-8, srgb-16 and png: a reference has no RAW (dng) and should not carry JPEG compression artefacts.");
+    if (needsAuto) fail("simulateIdealReference cannot reproduce output.whiteBalance \"auto\": the capture measures it from its noisy RAW. Use \"scene-illuminant\" or a fixed white balance.");
+    // 1. Electrons per unit spectral radiance at each spectral node, per channel: the facade's own environment chain at a
+    //    site next to the optical axis, with the ideal optics (no PSF, pupil, distortion, vignetting or motion). The signal
+    //    is linear in the radiance node values and, for this planar scene, the same at every site (paraxial π/(4N_w²)).
+    const cx = Math.floor(nativeWidth / 2) & ~1, cy = Math.floor(nativeHeight / 2) & ~1;
+    const channelSites: Record<Channel, number> = { red: cy * nativeWidth + cx, green: cy * nativeWidth + Math.min(cx + 1, nativeWidth - 1), blue: Math.min(cy + 1, nativeHeight - 1) * nativeWidth + Math.min(cx + 1, nativeWidth - 1) };
+    const electronsPerRadiance = {} as Record<Channel, Map<number, number>>;
+    for (const channel of CHANNELS) {
+      if (channelAt(channelSites[channel] % nativeWidth, Math.floor(channelSites[channel] / nativeWidth)) !== channel) fail("simulateIdealReference needs at least a 2 × 2 native raster.");
+      const environment = { ...(siteInput(channelSites[channel]).environment as unknown as Record<string, unknown>) };
+      environment.psf = { kind: "not-applied", evidence, limitation: "Ideal reference: no lens PSF." };
+      environment.fieldThroughput = { kind: "unity", evidence, limitation: "Ideal reference: no vignetting." };
+      environment.motion = { ...motion, angularVelocityRadPerSec: { pitch: 0, yaw: 0, roll: 0 } };
+      environment.temporalSampleCount = 1;
+      delete environment.pupil;
+      delete environment.lensFieldMapping;
+      const electrons = (radiance: (nm: number) => number): number => (calculateEnvironmentSensorPhotoSignal({ ...environment,
+        evaluateRadiance: (request: Readonly<SceneRadianceEvaluationRequest>) => ({ ...provider.evaluateRadiance(request), spectralRadianceWattsPerSquareMeterSteradianNanometer: radiance(request.wavelengthNanometers) })
+      } as unknown as Parameters<typeof calculateEnvironmentSensorPhotoSignal>[0]).value as unknown as { photo: { value: { photoSignal: { expectedGeneratedElectronCount: number } } } })
+        .photo.value.photoSignal.expectedGeneratedElectronCount;
+      const nodes = new Set<number>();
+      electrons((nm) => { nodes.add(nm); return 1; });
+      electronsPerRadiance[channel] = new Map([...nodes].sort((a, b) => a - b).map((node) => [node, electrons((nm) => (nm === node ? 1 : 0))]));
+    }
+    const wavelengths = [...new Set(CHANNELS.flatMap((c) => [...electronsPerRadiance[c].keys()]))].sort((a, b) => a - b);
+    // 2. Electrons → normalized RAW signal: (code − black)/(white − black) = e·d/(G·(W − B)) for the linear readout
+    //    (conversion gain G e⁻/DN, digital gain d, black B, effective white W of the capture's readout regime).
+    const relativePerElectron = {} as Record<Channel, number>;
+    for (const channel of CHANNELS) {
+      const { readoutProfile, regimeId } = regimeByChannel[channel];
+      const regime = resolveSensorReadoutRegime({ profile: readoutProfile as Parameters<typeof resolveSensorReadoutRegime>[0]["profile"], regimeId }).regime;
+      const gain = regime.systemConversionGainElectronsPerCode.value, digitalGain = regime.adc.digitalGain ?? 1, black = regime.adc.blackLevelCode;
+      const white = calculateSiteEffectiveSaturationCode({ physicalChargeCapacityElectrons: capacityElectrons, preAdcSaturationElectronEquivalent: regime.preAdcSaturationElectronEquivalent.value,
+        systemConversionGainElectronsPerCode: gain, blackLevelCode: black, digitalSaturationCode: regime.adc.digitalSaturationCode, adcMaximumCode: 2 ** regime.adc.bitDepth - 1, digitalGain },
+      readoutProfile as Parameters<typeof calculateSiteEffectiveSaturationCode>[1], regimeId);
+      relativePerElectron[channel] = digitalGain / (gain * (white - black));
+    }
+    // 3. Scene radiance per sample: chart materials once (and the fixed-size chart's surround), caller functions per sample.
+    const signalOf = (radiance: (nm: number) => number): [number, number, number] => {
+      const values = new Map(wavelengths.map((nm) => [nm, radiance(nm)]));
+      return CHANNELS.map((c) => { let e = 0; for (const [nm, a] of electronsPerRadiance[c]) e += a * values.get(nm)!; return e * relativePerElectron[c]; }) as [number, number, number];
+    };
+    const materialSignals = provider.chartMaterialAt ? Array.from({ length: chart!.materials.length + (chartSize ? 1 : 0) }, (_, m) => signalOf((nm) => provider.materialRadiance!(m, nm))) : undefined;
+    // 4. Pixels: the native sites of the output (or region) pixels, each centre-sampled or box-integrated like the capture.
+    const x0 = (region ? region.x : 0) + margin, y0 = (region ? region.y : 0) + margin, n = boxSamples, unit = 2 / width;
+    const referenceIntent = intentOf(whiteBalanceState), referenceGains = referenceIntent ? [referenceIntent.channelGains.red, referenceIntent.channelGains.green, referenceIntent.channelGains.blue] : null;
+    const development = prepareSensorColorDevelopment(CAMERA_TO_XYZ as unknown as Parameters<typeof prepareSensorColorDevelopment>[0],
+      referenceGains, highlightMode);
+    const rgb = new Float64Array(outputWidth * outputHeight * 3), counts = { whiteBalanceClippedSampleCount: 0, reconstructedPixelCount: 0 }, sum = [0, 0, 0];
+    for (let py = 0; py < outputHeight; py++) {
+      for (let px = 0; px < outputWidth; px++) {
+        sum[0] = 0; sum[1] = 0; sum[2] = 0;
+        for (let l = 0; l < n; l++) for (let k = 0; k < n; k++) {
+          const u = (x0 + px + (k + 0.5) / n - nativeWidth / 2) * unit, v = -(y0 + py + (l + 0.5) / n - nativeHeight / 2) * unit;
+          const s = materialSignals ? materialSignals[provider.chartMaterialAt!(u, v)]! : signalOf((nm) => provider.radianceAt(u, v, nm));
+          sum[0] += s[0]; sum[1] += s[1]; sum[2] += s[2];
+        }
+        // Normalized RAW values saturate at the white level, as in development.
+        const c = sum.map((value) => Math.min(1, Math.max(0, value / (n * n))));
+        development.developInto(c[0]!, c[1]!, c[2]!, rgb, (py * outputWidth + px) * 3, counts);
+      }
+      if ((py & 15) === 15) { await yieldControl(); checkAbort(); }
+    }
+    let samples: Uint8Array | Uint16Array;
+    if (!linearPath) {
+      const maximum = 2 ** rendering.bitDepth - 1, tone = prepareSdrPixelTone(rendering), scratch = new Float64Array(3);
+      samples = rendering.bitDepth === 8 ? new Uint8Array(rgb.length) : new Uint16Array(rgb.length);
+      const sdrCounts: SdrPixelCounts = { negative: 0, above: 0, changed: 0, low: 0, high: 0, outOfGamut: false };
+      for (let y = 0; y < outputHeight; y++) renderSdrRunInto(rgb, y * outputWidth * 3, outputWidth, rendering, tone, 2 ** rendering.renderingExposureEv, maximum, samples, y * outputWidth * 3, scratch, sdrCounts);
+    } else {
+      const mapping = perceptual ? prepareRgbGamutMapping({ colorSpace: colorEncoding!, method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION }) : undefined;
+      samples = encodeSdrFromLinear(rgb, colorEncoding!, pngBitDepth!, mapping).samples;
+    }
+    const png = format === "png" ? serializePngImage({ width: outputWidth, height: outputHeight, bitDepth: pngBitDepth!, samples, colourEncoding: pngColourEncoding(colorEncoding!),
+      ...(raisedPixels === undefined || outputWidth * outputHeight <= PNG_ENCODER_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) }) : undefined;
+    const referenceMs = clockMs() - referenceStarted;
+    assume("reference.kind", "model", "ideal-reference",
+      "An ideal reference, not a capture: the same scene, framing, chart size, output size, region and pixel grid as the capture request, with no camera effects.");
+    assume("reference.excludes", "model", ["lens PSF, diffraction, defocus and pupil sampling", "projection and distortion (ideal rectilinear mapping)", "vignetting", "anti-aliasing filter",
+      "colour filter mosaic and demosaicing (every pixel has all three channels)", "photon, dark and read noise", "dark signal", "ADC rounding and non-linearity", "camera motion and rolling shutter"],
+    "None of these is applied; each pixel's channels come from the scene radiance at the pixel alone.");
+    assume("reference.exposure", "model", { convention: "exposure-matched", fNumber, shutterSeconds, iso: resolvedIso, illuminanceLux,
+      normalizedSignalPerElectron: { ...relativePerElectron } },
+    "Exposure-matched: each channel is the expected (noise-free) signal the capture's own sensor would record at the resolved exposure (f-number, shutter, ISO, illuminance and lens transmission; the facade's environment chain at the optical axis), " +
+      "normalized like the RAW development ((code − black)/(white − black) = e·d/(G·(W − B)) for a linear readout), clipped at white, then developed with the capture's white balance, camera → XYZ → sRGB matrices, highlight mode, tone curve and encoding. " +
+      "So a uniform patch renders at the capture's mean level, and differences from the capture are the camera effects plus noise. Chosen over a fixed reflectance → sRGB mapping because that would differ from the capture by the exposure, which is not a camera artefact.");
+    assume("reference.sampling", "model", boxAperture ? { kind: "box", samplesPerAxis: n } : { kind: "point" },
+      boxAperture ? "Each pixel averages the scene over its square photosite with the same " + n + " × " + n + " midpoint rule as sensor.pixelAperture \"box\"." :
+        "Each pixel samples the scene at its centre, like the capture's default point aperture; use sensor.pixelAperture \"box\" for photosite-averaged pixels.");
+    return Object.freeze({ kind: "ideal-reference" as const, label: "Ideal reference (no camera effects); not a capture.", facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
+      image: { width: outputWidth, height: outputHeight, format, samples, ...(png ? { png, colorEncoding: colorEncoding! } : {}) },
+      exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds) },
+      scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
+        illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
+        framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },
+      ...(region && regionNative ? { region: { ...region, frameWidth: width, frameHeight: height } } : {}),
+      diagnostics: { sampleCount: outputWidth * outputHeight * n * n, timingsMs: { reference: referenceMs, total: Date.now() - started } },
+      provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion, evidence: [...FACADE_EVIDENCE, ...preset.evidence],
+        composedContracts: ["calculateEnvironmentSensorPhotoSignal", "resolveSensorReadoutRegime", "calculateSiteEffectiveSaturationCode", "prepareSensorColorDevelopment",
+          ...(linearPath ? ["resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["SDR rendering kernel"]), ...(png ? ["serializePngImage"] : [])],
+        limitations: ["Ideal reference of the planar scene at the capture's exposure: not a capture and not a measurement; it shows what the camera effects change, not an absolute colour truth."] },
+      assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a))) });
+  }
 
   async function runTask<T extends { run(): Promise<void>; cancel(): void; dispose(): void; readonly state: string }>(task: T): Promise<void> {
     const onAbort = (): void => task.cancel();

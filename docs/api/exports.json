@@ -3453,6 +3453,11 @@
       "kind": "type"
     },
     {
+      "name": "IdealReferenceResult",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
       "name": "IlluminationLensCorrection",
       "source": "src/output/lens-corrections.ts",
       "kind": "type"
@@ -7941,6 +7946,11 @@
       "name": "SimulateEnvironmentSensorRawFrameInput",
       "source": "src/capture/environment-raw-producer.ts",
       "kind": "type"
+    },
+    {
+      "name": "simulateIdealReference",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
     },
     {
       "name": "simulatePackedSensorRaw",

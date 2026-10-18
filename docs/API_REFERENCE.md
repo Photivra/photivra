@@ -1165,6 +1165,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`IdealReferenceResult`](api/facade-simulate-capture.md#idealreferenceresult) | Type |
 | [`SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES`](api/facade-simulate-capture.md#simulate_capture_box_aperture_default_samples) | Runtime |
 | [`SIMULATE_CAPTURE_COST_OPTIONS`](api/facade-simulate-capture.md#simulate_capture_cost_options) | Runtime |
 | [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
@@ -1185,6 +1186,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
 | [`SimulateCaptureSensorAntiAliasing`](api/facade-simulate-capture.md#simulatecapturesensorantialiasing) | Type |
 | [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
+| [`simulateIdealReference`](api/facade-simulate-capture.md#simulateidealreference) | Runtime |
 
 ## gpu/image-kernel-accelerator.ts
 

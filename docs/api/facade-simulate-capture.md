@@ -2,6 +2,30 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## IdealReferenceResult
+
+Result of {@link simulateIdealReference}: an ideal reference image, not a capture (no RAW, plan or request).
+
+```ts
+export interface IdealReferenceResult {
+  kind: "ideal-reference";
+  /** Human-readable label for a user interface. */
+  label: string;
+  facadeVersion: typeof SIMULATE_CAPTURE_FACADE_VERSION;
+  engineApiVersion: string;
+  image: { width: number; height: number; format: SimulateCaptureOutputFormat; samples: Uint8Array | Uint16Array; png?: Uint8Array; colorEncoding?: SimulateCaptureColorEncoding };
+  /** The resolved exposure of the capture this reference matches. */
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  scene: SimulateCaptureResult["scene"];
+  region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number };
+  diagnostics: { sampleCount: number; timingsMs: { reference: number; total: number } };
+  provenance: { scientificStatus: "approximation"; cameraPresetId: string; cameraPresetVersion: string; evidence: readonly EvidenceProvenance[];
+    composedContracts: readonly string[]; limitations: readonly string[] };
+  /** The capture request's assumptions, then `reference.kind`, `reference.excludes`, `reference.exposure` and `reference.sampling`. */
+  assumptions: readonly SimulateCaptureAssumption[];
+}
+```
+
 ## SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES
 
 Default midpoint samples per axis of `sensor.pixelAperture: "box"`.
@@ -460,3 +484,18 @@ export type SimulateCaptureWhiteBalance =
   | { kelvin: number; tint?: number }
   | { channelGains: { red: number; green: number; blue: number } };
 ```
+
+## simulateIdealReference
+
+The ideal reference of a capture request (2.3): the same scene, framing, chart size, output size, region and pixel
+grid as `simulateCapture(options)` would use, rendered with no camera effects (no lens blur, diffraction, defocus,
+distortion, vignetting, anti-aliasing filter, mosaic or demosaic, noise, dark signal or motion), at the capture's
+own exposure and developed with its white balance, colour matrices, tone curve and encoding (the
+`reference.exposure` assumption). Deterministic and cheap: no RAW is simulated. Formats srgb-8, srgb-16 and png.
+The result is labelled `kind: "ideal-reference"`; it is not a capture.
+
+```ts
+export async function simulateIdealReference(options: SimulateCaptureOptions): Promise<IdealReferenceResult>;
+```
+
+This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.
