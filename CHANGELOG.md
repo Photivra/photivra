@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.4.0 — unreleased (prepared October 18, 2026)
+
+A minor release for labelling exported files: callers can write their own description, software name, copyright and comment into the JPEG, PNG and DNG files that `simulateCapture` produces (`output.metadata`, also on a PNG `simulateIdealReference`) and into DNGs written directly with `serializeNativeRawDng` (`textMetadata`). It is opt-in: without metadata every request, plan, RAW, image, encoded file and hash lock is byte-identical to 2.3.0 (the engine version recorded in captures aside). Root exports grow from 1,713 to 1,714 symbols (`OutputTextMetadata`); none is removed.
 
 ### Added
 
@@ -8,7 +10,7 @@
 - **`serializeNativeRawDng` `textMetadata`.** The same fields for direct DNG writing.
 - **`OutputTextMetadata`** type. Root exports grow from 1,713 to 1,714 symbols; none is removed.
 
-Defaults are unchanged: without `output.metadata` every request, RAW, image and encoded file is byte-identical to 2.3.0 (new hash locks on the facade's JPEG, PNG, Display P3 PNG, DNG and ideal-reference PNG bytes, recorded on 2.3.0, plus the existing integration locks).
+Defaults are unchanged: without `output.metadata` every request, RAW, image and encoded file is byte-identical to 2.3.0 (new hash locks on the facade's JPEG, PNG, Display P3 PNG, DNG and ideal-reference PNG bytes, recorded on 2.3.0, plus the existing integration locks; like the 2.0.0 lock, the DNG lock writes the Software tag's engine version back to the 2.3.0 name before hashing).
 
 ## 2.3.0 — published October 18, 2026
 
