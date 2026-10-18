@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Region renders limit the diffraction convolution to the region.** With `output.region` and `lens.diffraction`, the object-space convolution now covers only the scene lattice the region's native sites query (the native rectangle plus the anti-aliasing and box-aperture offsets, with the kernel radius of real scene radiance around it) instead of whole-width bands. Every kept value is the same gather with the same kernel, taps and order, so regions stay byte-identical to the same pixels of the whole render and to 2.5.0. A 192 × 128 crop of a 6000 × 4000 frame at 6 µm and f/16 with diffraction, the four-spot filter, AHD and a 2 × 2 box aperture took 39.6 s instead of 228.7 s (the convolution 6.5 s instead of 195.8 s; peak memory 545 MB instead of 1 285 MB); without the box 11.8 s instead of 60.8 s (on a GitHub-hosted 4-vCPU runner: 27.7 s instead of 170.9 s with the box, 8.3 s instead of 44.1 s without). The rest of the time is the per-site work, which follows the region's sites and scene queries. Region results with diffraction say so in the `output.region` assumption; region results without it keep the 2.5.0 text. Tested byte for byte against whole-frame crops (centre, corners, edges, 1-pixel strips and the full frame) at 2–250 µm and f/4–f/16 with the Quality options (see the quick start's "Region rendering").
+
+Results are byte-identical to 2.5.0 (the hash locks and the facade fingerprints of 15 default-path results), apart from that assumption text on region renders with diffraction; their samples, RAW and files are unchanged.
+
 ## 2.5.0 — published October 18, 2026
 
 A minor release for whole-frame views and chart framing: `simulateCapture` accepts pixel pitches up to 1000 µm, so a whole sensor frame can be rendered at a small output size with the real sensor's prime, minimum focus and framing, and `calculateChartFraming` reports how much of the frame a chart covers at any distance. Both are additive: every request that 2.4.1 accepted gives byte-identical results (the engine version recorded in captures aside). Root exports grow from 1,714 to 1,717 symbols; none is removed.
