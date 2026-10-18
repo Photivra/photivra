@@ -30,6 +30,7 @@
  * @see docs/QUICK_START.md
  */
 
+import { markInternalSceneRadianceEvaluator } from "../core/internal-radiance-evaluator.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireInputObject } from "../core/record-validation.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
@@ -1177,7 +1178,11 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
   const provider: PlanarSceneRadianceProvider = buildPlanarSceneRadianceProvider({ scene: chart ?? callerScene!, sceneId: IDS.scene, providerProfileId: IDS.provider,
     illuminant, irradianceScale, geometry: { distanceM: subjectDistanceM, metresPerFrameUnit,
       ...(chartSize ? { chart: { widthM: chartSize.widthM, heightM: chartSize.heightM, surroundReflectance: chartSize.surroundReflectance } } : {}) }, evidence: FACADE_EVIDENCE,
-    limitations: ["Planar Lambertian scene under uniform illumination; no shadows, inter-reflection, gloss or fluorescence."] });
+    limitations: Object.freeze(["Planar Lambertian scene under uniform illumination; no shadows, inter-reflection, gloss or fluorescence."]) });
+  // 2.6: a chart preset's evaluator is engine-built end to end (its results: the schema's exact keys, constant fields,
+  // the request's identifiers, deep-frozen FACADE_EVIDENCE, UNCERTAINTY and limitations, and an engine-computed
+  // radiance), so the native task may skip re-parsing the fixed parts. Caller scenes keep the full validation.
+  if (chart) markInternalSceneRadianceEvaluator(provider.evaluateRadiance);
   assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the engine's analytic CIE 1931 ȳ fit.");
 
   // Metering (CIPA DC-004 standard output sensitivity and camera equation) and exposure-mode resolution
