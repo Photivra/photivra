@@ -98,7 +98,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.highlightMode` | `"clip"` | Or `"reconstruct"`. |
 | `output.whiteBalance` | `"scene-illuminant"` | Also `"auto"`, `"none"`, `{ kelvin, tint? }` and `{ channelGains }`. |
 | `output.jpegQuantizationStep` | 2 | JPEG only: constant step 1–255, not a manufacturer quality scale. |
-| `sensor.pixelPitchMicrometers` | 6 | 0.5–100. The sensor is `width × pitch` wide (see [Geometry](#geometry)); the ISO readout scales with the pixel area (see [ISO and pixel size](#iso-and-pixel-size)). |
+| `sensor.pixelPitchMicrometers` | 6 | 0.5–1000 (2.5; 0.5–100 before). The sensor is `width × pitch` wide (see [Geometry](#geometry)); the ISO readout scales with the pixel area (see [ISO and pixel size](#iso-and-pixel-size)). Above 100 µm the capture is a downsized view of a whole frame (see [Whole-frame views](#whole-frame-views-25)). |
 | `sensor.spectralStepNanometers` | 20 | Spectral quadrature over 380–780 nm. |
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
@@ -151,7 +151,8 @@ console.log(a3.scene.chart?.frameWidthFraction, a3.scene.chart?.magnification, a
 The simulated sensor has real pixels of `sensor.pixelPitchMicrometers`. A 64 × 64 capture with 6 µm
 pixels is therefore a 0.38 mm crop of a large sensor, not a downscaled full frame. This keeps the
 signal per pixel, and so the noise and the ISO behaviour, physically consistent with the tier's
-sensor values.
+sensor values. To see a whole frame at a small output size instead, raise the pitch (see
+[Whole-frame views](#whole-frame-views-25)).
 
 ### Generic prime lenses (2.3)
 
@@ -162,7 +163,8 @@ real products, and carry no brand:
 
 - **Focal length** = equivalent ÷ the diagonal crop factor of the sensor (`calculateEquivalentFocalLength35Mm`,
   36 × 24 mm reference). In `simulateCapture` the sensor is the simulated frame, output width × height ×
-  pixel pitch: to simulate a whole full-frame sensor at 768 × 512, set the pitch to 36 mm / 768 = 46.875 µm.
+  pixel pitch: to simulate a whole full-frame sensor at 768 × 512, set the pitch to 36 mm / 768 = 46.875 µm (or 750 µm at
+  48 × 32, see [Whole-frame views](#whole-frame-views-25)).
 - **Aperture range:** widest f/2.8 (10–16 mm), f/1.8 (20–28 mm), f/1.4 (35–85 mm), f/2 (105–135 mm),
   f/2.8 (200–300 mm), f/4 (400–600 mm), f/5.6 (800 mm), f/8 (1200 mm); narrowest f/16 up to 16 mm, f/22 up
   to 135 mm, f/32 beyond. Any f-number inside the range is accepted; `fNumbers` lists the marked
@@ -208,6 +210,60 @@ const capture = await simulateCapture({ scene: { preset: "siemens-star" }, lens:
 console.log(capture.scene.chart?.frameWidthFraction);
 ```
 
+### Whole-frame views (2.5)
+
+To render the whole sensor frame at a small output size, set the pitch to sensor width ÷ output width:
+36 mm at 48 pixels is 750 µm, 44 mm at 48 pixels 917 µm. From 2.5 the pitch may be up to 1000 µm. The
+frame is then the real sensor's size, so `lens.prime` (its crop factor and minimum focus),
+`calculateSubjectDistanceForFraming` and `chartSize` all match that sensor, and the image is a shrunk view of
+the whole frame. No new option is needed: the facade has always simulated a sensor `width × pitch` wide.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const view = await simulateCapture({ scene: { preset: "dead-leaves" }, lens: { prime: 35, fNumber: 2.8 }, subjectDistanceM: 3,
+  sensor: { pixelPitchMicrometers: 36000 / 48, pixelAperture: "box" }, output: { width: 48, height: 32 } });
+console.log(view.assumptions.find((a) => a.id === "sensor.wholeFrameView")?.value); // { pixelPitchMicrometers: 750, frameWidthMm: 36, frameHeightMm: 24 }
+```
+
+Above 100 µm (larger than any camera photosite) the assumption `sensor.wholeFrameView` records the frame size.
+What changes and what does not:
+
+- **Brightness is the same as at any pitch.** The ISO area normalization (below) multiplies the conversion gain
+  and saturation by the area ratio, up to 27 778 at 1000 µm, so the RAW codes and the image are those of a small
+  pitch. Tested at 150–1000 µm against 6 µm: every CFA channel's mean RAW code within half a code (plus the 6 µm
+  reference's own noise), the 8-bit sRGB mean within one code, and a 64× overexposure clipping at the same white
+  code. Charge counts reach 1.7 × 10⁹ e⁻; the Poisson sampler's normal branch above 10⁹ keeps variance/mean at 1.
+- **Noise is that of a binned, downsized view, not the real sensor's per-pixel noise.** Each output pixel
+  collects the charge of its whole square, so its shot noise equals that of all the real photosites in the
+  square summed (Poisson counts add) or averaged, and its SNR √N_e grows in proportion to the pitch. On an 18 %
+  card at f/8, 1/125 s, ISO 100 a 917 µm pixel collects about 1.6 × 10⁸ e⁻ (SNR about 12 700): under a fifth of a
+  RAW code, so the image looks noise-free, as a downsized photograph does. Read noise and dark current are applied
+  once per output pixel, not once per real photosite, so in deep shadows the noise is lower than a real sensor's
+  binned sum (√n times the read noise for n photosites). Tested by photon transfer at 150, 458 and 917 µm, ISO
+  12 800: the code variance matches N_e/K² + σ_read²/K² + 1/12 within 12 % (EMVA 1288 Release 4.0, §2, free).
+- **Sampling.** The default point aperture samples one point of each square, so detail finer than the pitch
+  aliases at full contrast. Use `sensor.pixelAperture: "box"` (or `{ kind: "box", samplesPerAxis }` up to 16) to
+  average over the square, or the four-spot filter, whose separation scales with the pitch.
+- **Diffraction.** The Airy pattern (a few µm) is far smaller than a pixel. The default kernel is 3 × 3 sites and
+  the centre site keeps 1 − 8√2/(π³β) of the energy, β = pitch/(λ·N_w): 99.96 % at 780 nm, f/1.4 and 917 µm.
+  Cells larger than 192 cut-off periods are integrated in real space (see [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#diffraction-limited-sampled-profile-21)),
+  so a 48 × 32 view of a 44 mm frame with `lens.diffraction` at f/1.4 took 1.0 s (the frequency-domain cells took
+  296 s there; both measured on the same machine in Node).
+- **Motion, rolling shutter, anti-aliasing filter, AHD and the box aperture** follow the same angles at any pitch:
+  a yaw of ω moves the image ω·f/pitch pixels per second. A test renders each of them at 917 µm and at 9.17 µm with
+  the same 50 mm-equivalent prime (so f scales with the frame) and finds the same image within the small pitch's
+  own noise (mean difference under 1 code; AHD under 2.5).
+- **Region tiles** stay byte-identical to the whole render (tested with diffraction, the four-spot filter, the box
+  aperture, AHD, rotation and a rolling shutter at 640 and 917 µm).
+- **WebGPU.** `simulateCapture` runs on the CPU. The optional `webgpu-f32` sensor stage of
+  `createImageKernelAccelerator` handles capacities up to 2^24 e⁻, which the tier's 60 000 e⁻ reach at 100 µm; above
+  that it fails closed with `unsupported-float32-domain` (see [WebGPU backend](https://github.com/Photivra/photivra/blob/main/docs/WEBGPU.md)). The `cpu-reference`
+  backend runs it. The convolution, temporal-sum and chart stages work in sites and frame units, so the pitch does
+  not enter them.
+
+Requests at 0.5–100 µm are byte-identical to 2.4.1.
+
 ### ISO and pixel size
 
 The tier's ISO signal chain (conversion gain, saturation signal and read noise per ISO setting) is
@@ -226,7 +282,8 @@ independent of pixel size, so the same exposure gives the same image brightness 
 What you see: brightness stays the same, and per-pixel noise rises as pixels shrink, because a
 smaller pixel collects fewer electrons for the same exposure (shot-noise SNR = √N_e). At f/8, 1/125 s,
 ISO 100 on an 18 % grey card, the 8-bit sRGB mean is 101.2 at 30, 6 and 3 µm, and the green standard
-deviation is 0.18, 0.93 and 1.83 codes. Below about 1 µm the 8-bit sRGB mean falls slightly (about 1 code at 0.55 µm)
+deviation is 0.18, 0.93 and 1.83 codes. At whole-frame pitches (above 100 µm) the per-pixel noise falls below one
+code; see [Whole-frame views](#whole-frame-views-25). Below about 1 µm the 8-bit sRGB mean falls slightly (about 1 code at 0.55 µm)
 although the linear RAW mean is unchanged (within 0.3 %): strong noise passed through the concave
 sRGB curve lowers the mean of the encoded values.
 
