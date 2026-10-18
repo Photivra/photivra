@@ -1122,8 +1122,45 @@ export function parseSceneRadianceEvaluationResult(
 ): SceneRadianceEvaluationResult {
   const record = requireRecord(
     value,
-    "sceneRadianceEvaluationResult", ["schemaVersion", "quantity", "unit", "scientificStatus", "sampleId", "providerProfileId", "sceneId", "wavelengthNanometers", "wavelengthBasis", "spectralRadianceWattsPerSquareMeterSteradianNanometer", "uncertainty", "evidence", "limitations"]
+    "sceneRadianceEvaluationResult", SCENE_RADIANCE_EVALUATION_RESULT_KEYS
   );
+  return parseSceneRadianceEvaluationResultRecord(record, undefined);
+}
+
+const SCENE_RADIANCE_EVALUATION_RESULT_KEYS = ["schemaVersion", "quantity", "unit", "scientificStatus", "sampleId", "providerProfileId", "sceneId", "wavelengthNanometers", "wavelengthBasis", "spectralRadianceWattsPerSquareMeterSteradianNanometer", "uncertainty", "evidence", "limitations"] as const;
+
+/** An earlier fully parsed result whose deep-frozen uncertainty, evidence and limitations records may be reused. */
+export interface ValidatedSceneRadianceRecords {
+  readonly uncertainty: unknown;
+  readonly evidence: unknown;
+  readonly limitations: unknown;
+  readonly parsed: SceneRadianceEvaluationResult;
+}
+
+/**
+ * Internal (2.6; not exported from the package): parses a result of an engine-built evaluator
+ * (`isInternalSceneRadianceEvaluator`). It runs every check of `parseSceneRadianceEvaluationResult` with the same
+ * helpers, order and messages (object shape, schema version, quantity, unit, status, the three identifiers, the
+ * wavelength, its basis and the radiance value) except two: the scan for unknown keys, and re-parsing uncertainty,
+ * evidence and limitations when they are the very (deep-frozen) objects of `validated`, an earlier result that
+ * passed the full parse. Any other result takes the full parse.
+ */
+export function parseSceneRadianceEvaluationResultWithValidatedRecords(
+  value: unknown,
+  validated: ValidatedSceneRadianceRecords
+): SceneRadianceEvaluationResult {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return parseSceneRadianceEvaluationResult(value);
+  const record = value as UnknownRecord;
+  if (record.uncertainty !== validated.uncertainty || record.evidence !== validated.evidence || record.limitations !== validated.limitations) {
+    return parseSceneRadianceEvaluationResult(value);
+  }
+  return parseSceneRadianceEvaluationResultRecord(record, validated.parsed);
+}
+
+function parseSceneRadianceEvaluationResultRecord(
+  record: UnknownRecord,
+  validated: SceneRadianceEvaluationResult | undefined
+): SceneRadianceEvaluationResult {
   if (
     record.schemaVersion !==
     SCENE_RADIANCE_EVALUATION_SCHEMA_VERSION
@@ -1191,15 +1228,15 @@ export function parseSceneRadianceEvaluationResult(
         "sceneRadianceEvaluationResult.spectralRadianceWattsPerSquareMeterSteradianNanometer"
       ),
     scientificStatus: "approximation",
-    uncertainty: parseUncertainty(
+    uncertainty: validated ? validated.uncertainty : parseUncertainty(
       record.uncertainty,
       "sceneRadianceEvaluationResult.uncertainty"
     ),
-    evidence: parseEvidenceList(
+    evidence: validated ? validated.evidence : parseEvidenceList(
       record.evidence,
       "sceneRadianceEvaluationResult.evidence"
     ),
-    limitations: parseLimitations(
+    limitations: validated ? validated.limitations : parseLimitations(
       record.limitations,
       "sceneRadianceEvaluationResult.limitations"
     )

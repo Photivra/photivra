@@ -39,8 +39,9 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { apertureRadianceQuery } from "../sensor/environment-photo-signal.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
-import { parseSceneRadianceEvaluationResult, validateSceneRadianceEvaluationBindings,
-  type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
+import { isDeeplyFrozen } from "../core/internal-radiance-evaluator.js";
+import { parseSceneRadianceEvaluationResult, parseSceneRadianceEvaluationResultWithValidatedRecords, validateSceneRadianceEvaluationBindings, type ValidatedSceneRadianceRecords,
+  type SceneRadianceEvaluationRequest, type SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
 import { calculateSceneRadianceToSensorIrradiance } from "../optics/scene-to-sensor-irradiance.js";
 import { calculateMappedSensorEnvironmentRadianceQuery, prepareEnvironmentLensFieldMapping,
   type PreparedEnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
@@ -260,7 +261,7 @@ export interface NativeEnvironmentLeanExecutor {
    * it is called only when a sampled-PSF check fails and the full PSF quadrature must decide.
    */
   execute(plan: LeanEnvironmentPlan, evaluate: EnvironmentRadianceEvaluator,
-    aperture: EnvironmentApertureRadianceEvaluator | undefined, fullPlan: () => FullPlan): SensorEqeTemporalPhotoSignal | undefined;
+    aperture: EnvironmentApertureRadianceEvaluator | undefined, fullPlan: () => FullPlan, internalEvaluator?: boolean): SensorEqeTemporalPhotoSignal | undefined;
 }
 
 function siteOf(environment: Env): { x: unknown; y: unknown } | undefined {
@@ -691,6 +692,17 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
     const x = index % frame.nativeWidth, y = Math.floor(index / frame.nativeWidth);
     return (y % frame.repeatHeight) * frame.repeatWidth + (x % frame.repeatWidth);
   };
+  // 2.6: results of an engine-built evaluator (isInternalSceneRadianceEvaluator) reuse the parsed uncertainty, evidence
+  // and limitations of the first such result that passed the full parse, when they are the same deep-frozen objects.
+  let validatedRecords: ValidatedSceneRadianceRecords | undefined;
+  const parseInternalResult = (value: unknown): SceneRadianceEvaluationResult => {
+    if (validatedRecords) return parseSceneRadianceEvaluationResultWithValidatedRecords(value, validatedRecords);
+    const parsed = parseSceneRadianceEvaluationResult(value), record = value as Rec;
+    if (isDeeplyFrozen(record.uncertainty) && isDeeplyFrozen(record.evidence) && isDeeplyFrozen(record.limitations)) {
+      validatedRecords = { uncertainty: record.uncertainty, evidence: record.evidence, limitations: record.limitations, parsed };
+    }
+    return parsed;
+  };
   return {
     plan(environment, index): LeanEnvironmentPlan | "candidate" | undefined {
       if (!enabled) return undefined;
@@ -738,7 +750,7 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         // Unverified: sites of this template run the full path.
       }
     },
-    execute(plan, evaluate, aperture, fullPlan): SensorEqeTemporalPhotoSignal | undefined {
+    execute(plan, evaluate, aperture, fullPlan, internalEvaluator = false): SensorEqeTemporalPhotoSignal | undefined {
       const t = plan.template, c = t.execution, k = t.consts;
       if (t.executionVerified !== true || !c || !k) return undefined;
       const environment = plan.owned, optics = (environment as unknown as Rec).optics;
@@ -750,7 +762,8 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         for (const ray of support) {
           const query = ray === undefined ? undefined : apertureRadianceQuery(tap.request, ray);
           const request = query === undefined ? tap.request : query.request, apertureRay = query?.apertureRay;
-          const result = parseSceneRadianceEvaluationResult(apertureRay === undefined ? evaluate(request) : aperture!(request, apertureRay));
+          const result = apertureRay === undefined ? (internalEvaluator ? parseInternalResult(evaluate(request)) : parseSceneRadianceEvaluationResult(evaluate(request))) :
+            parseSceneRadianceEvaluationResult(aperture!(request, apertureRay));
           if (result.sampleId !== request.sampleId || result.providerProfileId !== request.providerProfileId || result.sceneId !== request.sceneId ||
             result.wavelengthNanometers !== request.wavelengthNanometers || result.wavelengthBasis !== request.wavelengthBasis) {
             validateSceneRadianceEvaluationBindings({ ...k.sceneBindings, request, result });

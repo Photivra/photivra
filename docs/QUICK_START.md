@@ -1083,7 +1083,7 @@ row, 4-vCPU Intel Xeon 2.80 GHz, built `dist`, one run each; `diagnostics.timing
 | diffraction, four-spot filter, AHD, box 2 × 2 | 228.7 s (195.8 s) | 39.6 s (6.5 s) | 1 285 → 545 MB |
 
 On a GitHub-hosted `ubuntu-latest` runner (4 vCPU AMD EPYC 7763, Node 24, one run each) the same rows took 2.7 → 2.6 s,
-44.1 → 8.3 s and 170.9 → 27.7 s. The samples are byte-identical between the two versions. What remains is the per-site work, which grows with the
+44.1 → 8.3 s and 170.9 → 27.7 s; from 2.6 the box row takes 19.4 s, because the engine no longer re-parses the fixed parts of its own chart scenes' results (caller scenes keep the full validation). The samples are byte-identical between the two versions. What remains is the per-site work, which grows with the
 scene queries per site (20 spectral nodes × the filter spots × the box nodes: 80 per site with the filter, 320
 with the filter and the 2 × 2 box) and with the region's sites, not with the frame.
 
