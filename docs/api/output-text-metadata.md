@@ -12,7 +12,7 @@ export interface OutputTextMetadata {
   description?: string;
   /** Name and version of the caller's software. JPEG/DNG `xmp:CreatorTool`, PNG Software. */
   software?: string;
-  /** Copyright notice. JPEG/DNG `dc:rights`, PNG Copyright, DNG Copyright tag (when ASCII). */
+  /** Rights statement. JPEG/DNG `dc:rights`; the PNG keyword and DNG tag 33432 (when ASCII) of the same name. */
   copyright?: string;
   /** Free-text comment. JPEG COM segment and `exif:UserComment`, PNG Comment, DNG `exif:UserComment`. */
   comment?: string;

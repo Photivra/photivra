@@ -71,8 +71,8 @@ function tiffIfd0(bytes: Uint8Array): Map<number, { type: number; data: Uint8Arr
 }
 const tiffAscii = (entry: { data: Uint8Array } | undefined): string | undefined => entry ? latin1.decode(entry.data.subarray(0, entry.data.length - 1)) : undefined;
 
-const META = { description: "Test chart <A & B>", software: "Example Viewer 1.2", copyright: "© 2026 Example Owner", comment: "Line one\nLine two" } as const satisfies OutputTextMetadata;
-const UNICODE = { description: "Mesure de netteté – 日本語", software: "Тест 1.0", copyright: "Copyright 2026 Example", comment: "Smile 🙂" } as const satisfies OutputTextMetadata;
+const META = { description: "Test chart <A & B>", software: "Example Viewer 1.2", copyright: "\u00a9 2026 test owner", comment: "Line one\nLine two" } as const satisfies OutputTextMetadata;
+const UNICODE = { description: "Mesure de netteté – 日本語", software: "Тест 1.0", copyright: "Rights: test owner", comment: "Smile 🙂" } as const satisfies OutputTextMetadata;
 
 /**
  * Digests of the encoded files at origin/main 0e7a046 (engine 2.3.0, before output.metadata existed). The 2.3.0
@@ -186,18 +186,18 @@ describe("output.metadata (2.4)", { timeout: 120_000 }, () => {
 
   it("DNG: appends ASCII description, adds Copyright and an XMP packet in tag 700; codes and other tags unchanged", async () => {
     const options = V2_3_0_FILES[3]!.options, plain = (await simulateCapture(options)).image.dng!;
-    const tagged = (await simulateCapture(withMetadata(options, { ...META, copyright: "Copyright 2026 Example Owner" }))).image.dng!;
+    const tagged = (await simulateCapture(withMetadata(options, { ...META, copyright: "Rights: test owner 2026" }))).image.dng!;
     const a = tiffIfd0(plain), b = tiffIfd0(tagged), statement = tiffAscii(a.get(270))!;
     expect(statement).toMatch(/^Simulated capture: packed native RAW/);
     expect(tiffAscii(b.get(270))).toBe(statement + " " + META.description);
-    expect(tiffAscii(b.get(33432))).toBe("Copyright 2026 Example Owner");
+    expect(tiffAscii(b.get(33432))).toBe("Rights: test owner 2026");
     expect(a.has(33432) || a.has(700)).toBe(false);
     expect(tiffAscii(b.get(305))).toBe(tiffAscii(a.get(305))); // Software keeps naming the writer
     expect(b.get(700)!.type).toBe(1);
     const xmp = utf8.decode(b.get(700)!.data);
     expect(xmpProperty(xmp, "dc:description")).toBe(statement + " " + META.description);
     expect(xmpProperty(xmp, "xmp:CreatorTool")).toBe(META.software);
-    expect(xmpProperty(xmp, "dc:rights")).toBe("Copyright 2026 Example Owner");
+    expect(xmpProperty(xmp, "dc:rights")).toBe("Rights: test owner 2026");
     expect(xmpProperty(xmp, "exif:UserComment")).toBe(META.comment);
     for (const [tag, entry] of a) if (tag !== 270 && tag !== 273 && tag !== 34665) expect(sha(b.get(tag)!.data), String(tag)).toBe(sha(entry.data));
     const pa = parseDngRawImage({ bytes: plain }), pb = parseDngRawImage({ bytes: tagged });
@@ -210,7 +210,7 @@ describe("output.metadata (2.4)", { timeout: 120_000 }, () => {
     const uxmp = utf8.decode(unicode.get(700)!.data);
     expect(xmpProperty(uxmp, "dc:description")).toBe(statement + " " + UNICODE.description);
     expect(xmpProperty(uxmp, "dc:rights")).toBe(UNICODE.software);
-    expect(sha((await simulateCapture(withMetadata(options, { ...META, copyright: "Copyright 2026 Example Owner" }))).image.dng!)).toBe(sha(tagged));
+    expect(sha((await simulateCapture(withMetadata(options, { ...META, copyright: "Rights: test owner 2026" }))).image.dng!)).toBe(sha(tagged));
   });
 
   it("rejects invalid metadata with clear errors", async () => {

@@ -37,7 +37,7 @@ export interface OutputTextMetadata {
   description?: string;
   /** Name and version of the caller's software. JPEG/DNG `xmp:CreatorTool`, PNG Software. */
   software?: string;
-  /** Copyright notice. JPEG/DNG `dc:rights`, PNG Copyright, DNG Copyright tag (when ASCII). */
+  /** Rights statement. JPEG/DNG `dc:rights`; the PNG keyword and DNG tag 33432 (when ASCII) of the same name. */
   copyright?: string;
   /** Free-text comment. JPEG COM segment and `exif:UserComment`, PNG Comment, DNG `exif:UserComment`. */
   comment?: string;
@@ -47,7 +47,8 @@ export interface OutputTextMetadata {
 export const OUTPUT_TEXT_METADATA_MAXIMUM_BYTES = 2048;
 const FIELDS = ["description", "software", "copyright", "comment"] as const;
 type Field = typeof FIELDS[number];
-const PNG_KEYWORDS: Readonly<Record<Field, string>> = { description: "Description", software: "Software", copyright: "Copyright", comment: "Comment" };
+/** PNG Third Edition §11.3.3.1 Table 21 keyword for each field: the field name with an initial capital. */
+const pngKeyword = (field: Field): string => field[0]!.toUpperCase() + field.slice(1);
 const XMP_IDENTIFIER = "http://ns.adobe.com/xap/1.0/\0";
 /** Largest XMP packet in one JPEG APP1 segment (XMP Part 3 §1.1.3.1). */
 const JPEG_XMP_MAXIMUM_PACKET_BYTES = 65502;
@@ -163,7 +164,7 @@ function pngChunk(type: string, data: Uint8Array): Uint8Array {
 /** The text chunks for the given fields, in the order description, software, copyright, comment. */
 export function pngTextMetadataChunks(metadata: Readonly<OutputTextMetadata>): Uint8Array[] {
   return FIELDS.filter((field) => metadata[field] !== undefined).map((field) => {
-    const keyword = Uint8Array.from(PNG_KEYWORDS[field], (c) => c.charCodeAt(0)), text = metadata[field]!;
+    const keyword = Uint8Array.from(pngKeyword(field), (c) => c.charCodeAt(0)), text = metadata[field]!;
     // tEXt: keyword, NUL, Latin-1 text. iTXt: keyword, NUL, compression flag 0, method 0, empty language tag, NUL, empty translated keyword, NUL, UTF-8 text.
     return latin1Text(text) ? pngChunk("tEXt", concat([keyword, Uint8Array.of(0), Uint8Array.from(text, (c) => c.charCodeAt(0))]))
       : pngChunk("iTXt", concat([keyword, Uint8Array.of(0, 0, 0, 0, 0), encoder.encode(text)]));
