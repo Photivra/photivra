@@ -1,6 +1,16 @@
 # Changelog
 
-## 2.4.0 — unreleased (prepared October 18, 2026)
+## 2.4.1 — unreleased (prepared October 18, 2026)
+
+A republication of 2.4.0. 2.4.0 was tagged and released on GitHub on October 18, 2026 but never reached npm: the Publish npm workflow's verify job hit its 10-minute limit during the coverage gate on both attempts and was cancelled before the publish job ran. 2.4.1 carries the 2.4.0 contents unchanged (caller text metadata in JPEG, PNG and DNG outputs, `output.metadata`, `serializeNativeRawDng` `textMetadata` and `OutputTextMetadata`; see the 2.4.0 entry below) plus the publish-workflow fix. Apart from the engine version that captures record, every request, plan, RAW, image, encoded file and hash lock is byte-identical to 2.4.0, and without `output.metadata` to 2.3.0. Root exports stay at 1,714 symbols; none is added or removed.
+
+### Fixed
+
+- **Publish workflow timeout.** The verify job of `.github/workflows/publish.yml` now has 25 minutes instead of 10 (#346). It took 9m20s for 2.2.1 and 9m33s for 2.3.0; the coverage gate alone takes 8–12 minutes. Repository tooling only: nothing in the published package changes.
+
+## 2.4.0 — tagged; not published to npm (prepared October 18, 2026)
+
+Tagged `v2.4.0` and released on GitHub, but never published to npm because the publish job timed out; use 2.4.1, which carries the same contents.
 
 A minor release for labelling exported files: callers can write their own description, software name, copyright and comment into the JPEG, PNG and DNG files that `simulateCapture` produces (`output.metadata`, also on a PNG `simulateIdealReference`) and into DNGs written directly with `serializeNativeRawDng` (`textMetadata`). It is opt-in: without metadata every request, plan, RAW, image, encoded file and hash lock is byte-identical to 2.3.0 (the engine version recorded in captures aside). Root exports grow from 1,713 to 1,714 symbols (`OutputTextMetadata`); none is removed.
 
