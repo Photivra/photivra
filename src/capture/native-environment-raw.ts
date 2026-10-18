@@ -192,6 +192,8 @@ function admitNativeEnvironmentInput(input:NativeEnvironmentRawInput):{plan:Retu
 /** Internal: a partition's row band, and the facts it records while running for the merge step. */
 interface NativeEnvironmentPartitionProbe {
   readonly rows:NativeRawRowBand;
+  /** Internal (2.3 region rendering): native columns [x, x + width); absent means every column. */
+  readonly columns?:{readonly x:number;readonly width:number};
   /** Canonical string of the band's shared source/optical/motion state (the first site's). */
   shared?:string;
   /** The band's first parsed RAW site (its readout identity). */
@@ -326,7 +328,8 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         expectedIncidentPhotonCount:s.expectedIncidentPhotonCount,expectedGeneratedElectronCount:s.expectedGeneratedElectronCount}))}),signal);
       return {...request,sites:rawSites as ReturnType<typeof composeNativeEnvironmentSensorSite>[]};
     },yieldControl
-  },cadence,gate,sensorLean.hook,partition?{y:partition.rows.y,height:partition.rows.height,firstSite:(site):void=>{partition.firstSite=site;}}:undefined);
+  },cadence,gate,sensorLean.hook,partition?{y:partition.rows.y,height:partition.rows.height,firstSite:(site):void=>{partition.firstSite=site;},
+    ...(partition.columns?{x:partition.columns.x,width:partition.columns.width}:{})}:undefined);
   // The frame reference is needed only while tiles are read; release it once the event settles.
   const settle=():void=>{reference=undefined;};
   return {plan:task.plan,get state():NativeRawTaskState{return task.state;},get completedTileCount():number{return task.completedTileCount;},get providerEvaluationCount():number{return evaluations;},
@@ -340,6 +343,22 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
       return opticalStage?{...base,opticalStage}:base;
     }
   };
+}
+/**
+ * Internal (not exported from the package; 2.3 `simulateCapture` `output.region`): the task for one rectangle of
+ * native sites [x, x + width) × [y, y + height) of the whole-frame input. Every site keeps its absolute native index,
+ * so its noise seeds, CFA phase, exposure window (rolling-shutter row timing) and value are those of the whole-frame
+ * task; the output arrays hold just the rectangle, row-major, and `effectiveSaturationCodes` holds 0 for a CFA
+ * phase the rectangle does not contain. Optical-stage retention is not supported.
+ */
+export function createNativeEnvironmentRawRegionTask(input:NativeEnvironmentRawInput,region:{x:number;y:number;width:number;height:number},
+  provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask {
+  const plan=calculateNativeRawPlan(input?.raw),native=plan.exposure.geometry.nativeRaster;
+  const r=requireAllowlistedRecord(region,["x","y","width","height"],"Invalid native RAW region.");
+  if(![r.x,r.y,r.width,r.height].every(v=>typeof v==="number"&&Number.isSafeInteger(v))||(r.width as number)<1||(r.x as number)<0||(r.x as number)+(r.width as number)>native.pixelWidth)
+    throw new InvalidConfigurationError("Native RAW region must lie inside the native raster.");
+  const rows=parseRowBand({y:r.y,height:r.height},native.pixelHeight);
+  return createNativeEnvironmentRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE,{rows,columns:{x:r.x as number,width:r.width as number}});
 }
 /** A band of whole native rows, [y, y + height), in absolute full-sensor coordinates. */
 export interface NativeRawRowBand { y: number; height: number }

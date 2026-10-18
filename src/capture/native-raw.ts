@@ -186,12 +186,16 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
    * effectiveSaturationCodes holds 0 for CFA phases the rows do not contain; the merge step completes them.
    * Seeds, tiles and per-site values are those of the whole-frame task.
    */
-  rows?: { readonly y: number; readonly height: number; readonly firstSite?: (site: SensorRawProducerSiteInput) => void }): NativeRawTask {
+  rows?: { readonly y: number; readonly height: number; readonly firstSite?: (site: SensorRawProducerSiteInput) => void;
+    /** Internal (2.3 region rendering): also restrict to native columns [x, x + width). The output arrays are then that rectangle, row-major. */
+    readonly x?: number; readonly width?: number }): NativeRawTask {
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
   const native=plan.exposure.geometry.nativeRaster,tileWidth=plan.tileWidth??NATIVE_RAW_LIMITS.tileWidth;
-  const rowStart=rows?.y??0,rowEnd=rowStart+(rows?.height??native.pixelHeight),offset=rowStart*native.pixelWidth,length=(rowEnd-rowStart)*native.pixelWidth;
+  const rowStart=rows?.y??0,rowEnd=rowStart+(rows?.height??native.pixelHeight),colStart=rows?.x??0,colEnd=colStart+(rows?.width??native.pixelWidth);
+  if(colStart<0||colEnd>native.pixelWidth||colEnd<=colStart)throw new InvalidConfigurationError("Native RAW column band must lie inside the native raster.");
+  const bandWidth=colEnd-colStart,length=(rowEnd-rowStart)*bandWidth;
   let state:NativeRawTaskState="ready",count=0,output:NativeRawOutput|null=null,first:SensorRawProducerSiteInput|undefined;
   function release(): void {if(output){output.codes.fill(0);output.blackLevels.fill(0);output.digitalSaturationCodes.fill(0);output.saturationFlags.fill(0);output.effectiveSaturationCodes.fill(0);}output=null;first=undefined;}
   function active(): void {if(abort.signal.aborted)throw new InvalidConfigurationError("Native RAW execution aborted.");}
@@ -203,8 +207,8 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
         const layout=plan.frame.colorSamplingProfile.layout;if(layout.kind!=="periodic-mosaic")throw new InvalidConfigurationError("Native RAW requires periodic CFA.");
         const white=createPhaseWhiteLevelAccumulator(native.pixelWidth,layout.repeatWidthSites,layout.repeatHeightSites);
         output={plan,codes:new Uint16Array(length),blackLevels:new Uint16Array(length),digitalSaturationCodes:new Uint16Array(length),saturationFlags:new Uint8Array(length),effectiveSaturationCodes:new Uint16Array(layout.repeatWidthSites*layout.repeatHeightSites)};
-        for(let y=rowStart;y<rowEnd;y++)for(let x=0;x<native.pixelWidth;x+=tileWidth){
-          active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(tileWidth,native.pixelWidth-x),height:1});
+        for(let y=rowStart;y<rowEnd;y++)for(let x=colStart;x<colEnd;x+=tileWidth){
+          active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(tileWidth,colEnd-x),height:1});
           {
             const supplied=await read(request,abort.signal);active();
             const tile=requireAllowlistedRecord(supplied,["captureId","frameId","x","y","width","height","sites"],"Invalid native RAW tile.");
@@ -220,7 +224,7 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
             const seed=plan.exposure.noise.seedUint32;
             for(let j=0;j<sites.length;j++){
               // index: absolute native index (seeds, CFA phase); at: position in this task's output arrays.
-              const index=y*native.pixelWidth+x+j,at=index-offset,handle=lean?.[j];
+              const index=y*native.pixelWidth+x+j,at=(y-rowStart)*bandWidth+x+j-colStart,handle=lean?.[j];
               if(handle){
                 const o=leanSensor!.compute(handle,index,seed,timing?.samples[j]);
                 output.codes[at]=o.rawCode;output.blackLevels[at]=o.blackLevelCode;output.digitalSaturationCodes[at]=o.digitalSaturationCode;
@@ -236,7 +240,7 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
             count++;
           }
           // Yield when the time budget is spent, and always after the final tile. Yield timing never changes output.
-          if(gate.due()||(y===rowEnd-1&&x+tileWidth>=native.pixelWidth)){await yieldControl(abort.signal);active();gate.restart();}
+          if(gate.due()||(y===rowEnd-1&&x+tileWidth>=colEnd)){await yieldControl(abort.signal);active();gate.restart();}
         }
         output.effectiveSaturationCodes.set(rows?white.partial():white.finish());first=undefined;state="completed";
       }catch(error){release();if(!abort.signal.aborted){state="failed";abort.abort();}throw error;}

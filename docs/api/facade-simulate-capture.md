@@ -17,7 +17,7 @@ a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.tempor
 
 ```ts
 SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
-  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const)
 ```
@@ -241,6 +241,15 @@ export interface SimulateCaptureOptions {
      * memory grow with the pixel count (see "Large images" in the quick start); browsers may fail at large sizes.
      */
     maximumPixels?: number;
+    /**
+     * Opt-in (2.3) region rendering: render only this rectangle, in output-pixel coordinates of the whole frame
+     * `width` × `height` (x right, y down from its top-left). The pixels are byte-identical to the same pixels of
+     * the whole render: framing, metering, exposure, noise seeds (absolute native site indices), rolling-shutter row
+     * timing, diffraction and demosaic all use the whole frame. Use it to tile a large frame across workers or to
+     * render a 100 % crop. `result.image` is the region; `result.region` reports it. Not combinable with
+     * `whiteBalance: "auto"`, whose statistics would come from the region only.
+     */
+    region?: { x: number; y: number; width: number; height: number };
   };
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
@@ -324,9 +333,19 @@ export interface SimulateCaptureResult {
     /** Lossless uncompressed CFA DNG of the packed RAW when format is "dng" (`serializeNativeRawDng`); `samples` are then sRGB 8-bit. */
     dng?: Uint8Array;
   };
-  /** Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. */
+  /**
+   * Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. With
+   * `output.region` (2.3): the region's native sites only, with `plan` describing that raster (its active area is the
+   * region); `request.environmentRaw` and `request.siteInput` stay those of the whole frame.
+   */
   raw: NativeRawOutput;
   plan: NativeRawPlan;
+  /**
+   * 2.3, present with `output.region`: the rendered rectangle in output pixels of the whole `frameWidth` × `frameHeight`
+   * frame, and the native sites rendered for it (`nativeRect`, in the whole frame's native raster: the region, the
+   * demosaic reach on each side clipped to the raster, and its origin rounded down to the 2 × 2 CFA repeat).
+   */
+  region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number; nativeRect: { x: number; y: number; width: number; height: number } };
   /** The complete underlying request. */
   request: {
     environmentRaw: NativeEnvironmentRawInput;

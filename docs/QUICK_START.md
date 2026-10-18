@@ -83,6 +83,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `illuminanceLux` | 21 481 (π·80 000/11.7) | See [Exposure](#exposure). |
 | `output.width`, `output.height` | 64 × 64 | Output pixels, 1–4094 each. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
 | `output.maximumPixels` | off | Opt-in large images (2.2): the most native sensor sites the capture may allocate, up to `NATIVE_RAW_LIMITS.ceilingPixels` (2^27). Sides may then reach 16 384 sites including the margin (see [Large images](#large-images)). |
+| `output.region` | whole frame | 2.3: `{ x, y, width, height }` renders that rectangle of the frame, byte-identical to the whole render (see [Region rendering](#region-rendering-23)). |
 | `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"`, `"png"` and `"dng"` (see [Output formats](#output-formats)). |
 | `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"` and `"rec2020"`. |
 | `output.bitDepth` | 8 | PNG only: 8 or 16. |
@@ -822,6 +823,60 @@ Browsers are tighter than Node: a tab may have a few GB at most, a single `Array
 to 2–4 GB, and mobile browsers kill tabs earlier. A 100 MP capture can therefore fail in a browser with a
 `RangeError` or an out-of-memory crash even where it runs in Node. Run large captures in a Web Worker,
 pass `signal` so they can be cancelled, and offer them only on devices that can afford them.
+
+## Region rendering (2.3)
+
+`output.region: { x, y, width, height }` renders only that rectangle of the whole `output.width` ×
+`output.height` frame (output pixels, x right and y down from the top-left). The result is
+byte-identical to the same pixels of the whole render, so an application can split a large frame into
+tiles, render them in separate Web Workers and stitch them, or render a 100 % crop of a frame it never
+renders in full. Tests stitch irregular tile grids (odd and even offsets) and compare them byte for byte
+with the whole render for the bilinear and AHD demosaics, mirror borders, diffraction with
+anti-aliasing and the box aperture, camera rotation with a rolling shutter, a fixed-size composite chart
+and a Display P3 PNG.
+
+How it stays identical:
+
+- **Everything frame-wide uses the whole frame:** framing, the meter (it reads the scene, not the RAW),
+  exposure, white balance, the diffraction kernels, the scene digest and `request.environmentRaw` (the
+  whole frame's request; `request.siteInput` takes whole-frame native indices).
+- **Noise and timing:** every site keeps its absolute native index in the whole frame's native raster,
+  so its noise seeds, CFA phase and exposure window are the whole render's. Under a rolling shutter a
+  row's timing comes from its global row, never from its row within the tile.
+- **Demosaic margin:** the native sites rendered are the region plus the demosaic reach on each side
+  (1 site for bilinear, 5 for AHD), clipped to the frame's native raster, with the origin rounded down
+  to the 2 × 2 CFA repeat. Inside the frame those border sites are real rendered sites; at the frame's
+  own edges the region raster ends exactly where the whole frame's does, so `borderHandling: "mirror"`
+  mirrors at the same place. AHD reads at most 5 sites away, so its edge-directed choices see the same
+  neighbourhood.
+- **Diffraction:** the object-space convolution is computed in whole-width bands of 32 native rows
+  around the region's rows, as in the whole render (the same bands, kernels and summation order). A
+  frame split into k tile columns therefore repeats that convolution k times; tile by rows (full-width
+  strips) to avoid it.
+
+Measured on one core (Node 24, 4-vCPU Intel Xeon 2.80 GHz, built `dist`, one run each): a 256 × 256
+slanted edge took 8.45 s whole, 9.03 s as four 256 × 64 strips and 8.44 s as four 128 × 128 tiles run
+one after another; with `lens.diffraction` 10.2 s whole and 12.9 s as four tiles (the repeated
+convolution bands). A 64 × 64 crop of a 4000 × 3000 frame took 0.63 s, the same as a plain 64 × 64
+capture. Tiles in parallel workers divide the wall time by the number of cores.
+
+`result.image` holds the region, `result.raw` and `result.plan` describe the region's native sites (the
+plan's active area is the region; `result.region.nativeRect` gives them in the whole frame), and
+`result.region` reports the rectangle and the frame. `diagnostics.options` lists `output.region`.
+`output.whiteBalance: "auto"` is refused with a region, because grey-world statistics of a tile differ
+from the whole frame's; measure white balance once (or use `"scene-illuminant"` or a fixed setting) and
+pass it to every tile. A DNG of a region is a DNG of the region's sites.
+
+```ts
+import { simulateCapture, type SimulateCaptureOptions } from "@photivra/engine";
+
+const frame: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, output: { width: 96, height: 64 } };
+// Two horizontal strips; in an application each would run in its own Web Worker.
+const strips = await Promise.all([0, 32].map((y) => simulateCapture({ ...frame, output: { ...frame.output, region: { x: 0, y, width: 96, height: 32 } } })));
+const stitched = new Uint8Array(96 * 64 * 3);
+strips.forEach((strip, i) => stitched.set(strip.image.samples as Uint8Array, i * 96 * 32 * 3));
+console.log(strips[0]!.region, stitched.length);
+```
 
 ## Not available
 

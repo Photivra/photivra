@@ -49,7 +49,7 @@ import { createColorTemperatureWhiteBalanceIntent, resolveColorTemperatureWhiteB
 import { createCaptureWhiteBalanceIntent, type CaptureWhiteBalanceIntent } from "../capture/simulated-capture.js";
 import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "../capture/sensor-raw-producer.js";
 import { calculateNativeRawPlan, nativeRawMaximumProviderEvaluations, NATIVE_RAW_LIMITS, type NativeRawInput, type NativeRawOutput, type NativeRawPlan } from "../capture/native-raw.js";
-import { createNativeEnvironmentRawTask, type NativeEnvironmentRawInput,
+import { createNativeEnvironmentRawTask, createNativeEnvironmentRawRegionTask, type NativeEnvironmentRawInput,
   type NativeEnvironmentRawTask, type NativeEnvironmentRawTile } from "../capture/native-environment-raw.js";
 import { createNativeRawDevelopmentTask, type NativeRawDevelopmentInput, type RawHighlightDiagnostics } from "../capture/native-raw-development.js";
 import type { RawFrameReconstructionPhaseProfile } from "../capture/raw-frame-reconstruction.js";
@@ -252,6 +252,15 @@ export interface SimulateCaptureOptions {
      * memory grow with the pixel count (see "Large images" in the quick start); browsers may fail at large sizes.
      */
     maximumPixels?: number;
+    /**
+     * Opt-in (2.3) region rendering: render only this rectangle, in output-pixel coordinates of the whole frame
+     * `width` × `height` (x right, y down from its top-left). The pixels are byte-identical to the same pixels of
+     * the whole render: framing, metering, exposure, noise seeds (absolute native site indices), rolling-shutter row
+     * timing, diffraction and demosaic all use the whole frame. Use it to tile a large frame across workers or to
+     * render a 100 % crop. `result.image` is the region; `result.region` reports it. Not combinable with
+     * `whiteBalance: "auto"`, whose statistics would come from the region only.
+     */
+    region?: { x: number; y: number; width: number; height: number };
   };
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
@@ -288,7 +297,7 @@ export interface SimulateCaptureOptions {
  * a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.temporalSampleCount` a count above 1.
  */
 export const SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
-  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const);
 export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[number];
@@ -326,9 +335,19 @@ export interface SimulateCaptureResult {
     /** Lossless uncompressed CFA DNG of the packed RAW when format is "dng" (`serializeNativeRawDng`); `samples` are then sRGB 8-bit. */
     dng?: Uint8Array;
   };
-  /** Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. */
+  /**
+   * Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. With
+   * `output.region` (2.3): the region's native sites only, with `plan` describing that raster (its active area is the
+   * region); `request.environmentRaw` and `request.siteInput` stay those of the whole frame.
+   */
   raw: NativeRawOutput;
   plan: NativeRawPlan;
+  /**
+   * 2.3, present with `output.region`: the rendered rectangle in output pixels of the whole `frameWidth` × `frameHeight`
+   * frame, and the native sites rendered for it (`nativeRect`, in the whole frame's native raster: the region, the
+   * demosaic reach on each side clipped to the raster, and its origin rounded down to the 2 × 2 CFA repeat).
+   */
+  region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number; nativeRect: { x: number; y: number; width: number; height: number } };
   /** The complete underlying request. */
   request: {
     environmentRaw: NativeEnvironmentRawInput;
@@ -862,7 +881,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   // Output and sensor
   const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep",
-    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng", "maximumPixels"]);
+    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng", "maximumPixels", "region"]);
   // Opt-in large images: a caller-raised native pixel limit. Without it the 4094-pixel sides are unchanged.
   const raisedPixels = outputOptions.maximumPixels === undefined ? undefined : integerIn(outputOptions.maximumPixels, "output.maximumPixels", 1, NATIVE_RAW_LIMITS.ceilingPixels);
   const maximumSide = raisedPixels === undefined ? 4094 : NATIVE_RAW_LIMITS.maximumDimension;
@@ -944,12 +963,30 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   // Geometry: the demosaic border (if any) on each side; output crop is the active area.
   const nativeWidth = width + 2 * margin, nativeHeight = height + 2 * margin;
+  // Region (2.3): a rectangle of the whole frame. Its native sites are the region plus the demosaic reach on each side
+  // (clipped to the raster, where mirror borders apply exactly as in the whole render), with the origin rounded down to
+  // the 2 × 2 CFA repeat so the region raster keeps the frame's CFA phase.
+  let region: { x: number; y: number; width: number; height: number } | undefined, regionNative: typeof region;
+  if (outputOptions.region !== undefined) {
+    const r = allowKeys(outputOptions.region, "output.region", ["x", "y", "width", "height"]);
+    const x = integerIn(r.x, "output.region.x", 0, width - 1), y = integerIn(r.y, "output.region.y", 0, height - 1);
+    region = { x, y, width: integerIn(r.width, "output.region.width", 1, width - x), height: integerIn(r.height, "output.region.height", 1, height - y) };
+    const reach = margin > 0 ? margin : ahd ? AHD_MARGIN : builtInDemosaic ? builtInDemosaic.kernelReachSites : MARGIN;
+    let x0 = Math.max(0, region.x + margin - reach), y0 = Math.max(0, region.y + margin - reach);
+    x0 -= x0 % 2; y0 -= y0 % 2;
+    regionNative = { x: x0, y: y0, width: Math.min(nativeWidth, region.x + region.width + margin + reach) - x0, height: Math.min(nativeHeight, region.y + region.height + margin + reach) - y0 };
+  }
+  const outputWidth = region ? region.width : width, outputHeight = region ? region.height : height;
+  if (region && regionNative) assume("output.region", "model", { ...region, frameWidth: width, frameHeight: height, nativeRect: { ...regionNative } },
+    "Only this rectangle of the " + width + " × " + height + " frame is rendered. Framing, metering, exposure, diffraction kernels and every site's physics, noise seeds and exposure window (rolling-shutter row timing) are those of the whole frame (absolute native indices), " +
+    "and the native rectangle includes the demosaic reach on each side (" + (margin > 0 ? margin : "mirror-border") + "), so the pixels are byte-identical to the same pixels of the whole render. " +
+    "With lens.diffraction the object-space convolution runs over whole-width bands of 32 native rows that the region touches.");
   if (raisedPixels !== undefined) {
     if (nativeWidth > NATIVE_RAW_LIMITS.maximumDimension || nativeHeight > NATIVE_RAW_LIMITS.maximumDimension || nativeWidth * nativeHeight > raisedPixels) {
       fail("output.maximumPixels (" + raisedPixels + ") must cover the native sensor raster of " + nativeWidth + " × " + nativeHeight +
         " sites (the output plus the demosaic margin), at most " + NATIVE_RAW_LIMITS.maximumDimension + " per side.");
     }
-    if (ahd && nativeWidth * nativeHeight > PROCESSING_MAX_PIXELS) fail("output.demosaic \"ahd\" admits at most " + PROCESSING_MAX_PIXELS + " native sites.");
+    if (ahd && (regionNative ? regionNative.width * regionNative.height : nativeWidth * nativeHeight) > PROCESSING_MAX_PIXELS) fail("output.demosaic \"ahd\" admits at most " + PROCESSING_MAX_PIXELS + " native sites.");
   }
   const imagingArea = { widthMm: nativeWidth * pitch / 1000, heightMm: nativeHeight * pitch / 1000 };
   const geometry = { imagingArea, nativeRaster: { pixelWidth: nativeWidth, pixelHeight: nativeHeight }, orientation: "landscape" as const,
@@ -1188,7 +1225,10 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   // White balance
   let whiteBalanceState: ResolvedWhiteBalanceState | null = null, needsAuto = false;
   if (whiteBalanceOption === "none") whiteBalanceState = null;
-  else if (whiteBalanceOption === "auto") needsAuto = true;
+  else if (whiteBalanceOption === "auto") {
+    if (region) fail("output.region cannot be combined with output.whiteBalance \"auto\": grey-world statistics of a region differ from the whole frame's.");
+    needsAuto = true;
+  }
   else if (whiteBalanceOption === "scene-illuminant") {
     const xyz = illuminantXyz(illuminant), camera = XYZ_TO_CAMERA.map((row) => row[0] * xyz[0] + row[1] * xyz[1] + row[2] * xyz[2]);
     whiteBalanceState = resolveCustomWhiteBalance({ stateId: "facade-wb-scene-illuminant", sampleSet: { imageStateId: "facade-white-diffuser",
@@ -1231,15 +1271,17 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     opening: { kind: "simultaneous" }; closing: { kind: "simultaneous" } } :
     { shutterMechanism: "electronic" as const, nominalExposureDurationSeconds: { value: shutterSeconds, unit: "s" as const, evidence },
       opening: { kind: "simultaneous" as const }, closing: { kind: "simultaneous" as const } };
-  const buildRawInput = (intent: CaptureWhiteBalanceIntent | null): NativeRawInput => ({
-    exposure: { captureId: IDS.capture, sceneStateId: IDS.sceneState, sceneTimeSeconds: 0, geometry,
+  const buildRawInput = (intent: CaptureWhiteBalanceIntent | null): NativeRawInput => buildRawInputFor(intent, geometry, captureModeProfile, bindingProfile, nativeWidth * nativeHeight);
+  const buildRawInputFor = (intent: CaptureWhiteBalanceIntent | null, rasterGeometry: typeof geometry, modeProfile: NativeRawInput["captureModeProfile"],
+    binding: NativeRawInput["bindingProfile"], sites: number): NativeRawInput => ({
+    exposure: { captureId: IDS.capture, sceneStateId: IDS.sceneState, sceneTimeSeconds: 0, geometry: rasterGeometry,
       exposure: { focalLengthMm, aperture: fNumber, shutterSeconds, iso: resolvedIso }, focus: { kind: "finite", distanceM: focusDistanceM },
       noise: { seedUint32: noiseSeed, realizationId: "facade-noise", model: { ...SENSOR_RAW_PRODUCER_NOISE_MODEL } },
       source: { kind: "scene-radiance-source", artifactId: "facade-scene-" + scenePreset, sha256: sourceSha256, dynamicRangeHistory: "no-loss-declared" },
       whiteBalanceIntent: intent, adoptedWhiteXyz: null,
       models: [{ profile: { id: "photivra-simulate-capture", version: SIMULATE_CAPTURE_FACADE_VERSION }, scientificStatus: "approximation", publicEvidenceIds: ["photivra:simulate-capture-facade"] }] },
-    frameId: IDS.frame, modeId: IDS.mode, captureModeProfile, colorSamplingProfile, bindingProfile, exposureWindow,
-    maximumOutputBytes: nativeWidth * nativeHeight * 7, tileWidth, ...(raisedPixels === undefined ? {} : { maximumPixels: raisedPixels }) });
+    frameId: IDS.frame, modeId: IDS.mode, captureModeProfile: modeProfile, colorSamplingProfile, bindingProfile: binding, exposureWindow,
+    maximumOutputBytes: sites * 7, tileWidth, ...(raisedPixels === undefined ? {} : { maximumPixels: raisedPixels }) });
   const sceneBinding = { sceneStateId: IDS.sceneState, providerSceneId: IDS.scene, evidence };
 
   // Shared per-site environment pieces (identical objects for every site keep the native task's shared-state fast path).
@@ -1415,12 +1457,25 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     let completed = 0;
     return (): void => { completed++; onProgress?.({ stage, completedTileCount: completed, totalTileCount: total }); };
   };
-  const rawTick = progress("raw", plan.tileCount);
-  const rawTask: NativeEnvironmentRawTask = createNativeEnvironmentRawTask(environmentRaw, {
-    readTile: async (request) => { const tile = await readTile(request); rawTick(); return tile; },
-    evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
+  const rawTick = progress("raw", regionNative ? regionNative.height * Math.ceil(regionNative.width / tileWidth) : plan.tileCount);
+  const rawCallbacks = { readTile: async (request: Parameters<typeof readTile>[0]): Promise<NativeEnvironmentRawTile> => { const tile = await readTile(request); rawTick(); return tile; },
+    evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl };
+  const rawTask: NativeEnvironmentRawTask = regionNative ? createNativeEnvironmentRawRegionTask(environmentRaw, regionNative, rawCallbacks) :
+    createNativeEnvironmentRawTask(environmentRaw, rawCallbacks);
   await runTask(rawTask);
   let rawOutput = rawTask.takeOutput();
+  // Region (2.3): the region's sites, re-described by a plan of the region raster (active area = the region), for development.
+  let developmentPlan = plan;
+  if (region && regionNative) {
+    const raster = { pixelWidth: regionNative.width, pixelHeight: regionNative.height };
+    const regionGeometry = { imagingArea: { widthMm: raster.pixelWidth * pitch / 1000, heightMm: raster.pixelHeight * pitch / 1000 }, nativeRaster: raster, orientation: "landscape" as const,
+      activeCaptureRect: { x: region.x + margin - regionNative.x, y: region.y + margin - regionNative.y, width: region.width, height: region.height },
+      outputRaster: { pixelWidth: region.width, pixelHeight: region.height } };
+    developmentPlan = calculateNativeRawPlan(buildRawInputFor(intentOf(whiteBalanceState), regionGeometry, { ...captureModeProfile, modes: captureModeProfile.modes.map((m) =>
+      ({ ...m, processedImageRaster: { ...m.processedImageRaster, value: raster } })) } as NativeRawInput["captureModeProfile"], { ...bindingProfile, nativeRaster: raster }, raster.pixelWidth * raster.pixelHeight));
+    if (Array.from(rawOutput.raw.effectiveSaturationCodes).some((code) => code === 0)) fail("output.region needs every CFA phase in its native rectangle.");
+    rawOutput = { ...rawOutput, raw: { ...rawOutput.raw, plan: developmentPlan } };
+  }
   const providerEvaluationCount = rawOutput.providerEvaluationCount;
   const rawMs = Date.now() - rawStarted, wbStarted = Date.now();
   let finalRawInput = environmentRaw;
@@ -1476,7 +1531,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   // Development
   const development: Omit<NativeRawDevelopmentInput, "raw"> = { phaseProfiles, colorProfile,
     whiteBalance: developmentWhiteBalance, rendering, highlightMode, ...(mirrorBorder ? { borderHandling: "mirror" as const } : {}),
-    maximumRetainedPayloadBytes: plan.outputBytes + width * height * 3 * (rendering.bitDepth / 8) };
+    maximumRetainedPayloadBytes: developmentPlan.outputBytes + outputWidth * outputHeight * 3 * (rendering.bitDepth / 8) };
   let developed: { raw: NativeRawOutput; integerSamples: Uint8Array | Uint16Array; highlight: RawHighlightDiagnostics; diagnostics: SdrRenderingResult["diagnostics"] };
   let gamutMappingDiagnostics: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number } | undefined;
   if (ahd) {
@@ -1488,9 +1543,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     if (!linearPath) {
       // The native development's SDR kernel, row by row, on the AHD-developed linear sRGB.
       const maximum = 2 ** rendering.bitDepth - 1, tone = prepareSdrPixelTone(rendering), scratch = new Float64Array(3);
-      const codes = rendering.bitDepth === 8 ? new Uint8Array(width * height * 3) : new Uint16Array(width * height * 3);
+      const codes = rendering.bitDepth === 8 ? new Uint8Array(outputWidth * outputHeight * 3) : new Uint16Array(outputWidth * outputHeight * 3);
       const counts: SdrPixelCounts = { negative: 0, above: 0, changed: 0, low: 0, high: 0, outOfGamut: false };
-      for (let y = 0; y < height; y++) renderSdrRunInto(linear.rgb, y * width * 3, width, rendering, tone, 2 ** rendering.renderingExposureEv, maximum, codes, y * width * 3, scratch, counts);
+      for (let y = 0; y < outputHeight; y++) renderSdrRunInto(linear.rgb, y * outputWidth * 3, outputWidth, rendering, tone, 2 ** rendering.renderingExposureEv, maximum, codes, y * outputWidth * 3, scratch, counts);
       developed = { raw: rawOutput.raw, integerSamples: codes, highlight: linear.highlight, diagnostics: { renderingNegativeSampleCount: counts.negative,
         renderingAboveReferenceSampleCount: counts.above, toneChangedSampleCount: counts.changed, gamutClippedLowSampleCount: counts.low,
         gamutClippedHighSampleCount: counts.high, captureSaturation: "consumed-in-raw-development" } };
@@ -1535,17 +1590,17 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   if (format === "jpeg") {
     const samples = developed.integerSamples as Uint8Array;
     const jpegSha = await sha256Hex(Array.from(samples.subarray(0, Math.min(samples.length, 4096))).join(",") + ":" + samples.length + ":" + sourceSha256);
-    const source = { captureId: IDS.capture, imageStateId: "facade-developed", artifactId: "facade-developed-srgb8", sha256: jpegSha, width, height, encoding: "encoded-srgb-8-rgb" as const };
+    const source = { captureId: IDS.capture, imageStateId: "facade-developed", artifactId: "facade-developed-srgb8", sha256: jpegSha, width: outputWidth, height: outputHeight, encoding: "encoded-srgb-8-rgb" as const };
     // The encoder reads every pixel once, in source tiles of at most 256 × 32 aligned to the crop origin.
-    const reads = Math.ceil(height / 32) * Math.ceil(width / 256), jpegTick = progress("jpeg", reads);
-    const jpegTask = createPrintJpegTask({ source, crop: { x: 0, y: 0, width, height }, outputWidth: width, outputHeight: height, quantizationStep: jpegStep!,
-      maximumEncodedBytes: Math.max(65536, width * height * 6), maximumProviderReads: reads,
+    const reads = Math.ceil(outputHeight / 32) * Math.ceil(outputWidth / 256), jpegTick = progress("jpeg", reads);
+    const jpegTask = createPrintJpegTask({ source, crop: { x: 0, y: 0, width: outputWidth, height: outputHeight }, outputWidth, outputHeight, quantizationStep: jpegStep!,
+      maximumEncodedBytes: Math.max(65536, outputWidth * outputHeight * 6), maximumProviderReads: reads,
       // The JPEG records its admission plan, so the raised limit is passed (and recorded) only when the image needs it.
-      ...(raisedPixels === undefined || width * height <= PRINT_JPEG_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) }, {
+      ...(raisedPixels === undefined || outputWidth * outputHeight <= PRINT_JPEG_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) }, {
       readTile: async (request) => {
         jpegTick();
         const out = new Uint8Array(request.width * request.height * 3);
-        for (let row = 0; row < request.height; row++) out.set(samples.subarray(((request.y + row) * width + request.x) * 3, ((request.y + row) * width + request.x + request.width) * 3), row * request.width * 3);
+        for (let row = 0; row < request.height; row++) out.set(samples.subarray(((request.y + row) * outputWidth + request.x) * 3, ((request.y + row) * outputWidth + request.x + request.width) * 3), row * request.width * 3);
         return { ...request, samples: out };
       }, yieldControl });
     const jpegEncodeStarted = clockMs();
@@ -1558,8 +1613,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   let png: Uint8Array | undefined;
   if (format === "png") {
     const pngStarted = clockMs();
-    png = serializePngImage({ width, height, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!),
-      ...(raisedPixels === undefined || width * height <= PNG_ENCODER_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) });
+    png = serializePngImage({ width: outputWidth, height: outputHeight, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!),
+      ...(raisedPixels === undefined || outputWidth * outputHeight <= PNG_ENCODER_LIMITS.maximumPixels ? {} : { maximumPixels: raisedPixels }) });
     encodeMs = clockMs() - pngStarted;
     assume("output.png", "model", { encoder: "serializePngImage", bitDepth: pngBitDepth, colourEncoding: pngColourEncoding(colorEncoding!) },
       "Deterministic PNG (8/16-bit RGB, in-house zlib) with the colour encoding signalled in the file: the sRGB chunk for sRGB, otherwise a cICP chunk with ITU-T H.273 primaries/transfer code points. No mastering-display (mDCV) or content-light-level (cLLI) metadata is written.");
@@ -1569,14 +1624,15 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     ...(distortion ? ["lens.distortion" as const] : []), ...(vignetting ? ["lens.vignetting" as const] : []), ...(lensPsf ? ["lens.psf" as const] : []),
     ...(diffraction ? ["lens.diffraction" as const] : []), ...(antiAliasing ? ["sensor.antiAliasing" as const] : []), ...(boxAperture ? ["sensor.pixelAperture.box" as const] : []),
     ...(temporalSampleCount > 1 ? ["sensor.temporalSampleCount" as const] : []), ...(rotating ? ["motion.rotation" as const] : []),
-    ...(rollingSchedule ? ["motion.shutter.rolling" as const] : []), ...(mirrorBorder ? ["output.borderHandling.mirror" as const] : []),
+    ...(rollingSchedule ? ["motion.shutter.rolling" as const] : []), ...(mirrorBorder ? ["output.borderHandling.mirror" as const] : []), ...(region ? ["output.region" as const] : []),
     ...(needsAuto ? ["output.whiteBalance.auto" as const] : []), ...(ahd ? ["output.demosaic.ahd" as const] : []),
     ...(highlightMode === "reconstruct" ? ["output.highlightMode.reconstruct" as const] : []), ...(wideGamut ? ["output.colorEncoding.wide-gamut" as const] : []),
     ...(perceptual ? ["output.gamutMapping.perceptual" as const] : []), ...(format === "jpeg" || format === "png" || format === "dng" ? ["output.format." + format as SimulateCaptureCostOption] : [])]);
   return Object.freeze({
     facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
-    image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}), ...(dng ? { dng: dng.bytes } : {}) },
-    raw: developed.raw, plan,
+    image: { width: outputWidth, height: outputHeight, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}), ...(dng ? { dng: dng.bytes } : {}) },
+    raw: developed.raw, plan: developmentPlan,
+    ...(region && regionNative ? { region: { ...region, frameWidth: width, frameHeight: height, nativeRect: { ...regionNative } } } : {}),
     request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState,
       ...(diffraction ? { diffraction: { profile: diffraction, psf: diffractionPsf!, execution: diffractionObjectSpace ? "object-space-convolution" as const : "environment-psf-quadrature" as const } } : {}) },
     exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds),
