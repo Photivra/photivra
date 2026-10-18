@@ -1,0 +1,28 @@
+name: Temporary region timing
+# Temporary: CI-runner timing evidence for the region-limited diffraction PR; removed before merge.
+on:
+  pull_request:
+    paths: [".github/workflows/tmp-region-bench.yml", ".github/tmp-bench/**"]
+permissions:
+  contents: read
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+      - run: npm ci --ignore-scripts && npm run build
+      - run: mkdir -p "$RUNNER_TEMP/base" && cd "$RUNNER_TEMP/base" && npm init -y >/dev/null && npm install --ignore-scripts @photivra/engine@2.5.0 >/dev/null
+      - name: Timings
+        run: |
+          nproc; lscpu | grep "Model name"
+          B="$RUNNER_TEMP/base/node_modules/@photivra/engine/dist/index.js"
+          for m in "speed 0" "quality 0" "quality 2"; do set -- $m
+            MODE=$1 BOX=$2 node .github/tmp-bench/bench.mjs dist/index.js head
+            MODE=$1 BOX=$2 node .github/tmp-bench/bench.mjs "$B" 2.5.0
+          done
