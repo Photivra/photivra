@@ -1771,7 +1771,10 @@ export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_L
 export { CHART_SCENE_PRESETS, CHART_SCENE_DEFAULTS, CHART_SPECTRAL_RANGE_NANOMETERS, resolveChartScene, calculateStepWedgeReflectances,
   calculatePointGridCenters, type ChartScene, type ChartScenePresetId, type ChartReflectance, type ResolvedChartScene, type UniformChartScene,
   type SlantedEdgeChartScene, type SiemensStarChartScene, type StepWedgeChartScene, type GreyRampChartScene, type CheckerboardChartScene,
-  type PointGridChartScene, type PatchChartScene } from "./facade/chart-scenes.js";
+  type PointGridChartScene, type PatchChartScene, CHART_CONTINUOUS_LEVELS, calculateBarGroupTargets, calculateSlantedSquareEdges,
+  type DeadLeavesChartScene, type BarGroupsChartScene, type HyperbolicWedgeChartScene, type ZonePlateChartScene, type SlantedSquaresChartScene,
+  type LineGridChartScene, type FiducialChartScene, type CompositeChartScene, type CompositeChartElement, type ChartElementScene,
+  type ChartRectangle, type ChartBarGroupTarget, type ChartSlantedSquare } from "./facade/chart-scenes.js";
 export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider,
   type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
   type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";

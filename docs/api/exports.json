@@ -203,6 +203,11 @@
       "kind": "type"
     },
     {
+      "name": "BarGroupsChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "BilateralFilterInput",
       "source": "src/processing/denoise.ts",
       "kind": "type"
@@ -316,6 +321,11 @@
       "name": "CalculateAtmosphericHazeInput",
       "source": "src/optics/atmospheric-haze.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateBarGroupTargets",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateBrownConradyDistortionMapping",
@@ -1288,6 +1298,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateSlantedSquareEdges",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateStabilizedCaptureTemporalSamples",
       "source": "src/stabilization/system.ts",
       "kind": "runtime"
@@ -1768,6 +1783,11 @@
       "kind": "type"
     },
     {
+      "name": "CHART_CONTINUOUS_LEVELS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CHART_RADIANCE_BATCH_LIMITS",
       "source": "src/facade/chart-radiance-batch.ts",
       "kind": "runtime"
@@ -1793,6 +1813,16 @@
       "kind": "runtime"
     },
     {
+      "name": "ChartBarGroupTarget",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartElementScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "ChartRadianceBatchInput",
       "source": "src/facade/chart-radiance-batch.ts",
       "kind": "type"
@@ -1808,6 +1838,11 @@
       "kind": "type"
     },
     {
+      "name": "ChartRectangle",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "ChartReflectance",
       "source": "src/facade/chart-scenes.ts",
       "kind": "type"
@@ -1819,6 +1854,11 @@
     },
     {
       "name": "ChartScenePresetId",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartSlantedSquare",
       "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
@@ -2045,6 +2085,16 @@
     {
       "name": "ComposeSpectralCoverageInput",
       "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CompositeChartElement",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CompositeChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -2425,6 +2475,11 @@
     {
       "name": "CreateWavefrontPupilGridInput",
       "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DeadLeavesChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -2860,6 +2915,11 @@
     {
       "name": "ExtendedObjectProjectionTrajectory",
       "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FiducialChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -3360,6 +3420,11 @@
     {
       "name": "HighlightPriorityMeteringDiagnostics",
       "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HyperbolicWedgeChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -3965,6 +4030,11 @@
     {
       "name": "LinearPolarizationState",
       "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LineGridChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -7903,6 +7973,11 @@
       "kind": "type"
     },
     {
+      "name": "SlantedSquaresChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "SourcedAirPhaseRefractiveIndex",
       "source": "src/sensor/photon-energy.ts",
       "kind": "type"
@@ -8400,6 +8475,11 @@
     {
       "name": "ZernikeOrder",
       "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ZonePlateChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     }
   ]

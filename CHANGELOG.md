@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+Engine 2.3 work in progress (not released; no version bump yet). Everything is opt-in: without the new inputs every request, plan, RAW, image, encoded file, scene digest and hash lock is byte-identical to 2.2.1.
+
+### Added
+
+- **Chart elements.** New generic, unbranded chart presets: `dead-leaves` (seeded, scale-invariant r⁻³ radius law after Cao, Guichard and Hornung, drawn front to back until covered), `bar-groups` (three-bar groups at a list of LW/PH frequencies, both orientations, optional engine-drawn seven-segment numerals), `hyperbolic-wedge`, `zone-plate`, `slanted-squares` (an edge field of rotated squares), `line-grid` and `fiducial`, plus `profile: "sine"` on `siemens-star` (the bar profile stays the default and its parameters and digests are unchanged). Continuous patterns are quantized to `CHART_CONTINUOUS_LEVELS` (1024) neutral levels. New analysis helpers `calculateBarGroupTargets` and `calculateSlantedSquareEdges`.
+- **`composite` charts.** An ordered list of elements, each a preset in a placement rectangle (frame units) with an optional ellipse mask, over a background preset; later elements cover earlier ones and LW/PH frequencies keep the composite's picture height. Applications build their own layouts from engine parts; branded layouts stay in the application. Caller spectra inside elements enter the scene digest. The `webgpu-f32` chart-radiance stage rejects the new presets, composites and the sine star with `unsupported-on-backend` (documented in docs/WEBGPU.md); `cpu-reference` and `calculateChartRadianceBatch` cover them.
+
 ## 2.2.1 — published October 18, 2026
 
 A patch release: `simulateCapture` `lens.diffraction` no longer fails for about a third of the combinations of real pixel pitches and f-numbers because of a floating-point rounding error in the kernel-to-site mapping, and the diffraction assumption states when its default window is capped at 32 sites. Captures that 2.2.0 completed are byte-identical (RAW codes, images, kernels and assumption values); only the explanation text of capped windows changes. No root export is added or removed (1,680 symbols).

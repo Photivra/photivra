@@ -2,12 +2,55 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## BarGroupsChartScene
+
+2.3: groups of three dark bars on a light plate (the public-domain three-bar concept of the USAF-1951
+target, in the engine's own arrangement): one group per frequency, vertical bars (horizontal resolution)
+in the upper row and horizontal bars (vertical resolution) below, optionally labelled with engine-drawn
+seven-segment numerals. Frequencies are line widths per picture height (LW/PH, as in ISO 12233), where
+the picture height is the chart's height: one bar is PH/LW wide.
+
+```ts
+export interface BarGroupsChartScene {
+  preset: "bar-groups";
+  /** One group per entry, left to right: integers 1..100000. Default [100, 200, 400, 800]. 1..32 entries. */
+  lineWidthsPerPictureHeight?: readonly number[];
+  /** Draw each group's LW/PH value below it. Default true. */
+  numerals?: boolean;
+  darkReflectance?: number;
+  lightReflectance?: number;
+}
+```
+
+## calculateBarGroupTargets
+
+The bar groups of a `bar-groups` chart, or of every `bar-groups` element of a composite, in the chart's
+frame units (2.3). `aspect` is the chart's height / width, as for {@link resolveChartScene}.
+
+```ts
+export function calculateBarGroupTargets(input: { scene: ChartScene; aspect: number }): ChartBarGroupTarget[];
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
 ## calculatePointGridCenters
 
 Centres (frame units) of a point grid: one disk centred in each of columns × rows equal cells, row-major from the top-left.
 
 ```ts
 export function calculatePointGridCenters(input: { columns: number; rows: number; aspect: number }): { u: number; v: number }[];
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## calculateSlantedSquareEdges
+
+Squares and edges of a `slanted-squares` chart, or of every `slanted-squares` element of a composite, in
+the chart's frame units (2.3), for slanted-edge regions of interest (Burns, PICS 2000). Directions are unit
+vectors along each edge (u right, v up).
+
+```ts
+export function calculateSlantedSquareEdges(input: { scene: ChartScene; aspect: number }): ChartSlantedSquare[];
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
@@ -24,6 +67,14 @@ export function calculateStepWedgeReflectances(input: { steps: number; minimumRe
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
+## CHART_CONTINUOUS_LEVELS
+
+Neutral levels that represent a continuous pattern (grey ramp; 2.3 sine star, zone plate and dead-leaves greys).
+
+```ts
+CHART_CONTINUOUS_LEVELS = 1024
+```
+
 ## CHART_SCENE_DEFAULTS
 
 Engine-chosen chart parameters, each reported when the caller omitted it.
@@ -37,7 +88,16 @@ CHART_SCENE_DEFAULTS = Object.freeze({
   "grey-ramp": Object.freeze({ minimumReflectance: 0.03, maximumReflectance: 0.9 }),
   checkerboard: Object.freeze({ squaresAcross: 8, darkReflectance: 0.05, lightReflectance: 0.8 }),
   "point-grid": Object.freeze({ columns: 5, rows: 3, radius: 0.01, pointReflectance: 0.9, backgroundReflectance: 0.02 }),
-  patches: Object.freeze({ gapFraction: 0.1, backgroundReflectance: 0.18 })
+  patches: Object.freeze({ gapFraction: 0.1, backgroundReflectance: 0.18 }),
+  "dead-leaves": Object.freeze({ radiusMinimum: 0.01, radiusMaximum: 0.5, minimumReflectance: 0.2, maximumReflectance: 0.6, seed: 1 }),
+  "bar-groups": Object.freeze({ lineWidthsPerPictureHeight: Object.freeze([100, 200, 400, 800]), numerals: true, darkReflectance: 0.05, lightReflectance: 0.8 }),
+  "hyperbolic-wedge": Object.freeze({ orientation: "horizontal" as const, lineCount: 5, minimumLineWidthsPerPictureHeight: 100,
+    maximumLineWidthsPerPictureHeight: 1000, darkReflectance: 0.05, lightReflectance: 0.8 }),
+  "zone-plate": Object.freeze({ radiusFraction: 0.9, maximumCyclesPerPictureHeight: 200, darkReflectance: 0.1, lightReflectance: 0.7, backgroundReflectance: 0.18 }),
+  "slanted-squares": Object.freeze({ columns: 3, rows: 2, sizeFraction: 0.5, angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 }),
+  "line-grid": Object.freeze({ spacing: 1 / 3, lineWidth: 0.01, lineReflectance: 0.42, backgroundReflectance: 0.6 }),
+  fiducial: Object.freeze({ radiusFraction: 0.8, ringFraction: 0.18, inverted: false, darkReflectance: 0.05, lightReflectance: 0.8, backgroundReflectance: 0.18 }),
+  composite: Object.freeze({ background: Object.freeze({ preset: "uniform" as const, reflectance: 0.18 }) })
 })
 ```
 
@@ -47,7 +107,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 CHART_SCENE_PRESETS: readonly ChartScenePresetId[] = Object.freeze(["uniform", "slanted-edge", "siemens-star",
-  "step-wedge", "grey-ramp", "checkerboard", "point-grid", "patches"] as const)
+  "step-wedge", "grey-ramp", "checkerboard", "point-grid", "patches", "dead-leaves", "bar-groups", "hyperbolic-wedge", "zone-plate",
+  "slanted-squares", "line-grid", "fiducial", "composite"] as const)
 ```
 
 ## CHART_SPECTRAL_RANGE_NANOMETERS
@@ -56,6 +117,43 @@ Wavelength range every chart spectrum must cover (the facade's sensor quadrature
 
 ```ts
 CHART_SPECTRAL_RANGE_NANOMETERS = Object.freeze({ minimum: 380, maximum: 780 })
+```
+
+## ChartBarGroupTarget
+
+One bar group of a `bar-groups` chart or composite element, in the chart's frame units.
+
+```ts
+export interface ChartBarGroupTarget {
+  /** Composite element index, or null for a plain `bar-groups` chart. */
+  elementIndex: number | null;
+  lineWidthsPerPictureHeight: number;
+  /** Line pairs (cycles) per picture height: LW/PH ÷ 2. */
+  cyclesPerPictureHeight: number;
+  /** Width of one bar, frame units. */
+  lineWidth: number;
+  /** The three vertical bars (horizontal resolution) and the three horizontal bars (vertical resolution). */
+  verticalBars: ChartRectangle;
+  horizontalBars: ChartRectangle;
+}
+```
+
+## ChartElementScene
+
+Any chart preset except `composite`: a composite's background or element.
+
+```ts
+export type ChartElementScene = UniformChartScene | SlantedEdgeChartScene | SiemensStarChartScene | StepWedgeChartScene | GreyRampChartScene |
+  CheckerboardChartScene | PointGridChartScene | PatchChartScene | DeadLeavesChartScene | BarGroupsChartScene | HyperbolicWedgeChartScene |
+  ZonePlateChartScene | SlantedSquaresChartScene | LineGridChartScene | FiducialChartScene;
+```
+
+## ChartRectangle
+
+An axis-aligned rectangle in chart frame units: u0 ≤ u ≤ u1, v0 ≤ v ≤ v1.
+
+```ts
+export interface ChartRectangle { u0: number; v0: number; u1: number; v1: number }
 ```
 
 ## ChartReflectance
@@ -71,8 +169,7 @@ export type ChartReflectance = number | ColorimetricSpectrum;
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-export type ChartScene = UniformChartScene | SlantedEdgeChartScene | SiemensStarChartScene | StepWedgeChartScene |
-  GreyRampChartScene | CheckerboardChartScene | PointGridChartScene | PatchChartScene;
+export type ChartScene = ChartElementScene | CompositeChartScene;
 ```
 
 ## ChartScenePresetId
@@ -81,6 +178,25 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export type ChartScenePresetId = ChartScene["preset"];
+```
+
+## ChartSlantedSquare
+
+One square of a `slanted-squares` chart and its four edges, in the chart's frame units.
+
+```ts
+export interface ChartSlantedSquare {
+  elementIndex: number | null;
+  center: { u: number; v: number };
+  /** Side length, frame units. */
+  side: number;
+  /** Clockwise rotation, degrees. */
+  angleDegrees: number;
+  darkReflectance: number;
+  lightReflectance: number;
+  /** `left`/`right` edges are near-vertical (horizontal MTF), `top`/`bottom` near-horizontal (vertical MTF). */
+  edges: { side: "left" | "right" | "top" | "bottom"; midpoint: { u: number; v: number }; direction: { u: number; v: number }; length: number }[];
+}
 ```
 
 ## CheckerboardChartScene
@@ -97,6 +213,82 @@ export interface CheckerboardChartScene {
 }
 ```
 
+## CompositeChartElement
+
+One element of a composite chart: a preset drawn inside its placement rectangle (frame units of the
+composite). The element sees its own frame: u = ±1 at the rectangle's left and right edges, aspect =
+height / width, and LW/PH frequencies still refer to the composite's picture height.
+
+```ts
+export interface CompositeChartElement {
+  scene: ChartElementScene;
+  centerU: number;
+  centerV: number;
+  width: number;
+  height: number;
+  /** `rectangle` (default) or `ellipse` inscribed in the rectangle; outside it, earlier elements or the background show. */
+  mask?: "rectangle" | "ellipse";
+}
+```
+
+## CompositeChartScene
+
+2.3: an ordered list of elements over a background. Later elements cover earlier ones. The engine
+provides only the generic parts; a branded or product-specific layout stays in the application.
+
+```ts
+export interface CompositeChartScene {
+  preset: "composite";
+  /** Fills the whole composite frame. Default `{ preset: "uniform", reflectance: 0.18 }`. */
+  background?: ChartElementScene;
+  /** 1..256 elements, drawn in order. */
+  elements: readonly CompositeChartElement[];
+}
+```
+
+## DeadLeavesChartScene
+
+2.3: seeded dead-leaves texture (Matheron's random closed set model, in the scale-invariant form used for
+camera texture measurement by Cao, Guichard and Hornung): opaque disks with Poisson-distributed centres,
+radius density ∝ r⁻³ on [radiusMinimum, radiusMaximum] and a grey drawn uniformly in [minimum, maximum]
+reflectance. Disks are drawn in order with earlier disks on top until every point of the chart (plus 0.1
+frame units around it) is covered, which samples the stationary dead-leaves image exactly (Kendall and
+Thönnes' backward "perfect simulation"). Radii are in frame units (fraction of the frame half-width).
+
+```ts
+export interface DeadLeavesChartScene {
+  preset: "dead-leaves";
+  /** Smallest disk radius, frame units, [0.002, radiusMaximum). Default 0.01. */
+  radiusMinimum?: number;
+  /** Largest disk radius, frame units, (radiusMinimum, 2]. Default 0.5. */
+  radiusMaximum?: number;
+  /** Grey range (neutral reflectances). Defaults 0.2 and 0.6. */
+  minimumReflectance?: number;
+  maximumReflectance?: number;
+  /** Random seed (uint32); the same seed gives the same disks on every platform. Default 1. */
+  seed?: number;
+}
+```
+
+## FiducialChartScene
+
+2.3: registration fiducial: a 2 × 2 checker disk inside a dark ring; `inverted` swaps the checker phase (an orientation cue).
+
+```ts
+export interface FiducialChartScene {
+  preset: "fiducial";
+  /** Disk radius as a fraction of the frame half-height, (0, 1]. Default 0.8. */
+  radiusFraction?: number;
+  /** Ring width as a fraction of the radius, (0, 1). Default 0.18. */
+  ringFraction?: number;
+  /** Default false: the upper-right and lower-left quadrants are dark. */
+  inverted?: boolean;
+  darkReflectance?: number;
+  lightReflectance?: number;
+  backgroundReflectance?: number;
+}
+```
+
 ## GreyRampChartScene
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -107,6 +299,43 @@ export interface GreyRampChartScene {
   /** Continuous ramp, linear in reflectance from left (minimum) to right (maximum). */
   minimumReflectance?: number;
   maximumReflectance?: number;
+}
+```
+
+## HyperbolicWedgeChartScene
+
+2.3: hyperbolic wedge: `lineCount` dark lines separated by light gaps of the same width, whose width
+shrinks along the wedge axis so that the frequency rises linearly from the minimum to the maximum LW/PH.
+The line edges are hyperbolas. `horizontal`: the axis runs left to right and the lines are nearly
+horizontal (vertical resolution); `vertical`: the axis runs bottom to top (horizontal resolution).
+
+```ts
+export interface HyperbolicWedgeChartScene {
+  preset: "hyperbolic-wedge";
+  orientation?: "horizontal" | "vertical";
+  /** Dark lines, 1..50. Default 5. */
+  lineCount?: number;
+  /** LW/PH at the start and end of the axis. Defaults 100 and 1000. */
+  minimumLineWidthsPerPictureHeight?: number;
+  maximumLineWidthsPerPictureHeight?: number;
+  darkReflectance?: number;
+  lightReflectance?: number;
+}
+```
+
+## LineGridChartScene
+
+2.3: straight lines at every multiple of `spacing` from the centre in u and v (a distortion and registration grid).
+
+```ts
+export interface LineGridChartScene {
+  preset: "line-grid";
+  /** Distance between lines, frame units, (0, 2]. Default 1/3 (six cells across). */
+  spacing?: number;
+  /** Line width, frame units, (0, spacing). Default 0.01. */
+  lineWidth?: number;
+  lineReflectance?: number;
+  backgroundReflectance?: number;
 }
 ```
 
@@ -196,6 +425,13 @@ export interface SiemensStarChartScene {
   lightReflectance?: number;
   /** Reflectance outside the star. Default 0.18. */
   backgroundReflectance?: number;
+  /**
+   * 2.3: angular reflectance profile. `bar` (default): square-wave sectors. `sine`: a sinusoidal star,
+   * R(θ) = mid + amp·sin(2π·cycles·(θ/2π + ½)) between the dark and light reflectances, zero crossings at
+   * the bar star's sector edges, quantized to {@link CHART_CONTINUOUS_LEVELS} levels. Reported in the
+   * parameters only when given, so 2.2 scene digests are unchanged.
+   */
+  profile?: "bar" | "sine";
 }
 ```
 
@@ -211,6 +447,27 @@ export interface SlantedEdgeChartScene {
   /** Left (dark) side reflectance. Default 0.15. */
   darkReflectance?: number;
   /** Right (light) side reflectance. Default 0.6 (4:1 with the default dark side). */
+  lightReflectance?: number;
+}
+```
+
+## SlantedSquaresChartScene
+
+2.3: a field of dark squares rotated clockwise by `angleDegrees` on a light background, one centred in
+each of columns × rows equal cells: every square gives two near-vertical and two near-horizontal slanted
+edges (Burns, PICS 2000). See {@link calculateSlantedSquareEdges}.
+
+```ts
+export interface SlantedSquaresChartScene {
+  preset: "slanted-squares";
+  columns?: number;
+  rows?: number;
+  /** Square side as a fraction of the smaller cell side, (0, 1); the rotated square must stay in its cell. Default 0.5. */
+  sizeFraction?: number;
+  /** Clockwise rotation, degrees, in (-45, 45). Default 5. */
+  angleDegrees?: number;
+  /** Square (dark) and background (light) reflectances. Defaults 0.15 and 0.6 (4:1). */
+  darkReflectance?: number;
   lightReflectance?: number;
 }
 ```
@@ -237,4 +494,23 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface UniformChartScene { preset: "uniform"; reflectance?: ChartReflectance }
+```
+
+## ZonePlateChartScene
+
+2.3: circular zone plate R(r) = mid + amp·cos(π·k·r²): the local frequency k·r rises linearly from 0 at
+the centre to `maximumCyclesPerPictureHeight` at the rim (the quadratic-phase chirp of a Fresnel zone
+plate). Quantized to {@link CHART_CONTINUOUS_LEVELS} levels.
+
+```ts
+export interface ZonePlateChartScene {
+  preset: "zone-plate";
+  /** Plate radius as a fraction of the frame half-height, (0, 1]. Default 0.9. */
+  radiusFraction?: number;
+  /** Frequency at the rim, cycles per picture height. Default 200. */
+  maximumCyclesPerPictureHeight?: number;
+  darkReflectance?: number;
+  lightReflectance?: number;
+  backgroundReflectance?: number;
+}
 ```

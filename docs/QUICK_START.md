@@ -211,8 +211,46 @@ are spectrally flat.
 | `point-grid` | `columns` (5), `rows` (3), `radius` (0.01), `pointReflectance` (0.9), `backgroundReflectance` (0.02) | Small disks centred in equal cells, for PSF and defocus inspection. |
 | `patches` | `patches` (required), `columns`, `gapFraction` (0.1), `backgroundReflectance` (0.18) | Caller reflectance per patch, row-major. Use it for a ColorChecker-like chart with reflectance data you are entitled to use; the engine does not ship such data because its licence is unclear. |
 
-`resolveChartScene()`, `calculateStepWedgeReflectances()` and `calculatePointGridCenters()` expose
-the same definitions for analysis code. `createPlanarSceneRadianceProvider()` turns any of these
+### Chart elements and composite charts (2.3)
+
+2.3 adds generic, unbranded test-pattern elements and a `composite` preset that lays them out, so an
+application can build its own chart from engine parts. Frequencies in LW/PH (line widths per picture
+height, as in ISO 12233) refer to the height of the chart: the preset's own frame, or the composite's
+frame for its elements. One line width is PH/LW. Continuous patterns are stored as
+`CHART_CONTINUOUS_LEVELS` (1024) equal neutral levels, like the grey ramp; the step is below 0.1 % of
+the range, far below sensor noise.
+
+| Preset | Parameters (defaults) | Definition and source |
+| --- | --- | --- |
+| `siemens-star` `profile` | `"bar"` (default) or `"sine"` | `sine`: R(θ) = mid + amp·sin(2π·cycles·(θ/2π + ½)) between the dark and light reflectances, with zero crossings at the bar star's sector edges. `profile` appears in the parameters only when given, so 2.2 scene digests are unchanged. |
+| `dead-leaves` | `radiusMinimum` (0.01), `radiusMaximum` (0.5), `minimumReflectance` (0.2), `maximumReflectance` (0.6), `seed` (1) | Matheron's dead-leaves model in the scale-invariant form used for texture measurement by Cao, Guichard and Hornung (2010): opaque disks with uniform (Poisson) centres, radius density ∝ r⁻³ on [rMin, rMax] (frame units, rMin ≥ 0.002), grey uniform in the reflectance range. Disks are drawn front to back until the chart and 0.1 frame units around it are completely covered (backward "perfect simulation", Kendall and Thönnes 1999), so the texture is an exact sample of the stationary model there; farther out it is the mean grey. Seeded with the engine's xorshift32 stream and only correctly rounded arithmetic: the same seed gives the same disks on every platform. `diskCount` is reported. |
+| `bar-groups` | `lineWidthsPerPictureHeight` ([100, 200, 400, 800]), `numerals` (true), `darkReflectance` (0.05), `lightReflectance` (0.8) | One group of three dark bars and two gaps (five line widths) per frequency, left to right: vertical bars in the upper row (horizontal resolution), horizontal bars below (vertical resolution) and, with `numerals`, the LW/PH value in engine-drawn seven-segment digits. The three-bar group is the public-domain concept of the USAF-1951 target; the arrangement is the engine's own. A group that does not fit its cell is rejected. |
+| `hyperbolic-wedge` | `orientation` (`horizontal`), `lineCount` (5), `minimumLineWidthsPerPictureHeight` (100), `maximumLineWidthsPerPictureHeight` (1000), dark/light (0.05/0.8) | `lineCount` dark lines and the gaps between them, all one line width wide, whose width shrinks along the axis so the frequency rises linearly from the minimum to the maximum LW/PH; the line edges are hyperbolas. `horizontal`: axis left to right, nearly horizontal lines (vertical resolution). |
+| `zone-plate` | `radiusFraction` (0.9), `maximumCyclesPerPictureHeight` (200), `darkReflectance` (0.1), `lightReflectance` (0.7), `backgroundReflectance` (0.18) | R(r) = mid + amp·cos(π·k·r²): the quadratic-phase chirp of a Fresnel zone plate, whose local frequency k·r rises linearly from 0 at the centre to the maximum at the rim. |
+| `slanted-squares` | `columns` (3), `rows` (2), `sizeFraction` (0.5), `angleDegrees` (5), `darkReflectance` (0.15), `lightReflectance` (0.6) | A dark square rotated clockwise by the angle, centred in each cell: two near-vertical and two near-horizontal slanted edges each, 4:1 contrast by default (Burns 2000). |
+| `line-grid` | `spacing` (1/3), `lineWidth` (0.01), `lineReflectance` (0.42), `backgroundReflectance` (0.6) | Lines at every multiple of `spacing` from the centre in u and v: a distortion and registration grid. |
+| `fiducial` | `radiusFraction` (0.8), `ringFraction` (0.18), `inverted` (false), `darkReflectance` (0.05), `lightReflectance` (0.8), `backgroundReflectance` (0.18) | A 2 × 2 checker disk in a dark ring, for registration; `inverted` swaps the checker phase (an orientation cue). |
+| `composite` | `background` (`{ preset: "uniform", reflectance: 0.18 }`), `elements` (required, 1–256) | Each element is `{ scene, centerU, centerV, width, height, mask? }`: any preset except `composite`, drawn inside its placement rectangle (frame units of the composite), clipped to the rectangle or, with `mask: "ellipse"`, to the inscribed ellipse. Later elements cover earlier ones. An element sees its own frame (u = ±1 across its width, aspect = height/width) but LW/PH frequencies keep the composite's picture height. Nested defaults are reported by path, for example `scene.elements.3.parameters.cycles`. |
+
+The engine provides only these generic parts. A product's own layout, label or brand belongs in the
+application: build it as a `composite`.
+
+```ts
+import { calculateBarGroupTargets, simulateCapture, type ChartScene } from "@photivra/engine";
+
+const chart: ChartScene = { preset: "composite", background: { preset: "line-grid", spacing: 1 / 6, lineWidth: 0.004 }, elements: [
+  { scene: { preset: "siemens-star", profile: "sine", cycles: 64 }, centerU: 0, centerV: 0, width: 0.6, height: 0.6, mask: "ellipse" },
+  { scene: { preset: "bar-groups", lineWidthsPerPictureHeight: [100, 200, 400] }, centerU: -0.7, centerV: 0.45, width: 0.5, height: 0.3 },
+  { scene: { preset: "slanted-squares", columns: 1, rows: 1 }, centerU: 0.7, centerV: 0.4, width: 0.3, height: 0.3 }] };
+const capture = await simulateCapture({ scene: chart, output: { width: 96, height: 64 } });
+console.log(capture.scene.parameters, calculateBarGroupTargets({ scene: chart, aspect: 64 / 96 })[0]?.verticalBars);
+```
+
+`resolveChartScene()`, `calculateStepWedgeReflectances()`, `calculatePointGridCenters()` and, from 2.3,
+`calculateBarGroupTargets()` (each group's LW/PH, line width and bar rectangles) and
+`calculateSlantedSquareEdges()` (each square's centre and its four edges' midpoints and directions, for
+slanted-edge regions of interest) expose the same definitions for analysis code, in the chart's frame
+units (composite elements mapped into the composite's frame). `createPlanarSceneRadianceProvider()` turns any of these
 scenes into a provider for the native environment RAW contract.
 
 Instead of a chart you can pass a function. `{ kind: "reflectance-function", sceneId, evaluate }`
@@ -742,6 +780,15 @@ provided, for rights reasons.
   <https://www.cipa.jp/e/std/std-sec.html> (standard output sensitivity S = 10/H, §3.2; reference
   level tied to 18 % grey, §5.2 and Explanation 1, 2.2; focal-plane exposure H = 0.65·L·t/N², §5.5
   and Explanation 4).
+- F. Cao, F. Guichard, H. Hornung, "Dead leaves model for measuring texture quality on a digital
+  camera", Proc. SPIE 7537, Digital Photography VI, 2010; A. B. Lee, D. Mumford, J. Huang, "Occlusion
+  models for natural images", *International Journal of Computer Vision* 41, 2001 (the dead-leaves
+  model and its r⁻³ radius law); W. S. Kendall, E. Thönnes, "Perfect simulation in stochastic geometry",
+  *Pattern Recognition* 32(9), 1999 (drawing the leaves front to back until covered). The engine's
+  implementation and parameters are its own.
+- USAF-1951 resolution target (MIL-STD-150A, a US-government work in the public domain) for the
+  three-bar group concept; the engine's arrangement, frequencies and numerals are its own. J. W. Goodman,
+  *Introduction to Fourier Optics*, 4th ed., 2017 (Fresnel zone plate, a quadratic-phase chirp).
 - P. D. Burns, "Slanted-Edge MTF for Digital Camera and Scanner Analysis", Proc. IS&T PICS 2000,
   free at <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2000/PICS-0-81/1621.pdf>
   (slanted-edge geometry; also ISO 12233:2017).

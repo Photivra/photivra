@@ -86,7 +86,7 @@ import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../col
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
 import { parseSensorReadoutConversionProfile, resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
-import { resolveChartScene, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
+import { resolveChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
   type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
@@ -951,7 +951,10 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     callerScene = requireCallerScene(sceneOption);
   } else {
     chart = resolveChartScene({ scene: sceneOption as ChartScene, aspect });
-    for (const key of chart.defaultedParameters) assume("scene." + key, "default", chart.parameters[key], "Chart default for " + chart.preset + ".");
+    // Composite charts (2.3) report nested defaults by dotted path, for example "elements.2.parameters.cycles".
+    const parameterAt = (key: string): unknown => key in chart!.parameters ? chart!.parameters[key] :
+      key.split(".").reduce<unknown>((value, part) => (value as Record<string, unknown> | undefined)?.[part], chart!.parameters);
+    for (const key of chart.defaultedParameters) assume("scene." + key, "default", parameterAt(key), "Chart default for " + chart.preset + ".");
   }
   const scenePreset = chart ? chart.preset : callerScene!.kind;
   // Caller spectra enter the digest as data (see spectrumDigestForm). Without caller spectra the description is unchanged,
@@ -959,11 +962,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const illuminantRecord = typeof illuminantOption === "object" ? illuminantOption as { kind?: unknown; basis?: { datasetId?: unknown } } : undefined;
   const illuminantSpectrum = illuminantRecord?.kind === "spectrum" ? { spectrum: spectrumDigestForm(illuminant.spectrum, illuminant.shape) } :
     illuminantRecord?.kind === "daylight" ? { basisDatasetId: illuminantRecord.basis?.datasetId, spectrum: spectrumDigestForm(illuminant.spectrum, illuminant.shape) } : undefined;
-  const sceneSpectra = chart ? chart.materials.flatMap((m, index) => {
-    if (m.kind !== "spectrum") return [];
-    const raw = chart!.preset === "uniform" ? sceneRecord.reflectance : (sceneRecord.patches as readonly { reflectance: unknown }[])[index]!.reflectance;
-    return [{ material: index, spectrum: spectrumDigestForm(raw, m.spectrum) }];
-  }) : [];
+  const materialInputs = chart ? chartMaterialInputs(chart) : [];
+  const sceneSpectra = chart ? chart.materials.flatMap((m, index) => m.kind !== "spectrum" ? [] : [{ material: index, spectrum: spectrumDigestForm(materialInputs[index], m.spectrum) }]) : [];
   const sceneDescription = { facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, scene: chart ? { preset: chart.preset, parameters: chart.parameters } :
     { kind: callerScene!.kind, sceneId: callerScene!.sceneId }, illuminant: illuminant.id, illuminanceLux, subjectDistanceM, framedWidthM: 2 * metresPerFrameUnit, aspect,
     ...(illuminantSpectrum === undefined ? {} : { illuminantSpectrum }), ...(sceneSpectra.length === 0 ? {} : { sceneSpectra }) };

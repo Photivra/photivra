@@ -1106,24 +1106,40 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`BarGroupsChartScene`](api/facade-chart-scenes.md#bargroupschartscene) | Type |
+| [`calculateBarGroupTargets`](api/facade-chart-scenes.md#calculatebargrouptargets) | Runtime |
 | [`calculatePointGridCenters`](api/facade-chart-scenes.md#calculatepointgridcenters) | Runtime |
+| [`calculateSlantedSquareEdges`](api/facade-chart-scenes.md#calculateslantedsquareedges) | Runtime |
 | [`calculateStepWedgeReflectances`](api/facade-chart-scenes.md#calculatestepwedgereflectances) | Runtime |
+| [`CHART_CONTINUOUS_LEVELS`](api/facade-chart-scenes.md#chart_continuous_levels) | Runtime |
 | [`CHART_SCENE_DEFAULTS`](api/facade-chart-scenes.md#chart_scene_defaults) | Runtime |
 | [`CHART_SCENE_PRESETS`](api/facade-chart-scenes.md#chart_scene_presets) | Runtime |
 | [`CHART_SPECTRAL_RANGE_NANOMETERS`](api/facade-chart-scenes.md#chart_spectral_range_nanometers) | Runtime |
+| [`ChartBarGroupTarget`](api/facade-chart-scenes.md#chartbargrouptarget) | Type |
+| [`ChartElementScene`](api/facade-chart-scenes.md#chartelementscene) | Type |
+| [`ChartRectangle`](api/facade-chart-scenes.md#chartrectangle) | Type |
 | [`ChartReflectance`](api/facade-chart-scenes.md#chartreflectance) | Type |
 | [`ChartScene`](api/facade-chart-scenes.md#chartscene) | Type |
 | [`ChartScenePresetId`](api/facade-chart-scenes.md#chartscenepresetid) | Type |
+| [`ChartSlantedSquare`](api/facade-chart-scenes.md#chartslantedsquare) | Type |
 | [`CheckerboardChartScene`](api/facade-chart-scenes.md#checkerboardchartscene) | Type |
+| [`CompositeChartElement`](api/facade-chart-scenes.md#compositechartelement) | Type |
+| [`CompositeChartScene`](api/facade-chart-scenes.md#compositechartscene) | Type |
+| [`DeadLeavesChartScene`](api/facade-chart-scenes.md#deadleaveschartscene) | Type |
+| [`FiducialChartScene`](api/facade-chart-scenes.md#fiducialchartscene) | Type |
 | [`GreyRampChartScene`](api/facade-chart-scenes.md#greyrampchartscene) | Type |
+| [`HyperbolicWedgeChartScene`](api/facade-chart-scenes.md#hyperbolicwedgechartscene) | Type |
+| [`LineGridChartScene`](api/facade-chart-scenes.md#linegridchartscene) | Type |
 | [`PatchChartScene`](api/facade-chart-scenes.md#patchchartscene) | Type |
 | [`PointGridChartScene`](api/facade-chart-scenes.md#pointgridchartscene) | Type |
 | [`resolveChartScene`](api/facade-chart-scenes.md#resolvechartscene) | Runtime |
 | [`ResolvedChartScene`](api/facade-chart-scenes.md#resolvedchartscene) | Type |
 | [`SiemensStarChartScene`](api/facade-chart-scenes.md#siemensstarchartscene) | Type |
 | [`SlantedEdgeChartScene`](api/facade-chart-scenes.md#slantededgechartscene) | Type |
+| [`SlantedSquaresChartScene`](api/facade-chart-scenes.md#slantedsquareschartscene) | Type |
 | [`StepWedgeChartScene`](api/facade-chart-scenes.md#stepwedgechartscene) | Type |
 | [`UniformChartScene`](api/facade-chart-scenes.md#uniformchartscene) | Type |
+| [`ZonePlateChartScene`](api/facade-chart-scenes.md#zoneplatechartscene) | Type |
 
 ## facade/scene-radiance.ts
 
