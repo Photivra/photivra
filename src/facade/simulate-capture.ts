@@ -280,7 +280,9 @@ export interface SimulateCaptureOptions {
      * the whole render: framing, metering, exposure, noise seeds (absolute native site indices), rolling-shutter row
      * timing, diffraction and demosaic all use the whole frame. Use it to tile a large frame across workers or to
      * render a 100 % crop. `result.image` is the region; `result.region` reports it. Not combinable with
-     * `whiteBalance: "auto"`, whose statistics would come from the region only.
+     * `whiteBalance: "auto"`, whose statistics would come from the region only. From 2.6 the diffraction convolution
+     * covers only the region plus the kernel and filter reach, so a small region of a large frame costs about as much
+     * as a capture of the region's size.
      */
     region?: { x: number; y: number; width: number; height: number };
   };
@@ -1078,7 +1080,10 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
   if (region && regionNative) assume("output.region", "model", { ...region, frameWidth: width, frameHeight: height, nativeRect: { ...regionNative } },
     "Only this rectangle of the " + width + " × " + height + " frame is rendered. Framing, metering, exposure, diffraction kernels and every site's physics, noise seeds and exposure window (rolling-shutter row timing) are those of the whole frame (absolute native indices), " +
     "and the native rectangle includes the demosaic reach on each side (" + (margin > 0 ? margin : "mirror-border") + "), so the pixels are byte-identical to the same pixels of the whole render. " +
-    "With lens.diffraction the object-space convolution runs over whole-width bands of 32 native rows that the region touches.");
+    // 2.6: with lens.diffraction the convolution is limited to the region; the sentence of 2.3–2.5 is kept verbatim otherwise, so
+    // region results without diffraction stay byte-identical to 2.5.0.
+    (diffractionRadiusOption !== undefined ? "With lens.diffraction the object-space convolution (when it applies) covers only the lattice the region's native sites query (plus the kernel radius), in bands of at most 32 native rows; its values are the whole render's." :
+      "With lens.diffraction the object-space convolution runs over whole-width bands of 32 native rows that the region touches."));
   if (raisedPixels !== undefined) {
     if (nativeWidth > NATIVE_RAW_LIMITS.maximumDimension || nativeHeight > NATIVE_RAW_LIMITS.maximumDimension || nativeWidth * nativeHeight > raisedPixels) {
       fail("output.maximumPixels (" + raisedPixels + ") must cover the native sensor raster of " + nativeWidth + " × " + nativeHeight +
@@ -1545,6 +1550,8 @@ async function runCapture(options: SimulateCaptureOptions, idealReference: boole
   const rawProvider = diffraction && diffractionObjectSpace ? createDiffractedPlanarProvider({ base: provider, psf: diffractionPsf!.configuration.psf,
     wavelengthsNm: diffraction.profile.axes.wavelengthNm, kernelRadius: diffraction.kernelRadiusSamples, nativeWidth, nativeHeight, outputWidth: width,
     sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit, onConvolution: (ms) => { diffractionMs += ms; },
+    // Region (2.6): convolve only the lattice the region's native sites query; the values are the whole render's.
+    ...(regionNative ? { window: regionNative } : {}),
     // The environment queries each site at each aperture node minus each split offset (sites, +x right, +y down).
     ...(antiAliasing || boxSamples > 1 ? { queryOffsetsSites: apertureNodeOffsets(boxSamples).flatMap((node) =>
       (antiAliasing ? antiAliasing.components : [{ offsetMicrometers: { x: 0, y: 0 } }]).map((c) => ({ x: node.x - c.offsetMicrometers.x / pitch, y: node.y - c.offsetMicrometers.y / pitch }))) } : {}) }) : provider;

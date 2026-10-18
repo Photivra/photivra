@@ -285,7 +285,9 @@ export interface SimulateCaptureOptions {
      * the whole render: framing, metering, exposure, noise seeds (absolute native site indices), rolling-shutter row
      * timing, diffraction and demosaic all use the whole frame. Use it to tile a large frame across workers or to
      * render a 100 % crop. `result.image` is the region; `result.region` reports it. Not combinable with
-     * `whiteBalance: "auto"`, whose statistics would come from the region only.
+     * `whiteBalance: "auto"`, whose statistics would come from the region only. From 2.6 the diffraction convolution
+     * covers only the region plus the kernel and filter reach, so a small region of a large frame costs about as much
+     * as a capture of the region's size.
      */
     region?: { x: number; y: number; width: number; height: number };
   };
