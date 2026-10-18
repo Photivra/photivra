@@ -1072,7 +1072,8 @@ row, 4-vCPU Intel Xeon 2.80 GHz, built `dist`, one run each; `diagnostics.timing
 | diffraction, four-spot filter, AHD | 60.8 s (50.2 s) | 11.8 s (1.7 s) | 556 → 379 MB |
 | diffraction, four-spot filter, AHD, box 2 × 2 | 228.7 s (195.8 s) | 39.6 s (6.5 s) | 1 285 → 545 MB |
 
-The samples are byte-identical between the two versions. What remains is the per-site work, which grows with the
+On a GitHub-hosted `ubuntu-latest` runner (4 vCPU AMD EPYC 7763, Node 24, one run each) the same rows took 2.7 → 2.6 s,
+44.1 → 8.3 s and 170.9 → 27.7 s. The samples are byte-identical between the two versions. What remains is the per-site work, which grows with the
 scene queries per site (20 spectral nodes × the filter spots × the box nodes: 80 per site with the filter, 320
 with the filter and the 2 × 2 box) and with the region's sites, not with the frame.
 
