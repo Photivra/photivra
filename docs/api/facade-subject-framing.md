@@ -86,6 +86,14 @@ export interface ChartFraming {
   coverage: { frameWidthFraction: number; frameHeightFraction: number };
   /** The chart's image on the sensor, mm. */
   chartImageMm: { width: number; height: number };
+  /**
+   * 2.6: the thin-lens close-up light factor at the focus distance, 1/(1 + m)² with m = v/s: the image-plane irradiance
+   * relative to the same lens and f-number focused at infinity (working f-number N·(1 + m)). It is the factor
+   * `simulateCapture` applies through the scene-to-sensor irradiance (same function, same value).
+   */
+  closeUpTransmission: number;
+  /** 2.6: the same factor in stops, 2·log₂(1 + m): how much darker the image is than at infinity focus. */
+  closeUpLossStops: number;
   /** The generic prime of this equivalent focal length, when there is one. */
   prime: GenericPrimeLens | null;
   /** The generic prime rule max(0.10 m, f·(1 + 1/0.15)) at this focal length (the prime's own value when there is one). */
@@ -119,6 +127,14 @@ export interface SubjectFraming {
   framedHeightM: number;
   /** Fraction of the frame width and height the chart covers (1 on the fitted side; above 1 means cropped). */
   coverage: { frameWidthFraction: number; frameHeightFraction: number };
+  /**
+   * 2.6: the thin-lens close-up light factor at the focus distance, 1/(1 + m)² with m = v/s: the image-plane irradiance
+   * relative to the same lens and f-number focused at infinity (working f-number N·(1 + m)). It is the factor
+   * `simulateCapture` applies through the scene-to-sensor irradiance (same function, same value).
+   */
+  closeUpTransmission: number;
+  /** 2.6: the same factor in stops, 2·log₂(1 + m): how much darker the image is than at infinity focus. */
+  closeUpLossStops: number;
   /** The generic prime of this equivalent focal length, when there is one. */
   prime: GenericPrimeLens | null;
   /** The generic prime rule max(0.10 m, f·(1 + 1/0.15)) at this focal length (the prime's own value when there is one). */

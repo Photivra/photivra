@@ -11,6 +11,7 @@
  * @see docs/QUICK_START.md, "Fitting a chart to the frame" and "Chart coverage at any distance (2.5)".
  */
 
+import { thinLensWorkingFNumberFactor } from "../optics/scene-to-sensor-irradiance.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireInputObject } from "../core/record-validation.js";
 import { calculateEquivalentFocalLength35Mm } from "../camera/equivalent-focal-length.js";
@@ -49,6 +50,14 @@ export interface SubjectFraming {
   framedHeightM: number;
   /** Fraction of the frame width and height the chart covers (1 on the fitted side; above 1 means cropped). */
   coverage: { frameWidthFraction: number; frameHeightFraction: number };
+  /**
+   * 2.6: the thin-lens close-up light factor at the focus distance, 1/(1 + m)² with m = v/s: the image-plane irradiance
+   * relative to the same lens and f-number focused at infinity (working f-number N·(1 + m)). It is the factor
+   * `simulateCapture` applies through the scene-to-sensor irradiance (same function, same value).
+   */
+  closeUpTransmission: number;
+  /** 2.6: the same factor in stops, 2·log₂(1 + m): how much darker the image is than at infinity focus. */
+  closeUpLossStops: number;
   /** The generic prime of this equivalent focal length, when there is one. */
   prime: GenericPrimeLens | null;
   /** The generic prime rule max(0.10 m, f·(1 + 1/0.15)) at this focal length (the prime's own value when there is one). */
@@ -108,8 +117,14 @@ export function calculateSubjectDistanceForFraming(input: CalculateSubjectDistan
     explanation: "Equivalent focal length ÷ diagonal crop factor " + crop + " (calculateEquivalentFocalLength35Mm, 36 × 24 mm reference)." });
   return Object.freeze({ subjectDistanceM, magnification: m, imageDistanceMm: focalLengthMm * (1 + m), focalLengthMm, equivalentFocalLengthMm: equivalent, cropFactor35Mm: crop,
     chart: { widthM, heightM }, fit, framedWidthM: sensorW / 1000 / m, framedHeightM: sensorH / 1000 / m,
-    coverage: { frameWidthFraction: widthM * 1000 * m / sensorW, frameHeightFraction: heightM * 1000 * m / sensorH }, prime, minimumFocusDistanceM,
+    coverage: { frameWidthFraction: widthM * 1000 * m / sensorW, frameHeightFraction: heightM * 1000 * m / sensorH }, ...closeUpLight(focalLengthMm, subjectDistanceM), prime, minimumFocusDistanceM,
     belowMinimumFocus: subjectDistanceM < minimumFocusDistanceM, scientificStatus: "approximation" as const, assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a))) });
+}
+
+/** 2.6: the close-up light factor at a focus distance, from the irradiance bridge's own working f-number factor. */
+function closeUpLight(focalLengthMm: number, focusDistanceM: number): { closeUpTransmission: number; closeUpLossStops: number } {
+  const factor = thinLensWorkingFNumberFactor(focalLengthMm, focusDistanceM);
+  return { closeUpTransmission: 1 / (factor * factor), closeUpLossStops: 2 * Math.log2(factor) };
 }
 
 export interface CalculateChartFramingInput {
@@ -145,6 +160,14 @@ export interface ChartFraming {
   coverage: { frameWidthFraction: number; frameHeightFraction: number };
   /** The chart's image on the sensor, mm. */
   chartImageMm: { width: number; height: number };
+  /**
+   * 2.6: the thin-lens close-up light factor at the focus distance, 1/(1 + m)² with m = v/s: the image-plane irradiance
+   * relative to the same lens and f-number focused at infinity (working f-number N·(1 + m)). It is the factor
+   * `simulateCapture` applies through the scene-to-sensor irradiance (same function, same value).
+   */
+  closeUpTransmission: number;
+  /** 2.6: the same factor in stops, 2·log₂(1 + m): how much darker the image is than at infinity focus. */
+  closeUpLossStops: number;
   /** The generic prime of this equivalent focal length, when there is one. */
   prime: GenericPrimeLens | null;
   /** The generic prime rule max(0.10 m, f·(1 + 1/0.15)) at this focal length (the prime's own value when there is one). */
@@ -182,7 +205,7 @@ export function calculateChartFraming(input: CalculateChartFramingInput): ChartF
     explanation: "Equivalent focal length ÷ diagonal crop factor " + crop + " (calculateEquivalentFocalLength35Mm, 36 × 24 mm reference)." });
   return Object.freeze({ subjectDistanceM, focusDistanceM, imageDistanceMm, magnification, focalLengthMm, equivalentFocalLengthMm: equivalent, cropFactor35Mm: crop,
     chart: { widthM, heightM }, framedWidthM, framedHeightM, coverage: { frameWidthFraction: widthM / framedWidthM, frameHeightFraction: heightM / framedHeightM },
-    chartImageMm: { width: widthM * 1000 * magnification, height: heightM * 1000 * magnification }, prime, minimumFocusDistanceM,
+    chartImageMm: { width: widthM * 1000 * magnification, height: heightM * 1000 * magnification }, ...closeUpLight(focalLengthMm, focusDistanceM), prime, minimumFocusDistanceM,
     belowMinimumFocus: subjectDistanceM < minimumFocusDistanceM || focusDistanceM < minimumFocusDistanceM, scientificStatus: "approximation" as const,
     assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a))) });
 }

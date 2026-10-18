@@ -969,6 +969,16 @@ function ensureWithin(
   }
 }
 
+/**
+ * Internal (2.6; not exported from the package): N_w / N = 1 + m for an ideal symmetric thin lens with unity pupil
+ * magnification focused at `objectDistanceM`, m = v/s from `calculateThinLensImageDistance`. The irradiance bridge's
+ * `ideal-symmetric-thin-lens` focus uses exactly this factor, and the framing reports derive their close-up light
+ * factor 1/(1 + m)² from it, so the two cannot drift apart.
+ */
+export function thinLensWorkingFNumberFactor(focalLengthMm: number, objectDistanceM: number): number {
+  return 1 + calculateThinLensImageDistance({ focalLengthMm, objectDistanceM }).value.magnification;
+}
+
 function workingFNumber(
   focus:
     OpticalBridgeFocusContext,
@@ -1001,16 +1011,10 @@ function workingFNumber(
         'Ideal symmetric thin-lens focus requires pupilMagnificationAssumption "unity".'
       );
     }
-    const thinLens =
-      calculateThinLensImageDistance({
-        focalLengthMm,
-        objectDistanceM:
-          focus.objectDistanceM
-      }).value;
     return {
       value:
         nominalFNumber *
-        (1 + thinLens.magnification),
+        thinLensWorkingFNumberFactor(focalLengthMm, focus.objectDistanceM),
       evidence: []
     };
   }

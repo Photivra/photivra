@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- **Close-up light factor as data.** `calculateChartFraming` and `calculateSubjectDistanceForFraming` results gain `closeUpTransmission`, the thin-lens factor 1/(1 + m)² (m = v/s at the focus distance) by which the image-plane irradiance falls compared with infinity focus, and `closeUpLossStops`, 2·log₂(1 + m). Both come from the working f-number factor the scene-to-sensor irradiance applies (one internal function), so applications no longer compute it; a test checks them against the RAW signal ratio of `simulateCapture` between 0.35 m and 50 m within 0.5 %. Additive fields; no new exports (see the quick start's "Close-up light (2.6)").
+
 ### Changed
 
 - **Region renders limit the diffraction convolution to the region.** With `output.region` and `lens.diffraction`, the object-space convolution now covers only the scene lattice the region's native sites query (the native rectangle plus the anti-aliasing and box-aperture offsets, with the kernel radius of real scene radiance around it) instead of whole-width bands. Every kept value is the same gather with the same kernel, taps and order, so regions stay byte-identical to the same pixels of the whole render and to 2.5.0. A 192 × 128 crop of a 6000 × 4000 frame at 6 µm and f/16 with diffraction, the four-spot filter, AHD and a 2 × 2 box aperture took 39.6 s instead of 228.7 s (the convolution 6.5 s instead of 195.8 s; peak memory 545 MB instead of 1 285 MB); without the box 11.8 s instead of 60.8 s (on a GitHub-hosted 4-vCPU runner: 27.7 s instead of 170.9 s with the box, 8.3 s instead of 44.1 s without). The rest of the time is the per-site work, which follows the region's sites and scene queries. Region results with diffraction say so in the `output.region` assumption; region results without it keep the 2.5.0 text. Tested byte for byte against whole-frame crops (centre, corners, edges, 1-pixel strips and the full frame) at 2–250 µm and f/4–f/16 with the Quality options (see the quick start's "Region rendering").
