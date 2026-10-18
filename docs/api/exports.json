@@ -1808,6 +1808,11 @@
       "kind": "runtime"
     },
     {
+      "name": "CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CHART_SPECTRAL_RANGE_NANOMETERS",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
@@ -1855,6 +1860,11 @@
     {
       "name": "ChartScenePresetId",
       "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartSizeOption",
+      "source": "src/facade/scene-radiance.ts",
       "kind": "type"
     },
     {

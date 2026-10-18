@@ -1150,6 +1150,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`CallerRadianceScene`](api/facade-scene-radiance.md#callerradiancescene) | Type |
 | [`CallerReflectanceScene`](api/facade-scene-radiance.md#callerreflectancescene) | Type |
 | [`CaptureIlluminant`](api/facade-scene-radiance.md#captureilluminant) | Type |
+| [`CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE`](api/facade-scene-radiance.md#chart_size_default_surround_reflectance) | Runtime |
+| [`ChartSizeOption`](api/facade-scene-radiance.md#chartsizeoption) | Type |
 | [`createPlanarSceneRadianceProvider`](api/facade-scene-radiance.md#createplanarsceneradianceprovider) | Runtime |
 | [`PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W`](api/facade-scene-radiance.md#photopic_maximum_luminous_efficacy_lm_per_w) | Runtime |
 | [`PlanarSceneRadianceProvider`](api/facade-scene-radiance.md#planarsceneradianceprovider) | Type |

@@ -78,6 +78,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `exposure.compensationStops` | 0 | Applied to the meter target. |
 | `scene` | required | A chart preset or a caller function (below). |
 | `subjectDistanceM` | 5 | Distance of the scene plane. |
+| `chartSize` | fill the frame | 2.3: `{ widthM, heightM?, surroundReflectance? }` places the chart at its physical size (see [Fixed-size chart](#fixed-size-chart-23)). |
 | `illuminant` | Planckian 6500 K | Also `"cie-a"`, `{ kind: "planckian", temperatureKelvin }`, `{ kind: "daylight", correlatedColorTemperatureKelvin, basis }` or `{ kind: "spectrum", spectrum }`. |
 | `illuminanceLux` | 21 481 (π·80 000/11.7) | See [Exposure](#exposure). |
 | `output.width`, `output.height` | 64 × 64 | Output pixels, 1–4094 each. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
@@ -116,6 +117,32 @@ test checks that. (The default illuminance changed before release; see [Exposure
 The scene is a plane perpendicular to the optical axis at `subjectDistanceM`. The facade sizes the
 chart so that it exactly fills the active frame. Chart coordinates use frame units: `u` runs from −1
 at the left edge to +1 at the right edge, and `v` points up on the same scale (±height/width).
+
+### Fixed-size chart (2.3)
+
+With `chartSize: { widthM, heightM?, surroundReflectance? }` the chart keeps its physical size instead
+of filling the frame. It is centred on the optical axis on the plane at `subjectDistanceM`; the rest of
+the plane is a neutral Lambertian surround (default 18 %) under the same light, and the meter sees it.
+`heightM` defaults to `widthM` × the frame aspect. A chart preset is resolved in the chart's own frame
+(u = ±1 at the chart's edges, aspect heightM/widthM), so composite layouts and LW/PH frequencies refer
+to the chart, not the camera frame. A reflectance or radiance function is called only for points on the
+chart, with chart-local `chartU` and `chartV` (same convention) next to the frame `u`, `v` and plane
+`xM`, `yM`.
+
+The frame covers `scene.framedWidthM` of the plane, from the facade's thin-lens framing: magnification
+m = v/d with the image distance v = f·s/(s − f) at the focus distance s, and the frame spans sensor width/m.
+`result.scene.chart` (and the assumption `scene.chartSize`) reports `frameWidthFraction` and
+`frameHeightFraction` (the chart's share of the frame; above 1 when it is larger than the frame and
+cropped), the `magnification` and the chart's image size in millimetres and output pixels. To fill the
+frame width with a W-metre chart, put it at d = f·(1 + W/sensor width): with the facade's 50 mm prime,
+0.384 mm of sensor (64 pixels of 6 µm) and an A3 chart (0.42 m), d = 0.05·(1 + 420/0.384) ≈ 54.7 m.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const a3 = await simulateCapture({ scene: { preset: "siemens-star" }, chartSize: { widthM: 0.42 }, subjectDistanceM: 80, output: { width: 64, height: 48 } });
+console.log(a3.scene.chart?.frameWidthFraction, a3.scene.chart?.magnification, a3.scene.framedWidthM);
+```
 
 The simulated sensor has real pixels of `sensor.pixelPitchMicrometers`. A 64 × 64 capture with 6 µm
 pixels is therefore a 0.38 mm crop of a large sensor, not a downscaled full frame. This keeps the

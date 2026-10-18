@@ -88,6 +88,7 @@ import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-
 import { parseSensorReadoutConversionProfile, resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolveChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
+  resolveChartSizeOption, type ChartSizeOption,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
   type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
@@ -197,6 +198,14 @@ export interface SimulateCaptureOptions {
   scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
+  /**
+   * Opt-in (2.3) fixed-size chart: place the scene at this physical size on the plane at the subject distance,
+   * centred on the optical axis, instead of sizing it to fill the frame. Outside it the plane is a neutral surround
+   * (default 18 %). Chart presets are resolved in the chart's own frame (aspect heightM / widthM); caller functions
+   * are called only on the chart and receive chart-local `chartU`, `chartV`. `result.scene.chart` reports the
+   * framed width, the fraction of the frame the chart covers and the thin-lens magnification.
+   */
+  chartSize?: ChartSizeOption;
   /** Default: Planckian 6500 K (a blackbody stand-in for daylight; CIE D65 is not bundled). */
   illuminant?: CaptureIlluminant;
   /** Illuminance on the scene plane, lux. Default about 21 481 lux (see `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` and the assumptions). */
@@ -343,6 +352,14 @@ export interface SimulateCaptureResult {
     /** Physical size of the framed scene plane, metres. */
     framedWidthM: number;
     framedHeightM: number;
+    /**
+     * 2.3, present with `chartSize`: the chart's physical size and surround, the fraction of the frame width and
+     * height it covers (above 1 when it is larger than the frame and cropped), the thin-lens magnification
+     * v/d (image distance over subject distance, the scale the facade's framing uses) and the chart's size on the
+     * sensor in millimetres and output pixels.
+     */
+    chart?: { widthM: number; heightM: number; surroundReflectance: number; frameWidthFraction: number; frameHeightFraction: number;
+      magnification: number; imageWidthMm: number; imageHeightMm: number; imageWidthPixels: number; imageHeightPixels: number };
     /**
      * SHA-256 of the canonical scene description, recorded as the capture source digest. Caller spectra (a
      * `spectrum` or `daylight` illuminant, chart reflectance spectra) are part of the description: tabulated
@@ -727,7 +744,7 @@ function encodeSdrFromLinear(rgb: Float64Array, encoding: "srgb" | "display-p3" 
 export async function simulateCapture(options: SimulateCaptureOptions): Promise<SimulateCaptureResult> {
   const started = Date.now();
   requireInputObject(options, "simulateCapture options");
-  const top = allowKeys(options, "simulateCapture options", ["camera", "lens", "exposure", "scene", "subjectDistanceM", "illuminant",
+  const top = allowKeys(options, "simulateCapture options", ["camera", "lens", "exposure", "scene", "subjectDistanceM", "chartSize", "illuminant",
     "illuminanceLux", "output", "sensor", "motion", "signal", "onProgress"]);
   const signal = top.signal as AbortSignal | undefined, onProgress = top.onProgress as SimulateCaptureOptions["onProgress"];
   if (signal !== undefined && (typeof signal !== "object" || signal === null || typeof (signal as AbortSignal).aborted !== "boolean")) fail("signal must be an AbortSignal.");
@@ -912,8 +929,25 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const imageDistanceMm = focalLengthMm * focusDistanceM * 1000 / (focusDistanceM * 1000 - focalLengthMm);
   const metresPerFrameUnit = (width * pitch / 2000) * subjectDistanceM / imageDistanceMm;
   const aspect = height / width;
+  // Fixed-size chart (2.3): validated here, before any scene work.
+  const chartSize = top.chartSize === undefined ? undefined : resolveChartSizeOption(top.chartSize, aspect);
   assume("scene.framing", "derived", { framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect },
-    "The scene plane is perpendicular to the optical axis and the chart is sized to fill the active frame exactly.");
+    chartSize ? "The scene plane is perpendicular to the optical axis; the frame covers this much of it (thin lens, focused distance), and the chart has the physical size in scene.chartSize." :
+      "The scene plane is perpendicular to the optical axis and the chart is sized to fill the active frame exactly.");
+  let chartReport: NonNullable<SimulateCaptureResult["scene"]["chart"]> | undefined;
+  if (chartSize) {
+    for (const key of chartSize.defaulted) assume("chartSize." + key, "default", chartSize[key], key === "heightM" ?
+      "The chart has the frame's shape: height = width × output height / output width." : "An 18 % neutral grey plane surrounds the chart.");
+    const magnification = imageDistanceMm / (subjectDistanceM * 1000), framedWidthM = 2 * metresPerFrameUnit, framedHeightM = framedWidthM * aspect;
+    chartReport = { widthM: chartSize.widthM, heightM: chartSize.heightM, surroundReflectance: chartSize.surroundReflectance,
+      frameWidthFraction: chartSize.widthM / framedWidthM, frameHeightFraction: chartSize.heightM / framedHeightM, magnification,
+      imageWidthMm: chartSize.widthM * 1000 * magnification, imageHeightMm: chartSize.heightM * 1000 * magnification,
+      imageWidthPixels: chartSize.widthM * 1e6 * magnification / pitch, imageHeightPixels: chartSize.heightM * 1e6 * magnification / pitch };
+    assume("scene.chartSize", "model", chartReport,
+      "Fixed-size chart: the chart is widthM × heightM metres on the scene plane, centred on the optical axis, and the rest of the plane is a neutral Lambertian surround under the same light. " +
+      "Its image size follows the facade's thin-lens framing: magnification m = v/d with the image distance v = f·s/(s − f) at the focus distance s and the subject distance d, so the frame spans " +
+      "sensor width / m on the plane. frameWidthFraction and frameHeightFraction above 1 mean the chart is larger than the frame and cropped.");
+  }
   if (demosaicOption === undefined && borderOption === undefined) {
     assume("output.demosaic", "model", "bilinear-rggb", "Bilinear RGGB demosaic through explicit linear kernels; the native raster has a one-site border on each side so every output pixel has full support.");
   } else {
@@ -950,7 +984,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   if ("kind" in sceneRecord) {
     callerScene = requireCallerScene(sceneOption);
   } else {
-    chart = resolveChartScene({ scene: sceneOption as ChartScene, aspect });
+    chart = resolveChartScene({ scene: sceneOption as ChartScene, aspect: chartSize ? chartSize.heightM / chartSize.widthM : aspect });
     // Composite charts (2.3) report nested defaults by dotted path, for example "elements.2.parameters.cycles".
     const parameterAt = (key: string): unknown => key in chart!.parameters ? chart!.parameters[key] :
       key.split(".").reduce<unknown>((value, part) => (value as Record<string, unknown> | undefined)?.[part], chart!.parameters);
@@ -966,12 +1000,14 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const sceneSpectra = chart ? chart.materials.flatMap((m, index) => m.kind !== "spectrum" ? [] : [{ material: index, spectrum: spectrumDigestForm(materialInputs[index], m.spectrum) }]) : [];
   const sceneDescription = { facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, scene: chart ? { preset: chart.preset, parameters: chart.parameters } :
     { kind: callerScene!.kind, sceneId: callerScene!.sceneId }, illuminant: illuminant.id, illuminanceLux, subjectDistanceM, framedWidthM: 2 * metresPerFrameUnit, aspect,
+    ...(chartSize ? { chartSize: { widthM: chartSize.widthM, heightM: chartSize.heightM, surroundReflectance: chartSize.surroundReflectance } } : {}),
     ...(illuminantSpectrum === undefined ? {} : { illuminantSpectrum }), ...(sceneSpectra.length === 0 ? {} : { sceneSpectra }) };
   if (callerScene) assume("scene.digest", "model", "caller-function-not-hashed", "The source digest covers the caller's sceneId and the framing, not the body of the caller's evaluate function.");
   const sourceSha256 = await sha256Hex(JSON.stringify(sceneDescription, (_key, value: unknown) => (typeof value === "object" && value !== null && "evaluate" in value ? "caller-spectrum" : value)));
   checkAbort();
   const provider: PlanarSceneRadianceProvider = buildPlanarSceneRadianceProvider({ scene: chart ?? callerScene!, sceneId: IDS.scene, providerProfileId: IDS.provider,
-    illuminant, irradianceScale, geometry: { distanceM: subjectDistanceM, metresPerFrameUnit }, evidence: FACADE_EVIDENCE,
+    illuminant, irradianceScale, geometry: { distanceM: subjectDistanceM, metresPerFrameUnit,
+      ...(chartSize ? { chart: { widthM: chartSize.widthM, heightM: chartSize.heightM, surroundReflectance: chartSize.surroundReflectance } } : {}) }, evidence: FACADE_EVIDENCE,
     limitations: ["Planar Lambertian scene under uniform illumination; no shadows, inter-reflection, gloss or fluorescence."] });
   assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the engine's analytic CIE 1931 ȳ fit.");
 
@@ -1510,7 +1546,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       meteredSceneLuminanceCdPerSquareMeter: meteredLuminance, resolution },
     scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
-      framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, sourceSha256 },
+      framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },
     diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics, ...(gamutMappingDiagnostics ? { gamutMapping: gamutMappingDiagnostics } : {}),
       timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started,
         ...(diffraction && diffractionObjectSpace ? { diffraction: diffractionMs } : {}), ...(demosaicMs === undefined ? {} : { demosaic: demosaicMs }),

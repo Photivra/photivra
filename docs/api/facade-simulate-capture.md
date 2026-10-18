@@ -183,6 +183,14 @@ export interface SimulateCaptureOptions {
   scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
+  /**
+   * Opt-in (2.3) fixed-size chart: place the scene at this physical size on the plane at the subject distance,
+   * centred on the optical axis, instead of sizing it to fill the frame. Outside it the plane is a neutral surround
+   * (default 18 %). Chart presets are resolved in the chart's own frame (aspect heightM / widthM); caller functions
+   * are called only on the chart and receive chart-local `chartU`, `chartV`. `result.scene.chart` reports the
+   * framed width, the fraction of the frame the chart covers and the thin-lens magnification.
+   */
+  chartSize?: ChartSizeOption;
   /** Default: Planckian 6500 K (a blackbody stand-in for daylight; CIE D65 is not bundled). */
   illuminant?: CaptureIlluminant;
   /** Illuminance on the scene plane, lux. Default about 21 481 lux (see `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` and the assumptions). */
@@ -330,6 +338,14 @@ export interface SimulateCaptureResult {
     /** Physical size of the framed scene plane, metres. */
     framedWidthM: number;
     framedHeightM: number;
+    /**
+     * 2.3, present with `chartSize`: the chart's physical size and surround, the fraction of the frame width and
+     * height it covers (above 1 when it is larger than the frame and cropped), the thin-lens magnification
+     * v/d (image distance over subject distance, the scale the facade's framing uses) and the chart's size on the
+     * sensor in millimetres and output pixels.
+     */
+    chart?: { widthM: number; heightM: number; surroundReflectance: number; frameWidthFraction: number; frameHeightFraction: number;
+      magnification: number; imageWidthMm: number; imageHeightMm: number; imageWidthPixels: number; imageHeightPixels: number };
     /**
      * SHA-256 of the canonical scene description, recorded as the capture source digest. Caller spectra (a
      * `spectrum` or `daylight` illuminant, chart reflectance spectra) are part of the description: tabulated

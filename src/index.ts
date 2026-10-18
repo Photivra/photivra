@@ -1775,7 +1775,7 @@ export { CHART_SCENE_PRESETS, CHART_SCENE_DEFAULTS, CHART_SPECTRAL_RANGE_NANOMET
   type DeadLeavesChartScene, type BarGroupsChartScene, type HyperbolicWedgeChartScene, type ZonePlateChartScene, type SlantedSquaresChartScene,
   type LineGridChartScene, type FiducialChartScene, type CompositeChartScene, type CompositeChartElement, type ChartElementScene,
   type ChartRectangle, type ChartBarGroupTarget, type ChartSlantedSquare } from "./facade/chart-scenes.js";
-export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider,
+export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider, CHART_SIZE_DEFAULT_SURROUND_REFLECTANCE, type ChartSizeOption,
   type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
   type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
 export { CHART_RADIANCE_BATCH_SCHEMA_VERSION, CHART_RADIANCE_BATCH_LIMITS, calculateChartRadianceBatchPlan, calculateChartRadianceBatch,
