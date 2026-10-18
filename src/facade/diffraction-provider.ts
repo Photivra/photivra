@@ -42,6 +42,7 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { isInternalSceneRadianceEvaluator, markInternalSceneRadianceEvaluator } from "../core/internal-radiance-evaluator.js";
 import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
 import { calculateIrradianceConvolution } from "../optics/irradiance-convolution.js";
 import { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
@@ -148,14 +149,18 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
     }
     throw new InvalidConfigurationError("Diffraction query is off the site lattice; the object-space convolution does not apply.");
   }
-  const scale = input.metresPerFrameUnit, distance = input.distanceM;
+  const scale = input.metresPerFrameUnit, distance = input.distanceM, baseEvaluate = base.evaluateRadiance;
+  const evaluateRadiance = (request: Readonly<SceneRadianceEvaluationRequest>): SceneRadianceEvaluationResult => {
+    const result = baseEvaluate.call(base, request), o = (request.target as { outgoingDirectionUnitVector: { x: number; y: number; z: number } }).outgoingDirectionUnitVector;
+    const t = distance / -o.z;
+    return { ...result, spectralRadianceWattsPerSquareMeterSteradianNanometer: blurredAt(-o.x * t / scale, -o.y * t / scale, request.wavelengthNanometers) };
+  };
+  // 2.6: the result is the base result with only its radiance replaced (same keys and records), so an engine-built base
+  // evaluator keeps its mark (see core/internal-radiance-evaluator.ts).
+  if (isInternalSceneRadianceEvaluator(baseEvaluate)) markInternalSceneRadianceEvaluator(evaluateRadiance);
   return {
     sceneId: base.sceneId, providerProfileId: base.providerProfileId, radianceAt: base.radianceAt,
-    evaluateRadiance(request: Readonly<SceneRadianceEvaluationRequest>): SceneRadianceEvaluationResult {
-      const result = base.evaluateRadiance(request), o = (request.target as { outgoingDirectionUnitVector: { x: number; y: number; z: number } }).outgoingDirectionUnitVector;
-      const t = distance / -o.z;
-      return { ...result, spectralRadianceWattsPerSquareMeterSteradianNanometer: blurredAt(-o.x * t / scale, -o.y * t / scale, request.wavelengthNanometers) };
-    },
+    evaluateRadiance,
     evaluateApertureRadiance(): SceneRadianceEvaluationResult {
       throw new InvalidConfigurationError("Diffraction by object-space convolution does not take pupil rays.");
     }

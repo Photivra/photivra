@@ -4,6 +4,7 @@
  * Native RAW capture from a scene-radiance provider: source radiance → optics → EQE (external quantum
  * efficiency) → packed RAW codes for the full native sensor, within fixed work limits.
  */
+import {isInternalSceneRadianceEvaluator} from "../core/internal-radiance-evaluator.js";
 import { calculateNativeRawPlan, createNativeRawTaskWithCadence, nativeRawMaximumProviderEvaluations, type NativeRawInput, type NativeRawOutput,
   type NativeRawPlan, type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "./native-raw.js";
 import { createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
@@ -207,7 +208,10 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
     (provider.evaluateApertureRadiance!==undefined&&typeof provider.evaluateApertureRadiance!=="function")||
     (provider.observePhotoTile!==undefined&&typeof provider.observePhotoTile!=="function")||
     (provider.evaluateRadianceBatch!==undefined&&typeof provider.evaluateRadianceBatch!=="function"))throw new InvalidConfigurationError("Native environment requires physical source callbacks and host yields.");
-  const read=provider.readTile.bind(provider),evaluate=provider.evaluateRadiance.bind(provider),aperture=provider.evaluateApertureRadiance?.bind(provider),yieldControl=provider.yieldControl.bind(provider);
+  // 2.6: an engine-built evaluator (simulateCapture chart scenes) lets the lean path skip re-parsing the fixed parts of
+  // its results; read once, so the checked function is the one bound. Never with a batch, whose results are the caller's.
+  const evaluateFunction=provider.evaluateRadiance,internalEvaluator=provider.evaluateRadianceBatch===undefined&&isInternalSceneRadianceEvaluator(evaluateFunction);
+  const read=provider.readTile.bind(provider),evaluate=evaluateFunction.bind(provider),aperture=provider.evaluateApertureRadiance?.bind(provider),yieldControl=provider.yieldControl.bind(provider);
   const observe=provider.observePhotoTile?.bind(provider),batch=provider.evaluateRadianceBatch?.bind(provider);
   let evaluations=0,shared:string|undefined,reference:SharedStateReference|undefined;
   const recorder=retention?createNativeEnvironmentOpticalStageRecorder(plan,sceneBinding,retention):undefined;
@@ -304,7 +308,7 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         if(isLeanEnvironmentPlan(p)){
           // The full plan (deterministic, no callbacks) is built only when the lean path needs it.
           const fullPlan=():ReturnType<typeof planEnvironmentRawSite>=>planEnvironmentRawSite(sites[j]!,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,"photo-only");
-          photoSignal=lean.execute(p,evaluateCounted,apertureCounted,fullPlan);
+          photoSignal=lean.execute(p,evaluateCounted,apertureCounted,fullPlan,internalEvaluator&&!batched);
           // An unverified template: plan this site in full now and execute it in full.
           if(photoSignal===undefined)p=fullPlan();
         }
