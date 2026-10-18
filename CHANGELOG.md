@@ -12,7 +12,7 @@
 
 Requests at 0.5–100 µm are byte-identical to 2.4.1 (the hash locks and the facade fingerprints of 15 default-path results). Root exports stay at 1,714 symbols.
 
-## 2.4.1 — unreleased (prepared October 18, 2026)
+## 2.4.1 — published October 18, 2026
 
 A republication of 2.4.0. 2.4.0 was tagged and released on GitHub on October 18, 2026 but never reached npm: the Publish npm workflow's verify job hit its 10-minute limit during the coverage gate on both attempts and was cancelled before the publish job ran. 2.4.1 carries the 2.4.0 contents unchanged (caller text metadata in JPEG, PNG and DNG outputs, `output.metadata`, `serializeNativeRawDng` `textMetadata` and `OutputTextMetadata`; see the 2.4.0 entry below) plus the publish-workflow fix. Apart from the engine version that captures record, every request, plan, RAW, image, encoded file and hash lock is byte-identical to 2.4.0, and without `output.metadata` to 2.3.0. Root exports stay at 1,714 symbols; none is added or removed.
 
