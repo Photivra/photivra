@@ -8,6 +8,14 @@ noise ratios (drawn ÷ reference · predicted ÷ reference); SSIM; false colour;
 display pixel; the display view's wall time for the block. Built `dist`, Node 24, 4-vCPU Linux host, one
 process per case, four at a time.
 
+The exact speed-ups that followed ([Display view, "Exact speed-ups"](../../DISPLAY_VIEW.md#exact-speed-ups)) leave the
+display view of every case byte-identical to the display view as merged (#368): all 155 were hashed with both builds
+(the views took 504 s instead of 1 471 s in total, four at a time), and sets A and B (46 cases) re-run with both builds
+give the same metrics line for line, timings aside. Those re-runs, with either build, differ slightly from the lines
+below in the noise-dependent metrics (mean errors by at most 0.004 code, predicted noise by at most 2.6e-4 in linear
+light, SSIM by at most 0.0003; the expected-value RMS and maximum are identical), so these lines were recorded with a
+build a little before the merged one. The "View s" column below was measured before the speed-ups.
+
 | Set | Sensor | Options | Chart | f | ISO | Width | s | Mean error R / G / B (± SE) | Expected RMS / max | Noise: drawn / predicted ÷ ref | SSIM | False colour ref → view | MTF50 ref → view | View s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | A | ff | speed | slanted-edge | 8 | 100 | 384 | 15.6 | 0.01 / -0.00 / 0.00 (± 0.01) | 0.19 / 2.3 | — | 0.9999 | 0.95 → 0.96 | 0.529 → 0.533 | 0.5 |
