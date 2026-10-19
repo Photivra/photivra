@@ -35,7 +35,7 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, sampleDeterministicStandardNormal } from "../sensor/stochastic-seed.js";
+import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, fmix32, sampleDeterministicStandardNormal } from "../sensor/stochastic-seed.js";
 import { encodeSrgbComponent } from "../color/srgb-transfer.js";
 import { samplePoisson } from "../sensor/raw-readout.js";
 
@@ -387,10 +387,10 @@ export interface DisplayViewSetup {
   toneCurve: "identity" | "positive-reinhard-per-channel";
   /**
    * AHD only: the low-signal correction. `labMatrix` is the camera → XYZ matrix AHD measures homogeneity with (the profile's
-   * matrix times the white-balance gains); the correction runs on `samplesPerPixel` samples of a display pixel whose pixel
-   * variance (linear light) exceeds `thresholdVariance`.
+   * matrix times the white-balance gains); samples whose pixel variance (linear light) exceeds `thresholdVariance` add the
+   * correction of a flat neighbourhood with their channel means, estimated once per quantized state with `drawsPerState` draws.
    */
-  ahdCorrection?: { labMatrix: readonly (readonly number[])[]; samplesPerPixel: number; thresholdVariance: number };
+  ahdCorrection?: { labMatrix: readonly (readonly number[])[]; drawsPerState: number; thresholdVariance: number };
   yieldControl(): Promise<void>;
   checkAbort(): void;
 }
@@ -490,6 +490,10 @@ export function footprintWeights(x: AxisSums, y: AxisSums, area: number, out: Fl
 }
 /** AHD's dependence reach in sites (directional green ±2, colour differences ±1, homogeneity 4-neighbours and 3 × 3 sum). */
 const AHD_REACH = 5, AHD_SIDE = 2 * AHD_REACH + 1;
+/** Grid of flat-neighbourhood states for the AHD correction: steps per octave of the normalized channel mean, octaves below white. */
+const AHD_KEY_STEPS = 8, AHD_KEY_OCTAVES = 12;
+/** A 32-bit hash of a correction key (MurmurHash3 finalizer of the three quantized means). */
+function fmixKey(a: number, b: number, c: number): number { return fmix32((Math.imul(a + 1, 0x9e3779b1) ^ Math.imul(b + 1, 0x85ebca77) ^ Math.imul(c + 1, 0xc2b2ae3d)) >>> 0); }
 /** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
 
@@ -530,20 +534,46 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const reach2 = CLIP_REACH_SIGMA * CLIP_REACH_SIGMA;
   // AHD low-signal correction: an 11 × 11 noisy neighbourhood (AHD reads up to 5 sites away) and the local AHD steps.
   const ahdCorrection = setup.ahdCorrection, windowReach = ahdCorrection ? Math.max(reach, AHD_REACH) : reach;
-  const corrSum = new Float64Array(3), corrSq = new Float64Array(3), correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE);
-  let correctionRandom = createDeterministicUniformStream(0), correctedPixels = 0;
-  const sampleX = new Int32Array(ahdCorrection ? setup.samplesPerAxis * setup.samplesPerAxis : 0), sampleY = new Int32Array(sampleX.length);
+  const correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE), cmAverage = new Float64Array(3);
+  let correctedPixels = 0;
   const readStd = c0.map((v) => Math.sqrt(v));
-  function drawNeighbourhood(x: number, y: number): void {
-    for (let dy = -AHD_REACH; dy <= AHD_REACH; dy++) for (let dx = -AHD_REACH; dx <= AHD_REACH; dx++) {
-      let sxs = x + dx, sys = y + dy;
-      if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
-      if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
-      const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
-      const electrons = samplePoisson(Math.max(0, setup.signal.site(sxs, sys) + dark[c]!), correctionRandom);
-      const value = k[c]! * electrons + readStd[c]! * sampleDeterministicStandardNormal(correctionRandom);
-      patch[(dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH] = value < 1 ? value : 1;
+  // The correction of a flat neighbourhood whose sites of channel c have normalized mean μ_c, on a logarithmic grid of states
+  // (AHD_KEY_STEPS per octave from 2^-AHD_KEY_OCTAVES of white); each grid state is computed once with draws seeded by the state
+  // alone, so it is the same in every display pixel and region, and a pixel interpolates trilinearly between the 8 states
+  // around its own channel means.
+  const correctionCache = new Map<string, Float64Array>();
+  function gridCorrection(i0: number, i1: number, i2: number): Float64Array {
+    const key = i0 + "," + i1 + "," + i2, cached = correctionCache.get(key);
+    if (cached) return cached;
+    const electrons = [i0, i1, i2].map((i, c) => 2 ** (i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
+    const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
+    const sum = new Float64Array(3);
+    for (let draw = 0; draw < ahdCorrection!.drawsPerState; draw++) {
+      const phase = draw & 3, px = phase & 1, py = phase >> 1;
+      for (let dy = -AHD_REACH; dy <= AHD_REACH; dy++) for (let dx = -AHD_REACH; dx <= AHD_REACH; dx++) {
+        const xx = (px + dx) & 1, yy = (py + dy) & 1, c = yy === 0 ? (xx === 0 ? 0 : 1) : (xx === 0 ? 1 : 2);
+        const value = k[c]! * samplePoisson(electrons[c]!, random) + readStd[c]! * sampleDeterministicStandardNormal(random);
+        patch[(dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH] = value < 1 ? value : 1;
+      }
+      ahdDifference(phase, correction);
+      for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / ahdCorrection!.drawsPerState;
     }
+    correctionCache.set(key, sum);
+    return sum;
+  }
+  const interpolated = new Float64Array(3);
+  function flatCorrection(m0: number, m1: number, m2: number): Float64Array {
+    const grid = [m0, m1, m2].map((m) => (Math.log2(Math.min(1, Math.max(2 ** -AHD_KEY_OCTAVES, m))) + AHD_KEY_OCTAVES) * AHD_KEY_STEPS);
+    const base = grid.map((g) => Math.min(Math.floor(g), AHD_KEY_OCTAVES * AHD_KEY_STEPS - 1)), frac = grid.map((g, i) => g - base[i]!);
+    interpolated.fill(0);
+    for (let corner = 0; corner < 8; corner++) {
+      let weight = 1;
+      for (let i = 0; i < 3; i++) weight *= (corner >> i) & 1 ? frac[i]! : 1 - frac[i]!;
+      if (weight === 0) continue;
+      const value = gridCorrection(base[0]! + (corner & 1), base[1]! + ((corner >> 1) & 1), base[2]! + ((corner >> 2) & 1));
+      for (let comp = 0; comp < 3; comp++) interpolated[comp] = interpolated[comp]! + weight * value[comp]!;
+    }
+    return interpolated;
   }
   const lab = ahdCorrection?.labMatrix, labWhite = lab ? lab.map((row) => row[0]! + row[1]! + row[2]!) : [1, 1, 1];
   const gh = new Float64Array(49), gv = new Float64Array(49), cand = [new Float64Array(75), new Float64Array(75)], labs = [new Float64Array(75), new Float64Array(75)];
@@ -658,9 +688,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       setup.signal.window(Math.floor(vx * sx) + margin - windowReach, Math.floor(vy * sy) + margin - windowReach, Math.ceil((vx + 1) * sx) + margin + windowReach,
         Math.ceil((vy + 1) * sy) + margin + windowReach);
       const jitter = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID));
-      let s0 = 0, s1 = 0, s2 = 0, c00 = 0, c01 = 0, c02 = 0, c11 = 0, c12 = 0, c22 = 0, r0 = 0, r1 = 0, r2 = 0, pixelVariance = 0, maxPixelVariance = 0, sampleIndex = 0, corrCount = 0;
-      corrSum.fill(0); corrSq.fill(0);
-      if (ahdCorrection) correctionRandom = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_AHD_STREAM_ID));
+      let s0 = 0, s1 = 0, s2 = 0, c00 = 0, c01 = 0, c02 = 0, c11 = 0, c12 = 0, c22 = 0, r0 = 0, r1 = 0, r2 = 0, pixelVariance = 0, corrected = false;
       for (let b = 0; b < K; b++) for (let a = 0; a < K; a++) {
         const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
         const x = Math.min(frameWidth - 1, Math.floor(fx)) + margin, y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
@@ -700,6 +728,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             let mean = 0;
             for (let t = 0; t < sl.length; t++) mean += wt[t]! * siteMean[sl[t]!]!;
             cm[c] = mean;
+            cmAverage[c] = (d === 0 ? 0 : cmAverage[c]!) + mean * share;
           }
           // Covariance of channels i, j: Σ over shared sites of w_i·w_j·Var(site).
           for (let i = 0; i < 3; i++) for (let j = i; j < 3; j++) {
@@ -755,31 +784,19 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         // `stride`-th sample whose pixel noise exceeds the threshold, a noisy neighbourhood is drawn (exact Poisson electrons
         // plus read and ADC noise), AHD and the two linear candidates run on that same draw, and the difference of the
         // rendered results is averaged: a control variate whose expectation is the AHD bias (docs/DISPLAY_VIEW.md).
-        if (ahdCorrection) { sampleX[sampleIndex] = x; sampleY[sampleIndex] = y; maxPixelVariance = Math.max(maxPixelVariance, pixelVariance); }
-        sampleIndex++;
+        if (ahdCorrection && pixelVariance > ahdCorrection.thresholdVariance) {
+          const fix = flatCorrection(cmAverage[0]!, cmAverage[1]!, cmAverage[2]!);
+          s0 += fix[0]!; s1 += fix[1]!; s2 += fix[2]!; corrected = true;
+        }
         pixelVariance = 0;
       }
-      if (ahdCorrection && maxPixelVariance > ahdCorrection.thresholdVariance) for (let j = 0; j < ahdCorrection.samplesPerPixel; j++) {
-        // Draws cycle through the sampled pixels, so they are spread over the footprint like the samples.
-        const x = sampleX[j % Q]!, y = sampleY[j % Q]!;
-        drawNeighbourhood(x, y);
-        ahdDifference((y & 1) * 2 + (x & 1), correction);
-        for (let comp = 0; comp < 3; comp++) { corrSum[comp] = corrSum[comp]! + correction[comp]!; corrSq[comp] = corrSq[comp]! + correction[comp]! * correction[comp]!; }
-        corrCount++;
-      }
       sampleCount += Q;
-      // The AHD correction's mean is added; its own sampling variance is taken from the noise drawn below (when it is smaller),
-      // so the total variance stays that of the resized capture.
-      const cm0 = corrCount ? corrSum[0]! / corrCount : 0, cm1 = corrCount ? corrSum[1]! / corrCount : 0, cm2 = corrCount ? corrSum[2]! / corrCount : 0;
-      const cv0 = corrCount > 1 ? Math.max(0, corrSq[0]! / corrCount - cm0 * cm0) / (corrCount - 1) : 0, cv1 = corrCount > 1 ? Math.max(0, corrSq[1]! / corrCount - cm1 * cm1) / (corrCount - 1) : 0,
-        cv2 = corrCount > 1 ? Math.max(0, corrSq[2]! / corrCount - cm2 * cm2) / (corrCount - 1) : 0;
-      if (corrCount) correctedPixels++;
-      const mean0 = s0 / Q + cm0, mean1 = s1 / Q + cm1, mean2 = s2 / Q + cm2, pixels = B[3]!;
+      if (corrected) correctedPixels++;
+      const mean0 = s0 / Q, mean1 = s1 / Q, mean2 = s2 / Q, pixels = B[3]!;
       // The real pixels' output rounding (Δ²/12 in the encoded domain), mapped to linear light at the mean.
       const q0 = quantizationVariance(mean0, step), q1 = quantizationVariance(mean1, step), q2 = quantizationVariance(mean2, step);
       // Covariance in linear light: the linear part plus the independent per-pixel residuals and rounding.
-      const v00 = Math.max(0, c00 / Q + pixels * (r0 / Q + q0) - cv0), v01 = c01 / Q, v02 = c02 / Q, v11 = Math.max(0, c11 / Q + pixels * (r1 / Q + q1) - cv1), v12 = c12 / Q,
-        v22 = Math.max(0, c22 / Q + pixels * (r2 / Q + q2) - cv2);
+      const v00 = c00 / Q + pixels * (r0 / Q + q0), v01 = c01 / Q, v02 = c02 / Q, v11 = c11 / Q + pixels * (r1 / Q + q1), v12 = c12 / Q, v22 = c22 / Q + pixels * (r2 / Q + q2);
       const noise = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_NOISE_STREAM_ID));
       const z0 = sampleDeterministicStandardNormal(noise), z1 = sampleDeterministicStandardNormal(noise), z2 = sampleDeterministicStandardNormal(noise);
       // Cholesky factor of the 3 × 3 covariance (positive semidefinite; tiny negative pivots are treated as 0).
@@ -787,7 +804,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       const l11 = Math.sqrt(Math.max(0, v11 - l10 * l10)), l21 = l11 > 0 ? (v12 - l20 * l10) / l11 : 0;
       const l22 = Math.sqrt(Math.max(0, v22 - l20 * l20 - l21 * l21));
       const o = (ry * region.width + rx) * 3;
-      const n0 = mean0 + l00 * z0, n1 = mean1 + l10 * z0 + l11 * z1, n2 = mean2 + l20 * z0 + l21 * z1 + l22 * z2;
+      // The drawn value is clipped to [0, 1] like any light level; where the noise reaches a bound, the normal's centre is
+      // moved so that the clipped draw keeps the expected value (the mean of real pixels in [0, 1] is in [0, 1] already).
+      const n0 = clipCentre(mean0, v00) + l00 * z0, n1 = clipCentre(mean1, v11) + l10 * z0 + l11 * z1, n2 = clipCentre(mean2, v22) + l20 * z0 + l21 * z1 + l22 * z2;
       samples[o] = Math.round(encodeSrgbComponent(n0 < 0 ? 0 : n0 > 1 ? 1 : n0) * maximum);
       samples[o + 1] = Math.round(encodeSrgbComponent(n1 < 0 ? 0 : n1 > 1 ? 1 : n1) * maximum);
       samples[o + 2] = Math.round(encodeSrgbComponent(n2 < 0 ? 0 : n2 > 1 ? 1 : n2) * maximum);
@@ -799,6 +818,19 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   return { samples, expected, noiseStd, sampleCount, siteCount, detailPixelCount: detail, uniformPixelCount: uniform, ahdCorrectedPixelCount: correctedPixels };
 }
 
+/**
+ * The centre c of a normal of variance v whose clip to [0, 1] has mean `target` (bisection; c = target when the noise does
+ * not reach a bound, or when the target lies outside (0, 1)).
+ */
+function clipCentre(target: number, v: number): number {
+  if (!(v > 0) || !(target > 0 && target < 1)) return target;
+  const s = Math.sqrt(v);
+  if (target > 4 * s && 1 - target > 4 * s) return target;
+  const moments = new Float64Array(3);
+  let lo = target - 10 * s, hi = target + 10 * s;
+  for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; unitClip(mid, v, moments); if (moments[0]! < target) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
 /** Variance in linear light of rounding an sRGB-encoded value to steps of `step`: (dEOTF/de)²·step²/12 at the encoded mean. */
 function quantizationVariance(linear: number, step: number): number {
   const e = encodeSrgbComponent(linear < 0 ? 0 : linear > 1 ? 1 : linear), slope = e <= 0.04045 ? 1 / 12.92 : 2.4 / 1.055 * ((e + 0.055) / 1.055) ** 1.4;

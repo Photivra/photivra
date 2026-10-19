@@ -226,14 +226,31 @@ ISO 6400 (about six electrons per site on an 18 % grey) the resized AHD capture'
 below what the averaged candidates predict; on a 6 µm sensor at ISO 6400 the effect stayed under
 0.3 code.
 
-Where a sampled pixel's noise exceeds 0.01 in linear light, the view draws 64 noisy neighbourhoods per
-display pixel (Poisson electrons from the exact expected electrons, plus read and ADC noise, clipped at
-white), runs the engine's AHD steps for the centre pixel and the two linear candidates on the same
-draw, renders each, and adds the mean of h(AHD) − ½(h(H) + h(V)). This is a control variate (Owen,
-§8.9): its expectation is exactly AHD's bias relative to the averaged candidates, and its variance is
-far smaller than AHD's own output variance because both terms see the same noise. Its sampling
-variance is taken out of the noise drawn for the display pixel, so the total variance stays that of
-the resized capture.
+Where a sampled pixel's noise exceeds 0.01 in linear light, the pixel adds AHD's bias for a flat
+neighbourhood with its own channel means, measured as a control variate (Owen, §8.9): noisy flat
+neighbourhoods are drawn (Poisson electrons plus read and ADC noise, clipped at white, all four CFA
+phases), the engine's AHD steps and the two linear candidates run on the same draw, and the mean of
+h(AHD) − ½(h(H) + h(V)) is the bias. Both terms see the same noise, so the difference has far less
+variance than AHD's own output.
+
+The bias is a smooth function of the channel means, so it is computed on a logarithmic grid of
+states (8 steps per octave over 12 octaves below white), 2048 draws per state seeded by the state
+alone, and interpolated trilinearly between the 8 states around the pixel's means. A first version
+drew 64 neighbourhoods per display pixel instead: unbiased, but its sampling noise exceeded the display
+pixel's own noise wherever many real pixels are averaged (up to 4× the reference's noise at 96 pixels
+wide), because the display noise falls with the number of averaged pixels and the correction's did not.
+The shared grid has no per-pixel sampling noise; its remaining error is a common offset of about
+1/√(8 × 2048) of the difference's spread, and the flat-neighbourhood state, which is an approximation
+at edges. On the 1.4 µm sensor at ISO 6400 it took the red error from +6.6 to within ±0.4 code.
+
+## Drawing the noise near a bound
+
+The drawn display value is clipped to [0, 1] like any light level. Where its noise reaches 0 or 1
+(within 4σ), a normal centred on the expected value would have a clipped mean above (or below) it,
+while the real average of pixels in [0, 1] is unbiased. The centre of the normal is therefore moved,
+by bisection on the clipped-normal mean, so that the clipped draw keeps the expected value. This
+matters only where each display pixel averages few, very noisy real pixels (a 1.4 µm sensor at
+ISO 6400 shown 800 pixels wide: the red error was +3.5 codes before, within ±0.4 after).
 
 ## Validation
 
@@ -316,7 +333,8 @@ Approximations, recorded in the `view.*` assumptions:
   Edgeworth (skewness) term on the clip at 0; higher cumulants are not modelled;
 - the noise of the display pixel is drawn as one correlated normal value;
 - the residual variance of the clips is treated as independent between neighbouring pixels;
-- AHD's candidates are averaged, and its choice is corrected only where a pixel's noise exceeds 0.01;
+- AHD's candidates are averaged, and its choice is corrected only where a pixel's noise exceeds 0.01,
+  with the bias of a flat neighbourhood of the pixel's channel means (an approximation at edges);
 - JPEG compression of a JPEG export is not part of the view.
 
 ## Sources

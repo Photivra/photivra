@@ -6,7 +6,7 @@
  * whole render) as 16-bit sRGB, decoded and area-averaged in linear light, and compared with the display view's same
  * block (`view.region`, 16-bit). Prints one JSON line per case; `--report` prints the Markdown tables from such lines.
  *
- *   node scripts/validate-display-view.mjs [--workers 4] [--set A] [--out results.jsonl]
+ *   node scripts/validate-display-view.mjs [--workers 4] [--set A] [--options speed|quality] [--out results.jsonl]
  *   node scripts/validate-display-view.mjs --report results.jsonl
  *
  * Informational only: no CI gate. A full run (155 cases, the largest references are about a million real sites)
@@ -198,10 +198,10 @@ else if (argv.includes("--case")) {
   const c = JSON.parse(arg("--case"));
   try { console.log(JSON.stringify(await runCase(c))); } catch (error) { console.log(JSON.stringify({ id: c.id, error: String(error?.stack ?? error) })); }
 } else {
-  const out = arg("--out", "display-view-validation.jsonl"), workers = Number(arg("--workers", "4")), set = arg("--set");
+  const out = arg("--out", "display-view-validation.jsonl"), workers = Number(arg("--workers", "4")), set = arg("--set"), only = arg("--options");
   const done = new Set(existsSync(out) ? readFileSync(out, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((r) => !r.error).map((r) => r.id) : []);
   const cost = (c) => { const s = SENSORS[c.sensor].width / c.viewWidth; return c.block.width * c.block.height * s * s * (c.options === "speed" ? 1 : 3.5); };
-  const queue = (await cases()).filter((c) => (!set || c.set === set) && !done.has(c.id)).sort((a, b) => cost(b) - cost(a));
+  const queue = (await cases()).filter((c) => (!set || c.set === set) && (!only || c.options === only) && !done.has(c.id)).sort((a, b) => cost(b) - cost(a));
   const next = () => {
     const c = queue.shift();
     if (!c) return;

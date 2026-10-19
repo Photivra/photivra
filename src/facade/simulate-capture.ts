@@ -924,8 +924,8 @@ export async function simulateDisplayViewWithInternals(options: SimulateCaptureO
   return { result, internals: internals.value!, signal: internals.signal! };
 }
 
-/** AHD low-signal correction (display view): draws per display pixel, and the pixel noise (linear light) above which it runs. */
-const DISPLAY_VIEW_AHD_CORRECTION_SAMPLES = 64, DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD = 0.01;
+/** AHD low-signal correction (display view): draws per flat-neighbourhood state, and the pixel noise (linear light) above which it applies. */
+const DISPLAY_VIEW_AHD_CORRECTION_DRAWS = 2048, DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD = 0.01;
 interface ParsedDisplayView { width: number; height: number; samplesPerAxis: number; bitDepth: 8 | 16; format: "srgb-8" | "srgb-16"; region?: { x: number; y: number; width: number; height: number } }
 function parseDisplayViewOption(value: unknown, frameWidth: number, frameHeight: number): ParsedDisplayView {
   if (value === undefined) fail("simulateDisplayView needs a view, for example { width: 384, height: 256 }.");
@@ -1782,7 +1782,7 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
     const rendered = await renderDisplayView({ frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
       region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
       ...(ahd ? { candidates: [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))),
-        ahdCorrection: { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), samplesPerPixel: DISPLAY_VIEW_AHD_CORRECTION_SAMPLES,
+        ahdCorrection: { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), drawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS,
           thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD ** 2 } } : {}),
       gains: colour.appliedGains as [number, number, number], clipLevel: Math.min(...colour.appliedGains), matrix, toneCurve: toneCurve as "identity" | "positive-reinhard-per-channel",
       yieldControl, checkAbort });
@@ -1804,11 +1804,12 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
       "expected slopes of the clips and the tone curve (Stein's lemma); the variance the linearization misses and the real pixels' output rounding are added per pixel. One correlated normal draw per display pixel, seeded " +
       "by sensor.noiseSeed: the same statistics as the resized capture, not the same realization.");
     assume("view.demosaic", "model", ahd ? { capture: "ahd", view: "ahd-candidates-with-low-signal-correction", correctedPixels: rendered.ahdCorrectedPixelCount,
-      correctionDrawsPerPixel: DISPLAY_VIEW_AHD_CORRECTION_SAMPLES, correctionThresholdLinearStd: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } : { capture: "bilinear", view: "bilinear" },
+      correctionDrawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS, correctionThresholdLinearStd: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } : { capture: "bilinear", view: "bilinear" },
       ahd ? "AHD is non-linear only in its choice between two linear candidates (green along the rows or the columns, red and blue from colour differences). The view propagates both candidates' exact linear statistics " +
-        "and averages them. Where a sampled pixel's noise exceeds " + DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD + " (linear light), the choice reacts to the noise and shifts the colour, so " + DISPLAY_VIEW_AHD_CORRECTION_SAMPLES +
-        " noisy neighbourhoods (Poisson electrons plus read and ADC noise) are drawn per display pixel, the engine's AHD steps and the two candidates run on each, and the mean difference is added (a control variate); its " +
-        "sampling variance is taken from the drawn noise. Approximation: the remaining error is that of the normal approximation at very low signal (docs/DISPLAY_VIEW.md, validation)." :
+        "and averages them. Where a sampled pixel's noise exceeds " + DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD + " (linear light), the choice reacts to the noise and shifts the colour, so the pixel adds the mean " +
+        "difference between the engine's AHD steps and the two candidates on " + DISPLAY_VIEW_AHD_CORRECTION_DRAWS + " drawn noisy flat neighbourhoods (Poisson electrons plus read and ADC noise) with its channel means, " +
+        "computed once per state of a logarithmic grid (8 steps per octave of the channel means) and interpolated trilinearly, a control variate with no per-pixel sampling noise; " +
+        "the flat-neighbourhood state is an approximation at edges (docs/DISPLAY_VIEW.md, validation)." :
         "The bilinear demosaic's linear kernels, exactly.");
     assume("view.source", "model", { rendering: "srgb", format: v.format, ignoredCaptureOutput: ["format", "colorEncoding", "bitDepth", "gamutMapping", "jpegQuantizationStep", "dng", "metadata", "maximumPixels"].filter((k) => outputOptions[k] !== undefined) },
       "The view shows the capture's sRGB rendering (its tone curve, white balance and highlight mode); the capture's file-format options do not apply to it.");
