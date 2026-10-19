@@ -425,10 +425,45 @@ phone star at 96 × 72, one option at a time: diffraction 50 s, anti-aliasing 3.
   grey at ISO 100 on that sensor moves by −0.11 code in red (+0.05 in blue); at ISO 1600 by −1.07 code. Those are the
   biases the correction removes.
 
-The whole-frame view has neither cost because its giant pixels make one tap and almost no noise per pixel. Both can
-be made cheaper without approximation: correction states can be shared across calls with the same sensor and
-development, and the per-pixel lattice convolution can use a separable or transform method. Neither is in this
-change.
+The whole-frame view has neither cost because its giant pixels make one tap and almost no noise per pixel.
+
+### Exact speed-ups
+
+Quality was made cheaper without changing a byte of any display view: the samples, the expected values, the noise and
+every diagnostic, including `sceneLookups`, are the same as before for every request and seed. Each change computes the
+same values with the same operations in the same order; none reassociates a floating-point sum.
+
+- **AHD correction states are shared.** A grid state depends only on its indices and the inputs listed in
+  [AHD at low signal](#ahd-at-low-signal), so it is computed once and kept, for the rest of the view and for later
+  calls with the same inputs (another view size, region or scene of the same sensor, exposure and development): up to
+  65 536 states for each of the 4 most recently used input sets, about 100 bytes per state. A state is also cheaper to
+  compute: ln n! for the Poisson sampler comes from a table of the same partial sums, the sampler's per-mean constants
+  are computed once per state, the xorshift stream keeps its state in a `Uint32Array` (a uint32 in a closure variable
+  was boxed on every step; this speeds every seeded draw in the engine), the AHD steps run on flat arrays without
+  temporary objects and skip the four corner candidates their homogeneity step never reads, and the 16 patch sites the
+  steps never read skip the normal transform (their uniforms are still drawn, so the stream is where it was).
+- **Diffraction sums are shared, not rearranged.** A site's expected electrons are a sum of kernel taps in a fixed
+  order; a separable, summed-area or transform evaluation would reassociate it and change the last bits, so the sum
+  itself is kept. With chart materials (every preset): each lattice point is looked up once per display row (a band
+  that grows to the right with the windows) instead of once per display pixel; a site whose whole kernel support reads
+  one material, found from summed-area tables of material changes, takes that material's value, precomputed once with
+  the same sum; other sites run the sum from the band; and site values are kept across the windows of neighbouring
+  display pixels (a ring of site rows). The scene lookup count is still the count of the per-pixel lazy cache,
+  reconstructed from the sites each display pixel reads. Radiance scenes (caller functions) keep the per-pixel path.
+- **One-material samples are replayed.** A sampled pixel whose demosaic sites all read one material has the statistics
+  of every other such sample of that material and CFA phase, so the terms it adds to the display pixel's sums are
+  recorded once and added again in the same order (with the display pixel's own footprint weights).
+- **Zero terms are skipped.** The covariance and third-cumulant sums of each AHD candidate skip the sites where its
+  weights are zero (adding ±0 to a sum that starts at +0 changes nothing).
+
+**Proof of byte identity.** The display views of all 155 validation cases at their seeds (the requests of
+`validate-display-view.mjs`, Speed and Quality, three sensors) were hashed before and after (SHA-256 of the samples, of
+the expected values and noise, and of the whole result with the timings removed): all identical, with the later cases
+reusing the earlier cases' correction states in the same process. A test locks six more requests that exercise each
+path (uniform and mixed diffraction sites, the AHD correction, spectral materials with mirror borders, a radiance
+scene, AHD with a tone curve, Speed) to hashes recorded before the change, and another checks that shared states give
+the same bytes as fresh ones. The capture hash locks and the facade fingerprints of 15 default-path results are
+unchanged.
 
 ## Limits and refusals
 

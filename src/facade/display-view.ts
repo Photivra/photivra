@@ -732,23 +732,25 @@ const LAB_EPSILON = 216 / 24389, LAB_KAPPA = 24389 / 27;
 function fmixKey(a: number, b: number, c: number): number { return fmix32((Math.imul(a + 1, 0x9e3779b1) ^ Math.imul(b + 1, 0x85ebca77) ^ Math.imul(c + 1, 0xc2b2ae3d)) >>> 0); }
 /** Grid levels per channel (indices 0 to AHD_KEY_OCTAVES·AHD_KEY_STEPS). */
 const AHD_KEY_LEVELS = AHD_KEY_OCTAVES * AHD_KEY_STEPS + 1;
-/** Correction states kept per setup, and setups kept (least recently used first out); about 100 bytes per state. */
+/** Correction states kept per setup, and setups kept (least recently used first out); about 50 bytes per state. */
 const AHD_STATE_LIMIT = 1 << 16, AHD_SETUP_LIMIT = 4;
-const ahdStateCache = new Map<string, Map<number, Float64Array>>();
+/** The correction states of one setup: the three values of state n at values[3·n …], found by its grid key. */
+interface CorrectionStates { index: Map<number, number>; values: Float64Array }
+const ahdStateCache = new Map<string, CorrectionStates>();
 /** Every input a correction state depends on besides its indices, as exact decimal text (JavaScript numbers round-trip). */
 function correctionKey(seed: number, correction: NonNullable<DisplayViewSetup["ahdCorrection"]>, perElectron: readonly number[], constantVariance: readonly number[],
   gains: readonly number[], clipLevel: number, matrix: readonly (readonly number[])[], toneCurve: string): string {
   return [seed, correction.drawsPerState, ...perElectron, ...constantVariance, ...correction.labMatrix.flat(), ...gains, clipLevel, ...matrix.flat(), toneCurve].join(",");
 }
 /** Internal (exported for tests): the correction states kept across calls, and clearing them. */
-export function displayViewCorrectionStateCount(): number { let n = 0; for (const states of ahdStateCache.values()) n += states.size; return n; }
+export function displayViewCorrectionStateCount(): number { let n = 0; for (const states of ahdStateCache.values()) n += states.index.size; return n; }
 export function clearDisplayViewCorrectionStates(): void { ahdStateCache.clear(); }
 /** The state map of one setup (moved to the most recently used end). */
-function correctionStates(key: string): Map<number, Float64Array> {
+function correctionStates(key: string): CorrectionStates {
   let states = ahdStateCache.get(key);
   if (states) ahdStateCache.delete(key);
   else {
-    states = new Map();
+    states = { index: new Map(), values: new Float64Array(3 * 256) };
     if (ahdStateCache.size >= AHD_SETUP_LIMIT) ahdStateCache.delete(ahdStateCache.keys().next().value!);
   }
   ahdStateCache.set(key, states);
@@ -813,10 +815,11 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   // Grid states are shared across display pixels and across calls: a state depends only on its indices and on the inputs in
   // `correctionKey` (the seed, the draws, the readout scale and noise, the homogeneity matrix and the development), so a cached
   // state is the same value the draws would give again.
-  const correctionCache = ahdCorrection ? correctionStates(correctionKey(seed, ahdCorrection, k, c0, setup.gains, L, M, setup.toneCurve)) : new Map<number, Float64Array>();
-  function gridCorrection(i0: number, i1: number, i2: number): Float64Array {
-    const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = correctionCache.get(key);
-    if (cached) return cached;
+  const states = ahdCorrection ? correctionStates(correctionKey(seed, ahdCorrection, k, c0, setup.gains, L, M, setup.toneCurve)) : { index: new Map<number, number>(), values: new Float64Array(0) };
+  /** The offset of a grid state's three values in states.values (computed and stored on first use). */
+  function gridCorrection(i0: number, i1: number, i2: number): number {
+    const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = states.index.get(key);
+    if (cached !== undefined) return 3 * cached;
     const electrons = [i0, i1, i2].map((i, c) => 2 ** (i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
     const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
     const sum = new Float64Array(3), draws = ahdCorrection!.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e));
@@ -836,9 +839,12 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       ahdDifference(phase, correction);
       for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / draws;
     }
-    if (correctionCache.size >= AHD_STATE_LIMIT) correctionCache.clear();
-    correctionCache.set(key, sum);
-    return sum;
+    if (states.index.size >= AHD_STATE_LIMIT) states.index.clear();
+    const n = states.index.size;
+    if (states.values.length < 3 * (n + 1)) { const grown = new Float64Array(2 * states.values.length); grown.set(states.values); states.values = grown; }
+    states.values.set(sum, 3 * n);
+    states.index.set(key, n);
+    return 3 * n;
   }
   const interpolated = new Float64Array(3);
   const gridBase = new Float64Array(3), gridFrac = new Float64Array(3);
@@ -853,8 +859,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       let weight = 1;
       for (let i = 0; i < 3; i++) weight *= (corner >> i) & 1 ? gridFrac[i]! : 1 - gridFrac[i]!;
       if (weight === 0) continue;
-      const value = gridCorrection(gridBase[0]! + (corner & 1), gridBase[1]! + ((corner >> 1) & 1), gridBase[2]! + ((corner >> 2) & 1));
-      for (let comp = 0; comp < 3; comp++) interpolated[comp] = interpolated[comp]! + weight * value[comp]!;
+      const at = gridCorrection(gridBase[0]! + (corner & 1), gridBase[1]! + ((corner >> 1) & 1), gridBase[2]! + ((corner >> 2) & 1)), value = states.values;
+      for (let comp = 0; comp < 3; comp++) interpolated[comp] = interpolated[comp]! + weight * value[at + comp]!;
     }
     return interpolated;
   }
@@ -1004,7 +1010,11 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           const e = setup.signal.site(sxs, sys) + dark[c]!;
           siteChannel[slot] = c;
           if (tracking) { siteElectrons[slot] = e; const own = setup.signal.uniformMaterial; material = material === -2 || material === own ? own : -1; continue; }
-          siteStatistics(slot, c, e);
+          // As siteStatistics, written out here for the untracked (Speed) path.
+          const kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
+          siteThird[slot] = kc * kc * kc * e;
+          if (gap > 0 && gap * gap > reach2 * variance) { siteMean[slot] = mean; siteVar[slot] = variance; }
+          else { upperClip(mean, variance, 1, clip); siteMean[slot] = clip[0]!; siteVar[slot] = clip[1]!; }
         }
         if (!tracking) material = -1;
         // A sample whose sites all read one chart material only has the statistics of every other such sample of that material
