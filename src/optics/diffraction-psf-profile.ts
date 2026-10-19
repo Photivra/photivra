@@ -13,7 +13,7 @@
  * and the intensity PSF is its inverse Fourier transform (the Airy pattern, first zero at 1.21967·λ·N_w)
  * (MIT OpenCourseWare 2.71 Optics, Spring 2009, lectures 21–22, free: the intensity PSF as the transform of
  * the pupil autocorrelation and the circular-pupil MTF; also see: Goodman, Introduction to Fourier Optics,
- * 4th ed., 2017, §6.3).
+ * 4th ed., 2017, §7.3).
  *
  * **Cell integration (exact, no Bessel functions).** Kernel sample (i, j) is the PSF energy inside the
  * square cell of side p centred on (i·p, j·p). The cell integral is the PSF convolved with the cell's

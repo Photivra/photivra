@@ -1270,6 +1270,12 @@ provided, for rights reasons.
   independent test). The original analysis is G. B. Airy, "On the Diffraction of an Object-glass with
   Circular Aperture", *Transactions of the Cambridge Philosophical Society* 5, 1835, pp. 283–291. The
   engine's implementation and its tests are its own (see [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#diffraction-limited-sampled-profile-21)).
+- Print planning (`calculatePrintPlan`, `calculatePrintSizeLimit`): Z. Alomar, K. D. Bojikian, "Visual Acuity
+  Testing in Adults", EyeWiki, American Academy of Ophthalmology, last edited June 16, 2026, free to read at
+  <https://eyewiki.aao.org/Visual_Acuity_Testing_in_Adults> (the minimum angle of resolution of an ideal eye under optimal
+  conditions is about 1 minute of arc; 20/20 letters are built from 1-arcmin elements). One arcminute per pixel is normal
+  (20/20) acuity under optimal conditions and an approximate rule of thumb: some viewers resolve finer detail and many
+  coarser. The planner uses the criterion the caller declares.
 - R. Palum, "Anti-Aliasing Filter Analysis for Digital Cameras", Proc. IS&T International Congress of
   Imaging Science (ICIS '06), 2006, free at
   <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2006/ICIS-0-736/33683.pdf>

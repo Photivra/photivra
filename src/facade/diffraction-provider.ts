@@ -21,7 +21,7 @@
  * provider then answers each site-centre query with B instead of L, and the environment request declares no
  * PSF. Incoherent imaging is a linear superposition of intensity PSFs, so convolving radiance on the object
  * plane and convolving irradiance on the image plane agree for a planar object and a space-invariant PSF
- * (MIT OpenCourseWare 2.71, lecture 22, free; also see: Goodman, Introduction to Fourier Optics, 4th ed., §6.1).
+ * (MIT OpenCourseWare 2.71, lecture 22, free; also see: Goodman, Introduction to Fourier Optics, 4th ed., §7.1).
  *
  * With an anti-aliasing point-splitting filter (2.1, `sensor.antiAliasing`) the environment queries the PSF taps
  * around each pre-filter source point q − a (a = a split offset) instead of around q. Those taps lie on the site

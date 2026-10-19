@@ -58,6 +58,8 @@ In radians, the largest allowed pitch is `p_max = 2d tan(theta_max/2)`, and in m
 
 **Example.** At 24 inches, a declared one-arcminute pixel criterion gives approximately 143.239447773 PPI.
 
+**Where one arcminute comes from.** One arcminute per pixel is a common choice and an approximate rule of thumb, not a visibility threshold. It is normal (20/20) visual acuity under optimal conditions: the minimum angle of resolution of an ideal eye is about 1 minute of arc, and 20/20 letters are built from elements that each subtend 1 arcmin (Z. Alomar, K. D. Bojikian, ["Visual Acuity Testing in Adults"](https://eyewiki.aao.org/Visual_Acuity_Testing_in_Adults), EyeWiki, American Academy of Ophthalmology, last edited June 16, 2026). Some viewers resolve finer detail and many resolve coarser, and lighting, contrast and the print itself change what is seen; the planner uses whatever criterion the caller declares.
+
 **Provenance.** Angular guidance has `approximation` provenance, because using it as a perceptual criterion is uncalibrated. The geometry itself stays `calculated`. Manual PPI starts a new plan, and does not certify any earlier angular criterion.
 
 ## Integer policy, fit and sufficiency
@@ -154,6 +156,7 @@ When you build output metadata, keep the returned binding of capture, input, mod
 
 - [NIST length units](https://www.nist.gov/pml/owm/si-units-length): unit conversion reference.
 - [Adobe image resolution](https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/printed-image-resolution.html): physical image dimensions versus pixel density.
+- Z. Alomar, K. D. Bojikian, ["Visual Acuity Testing in Adults"](https://eyewiki.aao.org/Visual_Acuity_Testing_in_Adults), EyeWiki, American Academy of Ophthalmology, last edited June 16, 2026: for an ideal eye under optimal conditions the minimum angle of resolution is about 1 minute of arc, and 20/20 letters are built from 1-arcmin elements. The source for the one-arcminute rule of thumb; it describes clinical acuity testing, not print sampling.
 - [University of Iowa acuity testing](https://webeye.ophth.uiowa.edu/eyeforum/video/Refraction/Visual-Acuity-Testing/index.htm): the critical stroke detail of a test character is different from the whole character. This is why conventions must be declared explicitly. It gives no universal guarantee about print sampling or quality.
 
 The implementation, prose and tests are original. The references informed terminology and equations. No source tables, calibration, datasets or protected text were included.
