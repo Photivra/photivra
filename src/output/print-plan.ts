@@ -198,7 +198,11 @@ function diagnostics(raster: RasterDimensions, width: number, height: number, di
 }
 
 /** Finds the smallest file, at the exact native aspect ratio, that meets the declared sampling and lab constraints.
- * The angular guidance is an approximate rule of thumb; the geometry itself is calculated exactly.
+ * The angular guidance is an approximate rule of thumb; the geometry itself is calculated exactly. A common criterion,
+ * one arcminute per pixel, is normal (20/20) visual acuity under optimal conditions: the minimum angle of resolution of an
+ * ideal eye is about 1 minute of arc, and 20/20 letters are built from elements that each subtend 1 arcmin (Z. Alomar, K. D. Bojikian, "Visual Acuity Testing in Adults", EyeWiki, American Academy of Ophthalmology,
+ * https://eyewiki.aao.org/Visual_Acuity_Testing_in_Adults, last edited June 16, 2026).
+ * Some viewers resolve finer detail and many resolve coarser, so it stays a rule of thumb, and the criterion is the caller's.
  * It does not assess source detail, perceived quality, file writing or available resources.
  */
 export function calculatePrintPlan(value: PrintPlanInput): CalculationResult<PrintPlan> {
@@ -297,6 +301,9 @@ export interface PrintSizeLimit {
 }
 /** Calculates the largest print size under the stated conditions. Lab constraints need individual plans,
  * so this size query reports them as unsupported rather than ignoring them.
+ * As in `calculatePrintPlan`, an angular criterion is an approximate rule of thumb: one arcminute per pixel is normal
+ * (20/20) acuity under optimal conditions, which some viewers exceed and many do not (Z. Alomar, K. D. Bojikian, "Visual Acuity Testing in Adults", EyeWiki, American Academy of Ophthalmology,
+ * https://eyewiki.aao.org/Visual_Acuity_Testing_in_Adults, last edited June 16, 2026).
  */
 export function calculatePrintSizeLimit(value: PrintSizeLimitInput): CalculationResult<PrintSizeLimit> {
   const r = record(value, ["plan", "viewingDistancePolicy"]);
