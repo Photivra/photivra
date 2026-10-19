@@ -19,7 +19,7 @@ import { performance } from "node:perf_hooks";
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { NATIVE_RAW_LIMITS, simulateCapture, simulateIdealReference } from "../dist/index.js";
-import { simulateDisplayViewWithInternals } from "../dist/facade/simulate-capture.js";
+import { simulateDisplayViewWithInternals } from "../dist/facade/simulate-display-view.js";
 
 const SENSORS = {
   ff: { label: "full frame 24 MP, 6 µm", width: 6000, height: 4000, pitch: 6 },

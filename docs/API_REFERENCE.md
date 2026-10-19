@@ -11,7 +11,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | Task | Functions |
 | --- | --- |
 | Simulate a full photo (async) | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) |
-| Preview a whole frame as the real capture resized (async) | [`simulateDisplayView`](api/facade-simulate-capture.md#simulatedisplayview) |
+| Preview a whole frame as the real capture resized (async) | [`simulateDisplayView`](api/facade-simulate-display-view.md#simulatedisplayview) |
 | Exposure value and equivalent settings | [`calculateExposureValue100`](api/exposure-exposure.md#calculateexposurevalue100), [`calculateEquivalentIso`](api/exposure-exposure.md#calculateequivalentiso), [`calculateRelativeRenderedExposure`](api/exposure-exposure.md#calculaterelativerenderedexposure) |
 | Depth of field, hyperfocal distance and defocus blur | [`calculateDepthOfField`](api/optics-depth-of-field.md#calculatedepthoffield), [`calculateDefocusCircle`](api/optics-depth-of-field.md#calculatedefocuscircle) |
 | Field of view | [`calculateFieldOfView`](api/camera-field-of-view.md#calculatefieldofview) |
@@ -1203,9 +1203,16 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
 | [`SimulateCaptureSensorAntiAliasing`](api/facade-simulate-capture.md#simulatecapturesensorantialiasing) | Type |
 | [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
-| [`simulateDisplayView`](api/facade-simulate-capture.md#simulatedisplayview) | Runtime |
 | [`SimulateDisplayViewOptions`](api/facade-simulate-capture.md#simulatedisplayviewoptions) | Type |
 | [`simulateIdealReference`](api/facade-simulate-capture.md#simulateidealreference) | Runtime |
+
+## facade/simulate-display-view.ts
+
+[Detailed contracts](api/facade-simulate-display-view.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/simulate-display-view.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`simulateDisplayView`](api/facade-simulate-display-view.md#simulatedisplayview) | Runtime |
 
 ## facade/subject-framing.ts
 
