@@ -471,7 +471,7 @@ For an ideal circular aperture, the diameter of the Airy disk to its first dark 
 
 `d = 2.44 λ N`
 
-where `λ` is the wavelength and `N` is the f-number.
+where `λ` is the wavelength and `N` is the f-number. The factor is 2·j₁,₁/π, where j₁,₁ = 3.8317 is the first zero of J₁ (Wyant & Creath, *Applied Optics and Optical Engineering* XI, ch. 1, 1992, §II, [free author copy](https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf); Born & Wolf, *Principles of Optics*, 7th ed., 1999, §8.5.2).
 
 This is a diagnostic for one wavelength and an ideal circular pupil.
 
