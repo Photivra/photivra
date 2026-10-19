@@ -477,7 +477,10 @@ the expected values and noise, and of the whole result with the timings removed)
 reusing the earlier cases' correction states in the same process. A test locks six more requests that exercise each
 path (uniform and mixed diffraction sites, the AHD correction, spectral materials with mirror borders, a radiance
 scene, AHD with a tone curve, Speed) to hashes recorded before the change, and another checks that shared states give
-the same bytes as fresh ones. The capture hash locks and the facade fingerprints of 15 default-path results are
+the same bytes as fresh ones. The display view's bytes depend on the runtime's `Math.pow`: Node 22 (V8 12) and Node 24
+(V8 13) differ by one ulp in about 10 % of x^(1/2.4) values, so four of those six requests already gave different bytes
+on the two before the change; the test records both sets from the code before the change and holds each runtime to its
+own (byte identity before and after was also checked on Node 22.13.0). The capture hash locks and the facade fingerprints of 15 default-path results are
 unchanged.
 
 ## Limits and refusals
