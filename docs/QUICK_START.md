@@ -700,6 +700,14 @@ The optics options feed only what the environment site contract accepts:
     lit circular pupil (scalar Fraunhofer diffraction), aberration-free and in focus, with pupil diameter
     f/N and the thin-lens image distance (working f-number N·v/f). Each kernel holds the PSF energy of
     site-sized cells, one kernel per spectral node.
+  - Sources: the Airy pattern is the textbook Fraunhofer diffraction pattern of a circular aperture
+    (Born & Wolf, *Principles of Optics*, 7th ed., §8.5.2; Goodman, *Introduction to Fourier Optics*,
+    4th ed., §4.4). The kernels come from the pupil's incoherent optical transfer function (Goodman,
+    4th ed., §7.3; MIT OpenCourseWare 2.71, lectures 21–22, free). The first dark ring is at
+    1.22·λ·N_w (j₁,₁/π with j₁,₁ = 3.8317, the first zero of J₁), so the Airy disk diameter is
+    2.44·λ·N_w, and the energy inside radius r is 1 − J₀(x)² − J₁(x)², x = π·r/(λ·N_w) (Wyant &
+    Creath 1992, §II, eqs. 1–4, free). The Bessel-function relations and expansions come from the
+    NIST DLMF (free). Full references are under [Sources](#sources).
   - The kernel window reaches the third dark ring at the longest node by default (2, 4 and 7 sites at
     f/4, f/8 and f/16 with 6 µm pixels); set `kernelRadiusSamples` (0–32) to change it. The Airy tail
     outside the window (2–6 % of the energy with the default) is listed per wavelength in the
@@ -1238,6 +1246,27 @@ provided, for rights reasons.
 
 ## Sources
 
+- Diffraction (`lens.diffraction`, `createDiffractionLimitedPsfProfile`): M. Born, E. Wolf,
+  *Principles of Optics*, 7th (expanded) ed., Cambridge University Press, 1999,
+  doi:10.1017/CBO9781139644181, §8.5.2 "The circular aperture" (Fraunhofer diffraction at a circular
+  aperture: the Airy pattern and its dark rings); J. W. Goodman, *Introduction to Fourier Optics*,
+  4th ed., W. H. Freeman, 2017, §4.4 (examples of Fraunhofer diffraction patterns, including the
+  circular aperture) and §7.3 (frequency response for diffraction-limited incoherent imaging: the
+  optical transfer function as the normalized pupil autocorrelation); J. C. Wyant, K. Creath, "Basic
+  Wavefront Aberration Theory for Optical Metrology", *Applied Optics and Optical Engineering* XI,
+  ch. 1, Academic Press, 1992, §II "Aberration-Free Image", eqs. 1–4, free author copy at
+  <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>
+  (the Airy irradiance at the effective f-number, the 2.44·λ·N Airy disk diameter and the encircled
+  energy 1 − J₀² − J₁²); MIT OpenCourseWare 2.71 Optics (Spring 2009), lectures 21–22, free at
+  <https://ocw.mit.edu/courses/2-71-optics-spring-2009/resources/mit2_71s09_lec22/> (the intensity PSF as the transform of the
+  pupil autocorrelation and the circular-pupil MTF); F. W. J. Olver et al. (eds.), *NIST Digital
+  Library of Mathematical Functions*, release 1.2.8 (2026-09-15), free at <https://dlmf.nist.gov/>,
+  §10.6(i) (eqs. 10.6.2 and 10.6.3: J₀′ = −J₁ and J₁′ = J₀ − J₁/x, from which the encircled energy
+  follows), eq. 10.17.3 and §10.17(iii) (Hankel's large-argument expansion of J₀ and J₁ and its error
+  bound, used for cells much larger than the pattern) and eq. 10.9.2 (Bessel's integral, used as an
+  independent test). The original analysis is G. B. Airy, "On the Diffraction of an Object-glass with
+  Circular Aperture", *Transactions of the Cambridge Philosophical Society* 5, 1835, pp. 283–291. The
+  engine's implementation and its tests are its own (see [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#diffraction-limited-sampled-profile-21)).
 - R. Palum, "Anti-Aliasing Filter Analysis for Digital Cameras", Proc. IS&T International Congress of
   Imaging Science (ICIS '06), 2006, free at
   <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2006/ICIS-0-736/33683.pdf>
