@@ -212,7 +212,11 @@ Two terms are added as independent per-pixel variances, weighted by Σ_j (w_j/A)
 
 - what the linearization misses: Var(g(X_j)) − (linear prediction), non-zero only where a clip or the
   tone curve bends within the noise;
-- the real pixels' output rounding, Δ²/12 in the encoded domain mapped to linear light.
+- the real pixels' output rounding, Δ²/12 in the encoded domain mapped to linear light;
+- with AHD, the variance of its per-pixel choice: where the choice is driven by noise, each pixel
+  deviates from the candidates' average by ±½(H − V), variance ¼·Var(H − V), linear in the sites.
+  AHD sums homogeneity over 3 × 3 pixels, so neighbouring choices are correlated and this
+  independent-pixel term under-states the block variance somewhat (see the Quality noise rows).
 
 D_P is the mean of hundreds of independent site noises, so one correlated normal draw (Cholesky
 factor of the 3 × 3 covariance) gives its noise (central limit theorem). It has the statistics of the

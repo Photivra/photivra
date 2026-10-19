@@ -780,6 +780,19 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           pixelVariance = Math.max(pixelVariance, hv[0]!, hv[1]!, hv[2]!);
         }
         s0 += e0; s1 += e1; s2 += e2;
+        if (count === 2) {
+          // AHD's per-pixel choice between the candidates adds independent variance: with a noise-driven choice each pixel
+          // deviates from the candidates' average by ±½(H − V), variance ¼·Var(H − V) (linear in the sites, at the last
+          // candidate's slopes).
+          const dh = candidateDense[phase]![0]!, dv = candidateDense[phase]![1]!, list = phaseList[phase]!;
+          let x0 = 0, x1 = 0, x2 = 0;
+          for (let li = 0; li < list.length; li++) {
+            const slot = list[li]!, d0 = bs[0]! * (dh[slot]! - dv[slot]!), d1 = bs[1]! * (dh[slotsCount + slot]! - dv[slotsCount + slot]!), d2 = bs[2]! * (dh[2 * slotsCount + slot]! - dv[2 * slotsCount + slot]!);
+            const v = siteVar[slot]!, a = hs[0]! * (m00 * d0 + m01 * d1 + m02 * d2), b = hs[1]! * (m10 * d0 + m11 * d1 + m12 * d2), c = hs[2]! * (m20 * d0 + m21 * d1 + m22 * d2);
+            x0 += a * a * v; x1 += b * b * v; x2 += c * c * v;
+          }
+          r0 += x0 / 4; r1 += x1 / 4; r2 += x2 / 4;
+        }
         // AHD at low signal: its homogeneity choice reacts to the noise, which the linear candidates cannot express. On every
         // `stride`-th sample whose pixel noise exceeds the threshold, a noisy neighbourhood is drawn (exact Poisson electrons
         // plus read and ADC noise), AHD and the two linear candidates run on that same draw, and the difference of the
