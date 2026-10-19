@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.6.0 — unreleased (prepared October 19, 2026)
+
+A minor release for faster Quality renders and the close-up light factor: region renders with diffraction convolve only the region, identical diffraction kernels are reused and built faster, the engine's own chart scenes skip re-parsing their fixed records, and the framing results report how much light the lens loses up close. Every capture and ideal-reference request that 2.5.0 accepted gives byte-identical results (the engine version recorded in captures aside), except that region renders with diffraction state the narrower convolution in their `output.region` assumption; their samples, RAW codes and files are unchanged. `calculateChartFraming` and `calculateSubjectDistanceForFraming` results gain two fields. Root exports stay at 1,717 symbols; none is added or removed.
 
 ### Added
 
