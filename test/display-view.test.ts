@@ -150,6 +150,28 @@ describe("simulateDisplayView", () => {
     }
   }, testTimeout(120_000));
 
+  it("matches the box-downsized capture at low signal with AHD, in clipped highlights and with a tone curve", async () => {
+    const cases: [SimulateCaptureOptions, number][] = [
+      // About six electrons per site: AHD's noise-driven choice and the Poisson skew both matter here.
+      [{ scene: { preset: "uniform", reflectance: 0.18 }, exposure: { iso: 6400, shutterSeconds: 1 / 8000 }, sensor: { pixelPitchMicrometers: 1.4 }, output: { width: 192, height: 128, demosaic: "ahd" } }, 1],
+      // Two stops over on a light grey: the per-site clip at white and the highlight clip.
+      [{ scene: { preset: "uniform", reflectance: 0.6 }, exposure: { shutterSeconds: 1 / 30 }, sensor: { pixelPitchMicrometers: 3 }, output: { width: 192, height: 128 } }, 0.3],
+      [{ scene: { preset: "step-wedge" }, exposure: { iso: 3200, shutterSeconds: 1 / 4000 }, sensor: { pixelPitchMicrometers: 3 },
+        output: { width: 192, height: 128, toneCurve: "positive-reinhard-per-channel" } }, 0.5]
+    ];
+    for (const [options, limit] of cases) {
+      const capture = await simulateCapture({ ...options, output: { ...options.output, format: "srgb-16" } });
+      const reference = areaAverage(capture.image.samples, 192, 128, 24, 16);
+      const { internals } = await simulateDisplayViewWithInternals(options, { width: 24, height: 16, format: "srgb-16" });
+      for (const k of [0, 1, 2]) {
+        const r = channel(reference, k), e = channel(internals.expected, k);
+        // Expected value against the reference mean, within the limit plus three standard errors of the reference mean.
+        const standardError = sd(r) / Math.sqrt(r.length), m = mean(r);
+        expect(Math.abs(encode8(mean(e)) - encode8(m))).toBeLessThan(limit + encode8(m + 3 * standardError) - encode8(m));
+      }
+    }
+  }, testTimeout(120_000));
+
   it("matches the box-downsized capture of a slanted edge", async () => {
     const options: SimulateCaptureOptions = { scene: { preset: "slanted-edge" }, lens: { diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 3 }, output: { width: 192, height: 128 } };
     const capture = await simulateCapture({ ...options, output: { ...options.output, format: "srgb-16" } });
