@@ -36,6 +36,7 @@ const header = `# Public API reference\n\nGenerated from the exact root exports 
 // link is derived from the export's resolved source file, so the index cannot go stale silently.
 const TASK_INDEX = [
   ["Simulate a full photo (async)", ["simulateCapture"]],
+  ["Preview a whole frame as the real capture resized (async)", ["simulateDisplayView"]],
   ["Exposure value and equivalent settings", ["calculateExposureValue100", "calculateEquivalentIso", "calculateRelativeRenderedExposure"]],
   ["Depth of field, hyperfocal distance and defocus blur", ["calculateDepthOfField", "calculateDefocusCircle"]],
   ["Field of view", ["calculateFieldOfView"]],

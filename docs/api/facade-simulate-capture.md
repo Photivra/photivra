@@ -2,6 +2,42 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## DisplayViewResult
+
+Result of {@link simulateDisplayView}: the full-resolution capture resized for display, estimated; not a capture.
+
+```ts
+export interface DisplayViewResult {
+  kind: "display-view";
+  /** Human-readable label for a user interface. */
+  label: string;
+  facadeVersion: typeof SIMULATE_CAPTURE_FACADE_VERSION;
+  engineApiVersion: string;
+  /** The display view (or its region): interleaved sRGB samples, row by row from the top-left. */
+  image: { width: number; height: number; format: "srgb-8" | "srgb-16"; samples: Uint8Array | Uint16Array };
+  /**
+   * The view: display size, the capture frame it shows (output pixels), real pixels per display pixel along each axis,
+   * the samples per axis and, with `view.region`, the rendered rectangle.
+   */
+  view: { width: number; height: number; frameWidth: number; frameHeight: number; scaleX: number; scaleY: number; samplesPerAxis: number;
+    region?: { x: number; y: number; width: number; height: number } };
+  /** The resolved exposure of the capture this view shows. */
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  scene: SimulateCaptureResult["scene"];
+  /**
+   * Work done: real pixels sampled, real-site expectations evaluated, scene queries, display pixels sampled in full (detail) or with
+   * a quarter of the samples per axis (uniform), display pixels whose value includes the AHD low-signal correction, and wall-clock
+   * milliseconds (diagnostic only; never affects the samples).
+   */
+  diagnostics: { sampleCount: number; siteEvaluations: number; sceneLookups: number; detailPixelCount: number; uniformPixelCount: number; ahdCorrectedPixelCount: number;
+    timingsMs: { view: number; total: number } };
+  provenance: { scientificStatus: "approximation"; cameraPresetId: string; cameraPresetVersion: string; evidence: readonly EvidenceProvenance[];
+    composedContracts: readonly string[]; limitations: readonly string[] };
+  /** The capture request's assumptions, then `view.definition`, `view.estimation`, `view.noise`, `view.demosaic` and `view.source`. */
+  assumptions: readonly SimulateCaptureAssumption[];
+}
+```
+
 ## IdealReferenceResult
 
 Result of {@link simulateIdealReference}: an ideal reference image, not a capture (no RAW, plan or request).
@@ -63,6 +99,14 @@ Version of how the facade builds requests. It changes whenever the same input wo
 
 ```ts
 SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const
+```
+
+## SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS
+
+Default stratified samples per axis of a display view (`view.samplesPerAxis`): 8 × 8 real pixels per display pixel.
+
+```ts
+SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS = 16
 ```
 
 ## simulateCapture
@@ -503,6 +547,39 @@ export type SimulateCaptureWhiteBalance =
   | "none"
   | { kelvin: number; tint?: number }
   | { channelGains: { red: number; green: number; blue: number } };
+```
+
+## simulateDisplayView
+
+The display view of a capture request: the image the real full-resolution capture (`simulateCapture(options)`) would
+give after it is resized to `view.width` × `view.height` by area averaging in linear light, estimated at a cost that
+follows the display pixels, not the capture's. Optics (lens diffraction, the anti-aliasing filter, the pixel aperture)
+act at the real pixel pitch; the colour mosaic, demosaic and development are those of the real pixels; the noise is
+that of the average of the real pixels, demosaic correlation included; exposure, white balance and tone are the
+capture's. The result is labelled `kind: "display-view"`; it is not a capture.
+
+```ts
+export async function simulateDisplayView(options: SimulateCaptureOptions, view: SimulateDisplayViewOptions): Promise<DisplayViewResult>;
+```
+
+This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.
+
+## SimulateDisplayViewOptions
+
+The display size and sampling of {@link simulateDisplayView}.
+
+```ts
+export interface SimulateDisplayViewOptions {
+  /** Display pixels, 1 to the capture's output width and height. */
+  width: number;
+  height: number;
+  /** Stratified Monte Carlo samples per axis for each display pixel's expected value (1–32, default 8: 64 real pixels). */
+  samplesPerAxis?: number;
+  /** "srgb-8" (default) or "srgb-16". */
+  format?: "srgb-8" | "srgb-16";
+  /** Render only this rectangle of the display view, in display pixels; byte-identical to the same pixels of the whole view. */
+  region?: { x: number; y: number; width: number; height: number };
+}
 ```
 
 ## simulateIdealReference

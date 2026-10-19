@@ -7501,6 +7501,21 @@ The chart presets are also available on their own:
 - `createPlanarSceneRadianceProvider()` turns a chart into an `evaluateRadiance` callback for the native
   environment RAW contract.
 
+### Display view of a capture
+
+`simulateDisplayView(options, view)` takes a capture request and a display size and returns the real
+full-resolution capture resized to that size (area average in linear light), estimated at a cost that follows the
+display pixels. It is a preview (`kind: "display-view"`), never a capture; see [Display view](QUICK_START.md#display-view)
+and the design and validation in [DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md).
+
+```ts
+import { simulateDisplayView } from "@photivra/engine";
+
+const view = await simulateDisplayView({ scene: { preset: "slanted-edge" }, sensor: { pixelPitchMicrometers: 3 }, output: { width: 600, height: 400 } },
+  { width: 60, height: 40 });
+console.log(view.kind, view.view.scaleX, view.assumptions.find((a) => a.id === "view.definition")?.value);
+```
+
 ### Facade 2.0 options: output, demosaic, optics and motion
 
 Each 2.0 option is opt-in and uses an existing public contract. Without them, the facade's output is

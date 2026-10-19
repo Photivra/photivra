@@ -11,6 +11,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | Task | Functions |
 | --- | --- |
 | Simulate a full photo (async) | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) |
+| Preview a whole frame as the real capture resized (async) | [`simulateDisplayView`](api/facade-simulate-capture.md#simulatedisplayview) |
 | Exposure value and equivalent settings | [`calculateExposureValue100`](api/exposure-exposure.md#calculateexposurevalue100), [`calculateEquivalentIso`](api/exposure-exposure.md#calculateequivalentiso), [`calculateRelativeRenderedExposure`](api/exposure-exposure.md#calculaterelativerenderedexposure) |
 | Depth of field, hyperfocal distance and defocus blur | [`calculateDepthOfField`](api/optics-depth-of-field.md#calculatedepthoffield), [`calculateDefocusCircle`](api/optics-depth-of-field.md#calculatedefocuscircle) |
 | Field of view | [`calculateFieldOfView`](api/camera-field-of-view.md#calculatefieldofview) |
@@ -1179,11 +1180,13 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`DisplayViewResult`](api/facade-simulate-capture.md#displayviewresult) | Type |
 | [`IdealReferenceResult`](api/facade-simulate-capture.md#idealreferenceresult) | Type |
 | [`SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES`](api/facade-simulate-capture.md#simulate_capture_box_aperture_default_samples) | Runtime |
 | [`SIMULATE_CAPTURE_COST_OPTIONS`](api/facade-simulate-capture.md#simulate_capture_cost_options) | Runtime |
 | [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
 | [`SIMULATE_CAPTURE_FACADE_VERSION`](api/facade-simulate-capture.md#simulate_capture_facade_version) | Runtime |
+| [`SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS`](api/facade-simulate-capture.md#simulate_display_view_default_samples_per_axis) | Runtime |
 | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Runtime |
 | [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
 | [`SimulateCaptureBorderHandling`](api/facade-simulate-capture.md#simulatecaptureborderhandling) | Type |
@@ -1200,6 +1203,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
 | [`SimulateCaptureSensorAntiAliasing`](api/facade-simulate-capture.md#simulatecapturesensorantialiasing) | Type |
 | [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
+| [`simulateDisplayView`](api/facade-simulate-capture.md#simulatedisplayview) | Runtime |
+| [`SimulateDisplayViewOptions`](api/facade-simulate-capture.md#simulatedisplayviewoptions) | Type |
 | [`simulateIdealReference`](api/facade-simulate-capture.md#simulateidealreference) | Runtime |
 
 ## facade/subject-framing.ts
