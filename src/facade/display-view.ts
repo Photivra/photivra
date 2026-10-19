@@ -37,7 +37,7 @@
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, fmix32, sampleDeterministicStandardNormal } from "../sensor/stochastic-seed.js";
 import { encodeSrgbComponent } from "../color/srgb-transfer.js";
-import { samplePoisson } from "../sensor/raw-readout.js";
+import { createPoissonSampler } from "../sensor/raw-readout.js";
 
 /** Stream IDs of the display view's two seeded streams, distinct from the native charge (0) and read-noise (1) streams. */
 export const DISPLAY_VIEW_JITTER_STREAM_ID = 32 as const;
@@ -91,11 +91,18 @@ export interface DisplayViewExpectedSignal {
   pilot(u: number, v: number): number;
   /** Scene lookups performed so far (material or radiance queries), for diagnostics. */
   readonly lookups: number;
+  /**
+   * The chart material that every kernel tap of the last `site` call read, when they all read one material (its value is
+   * then a function of that material and the site's CFA channel only); −1 when unknown or mixed.
+   */
+  readonly uniformMaterial: number;
 }
 
 const OFFSET_TOLERANCE = 1e-9;
 /** Largest cache window, in sites or lattice points; larger windows are evaluated without caching. */
 const CACHE_LIMIT = 1 << 22;
+/** Largest band of looked-up lattice materials per group, in lattice points (a band that would be larger restarts at the window). */
+const BAND_LIMIT = 1 << 22;
 
 /**
  * Expected photo electrons per site: μ_c(i, j) = Σ_o w_o Σ_λ A_c(λ) Σ_t K_λ(t)·L(p_o(i, j) − t, λ), where p_o is the
@@ -223,30 +230,250 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     }
     return sum;
   }
+  // Filled windows (chart materials with diffraction, every lattice point of the window cacheable): each group keeps a band of
+  // looked-up lattice materials that covers the window's rows and grows to the right as the windows of a display row move
+  // right, with summed-area tables of material changes. A site whose kernel reads one material only (each group's rectangle
+  // uniform, the same material in all) takes the value of the same sum over that material, precomputed below in the same
+  // order; other sites run the same sum from the band. Either way each site's value is the same sequence of operations as
+  // kernelSite, so it is bit-identical. The scene lookup count stays the count kernelSite's lazy window cache makes (each
+  // cache point a computed site reads counts once per window, points outside the cache once per read): the rectangles of
+  // the sites computed in a window are counted when the window closes (windowLookups).
+  const uniformSite = scene.kind === "materials" && input.kernels ? [0, 1, 2].map((c) => Float64Array.from(scene.materials, (_, m) => {
+    const si = spectralIndex[m]!;
+    let sum = 0;
+    for (const group of groups) {
+      const nk = group.neutral[c]!, sk = si < 0 ? nk : group.spectral[c]![si]!;
+      for (let t = 0; t < group.cw * group.ch; t++) sum += si < 0 ? reflectance[m]! * nk[t]! : sk[t]!;
+    }
+    return sum;
+  })) : [];
+  const allNeutral = spectral.length === 0;
+  /**
+   * A group's band: lattice rows [y0, y0 + rows), columns [x0, x0 + filled) looked up, row stride `capacity`. `material`,
+   * `reflectance` (neutral-only charts) and the summed-area tables of left changes (`changeLeft`, 1 where a point's material
+   * differs from its left neighbour's) and upper changes (`changeUp`), (rows + 1) × (capacity + 1).
+   */
+  interface Band { x0: number; y0: number; rows: number; capacity: number; filled: number; material: Int32Array; reflectance: Float64Array; changeLeft: Int32Array; changeUp: Int32Array; v: Float64Array }
+  const bands: Band[] = groups.map(() => ({ x0: 0, y0: 0, rows: 0, capacity: 0, filled: 0, material: new Int32Array(0), reflectance: new Float64Array(0),
+    changeLeft: new Int32Array(0), changeUp: new Int32Array(0), v: new Float64Array(0) }));
+  /** Makes the band of group g cover lattice columns [x0, x1) of rows [y0, y0 + rows), extending it to the right when it can. */
+  function coverBand(g: number, x0: number, x1: number, y0: number, rows: number): void {
+    const group = groups[g]!, band = bands[g]!, materials = scene as Extract<DisplayViewScene, { kind: "materials" }>;
+    if (!(band.rows === rows && band.y0 === y0 && x0 >= band.x0 && x1 - band.x0 <= band.capacity)) {
+      const capacity = Math.max(x1 - x0, Math.min(Math.floor(BAND_LIMIT / rows), W + 2 * (x1 - x0)));
+      const size = rows * capacity, tables = (rows + 1) * (capacity + 1);
+      band.x0 = x0; band.y0 = y0; band.rows = rows; band.capacity = capacity; band.filled = 0;
+      if (band.material.length < size) { band.material = new Int32Array(size); band.reflectance = new Float64Array(allNeutral ? size : 0); }
+      if (band.changeLeft.length < tables) { band.changeLeft = new Int32Array(tables); band.changeUp = new Int32Array(tables); }
+      band.changeLeft.fill(0, 0, capacity + 1); band.changeUp.fill(0, 0, capacity + 1);
+      for (let j = 0; j < rows; j++) { band.changeLeft[(j + 1) * (capacity + 1)] = 0; band.changeUp[(j + 1) * (capacity + 1)] = 0; }
+      if (band.v.length < rows) band.v = new Float64Array(rows);
+      for (let j = 0; j < rows; j++) band.v[j] = latticeV(group, y0 + j);
+    }
+    const stride = band.capacity, S1 = stride + 1, material = band.material, left = band.changeLeft, up = band.changeUp;
+    for (let i = band.filled; i < x1 - band.x0; i++) {
+      const u = latticeU(group, band.x0 + i);
+      for (let j = 0; j < rows; j++) {
+        const m = materials.materialAt(u, band.v[j]!);
+        if (spectralIndex[m] === undefined) throw new InvalidConfigurationError("Unknown chart material.");
+        material[j * stride + i] = m;
+        if (allNeutral) band.reflectance[j * stride + i] = reflectance[m]!;
+        const changedLeft = i > 0 && material[j * stride + i - 1] !== m ? 1 : 0, changedUp = j > 0 && material[(j - 1) * stride + i] !== m ? 1 : 0;
+        left[(j + 1) * S1 + i + 1] = left[j * S1 + i + 1]! + left[(j + 1) * S1 + i]! - left[j * S1 + i]! + changedLeft;
+        up[(j + 1) * S1 + i + 1] = up[j * S1 + i + 1]! + up[(j + 1) * S1 + i]! - up[j * S1 + i]! + changedUp;
+      }
+    }
+    band.filled = Math.max(band.filled, x1 - band.x0);
+  }
+  const rectSum = (sat: Int32Array, S1: number, i0: number, j0: number, i1: number, j1: number): number =>
+    sat[j1 * S1 + i1]! - sat[j0 * S1 + i1]! - sat[j1 * S1 + i0]! + sat[j0 * S1 + i0]!;
+  let filled = false;
+  /** Sites outside the site window computed in this window (x, y pairs in window coordinates); their rectangles count when the window closes. */
+  let outsideSites: number[] = [];
+  let marks = new Uint8Array(0), cover = new Uint8Array(0);
+  /** A site of a filled window: (i, j) are its coordinates in the site window, inside or outside it. */
+  function filledSite(x: number, y: number, i: number, j: number): number {
+    const c = channelAt(x, y), inside = i >= 0 && j >= 0 && i < sw && j < sh;
+    if (inside) {
+      let m = -1;
+      for (let g = 0; g < groups.length; g++) {
+        const group = groups[g]!, band = bands[g]!, S1 = band.capacity + 1, bi = x + group.minIx - R - band.x0, bj = y + group.minIy - R - band.y0;
+        if (rectSum(band.changeLeft, S1, bi + 1, bj, bi + group.cw, bj + group.ch) !== 0 || rectSum(band.changeUp, S1, bi, bj + 1, bi + group.cw, bj + group.ch) !== 0) { m = -2; break; }
+        const own = band.material[bj * band.capacity + bi]!;
+        if (m === -1) m = own; else if (own !== m) { m = -2; break; }
+      }
+      if (m >= 0) { lastMaterial = m; return uniformSite[c]![m]!; }
+    }
+    lastMaterial = -1;
+    let sum = 0;
+    for (let g = 0; g < groups.length; g++) {
+      const group = groups[g]!, band = bands[g]!, cw = group.cw, ch = group.ch, nk = group.neutral[c]!, sk = group.spectral[c]!, stride = band.capacity;
+      const p0 = x + group.minIx - R, q0 = y + group.minIy - R, bi = p0 - band.x0, bj = q0 - band.y0;
+      if (inside && allNeutral) {
+        const refl = band.reflectance;
+        for (let dy = 0, t = 0; dy < ch; dy++) {
+          const row = (bj + dy) * stride + bi;
+          for (let dx = 0; dx < cw; dx++, t++) sum += refl[row + dx]! * nk[t]!;
+        }
+      } else if (inside) {
+        const material = band.material;
+        for (let dy = 0, t = 0; dy < ch; dy++) {
+          const row = (bj + dy) * stride + bi;
+          for (let dx = 0; dx < cw; dx++, t++) {
+            const m = material[row + dx]!, si = spectralIndex[m]!;
+            sum += si < 0 ? reflectance[m]! * nk[t]! : sk[si]![t]!;
+          }
+        }
+      } else {
+        for (let dy = 0; dy < ch; dy++) for (let dx = 0; dx < cw; dx++) {
+          const ci = i + dx, cj = j + dy;
+          let m: number;
+          if (ci >= 0 && cj >= 0 && ci < group.cpw && cj < group.cph) m = band.material[(bj + dy) * stride + bi + dx]!;
+          else m = (scene as Extract<DisplayViewScene, { kind: "materials" }>).materialAt(latticeU(group, p0 + dx), latticeV(group, q0 + dy));
+          const si = spectralIndex[m];
+          if (si === undefined) throw new InvalidConfigurationError("Unknown chart material.");
+          sum += si < 0 ? reflectance[m]! * nk[dy * cw + dx]! : sk[si]![dy * cw + dx]!;
+        }
+      }
+    }
+    return sum;
+  }
+  /** Lattice points of an outside site's rectangles that lie outside the window caches (kernelSite looks these up on every read). */
+  function outsideLookups(i: number, j: number): number {
+    let count = 0;
+    for (const group of groups) {
+      const w = Math.max(0, Math.min(i + group.cw, group.cpw) - Math.max(i, 0)), h = Math.max(0, Math.min(j + group.ch, group.cph) - Math.max(j, 0));
+      count += group.cw * group.ch - w * h;
+    }
+    return count;
+  }
+  // Site values of filled windows persist across windows (a site's value does not depend on the window): rows of native
+  // sites in a ring of a power-of-two number of rows, row y in slot y mod ringRows. The window's site cache still holds the
+  // sites read in the window, which is also what its lookup count needs.
+  let ringRows = 0, ringOn = false, ring = new Float64Array(0), ringMaterial = new Int32Array(0), ringRowId = new Int32Array(0), windowMaterial = new Int32Array(0), lastMaterial = -1;
+  /** A filled-window site read outside the site window: counted as kernelSite counts it. */
+  function outsideRead(i: number, j: number): void { lookups += outsideLookups(i, j); outsideSites.push(i, j); }
+  /** A site from the ring; on a miss (re)claims the row's slot when another row holds it, computes the site and stores it. */
+  function ringRead(x: number, y: number, i: number, j: number): number {
+    const slot = y & (ringRows - 1), q = slot * W + x;
+    if (ringRowId[slot] === y) { const v = ring[q]!; if (v === v) { lastMaterial = ringMaterial[q]!; return v; } }
+    else { ringRowId[slot] = y; ring.fill(NaN, slot * W, (slot + 1) * W); }
+    const v = filledSite(x, y, i, j);
+    ring[q] = v; ringMaterial[q] = lastMaterial;
+    return v;
+  }
+  /** Every other site read: filled windows without the ring, the lazy window caches, or no caching. */
+  function otherSite(x: number, y: number): number {
+    const i = x - sx0, j = y - sy0, cached = i >= 0 && j >= 0 && i < sw && j < sh;
+    if (filled) {
+      if (!cached) outsideRead(i, j);
+      if (cached) { const v = siteCache[j * sw + i]!; if (!Number.isNaN(v)) { lastMaterial = -1; return v; } }
+      const v = filledSite(x, y, i, j);
+      if (cached) siteCache[j * sw + i] = v;
+      return v;
+    }
+    lastMaterial = -1;
+    if (cached) { const v = siteCache[j * sw + i]!; if (!Number.isNaN(v)) return v; }
+    const v = input.kernels ? kernelSite(x, y) : directSite(x, y);
+    if (cached) siteCache[j * sw + i] = v;
+    return v;
+  }
+  /**
+   * Lattice points of the closing window that kernelSite's lazy cache would have looked up: per group, the window cache points
+   * covered by the rectangles of the computed sites (the site cache's filled entries and the outside sites), a box dilation.
+   */
+  function windowLookups(): number {
+    let total = 0;
+    for (const group of groups) {
+      const cw = group.cw, ch = group.ch, cpw = group.cpw, cph = group.cph, ew = cpw + cw - 1, eh = cph + ch - 1;
+      // Top-left marks in extended coordinates (window coordinates + (cw − 1, ch − 1)), and their bounding box.
+      if (marks.length < ew * eh) { marks = new Uint8Array(ew * eh); }
+      let x0 = ew, x1 = -1, y0 = eh, y1 = -1;
+      const mark = (ei: number, ej: number): void => {
+        if (ei < 0 || ej < 0 || ei >= ew || ej >= eh) return;
+        marks[ej * ew + ei] = 1;
+        if (ei < x0) x0 = ei; if (ei > x1) x1 = ei; if (ej < y0) y0 = ej; if (ej > y1) y1 = ej;
+      };
+      for (let j = 0; j < sh; j++) for (let i = 0; i < sw; i++) if (!Number.isNaN(siteCache[j * sw + i]!)) mark(i + cw - 1, j + ch - 1);
+      for (let k = 0; k < outsideSites.length; k += 2) mark(outsideSites[k]! + cw - 1, outsideSites[k + 1]! + ch - 1);
+      if (x1 < 0) continue;
+      // Cache point (i, j) is covered when a mark lies in extended columns [i, i + cw) and rows [j, j + ch): a horizontal
+      // then a vertical running count over the marks' box (outside it nothing is covered).
+      const i0 = Math.max(0, x0 - cw + 1), i1 = Math.min(cpw - 1, x1), cwid = i1 - i0 + 1;
+      if (cover.length < cwid * (y1 - y0 + 1)) cover = new Uint8Array(cwid * (y1 - y0 + 1));
+      for (let r = y0; r <= y1; r++) {
+        let run = 0;
+        for (let e = i0; e <= i1 + cw - 1; e++) {
+          run += marks[r * ew + e]!;
+          if (e - cw >= i0) run -= marks[r * ew + e - cw]!;
+          if (e >= i0 + cw - 1) cover[(r - y0) * cwid + e - cw + 1 - i0] = run > 0 ? 1 : 0;
+        }
+        marks.fill(0, r * ew + x0, r * ew + x1 + 1);
+      }
+      for (let i = 0; i < cwid; i++) {
+        let run = 0;
+        for (let r = y0; r <= y1 + ch - 1; r++) {
+          if (r <= y1) run += cover[(r - y0) * cwid + i]!;
+          if (r - ch >= y0 && r - ch <= y1) run -= cover[(r - ch - y0) * cwid + i]!;
+          const j = r - ch + 1;
+          if (j >= 0 && j < cph && run > 0) total++;
+        }
+      }
+    }
+    return total;
+  }
   let sx0 = 0, sy0 = 0, sw = 0, sh = 0, siteCache = new Float64Array(0);
   const pilotNode = input.wavelengthsNm[Math.floor(nodes / 2)]!;
   return {
-    get lookups(): number { return lookups; },
+    get lookups(): number { return lookups + (filled ? windowLookups() : 0); },
+    get uniformMaterial(): number { return lastMaterial; },
     window(x0: number, y0: number, x1: number, y1: number): void {
+      if (filled) lookups += windowLookups();
+      filled = false; ringOn = false; outsideSites = [];
       sx0 = x0; sy0 = y0; sw = Math.max(0, x1 - x0); sh = Math.max(0, y1 - y0);
       if (sw * sh > CACHE_LIMIT) { sw = 0; sh = 0; }
       if (siteCache.length < sw * sh) siteCache = new Float64Array(sw * sh);
       siteCache.fill(NaN, 0, sw * sh);
-      if (input.kernels) for (const group of groups) {
+      if (!input.kernels) return;
+      for (const group of groups) {
         group.cx0 = x0 + group.minIx - R; group.cy0 = y0 + group.minIy - R;
         group.cpw = sw === 0 ? 0 : sw + group.cw - 1; group.cph = sh === 0 ? 0 : sh + group.ch - 1;
+        if (group.cpw * group.cph * (scene.kind === "materials" ? 1 : nodes) > CACHE_LIMIT) { group.cpw = 0; group.cph = 0; }
+      }
+      // Chart materials whose every group caches the whole window: the filled path (bands). Otherwise the lazy window caches.
+      if (scene.kind === "materials" && sw > 0 && groups.every((group) => group.cpw > 0)) {
+        groups.forEach((group, g) => coverBand(g, group.cx0, group.cx0 + group.cpw, group.cy0, group.cph));
+        filled = true;
+        if (windowMaterial.length < sw * sh) windowMaterial = new Int32Array(sw * sh);
+        // A ring of at least twice the window's rows keeps the rows of the previous display row's windows.
+        if (ringRows < 2 * sh) {
+          const rows = 2 ** Math.ceil(Math.log2(2 * sh));
+          if (rows * W <= CACHE_LIMIT) { ringRows = rows; ring = new Float64Array(rows * W).fill(NaN); ringMaterial = new Int32Array(rows * W); ringRowId = new Int32Array(rows).fill(-1); }
+        }
+        ringOn = ringRows >= 2 * sh;
+        return;
+      }
+      for (const group of groups) {
         const n = group.cpw * group.cph * (scene.kind === "materials" ? 1 : nodes);
-        if (n > CACHE_LIMIT) { group.cpw = 0; group.cph = 0; continue; }
         if (scene.kind === "materials") { if (group.cache.length < n || !(group.cache instanceof Int32Array)) group.cache = new Int32Array(n); group.cache.fill(-1, 0, n); }
         else { if (group.cache.length < n || !(group.cache instanceof Float64Array)) group.cache = new Float64Array(n); group.cache.fill(NaN, 0, n); }
       }
     },
     site(x: number, y: number): number {
-      const i = x - sx0, j = y - sy0, cached = i >= 0 && j >= 0 && i < sw && j < sh;
-      if (cached) { const v = siteCache[j * sw + i]!; if (!Number.isNaN(v)) return v; }
-      const v = input.kernels ? kernelSite(x, y) : directSite(x, y);
-      if (cached) siteCache[j * sw + i] = v;
-      return v;
+      if (ringOn) {
+        // The window's own small cache first (the sites read in this window, for the lookup count too), then the ring.
+        const i = x - sx0, j = y - sy0;
+        if (i >= 0 && j >= 0 && i < sw && j < sh) {
+          const w = j * sw + i, cachedValue = siteCache[w]!;
+          if (cachedValue === cachedValue) { lastMaterial = windowMaterial[w]!; return cachedValue; }
+          const v = ringRead(x, y, i, j);
+          siteCache[w] = v; windowMaterial[w] = lastMaterial;
+          return v;
+        }
+        outsideRead(i, j);
+        return ringRead(x, y, i, j);
+      }
+      return otherSite(x, y);
     },
     pilot(u: number, v: number): number {
       lookups++;
@@ -492,8 +719,57 @@ export function footprintWeights(x: AxisSums, y: AxisSums, area: number, out: Fl
 const AHD_REACH = 5, AHD_SIDE = 2 * AHD_REACH + 1;
 /** Grid of flat-neighbourhood states for the AHD correction: steps per octave of the normalized channel mean, octaves below white. */
 const AHD_KEY_STEPS = 8, AHD_KEY_OCTAVES = 12;
+/** CFA role (0 red, 1 green, 2 blue) of each patch site (dy + 5)·11 + dx + 5, per phase (phaseY·2 + phaseX) of the centre. */
+const AHD_ROLES = [0, 1, 2, 3].map((phase) => {
+  const roles = new Uint8Array(AHD_SIDE * AHD_SIDE), px = phase & 1, py = phase >> 1;
+  for (let dy = -AHD_REACH; dy <= AHD_REACH; dy++) for (let dx = -AHD_REACH; dx <= AHD_REACH; dx++) {
+    const xx = (px + dx) & 1, yy = (py + dy) & 1;
+    roles[(dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH] = yy === 0 ? (xx === 0 ? 0 : 1) : (xx === 0 ? 1 : 2);
+  }
+  return roles;
+});
+/**
+ * 1 for the patch sites the AHD steps read (directional greens within 3 sites read 2 further along their axis, the candidates
+ * within 2 read 1 further): |dy| ≤ 3 or |dx| ≤ 3. The 16 sites with |dx| ≥ 4 and |dy| ≥ 4 are never read.
+ */
+const AHD_READ = Uint8Array.from({ length: AHD_SIDE * AHD_SIDE }, (_, p) => {
+  const dx = (p % AHD_SIDE) - AHD_REACH, dy = Math.floor(p / AHD_SIDE) - AHD_REACH;
+  return Math.abs(dx) <= 3 || Math.abs(dy) <= 3 ? 1 : 0;
+});
+/** CIELAB's f(t) constants (CIE 15:2004): linear below (6/29)³ with slope (29/3)³/116. */
+const LAB_EPSILON = 216 / 24389, LAB_KAPPA = 24389 / 27;
 /** A 32-bit hash of a correction key (MurmurHash3 finalizer of the three quantized means). */
 function fmixKey(a: number, b: number, c: number): number { return fmix32((Math.imul(a + 1, 0x9e3779b1) ^ Math.imul(b + 1, 0x85ebca77) ^ Math.imul(c + 1, 0xc2b2ae3d)) >>> 0); }
+/** Grid levels per channel (indices 0 to AHD_KEY_OCTAVES·AHD_KEY_STEPS). */
+const AHD_KEY_LEVELS = AHD_KEY_OCTAVES * AHD_KEY_STEPS + 1;
+/** Correction states kept per setup, and setups kept (least recently used first out); about 100 bytes per state. */
+const AHD_STATE_LIMIT = 1 << 16, AHD_SETUP_LIMIT = 4;
+const ahdStateCache = new Map<string, Map<number, Float64Array>>();
+/** Every input a correction state depends on besides its indices, as exact decimal text (JavaScript numbers round-trip). */
+function correctionKey(seed: number, correction: NonNullable<DisplayViewSetup["ahdCorrection"]>, perElectron: readonly number[], constantVariance: readonly number[],
+  gains: readonly number[], clipLevel: number, matrix: readonly (readonly number[])[], toneCurve: string): string {
+  return [seed, correction.drawsPerState, ...perElectron, ...constantVariance, ...correction.labMatrix.flat(), ...gains, clipLevel, ...matrix.flat(), toneCurve].join(",");
+}
+/** Internal (exported for tests): the correction states kept across calls, and clearing them. */
+export function displayViewCorrectionStateCount(): number { let n = 0; for (const states of ahdStateCache.values()) n += states.size; return n; }
+export function clearDisplayViewCorrectionStates(): void { ahdStateCache.clear(); }
+/** The state map of one setup (moved to the most recently used end). */
+function correctionStates(key: string): Map<number, Float64Array> {
+  let states = ahdStateCache.get(key);
+  if (states) ahdStateCache.delete(key);
+  else {
+    states = new Map();
+    if (ahdStateCache.size >= AHD_SETUP_LIMIT) ahdStateCache.delete(ahdStateCache.keys().next().value!);
+  }
+  ahdStateCache.set(key, states);
+  return states;
+}
+/**
+ * Recorded terms of a one-material sample: [0, 3) the channel site variances csv; [3, 21) per candidate d and channel c the
+ * linear slopes a (3 + (3d + c)·3); [21, 27) per candidate the residual terms; [27, 30) the expected-value sums; [30, 33) the
+ * AHD choice terms; 33 a 1 when the AHD correction applies and [34, 37) its values.
+ */
+const MEMO_SIZE = 37;
 /** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
 
@@ -516,7 +792,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const slotOf = (t: DisplayViewKernelTap): number => (t.dy + reach) * side + t.dx + reach;
   // Per phase: the bilinear kernels (for the site variance of each channel), the candidates, and the slots they read.
   const phaseSlots: Int32Array[][] = [], phaseWeights: Float64Array[][] = [], phaseW2: Float64Array[] = [], phaseList: Int32Array[] = [];
-  const candidateSlots: Int32Array[][][] = [], candidateWeights: Float64Array[][][] = [], candidateDense: Float64Array[][] = [];
+  const candidateSlots: Int32Array[][][] = [], candidateWeights: Float64Array[][][] = [], candidateDense: Float64Array[][] = [], candidateList: Int32Array[][] = [];
   for (let p = 0; p < 4; p++) {
     const kernels = setup.demosaic[p]!;
     phaseSlots[p] = kernels.map((list) => Int32Array.from(list, slotOf));
@@ -527,8 +803,11 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
     candidateWeights[p] = candidates[p]!.map((candidate) => candidate.map((list) => Float64Array.from(list, (t) => t.weight)));
     const used = new Set<number>([...phaseSlots[p]!.flatMap((a) => Array.from(a)), ...candidateSlots[p]!.flat().flatMap((a) => Array.from(a))]);
     phaseList[p] = Int32Array.from([...used].sort((a, b) => a - b));
+    // The slots of phaseList (same order) where a candidate has a non-zero weight in some channel. A sum over phaseList adds
+    // ±0 at the other slots, which leaves a sum that starts at +0 unchanged, so the sums below skip them.
+    candidateList[p] = candidateDense[p]!.map((dense) => phaseList[p]!.filter((slot) => dense[slot] !== 0 || dense[slotsCount + slot] !== 0 || dense[2 * slotsCount + slot] !== 0));
   }
-  const siteMean = new Float64Array(slotsCount), siteVar = new Float64Array(slotsCount), siteThird = new Float64Array(slotsCount), siteChannel = new Int32Array(slotsCount), clip = new Float64Array(3), B = new Float64Array(4), C = new Float64Array(9);
+  const siteElectrons = new Float64Array(slotsCount), siteMean = new Float64Array(slotsCount), siteVar = new Float64Array(slotsCount), siteThird = new Float64Array(slotsCount), siteChannel = new Int32Array(slotsCount), clip = new Float64Array(3), B = new Float64Array(4), C = new Float64Array(9);
   const cm = new Float64Array(3), cv = new Float64Array(3), csv = new Float64Array(3), bm = new Float64Array(3), bv = new Float64Array(3), bs = new Float64Array(3);
   const hm = new Float64Array(3), hv = new Float64Array(3), hs = new Float64Array(3), an = new Float64Array(9);
   const reach2 = CLIP_REACH_SIGMA * CLIP_REACH_SIGMA;
@@ -541,43 +820,59 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   // (AHD_KEY_STEPS per octave from 2^-AHD_KEY_OCTAVES of white); each grid state is computed once with draws seeded by the state
   // alone, so it is the same in every display pixel and region, and a pixel interpolates trilinearly between the 8 states
   // around its own channel means.
-  const correctionCache = new Map<string, Float64Array>();
+  // Grid states are shared across display pixels and across calls: a state depends only on its indices and on the inputs in
+  // `correctionKey` (the seed, the draws, the readout scale and noise, the homogeneity matrix and the development), so a cached
+  // state is the same value the draws would give again.
+  const correctionCache = ahdCorrection ? correctionStates(correctionKey(seed, ahdCorrection, k, c0, setup.gains, L, M, setup.toneCurve)) : new Map<number, Float64Array>();
   function gridCorrection(i0: number, i1: number, i2: number): Float64Array {
-    const key = i0 + "," + i1 + "," + i2, cached = correctionCache.get(key);
+    const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = correctionCache.get(key);
     if (cached) return cached;
     const electrons = [i0, i1, i2].map((i, c) => 2 ** (i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
     const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
-    const sum = new Float64Array(3);
-    for (let draw = 0; draw < ahdCorrection!.drawsPerState; draw++) {
-      const phase = draw & 3, px = phase & 1, py = phase >> 1;
-      for (let dy = -AHD_REACH; dy <= AHD_REACH; dy++) for (let dx = -AHD_REACH; dx <= AHD_REACH; dx++) {
-        const xx = (px + dx) & 1, yy = (py + dy) & 1, c = yy === 0 ? (xx === 0 ? 0 : 1) : (xx === 0 ? 1 : 2);
-        const value = k[c]! * samplePoisson(electrons[c]!, random) + readStd[c]! * sampleDeterministicStandardNormal(random);
-        patch[(dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH] = value < 1 ? value : 1;
+    const sum = new Float64Array(3), draws = ahdCorrection!.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e));
+    for (let draw = 0; draw < draws; draw++) {
+      const phase = draw & 3, roles = AHD_ROLES[phase]!;
+      for (let p = 0; p < AHD_SIDE * AHD_SIDE; p++) {
+        const c = roles[p]!;
+        if (AHD_READ[p] === 0) {
+          // A site the AHD steps never read: its draws only advance the stream, by the uniforms the Poisson draw takes (a
+          // variable number) and the normal's two.
+          poisson[c]!(random); random.next(); random.next();
+          continue;
+        }
+        const value = k[c]! * poisson[c]!(random) + readStd[c]! * sampleDeterministicStandardNormal(random);
+        patch[p] = value < 1 ? value : 1;
       }
       ahdDifference(phase, correction);
-      for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / ahdCorrection!.drawsPerState;
+      for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / draws;
     }
+    if (correctionCache.size >= AHD_STATE_LIMIT) correctionCache.clear();
     correctionCache.set(key, sum);
     return sum;
   }
   const interpolated = new Float64Array(3);
+  const gridBase = new Float64Array(3), gridFrac = new Float64Array(3);
   function flatCorrection(m0: number, m1: number, m2: number): Float64Array {
-    const grid = [m0, m1, m2].map((m) => (Math.log2(Math.min(1, Math.max(2 ** -AHD_KEY_OCTAVES, m))) + AHD_KEY_OCTAVES) * AHD_KEY_STEPS);
-    const base = grid.map((g) => Math.min(Math.floor(g), AHD_KEY_OCTAVES * AHD_KEY_STEPS - 1)), frac = grid.map((g, i) => g - base[i]!);
+    for (let i = 0; i < 3; i++) {
+      const m = i === 0 ? m0 : i === 1 ? m1 : m2, g = (Math.log2(Math.min(1, Math.max(2 ** -AHD_KEY_OCTAVES, m))) + AHD_KEY_OCTAVES) * AHD_KEY_STEPS;
+      const base = Math.min(Math.floor(g), AHD_KEY_OCTAVES * AHD_KEY_STEPS - 1);
+      gridBase[i] = base; gridFrac[i] = g - base;
+    }
     interpolated.fill(0);
     for (let corner = 0; corner < 8; corner++) {
       let weight = 1;
-      for (let i = 0; i < 3; i++) weight *= (corner >> i) & 1 ? frac[i]! : 1 - frac[i]!;
+      for (let i = 0; i < 3; i++) weight *= (corner >> i) & 1 ? gridFrac[i]! : 1 - gridFrac[i]!;
       if (weight === 0) continue;
-      const value = gridCorrection(base[0]! + (corner & 1), base[1]! + ((corner >> 1) & 1), base[2]! + ((corner >> 2) & 1));
+      const value = gridCorrection(gridBase[0]! + (corner & 1), gridBase[1]! + ((corner >> 1) & 1), gridBase[2]! + ((corner >> 2) & 1));
       for (let comp = 0; comp < 3; comp++) interpolated[comp] = interpolated[comp]! + weight * value[comp]!;
     }
     return interpolated;
   }
-  const lab = ahdCorrection?.labMatrix, labWhite = lab ? lab.map((row) => row[0]! + row[1]! + row[2]!) : [1, 1, 1];
+  const lab = ahdCorrection?.labMatrix ?? [[1, 0, 0], [0, 1, 0], [0, 0, 1]], labWhite = lab.map((row) => row[0]! + row[1]! + row[2]!);
+  const l00 = lab[0]![0]!, l01 = lab[0]![1]!, l02 = lab[0]![2]!, l10 = lab[1]![0]!, l11 = lab[1]![1]!, l12 = lab[1]![2]!, l20 = lab[2]![0]!, l21 = lab[2]![1]!, l22 = lab[2]![2]!;
+  const lw0 = labWhite[0]!, lw1 = labWhite[1]!, lw2 = labWhite[2]!;
   const gh = new Float64Array(49), gv = new Float64Array(49), cand = [new Float64Array(75), new Float64Array(75)], labs = [new Float64Array(75), new Float64Array(75)];
-  const homo = [new Float64Array(9), new Float64Array(9)], rgb = new Float64Array(3), rendered = new Float64Array(3), linear = new Float64Array(3);
+  const rgb = new Float64Array(3), rendered = new Float64Array(3), linear = new Float64Array(3);
   /** Develops one deterministic camera pixel and renders it: WB, highlight clip, colour matrix, tone curve, clip to [0, 1]. */
   function renderPixel(r: number, gr: number, b: number, out: Float64Array): void {
     const u0 = Math.min(L, g0 * r), u1 = Math.min(L, g1 * gr), u2 = Math.min(L, g2 * b);
@@ -587,58 +882,60 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       out[comp] = v < 0 ? 0 : v > 1 ? 1 : v;
     }
   }
-  /** h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (createAhdDemosaicTask's steps, centre pixel only). */
+  /**
+   * h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (createAhdDemosaicTask's steps, centre pixel only). The
+   * patch and the greens are read by flat index (patch (dy + 5)·11 + dx + 5, greens (dy + 3)·7 + dx + 3); every value is formed
+   * with the same operations in the same order as the steps themselves, so the result is bit-identical to them.
+   */
   function ahdDifference(phase: number, out: Float64Array): void {
-    const px = phase & 1, py = phase >> 1;
-    const role = (dx: number, dy: number): number => { const xx = (px + dx) & 1, yy = (py + dy) & 1; return yy === 0 ? (xx === 0 ? 0 : 1) : (xx === 0 ? 1 : 2); };
-    const at = (dx: number, dy: number): number => patch[(dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH]!;
+    const roles = AHD_ROLES[phase]!;
     // 1. Directional greens within 3 sites.
     for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-      const i = (dy + 3) * 7 + dx + 3, c = at(dx, dy);
-      if (role(dx, dy) === 1) { gh[i] = c; gv[i] = c; continue; }
-      gh[i] = (at(dx - 1, dy) + at(dx + 1, dy)) / 2 + (2 * c - at(dx - 2, dy) - at(dx + 2, dy)) / 4;
-      gv[i] = (at(dx, dy - 1) + at(dx, dy + 1)) / 2 + (2 * c - at(dx, dy - 2) - at(dx, dy + 2)) / 4;
+      const i = (dy + 3) * 7 + dx + 3, p = (dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH, c = patch[p]!;
+      if (roles[p] === 1) { gh[i] = c; gv[i] = c; continue; }
+      gh[i] = (patch[p - 1]! + patch[p + 1]!) / 2 + (2 * c - patch[p - 2]! - patch[p + 2]!) / 4;
+      gv[i] = (patch[p - AHD_SIDE]! + patch[p + AHD_SIDE]!) / 2 + (2 * c - patch[p - 2 * AHD_SIDE]! - patch[p + 2 * AHD_SIDE]!) / 4;
     }
-    // 2. Candidates within 2 sites; 3. their CIELAB.
-    const f = (t: number): number => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+    // 2. Candidates within 2 sites; 3. their CIELAB. The four corners (±2, ±2) are not read by step 4 and are skipped.
     for (let d = 0; d < 2; d++) {
       const g = d === 0 ? gh : gv, o = cand[d]!, ol = labs[d]!;
-      const gAt = (dx: number, dy: number): number => g[(dy + 3) * 7 + dx + 3]!, diff = (dx: number, dy: number): number => at(dx, dy) - gAt(dx, dy);
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-        const i = (dy + 2) * 5 + dx + 2, own = role(dx, dy), gc = gAt(dx, dy);
+        if ((dx === -2 || dx === 2) && (dy === -2 || dy === 2)) continue;
+        const i = (dy + 2) * 5 + dx + 2, p = (dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH, q = (dy + 3) * 7 + dx + 3, own = roles[p]!, gc = g[q]!;
         o[3 * i + 1] = gc;
         if (own === 1) {
-          const hRole = role(dx + 1, dy), vRole = 2 - hRole;
-          o[3 * i + hRole] = gc + (diff(dx - 1, dy) + diff(dx + 1, dy)) / 2;
-          o[3 * i + vRole] = gc + (diff(dx, dy - 1) + diff(dx, dy + 1)) / 2;
+          const hRole = roles[p + 1]!, vRole = 2 - hRole;
+          o[3 * i + hRole] = gc + ((patch[p - 1]! - g[q - 1]!) + (patch[p + 1]! - g[q + 1]!)) / 2;
+          o[3 * i + vRole] = gc + ((patch[p - AHD_SIDE]! - g[q - 7]!) + (patch[p + AHD_SIDE]! - g[q + 7]!)) / 2;
         } else {
-          o[3 * i + own] = at(dx, dy);
-          o[3 * i + 2 - own] = gc + (diff(dx - 1, dy - 1) + diff(dx + 1, dy - 1) + diff(dx - 1, dy + 1) + diff(dx + 1, dy + 1)) / 4;
+          o[3 * i + own] = patch[p]!;
+          o[3 * i + 2 - own] = gc + ((patch[p - AHD_SIDE - 1]! - g[q - 8]!) + (patch[p - AHD_SIDE + 1]! - g[q - 6]!) + (patch[p + AHD_SIDE - 1]! - g[q + 6]!) +
+            (patch[p + AHD_SIDE + 1]! - g[q + 8]!)) / 4;
         }
-        const R = o[3 * i]!, G = o[3 * i + 1]!, Bc = o[3 * i + 2]!, m = lab!;
-        const fx = f((m[0]![0]! * R + m[0]![1]! * G + m[0]![2]! * Bc) / labWhite[0]!), fy = f((m[1]![0]! * R + m[1]![1]! * G + m[1]![2]! * Bc) / labWhite[1]!);
-        const fz = f((m[2]![0]! * R + m[2]![1]! * G + m[2]![2]! * Bc) / labWhite[2]!);
-        ol[3 * i] = 116 * fy - 16; ol[3 * i + 1] = 500 * (fx - fy); ol[3 * i + 2] = 200 * (fy - fz);
+        const R = o[3 * i]!, G = o[3 * i + 1]!, Bc = o[3 * i + 2]!;
+        let tx = (l00 * R + l01 * G + l02 * Bc) / lw0, ty = (l10 * R + l11 * G + l12 * Bc) / lw1, tz = (l20 * R + l21 * G + l22 * Bc) / lw2;
+        tx = tx > LAB_EPSILON ? Math.cbrt(tx) : (LAB_KAPPA * tx + 16) / 116;
+        ty = ty > LAB_EPSILON ? Math.cbrt(ty) : (LAB_KAPPA * ty + 16) / 116;
+        tz = tz > LAB_EPSILON ? Math.cbrt(tz) : (LAB_KAPPA * tz + 16) / 116;
+        ol[3 * i] = 116 * ty - 16; ol[3 * i + 1] = 500 * (tx - ty); ol[3 * i + 2] = 200 * (ty - tz);
       }
     }
-    // 4. Homogeneity within 1 site, with the adaptive tolerances; 5. the 3 × 3 sum selects the candidate.
-    const n4 = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const i = (dy + 2) * 5 + dx + 2, dL = [[0, 0, 0, 0], [0, 0, 0, 0]], dC = [[0, 0, 0, 0], [0, 0, 0, 0]];
-      for (let d = 0; d < 2; d++) {
-        const o = labs[d]!;
-        for (let q = 0; q < 4; q++) {
-          const j = (dy + n4[q]![1] + 2) * 5 + dx + n4[q]![0] + 2;
-          dL[d]![q] = Math.abs(o[3 * i]! - o[3 * j]!);
-          dC[d]![q] = (o[3 * i + 1]! - o[3 * j + 1]!) ** 2 + (o[3 * i + 2]! - o[3 * j + 2]!) ** 2;
-        }
-      }
-      const epsL = Math.min(Math.max(dL[0]![0]!, dL[0]![1]!), Math.max(dL[1]![2]!, dL[1]![3]!));
-      const epsC = Math.min(Math.max(dC[0]![0]!, dC[0]![1]!), Math.max(dC[1]![2]!, dC[1]![3]!));
-      for (let d = 0; d < 2; d++) { let count = 0; for (let q = 0; q < 4; q++) if (dL[d]![q]! <= epsL && dC[d]![q]! <= epsC) count++; homo[d]![(dy + 1) * 3 + dx + 1] = count; }
-    }
+    // 4. Homogeneity within 1 site, with the adaptive tolerances (neighbours left, right, up, down); 5. the 3 × 3 sum selects
+    // the candidate.
+    const h = labs[0]!, v = labs[1]!;
     let sh = 0, sv = 0;
-    for (let q = 0; q < 9; q++) { sh += homo[0]![q]!; sv += homo[1]![q]!; }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const i = 3 * ((dy + 2) * 5 + dx + 2), j0 = i - 3, j1 = i + 3, j2 = i - 15, j3 = i + 15;
+      const hL0 = Math.abs(h[i]! - h[j0]!), hL1 = Math.abs(h[i]! - h[j1]!), hL2 = Math.abs(h[i]! - h[j2]!), hL3 = Math.abs(h[i]! - h[j3]!);
+      const vL0 = Math.abs(v[i]! - v[j0]!), vL1 = Math.abs(v[i]! - v[j1]!), vL2 = Math.abs(v[i]! - v[j2]!), vL3 = Math.abs(v[i]! - v[j3]!);
+      const hC0 = (h[i + 1]! - h[j0 + 1]!) ** 2 + (h[i + 2]! - h[j0 + 2]!) ** 2, hC1 = (h[i + 1]! - h[j1 + 1]!) ** 2 + (h[i + 2]! - h[j1 + 2]!) ** 2;
+      const hC2 = (h[i + 1]! - h[j2 + 1]!) ** 2 + (h[i + 2]! - h[j2 + 2]!) ** 2, hC3 = (h[i + 1]! - h[j3 + 1]!) ** 2 + (h[i + 2]! - h[j3 + 2]!) ** 2;
+      const vC0 = (v[i + 1]! - v[j0 + 1]!) ** 2 + (v[i + 2]! - v[j0 + 2]!) ** 2, vC1 = (v[i + 1]! - v[j1 + 1]!) ** 2 + (v[i + 2]! - v[j1 + 2]!) ** 2;
+      const vC2 = (v[i + 1]! - v[j2 + 1]!) ** 2 + (v[i + 2]! - v[j2 + 2]!) ** 2, vC3 = (v[i + 1]! - v[j3 + 1]!) ** 2 + (v[i + 2]! - v[j3 + 2]!) ** 2;
+      const epsL = Math.min(Math.max(hL0, hL1), Math.max(vL2, vL3)), epsC = Math.min(Math.max(hC0, hC1), Math.max(vC2, vC3));
+      sh += (hL0 <= epsL && hC0 <= epsC ? 1 : 0) + (hL1 <= epsL && hC1 <= epsC ? 1 : 0) + (hL2 <= epsL && hC2 <= epsC ? 1 : 0) + (hL3 <= epsL && hC3 <= epsC ? 1 : 0);
+      sv += (vL0 <= epsL && vC0 <= epsC ? 1 : 0) + (vL1 <= epsL && vC1 <= epsC ? 1 : 0) + (vL2 <= epsL && vC2 <= epsC ? 1 : 0) + (vL3 <= epsL && vC3 <= epsC ? 1 : 0);
+    }
     const centre = 12, a = cand[0]!, b = cand[1]!;
     for (let c = 0; c < 3; c++) rgb[c] = sh > sv ? a[3 * centre + c]! : sv > sh ? b[3 * centre + c]! : (a[3 * centre + c]! + b[3 * centre + c]!) / 2;
     renderPixel(rgb[0]!, rgb[1]!, rgb[2]!, rendered);
@@ -648,6 +945,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
     for (let c = 0; c < 3; c++) out[c] = out[c]! - linear[c]! / 2;
   }
   let siteCount = 0, sampleCount = 0, detail = 0, uniform = 0, lastYield = Date.now();
+  /** Recorded terms of samples whose sites all read one chart material, by material·4 + CFA phase (layout: MEMO_SIZE). */
+  const sampleMemo = new Map<number, Float64Array>();
   // Pilot: the scene at a deterministic grid over each display pixel's footprint widened by the reach; a pixel is uniform when
   // every point returns the same value. Pixels next to a detailed pixel count as detailed too, so an edge that only clips a
   // footprint's corner (too thin for the grid) still gets the full samples. The grid is fixed, so the sample count is not
@@ -693,8 +992,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
         const x = Math.min(frameWidth - 1, Math.floor(fx)) + margin, y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
         const phase = (y & 1) * 2 + (x & 1), list = phaseList[phase]!;
-        // Normalized site values: normal with mean k·e and variance k²·e + constant, clipped at the white level (1). Sites
-        // outside the raster (mirror borders) are read reflect-101.
+        let material = -2;
+        // The expected electrons of the sites the demosaic reads (sites outside the raster, at mirror borders, are read
+        // reflect-101), and whether they all read one chart material.
         for (let li = 0; li < list.length; li++) {
           const slot = list[li]!;
           siteCount++;
@@ -702,9 +1002,33 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
           if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
           const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
-          const e = setup.signal.site(sxs, sys) + dark[c]!, kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
+          siteElectrons[slot] = setup.signal.site(sxs, sys) + dark[c]!; siteChannel[slot] = c;
+          const own = setup.signal.uniformMaterial;
+          material = material === -2 || material === own ? own : -1;
+        }
+        // A sample whose sites all read one chart material only has the statistics of every other such sample of that material
+        // and CFA phase: replay its recorded terms (the same values added to the same sums in the same order).
+        const memoKey = material >= 0 ? material * 4 + phase : -1, memo = memoKey >= 0 ? sampleMemo.get(memoKey) : undefined;
+        const cs = candidateSlots[phase]!, cw = candidateWeights[phase]!, count = cs.length, share = 1 / count;
+        if (memo) {
+          for (let d = 0; d < count; d++) {
+            for (let c = 0; c < 3; c++) {
+              const o = 3 + (d * 3 + c) * 3, a0 = memo[o]!, a1 = memo[o + 1]!, a2 = memo[o + 2]!, wgt = share * B[c]! * memo[c]!;
+              c00 += wgt * a0 * a0; c01 += wgt * a0 * a1; c02 += wgt * a0 * a2; c11 += wgt * a1 * a1; c12 += wgt * a1 * a2; c22 += wgt * a2 * a2;
+            }
+            r0 += memo[21 + d * 3]!; r1 += memo[22 + d * 3]!; r2 += memo[23 + d * 3]!;
+          }
+          s0 += memo[27]!; s1 += memo[28]!; s2 += memo[29]!;
+          if (count === 2) { r0 += memo[30]!; r1 += memo[31]!; r2 += memo[32]!; }
+          if (memo[33] === 1) { s0 += memo[34]!; s1 += memo[35]!; s2 += memo[36]!; corrected = true; }
+          continue;
+        }
+        const record = memoKey >= 0 ? new Float64Array(MEMO_SIZE) : undefined;
+        // Normalized site values: normal with mean k·e and variance k²·e + constant, clipped at the white level (1).
+        for (let li = 0; li < list.length; li++) {
+          const slot = list[li]!, c = siteChannel[slot]!, e = siteElectrons[slot]!, kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
           // Third cumulant of the normalized value: Poisson electrons have κ₃ = e (read and rounding noise add none).
-          siteThird[slot] = kc * kc * kc * e; siteChannel[slot] = c;
+          siteThird[slot] = kc * kc * kc * e;
           if (gap > 0 && gap * gap > reach2 * variance) { siteMean[slot] = mean; siteVar[slot] = variance; }
           else { upperClip(mean, variance, 1, clip); siteMean[slot] = clip[0]!; siteVar[slot] = clip[1]!; }
         }
@@ -720,7 +1044,6 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         // Each candidate of the demosaic (one for bilinear; AHD's horizontal and vertical ones, of which AHD picks one per pixel)
         // is propagated on its own: camera-channel mean and covariance, white balance and highlight clip, colour matrix and
         // rendering; the pixel's statistics are their average.
-        const cs = candidateSlots[phase]!, cw = candidateWeights[phase]!, count = cs.length, share = 1 / count;
         let e0 = 0, e1 = 0, e2 = 0;
         for (let d = 0; d < count; d++) {
           for (let c = 0; c < 3; c++) {
@@ -731,7 +1054,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             cmAverage[c] = (d === 0 ? 0 : cmAverage[c]!) + mean * share;
           }
           // Covariance of channels i, j: Σ over the sites of w_i·w_j·Var(site), with the kernels as dense weights over the window.
-          const dense = candidateDense[phase]![d]!, list = phaseList[phase]!;
+          const dense = candidateDense[phase]![d]!, list = candidateList[phase]![d]!;
           let v00 = 0, v01 = 0, v02 = 0, v11 = 0, v12 = 0, v22 = 0;
           for (let li = 0; li < list.length; li++) {
             const slot = list[li]!, v = siteVar[slot]!, w0 = dense[slot]!, w1 = dense[slotsCount + slot]!, w2 = dense[2 * slotsCount + slot]!;
@@ -756,7 +1079,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             else if (reinhard) { reinhardMoments(mean, variance, clip); hm[comp] = clip[0]!; hv[comp] = clip[1]!; hs[comp] = clip[2]!; }
             else {
               // The component is a linear combination of the sites: κ₃ = Σ (Σ_c M·Γ_c·w_c,site)³·κ₃(site).
-              const dense = candidateDense[phase]![d]!, list = phaseList[phase]!;
+              const dense = candidateDense[phase]![d]!, list = candidateList[phase]![d]!;
               let third = 0;
               for (let li = 0; li < list.length; li++) {
                 const slot = list[li]!, coefficient = r0m * bs[0]! * dense[slot]! + r1m * bs[1]! * dense[slotsCount + slot]! + r2m * bs[2]! * dense[2 * slotsCount + slot]!;
@@ -775,12 +1098,16 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             const wgt = share * B[c]! * csv[c]!;
             c00 += wgt * a0 * a0; c01 += wgt * a0 * a1; c02 += wgt * a0 * a2; c11 += wgt * a1 * a1; c12 += wgt * a1 * a2; c22 += wgt * a2 * a2;
             an[c] = a0; an[3 + c] = a1; an[6 + c] = a2;
+            if (record) { const o = 3 + (d * 3 + c) * 3; record[o] = a0; record[o + 1] = a1; record[o + 2] = a2; }
           }
           for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const cij = C[i * 3 + j]!; l0 += an[i]! * an[j]! * cij; l1 += an[3 + i]! * an[3 + j]! * cij; l2 += an[6 + i]! * an[6 + j]! * cij; }
-          r0 += share * Math.max(0, hv[0]! - l0); r1 += share * Math.max(0, hv[1]! - l1); r2 += share * Math.max(0, hv[2]! - l2);
+          const t0 = share * Math.max(0, hv[0]! - l0), t1 = share * Math.max(0, hv[1]! - l1), t2 = share * Math.max(0, hv[2]! - l2);
+          r0 += t0; r1 += t1; r2 += t2;
+          if (record) { record[21 + d * 3] = t0; record[22 + d * 3] = t1; record[23 + d * 3] = t2; }
           pixelVariance = Math.max(pixelVariance, hv[0]!, hv[1]!, hv[2]!);
         }
         s0 += e0; s1 += e1; s2 += e2;
+        if (record) { record[0] = csv[0]!; record[1] = csv[1]!; record[2] = csv[2]!; record[27] = e0; record[28] = e1; record[29] = e2; }
         if (count === 2) {
           // AHD's per-pixel choice between the candidates adds independent variance: with a noise-driven choice each pixel
           // deviates from the candidates' average by ±½(H − V), variance ¼·Var(H − V) (linear in the sites, at the last
@@ -793,6 +1120,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             x0 += a * a * v; x1 += b * b * v; x2 += c * c * v;
           }
           r0 += x0 / 4; r1 += x1 / 4; r2 += x2 / 4;
+          if (record) { record[30] = x0 / 4; record[31] = x1 / 4; record[32] = x2 / 4; }
         }
         // AHD at low signal: its homogeneity choice reacts to the noise, which the linear candidates cannot express. A sample
         // whose pixel noise exceeds the threshold adds the correction of a flat neighbourhood with its channel means, from the
@@ -802,7 +1130,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         if (ahdCorrection && pixelVariance > ahdCorrection.thresholdVariance) {
           const fix = flatCorrection(cmAverage[0]!, cmAverage[1]!, cmAverage[2]!);
           s0 += fix[0]!; s1 += fix[1]!; s2 += fix[2]!; corrected = true;
+          if (record) { record[33] = 1; record[34] = fix[0]!; record[35] = fix[1]!; record[36] = fix[2]!; }
         }
+        if (record) sampleMemo.set(memoKey, record);
         pixelVariance = 0;
       }
       sampleCount += Q;

@@ -87,17 +87,21 @@ export interface DeterministicUniformStream {
  * Changing any of this changes simulated RAW output and needs a model and replay review.
  */
 export function createDeterministicUniformStream(seedUint32: number): DeterministicUniformStream {
-  let state = fmix32((seedUint32 ^ 0x9e3779b9) >>> 0);
-  if (state === 0) {
-    state = 0x6d2b79f5;
+  // The state lives in a Uint32Array: storing the int32 result there is the same `>>> 0` reduction, and a uint32 above
+  // 2^30 kept in a closure variable would be boxed on every step (half the speed). The draws are unchanged.
+  const state = new Uint32Array(1);
+  state[0] = fmix32((seedUint32 ^ 0x9e3779b9) >>> 0);
+  if (state[0] === 0) {
+    state[0] = 0x6d2b79f5;
   }
   return {
     next(): number {
-      state ^= state << 13;
-      state ^= state >>> 17;
-      state ^= state << 5;
-      state >>>= 0;
-      return (state + 0.5) / 0x1_0000_0000;
+      let x = state[0]!;
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      state[0] = x;
+      return (state[0] + 0.5) / 0x1_0000_0000;
     }
   };
 }
