@@ -329,7 +329,8 @@ export function chartMaterialInputs(chart: ResolvedChartScene): readonly unknown
   return MATERIAL_INPUTS.get(chart) ?? chart.materials.map(() => undefined);
 }
 /** Frame context of a chart being resolved: the picture height (in its own frame units) its LW/PH frequencies refer to. */
-interface ChartContext { pictureHeight: number; nested: boolean; portable?: boolean }
+/** `pow`: the portable power for the display view's step-wedge levels (passed in, so captures' bundles do not contain it). */
+interface ChartContext { pictureHeight: number; nested: boolean; pow?: (x: number, y: number) => number }
 type Materials = ResolvedChartScene["materials"][number][];
 const neutralMaterials = (values: readonly number[]): Materials => values.map((reflectanceValue) => ({ kind: "neutral" as const, reflectance: reflectanceValue }));
 /** CHART_CONTINUOUS_LEVELS equal neutral levels between `from` and `to` (level i at from + (to − from)(i + ½)/levels). */
@@ -364,7 +365,7 @@ export function resolveChartScene(input: { scene: ChartScene; aspect: number }):
  */
 export function resolvePortableChartScene(input: { scene: ChartScene; aspect: number }): ResolvedChartScene {
   requireInputObject(input, "resolveChartScene input");
-  return resolveScene(input.scene, input.aspect, { pictureHeight: 2 * input.aspect, nested: false, portable: true });
+  return resolveScene(input.scene, input.aspect, { pictureHeight: 2 * input.aspect, nested: false, pow: portablePow });
 }
 
 function resolveScene(scene: unknown, aspect: number, context: ChartContext): ResolvedChartScene {
@@ -436,7 +437,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
       const steps = integerIn(get("steps"), "steps", 2, 64), lo = neutral("minimumReflectance"), hi = neutral("maximumReflectance"), spacing = get("spacing");
       if (spacing !== "equal-density" && spacing !== "linear") throw new InvalidConfigurationError("spacing must be equal-density or linear.");
       if (!(hi > lo) || (spacing === "equal-density" && lo <= 0)) throw new InvalidConfigurationError("Step wedge needs 0 < minimum < maximum reflectance.");
-      const values = stepWedgeReflectances(steps, lo, hi, spacing, context.portable === true);
+      const values = stepWedgeReflectances(steps, lo, hi, spacing, context.pow);
       return done({ steps, minimumReflectance: lo, maximumReflectance: hi, spacing, stepReflectances: values },
         values.map((reflectanceValue) => ({ kind: "neutral" as const, reflectance: reflectanceValue })),
         (u) => Math.min(steps - 1, Math.max(0, Math.floor((u + 1) / 2 * steps))));
@@ -597,7 +598,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
     case "composite": {
       const list = record.elements;
       if (!Array.isArray(list) || list.length < 1 || list.length > 256) throw new InvalidConfigurationError("elements must list 1 to 256 chart elements.");
-      const nested: ChartContext = { pictureHeight: context.pictureHeight, nested: true, ...(context.portable ? { portable: true } : {}) };
+      const nested: ChartContext = { pictureHeight: context.pictureHeight, nested: true, ...(context.pow ? { pow: context.pow } : {}) };
       const background = resolveScene(get("background"), aspect, nested);
       const materials: Materials = [...background.materials], inputs: unknown[] = [...chartMaterialInputs(background)];
       for (const key of background.defaultedParameters) defaulted.push("background.parameters." + key);
@@ -612,7 +613,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         if (mask !== "rectangle" && mask !== "ellipse") throw new InvalidConfigurationError(name + ".mask must be rectangle or ellipse.");
         if (e.mask === undefined) defaulted.push("elements." + index + ".placement.mask");
         // The element's own frame: u = ±1 across its width; frequencies keep the composite's picture height.
-        const chart = resolveScene(e.scene, height / width, { pictureHeight: context.pictureHeight * 2 / width, nested: true, ...(context.portable ? { portable: true } : {}) });
+        const chart = resolveScene(e.scene, height / width, { pictureHeight: context.pictureHeight * 2 / width, nested: true, ...(context.pow ? { pow: context.pow } : {}) });
         for (const key of chart.defaultedParameters) defaulted.push("elements." + index + ".parameters." + key);
         const offset = materials.length;
         materials.push(...chart.materials);
@@ -838,13 +839,13 @@ export function calculateStepWedgeReflectances(input: { steps: number; minimumRe
   const steps = integerIn(input.steps, "steps", 2, 64), lo = reflectance(input.minimumReflectance, "minimumReflectance"), hi = reflectance(input.maximumReflectance, "maximumReflectance");
   if (input.spacing !== "equal-density" && input.spacing !== "linear") throw new InvalidConfigurationError("spacing must be equal-density or linear.");
   if (!(hi > lo) || (input.spacing === "equal-density" && lo <= 0)) throw new InvalidConfigurationError("Step wedge needs 0 < minimum < maximum reflectance.");
-  return stepWedgeReflectances(steps, lo, hi, input.spacing, false);
+  return stepWedgeReflectances(steps, lo, hi, input.spacing, undefined);
 }
-function stepWedgeReflectances(steps: number, lo: number, hi: number, spacing: "equal-density" | "linear", portable: boolean): number[] {
+function stepWedgeReflectances(steps: number, lo: number, hi: number, spacing: "equal-density" | "linear", pow: ((x: number, y: number) => number) | undefined): number[] {
   return Array.from({ length: steps }, (_, k) => {
     if (k === steps - 1) return hi;
     const t = k / (steps - 1);
-    return spacing === "linear" ? lo + (hi - lo) * t : lo * (portable ? portablePow(hi / lo, t) : (hi / lo) ** t);
+    return spacing === "linear" ? lo + (hi - lo) * t : lo * (pow ? pow(hi / lo, t) : (hi / lo) ** t);
   });
 }
 

@@ -1652,10 +1652,11 @@ function portableLogFactorial(n: number): number {
     return portableSmallLogFactorials[n]!;
   }
   const inverse = 1 / n, inverseCubed = inverse * inverse * inverse;
-  return (n + 0.5) * portableLog(n) - n + PORTABLE_HALF_LOG_TWO_PI + inverse / 12 - inverseCubed / 360;
+  // 0.5·ln(2π), as logFactorial forms it; computed on first use, so a bundle without the portable sampler need not evaluate it.
+  portableHalfLogTwoPi ??= 0.5 * portableLog(2 * Math.PI);
+  return (n + 0.5) * portableLog(n) - n + portableHalfLogTwoPi + inverse / 12 - inverseCubed / 360;
 }
-/** 0.5·ln(2π), as logFactorial forms it. */
-const PORTABLE_HALF_LOG_TWO_PI = 0.5 * portableLog(2 * Math.PI);
+let portableHalfLogTwoPi: number | undefined;
 
 /**
  * Internal (not exported from the package): `samplePoisson` for one fixed mean, with the per-mean constants (e^(−mean),

@@ -706,7 +706,7 @@ export function createColorTemperatureWhiteBalanceIntent(
 export function resolveColorTemperatureWhiteBalance(
   input: ResolveColorTemperatureWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
-  return colorTemperatureWhiteBalance(input, false);
+  return colorTemperatureWhiteBalance(input, calculateChromaticityFromCorrelatedColorTemperature);
 }
 /**
  * Internal (not exported from the package): {@link resolveColorTemperatureWhiteBalance} with the white point from
@@ -714,9 +714,12 @@ export function resolveColorTemperatureWhiteBalance(
  * engine. The display view uses it for a Kelvin white balance; captures keep {@link resolveColorTemperatureWhiteBalance}.
  */
 export function resolvePortableColorTemperatureWhiteBalance(input: ResolveColorTemperatureWhiteBalanceInput): ResolvedWhiteBalanceState {
-  return colorTemperatureWhiteBalance(input, true);
+  return colorTemperatureWhiteBalance(input, calculatePortableChromaticityFromCorrelatedColorTemperature);
 }
-function colorTemperatureWhiteBalance(input: ResolveColorTemperatureWhiteBalanceInput, portable: boolean): ResolvedWhiteBalanceState {
+// The white point is computed by the function passed in (the portable one only from resolvePortableColorTemperatureWhiteBalance), so
+// a bundle that never resolves the portable white balance does not contain the portable functions.
+function colorTemperatureWhiteBalance(input: ResolveColorTemperatureWhiteBalanceInput,
+  chromaticityFromCct: typeof calculateChromaticityFromCorrelatedColorTemperature): ResolvedWhiteBalanceState {
   requireInputKeys(input, "resolveColorTemperatureWhiteBalance", ["stateId", "intent", "whiteLocus", "tintInterpretation", "planckianLocus", "camera"]);
   const intent = input.intent;
   if (
@@ -744,7 +747,7 @@ function colorTemperatureWhiteBalance(input: ResolveColorTemperatureWhiteBalance
   const profileVersion = requireScientificNonEmptyString(camera.profileVersion, "camera.profileVersion");
   const matrix = parseMatrix3x3(camera.xyzToCameraRgb, "camera.xyzToCameraRgb");
   const locus: PlanckianLocusModel = input.planckianLocus ?? { kind: "planck-analytic-cmf" };
-  const white = (portable ? calculatePortableChromaticityFromCorrelatedColorTemperature : calculateChromaticityFromCorrelatedColorTemperature)({
+  const white = chromaticityFromCct({
     correlatedColorTemperatureKelvin: kelvin,
     duv: tint,
     whiteLocus: input.whiteLocus,

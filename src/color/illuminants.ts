@@ -67,6 +67,12 @@ export const SECOND_RADIATION_CONSTANT_METER_KELVIN = (PLANCK_CONSTANT_JOULE_SEC
 const FIRST_RADIATION_CONSTANT_RADIANCE = 2 * PLANCK_CONSTANT_JOULE_SECONDS * SPEED_OF_LIGHT_METERS_PER_SECOND ** 2;
 /** The same constant with c² as one correctly rounded product (the portable evaluation below). */
 const FIRST_RADIATION_CONSTANT_RADIANCE_PORTABLE = 2 * PLANCK_CONSTANT_JOULE_SECONDS * (SPEED_OF_LIGHT_METERS_PER_SECOND * SPEED_OF_LIGHT_METERS_PER_SECOND);
+/**
+ * The portable functions the display view's evaluations use. They are passed as an argument rather than called directly
+ * from the shared code, so a bundle that never calls a portable variant (every capture) does not contain them.
+ */
+interface PortableOps { pow(x: number, y: number): number; expm1(x: number): number; hypot(x: number, y: number): number }
+const PORTABLE: PortableOps = { pow: portablePow, expm1: portableExpm1, hypot: portableHypot };
 
 /** Temperature range of the Planckian-locus models, K. */
 export const PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1000, maximum: 100000 });
@@ -86,31 +92,31 @@ export function calculatePlanckianSpectralRadiance(input: { temperatureKelvin: n
   requireInputKeys(input, "calculatePlanckianSpectralRadiance", ["temperatureKelvin", "wavelengthNanometers"]);
   const t = requirePositiveNumber(input.temperatureKelvin, "temperatureKelvin");
   const nm = requirePositiveNumber(input.wavelengthNanometers, "wavelengthNanometers");
-  return planckianRadiancePerNanometer(t, nm, false);
+  return planckianRadiancePerNanometer(t, nm, undefined);
 }
 /**
  * Planck's law at temperature t (K) and wavelength nm. `portable` evaluates λ⁵ and e^x − 1 with the engine's portable
  * functions (`portablePow`, `portableExpm1`; within 1 and 2 ulps) instead of `**` and Math.expm1, whose last bits differ
  * between JavaScript engines (V8 12 and V8 13 differ in about 10 % of λ⁵); the display view uses it.
  */
-function planckianRadiancePerNanometer(t: number, nm: number, portable: boolean): number {
+function planckianRadiancePerNanometer(t: number, nm: number, portable: PortableOps | undefined): number {
   const lambda = nm * 1e-9;
   const exponent = SECOND_RADIATION_CONSTANT_METER_KELVIN / (lambda * t);
   // expm1 keeps precision in the Rayleigh–Jeans limit; overflow gives radiance 0.
-  const radiancePerMeter = portable ? FIRST_RADIATION_CONSTANT_RADIANCE_PORTABLE / portablePow(lambda, 5) / portableExpm1(exponent)
+  const radiancePerMeter = portable ? FIRST_RADIATION_CONSTANT_RADIANCE_PORTABLE / portable.pow(lambda, 5) / portable.expm1(exponent)
     : FIRST_RADIATION_CONSTANT_RADIANCE / lambda ** 5 / Math.expm1(exponent);
   return radiancePerMeter * 1e-9;
 }
 
 /** Planckian spectral radiance (W·m⁻²·sr⁻¹·nm⁻¹) as a function spectrum over the given range. */
 export function createPlanckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNanometers: SpectralWavelengthRangeNanometers }): ColorimetricSpectrum {
-  return planckianSpectrum(input, false);
+  return planckianSpectrum(input, undefined);
 }
 /** Internal (not exported from the package): {@link createPlanckianSpectrum} evaluated with the portable functions (the display view). */
 export function createPortablePlanckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNanometers: SpectralWavelengthRangeNanometers }): ColorimetricSpectrum {
-  return planckianSpectrum(input, true);
+  return planckianSpectrum(input, PORTABLE);
 }
-function planckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNanometers: SpectralWavelengthRangeNanometers }, portable: boolean): ColorimetricSpectrum {
+function planckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNanometers: SpectralWavelengthRangeNanometers }, portable: PortableOps | undefined): ColorimetricSpectrum {
   requireInputKeys(input, "createPlanckianSpectrum", ["temperatureKelvin", "wavelengthRangeNanometers"]);
   const temperatureKelvin = requirePositiveNumber(input.temperatureKelvin, "temperatureKelvin");
   const range = requireRecordValue(input.wavelengthRangeNanometers, "wavelengthRangeNanometers");
@@ -118,7 +124,7 @@ function planckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNa
   const spectrum: ColorimetricSpectrum = {
     kind: "function",
     wavelengthRangeNanometers: { minimum: range.minimum as number, maximum: range.maximum as number },
-    evaluate: portable ? (wavelengthNanometers): number => planckianRadiancePerNanometer(temperatureKelvin, requirePositiveNumber(wavelengthNanometers, "wavelengthNanometers"), true)
+    evaluate: portable ? (wavelengthNanometers): number => planckianRadiancePerNanometer(temperatureKelvin, requirePositiveNumber(wavelengthNanometers, "wavelengthNanometers"), portable)
       : (wavelengthNanometers): number => calculatePlanckianSpectralRadiance({ temperatureKelvin, wavelengthNanometers })
   };
   prepareColorimetricSpectrum(spectrum, "planckianSpectrum");
@@ -134,16 +140,16 @@ export const CIE_ILLUMINANT_A_RANGE_NANOMETERS = Object.freeze({ minimum: 300, m
  * current c₂). Valid 300–830 nm.
  */
 export function calculateCieIlluminantARelativeSpectralPower(wavelengthNanometers: number): number {
-  return cieIlluminantA(wavelengthNanometers, false);
+  return cieIlluminantA(wavelengthNanometers, undefined);
 }
 /** CIE illuminant A; `portable` evaluates the power and e^x − 1 with the portable functions (see planckianRadiancePerNanometer). */
-function cieIlluminantA(wavelengthNanometers: number, portable: boolean): number {
+function cieIlluminantA(wavelengthNanometers: number, portable: PortableOps | undefined): number {
   const nm = requireFiniteNumber(wavelengthNanometers, "wavelengthNanometers");
   if (nm < CIE_ILLUMINANT_A_RANGE_NANOMETERS.minimum || nm > CIE_ILLUMINANT_A_RANGE_NANOMETERS.maximum) {
     throw new InvalidScientificInputError("CIE illuminant A is defined from 300 nm to 830 nm.");
   }
   const c = 1.435e7 / 2848; // nm·K / K
-  return portable ? 100 * portablePow(560 / nm, 5) * (portableExpm1(c / 560) / portableExpm1(c / nm)) : 100 * (560 / nm) ** 5 * (Math.expm1(c / 560) / Math.expm1(c / nm));
+  return portable ? 100 * portable.pow(560 / nm, 5) * (portable.expm1(c / 560) / portable.expm1(c / nm)) : 100 * (560 / nm) ** 5 * (Math.expm1(c / 560) / Math.expm1(c / nm));
 }
 
 /** CIE illuminant A as a function spectrum over its defining range. */
@@ -152,7 +158,7 @@ export function createCieIlluminantASpectrum(): ColorimetricSpectrum {
 }
 /** Internal (not exported from the package): {@link createCieIlluminantASpectrum} evaluated with the portable functions (the display view). */
 export function createPortableCieIlluminantASpectrum(): ColorimetricSpectrum {
-  return { kind: "function", wavelengthRangeNanometers: { ...CIE_ILLUMINANT_A_RANGE_NANOMETERS }, evaluate: (nm) => cieIlluminantA(nm, true) };
+  return { kind: "function", wavelengthRangeNanometers: { ...CIE_ILLUMINANT_A_RANGE_NANOMETERS }, evaluate: (nm) => cieIlluminantA(nm, PORTABLE) };
 }
 
 function requireTemperatureIn(t: unknown, range: { minimum: number; maximum: number }, what: string): number {
@@ -163,8 +169,8 @@ function requireTemperatureIn(t: unknown, range: { minimum: number; maximum: num
   return value;
 }
 
-function daylightChromaticity(t: number, portable = false): CieXyChromaticity {
-  const t3 = portable ? portablePow(t, 3) : t ** 3, t2 = portable ? t * t : t ** 2;
+function daylightChromaticity(t: number, portable?: PortableOps): CieXyChromaticity {
+  const t3 = portable ? portable.pow(t, 3) : t ** 3, t2 = portable ? t * t : t ** 2;
   const x = t <= 7000
     ? -4.6070e9 / t3 + 2.9678e6 / t2 + 0.09911e3 / t + 0.244063
     : -2.0064e9 / t3 + 1.9018e6 / t2 + 0.24748e3 / t + 0.237040;
@@ -190,10 +196,10 @@ export function calculateCieDaylightComponentWeights(input: {
   correlatedColorTemperatureKelvin: number;
   coefficientRounding: "none" | "cie-three-decimals";
 }): CalculationResult<CieDaylightComponentWeights> {
-  return cieDaylightComponentWeights(input, false);
+  return cieDaylightComponentWeights(input, undefined);
 }
 function cieDaylightComponentWeights(input: { correlatedColorTemperatureKelvin: number; coefficientRounding: "none" | "cie-three-decimals" },
-  portable: boolean): CalculationResult<CieDaylightComponentWeights> {
+  portable: PortableOps | undefined): CalculationResult<CieDaylightComponentWeights> {
   requireInputKeys(input, "calculateCieDaylightComponentWeights", ["correlatedColorTemperatureKelvin", "coefficientRounding"]);
   const t = requireTemperatureIn(input.correlatedColorTemperatureKelvin, CIE_DAYLIGHT_LOCUS_RANGE_KELVIN, "correlatedColorTemperatureKelvin");
   if (input.coefficientRounding !== "none" && input.coefficientRounding !== "cie-three-decimals") {
@@ -229,13 +235,13 @@ export function createCieDaylightSpectrum(input: {
   coefficientRounding: "none" | "cie-three-decimals";
   basis: CieDaylightBasis;
 }): ColorimetricSpectrum {
-  return cieDaylightSpectrum(input, false);
+  return cieDaylightSpectrum(input, undefined);
 }
 /** Internal (not exported from the package): {@link createCieDaylightSpectrum} with the portable daylight-locus powers (the display view). */
 export function createPortableCieDaylightSpectrum(input: Parameters<typeof createCieDaylightSpectrum>[0]): ColorimetricSpectrum {
-  return cieDaylightSpectrum(input, true);
+  return cieDaylightSpectrum(input, PORTABLE);
 }
-function cieDaylightSpectrum(input: Parameters<typeof createCieDaylightSpectrum>[0], portable: boolean): ColorimetricSpectrum {
+function cieDaylightSpectrum(input: Parameters<typeof createCieDaylightSpectrum>[0], portable: PortableOps | undefined): ColorimetricSpectrum {
   requireInputKeys(input, "createCieDaylightSpectrum", ["correlatedColorTemperatureKelvin", "coefficientRounding", "basis"]);
   const weights = cieDaylightComponentWeights({
     correlatedColorTemperatureKelvin: input.correlatedColorTemperatureKelvin,
@@ -309,9 +315,9 @@ interface PreparedLocus {
  * r = 1/(E − 1), E = exp(ax), and use E = 1 + 1/r). They are summed in the same quadrature as X, Y, Z.
  */
 function preparePlanckIntegrationLocus(cmfSource: ColorMatchingFunctionsSource, quadratureNodes: readonly ColorimetricQuadratureNode[], model: string,
-  portable = false): PreparedLocus {
+  portable?: PortableOps): PreparedLocus {
   // `portable` (the display view): λ⁻⁵ and e^x − 1 from the portable functions, whose bits are the same in every engine.
-  const expm1 = portable ? portableExpm1 : Math.expm1;
+  const expm1 = portable ? portable.expm1 : Math.expm1;
   const cmf = prepareColorMatchingFunctions(cmfSource);
   const unit = prepareColorimetricSpectrum({ kind: "function", wavelengthRangeNanometers: cmf.wavelengthRangeNanometers, evaluate: () => 1 });
   const basis = sampleColorimetricBasis(quadratureNodes, unit, cmf);
@@ -322,7 +328,7 @@ function preparePlanckIntegrationLocus(cmfSource: ColorMatchingFunctionsSource, 
   for (let i = 0; i < n; i++) {
     const lambda = basis.nodes[i]!.wavelengthNanometers * 1e-9;
     exponentPerKelvin[i] = SECOND_RADIATION_CONSTANT_METER_KELVIN / lambda;
-    inverseFifth[i] = 1 / (portable ? portablePow(lambda, 5) : lambda ** 5);
+    inverseFifth[i] = 1 / (portable ? portable.pow(lambda, 5) : lambda ** 5);
     const w = basis.weights[i]! * inverseFifth[i]!;
     wx[i] = w * basis.xBar[i]!; wy[i] = w * basis.yBar[i]!; wz[i] = w * basis.zBar[i]!;
   }
@@ -375,9 +381,9 @@ const DEFAULT_LOCUS_NODES: readonly ColorimetricQuadratureNode[] = Object.freeze
 let defaultLocus: PreparedLocus | undefined, defaultPortableLocus: PreparedLocus | undefined;
 
 /** The default locus, prepared on first use and shared (its scan cache is computed once); `portable` for the display view. */
-function analyticCmfLocus(portable = false): PreparedLocus {
+function analyticCmfLocus(portable?: PortableOps): PreparedLocus {
   if (portable) {
-    defaultPortableLocus ??= preparePlanckIntegrationLocus({ kind: "analytic-cie-1931-multi-lobe-fit" }, DEFAULT_LOCUS_NODES, "planck-analytic-cmf", true);
+    defaultPortableLocus ??= preparePlanckIntegrationLocus({ kind: "analytic-cie-1931-multi-lobe-fit" }, DEFAULT_LOCUS_NODES, "planck-analytic-cmf", portable);
     return defaultPortableLocus;
   }
   defaultLocus ??= preparePlanckIntegrationLocus({ kind: "analytic-cie-1931-multi-lobe-fit" }, DEFAULT_LOCUS_NODES, "planck-analytic-cmf");
@@ -396,7 +402,7 @@ export function estimatePlanckianLocusChromaticity(input: { temperatureKelvin: n
     ["Planck's law integrated against the engine's analytic CIE 1931 CMF fit, 1 nm nodes 360–830 nm; valid 1000–100000 K"]);
 }
 
-function prepareLocus(model: PlanckianLocusModel, portable = false): PreparedLocus {
+function prepareLocus(model: PlanckianLocusModel, portable?: PortableOps): PreparedLocus {
   const record = requireRecordValue(model, "locus");
   if (record.kind === "planck-analytic-cmf") {
     rejectUnknownFields(record, ["kind"], "locus");
@@ -440,8 +446,8 @@ export function estimateCorrelatedColorTemperatureMcCamy(input: { chromaticity: 
 }
 
 /** The "above-locus" unit normal at a sample: the increasing-T unit tangent (−du/dx, −dv/dx) turned by −90°. */
-function locusNormal(s: LocusSample, portable = false): Cie1960UvChromaticity {
-  const len = portable ? portableHypot(s.du, s.dv) : Math.hypot(s.du, s.dv);
+function locusNormal(s: LocusSample, portable?: PortableOps): Cie1960UvChromaticity {
+  const len = portable ? portable.hypot(s.du, s.dv) : Math.hypot(s.du, s.dv);
   const tangent = { u: -s.du / len, v: -s.dv / len };
   // u decreases as T rises, so turning the tangent by −90° points toward larger v (above the locus).
   return { u: tangent.v, v: -tangent.u };
@@ -555,7 +561,7 @@ export function calculateChromaticityFromCorrelatedColorTemperature(input: {
   whiteLocus: WhiteLocus;
   locus: PlanckianLocusModel;
 }): CalculationResult<CieXyChromaticity> {
-  return chromaticityFromCorrelatedColorTemperature(input, false);
+  return chromaticityFromCorrelatedColorTemperature(input, undefined);
 }
 /**
  * Internal (not exported from the package): {@link calculateChromaticityFromCorrelatedColorTemperature} with the locus's
@@ -564,9 +570,9 @@ export function calculateChromaticityFromCorrelatedColorTemperature(input: {
  */
 export function calculatePortableChromaticityFromCorrelatedColorTemperature(input: Parameters<typeof calculateChromaticityFromCorrelatedColorTemperature>[0]):
   CalculationResult<CieXyChromaticity> {
-  return chromaticityFromCorrelatedColorTemperature(input, true);
+  return chromaticityFromCorrelatedColorTemperature(input, PORTABLE);
 }
-function chromaticityFromCorrelatedColorTemperature(input: Parameters<typeof calculateChromaticityFromCorrelatedColorTemperature>[0], portable: boolean):
+function chromaticityFromCorrelatedColorTemperature(input: Parameters<typeof calculateChromaticityFromCorrelatedColorTemperature>[0], portable: PortableOps | undefined):
   CalculationResult<CieXyChromaticity> {
   requireInputKeys(input, "calculateChromaticityFromCorrelatedColorTemperature", ["correlatedColorTemperatureKelvin", "duv", "whiteLocus", "locus"]);
   const locus = prepareLocus(input.locus, portable);

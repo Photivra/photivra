@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, simulateCapture, simulateDisplayView,
   SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS, type CalculateEnvironmentSensorPhotoSignalInput, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "../src/index.js";
-import { simulateDisplayViewWithInternals } from "../src/facade/simulate-capture.js";
+import { simulateDisplayViewWithInternals } from "../src/facade/simulate-display-view.js";
 import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
 import { axisSums, clearDisplayViewCorrectionStates, displayViewCorrectionStateCount, footprintWeights, reinhardMoments, unitClip, upperClip } from "../src/facade/display-view.js";
 import { scaledTimeout as testTimeout } from "./helpers/test-timeout.js";

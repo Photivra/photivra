@@ -8014,7 +8014,7 @@
     },
     {
       "name": "simulateDisplayView",
-      "source": "src/facade/simulate-capture.ts",
+      "source": "src/facade/simulate-display-view.ts",
       "kind": "runtime"
     },
     {
