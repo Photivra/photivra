@@ -20,6 +20,7 @@ one-call capture, see the [Quick Start](QUICK_START.md). For every export, see t
 | Task | Call | Notes |
 | --- | --- | --- |
 | Simulate a full photo | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Async. Returns an image, the RAW data, `assumptions` and `provenance`. |
+| Preview a whole frame as the real capture resized for display | [`simulateDisplayView`](api/facade-simulate-capture.md#simulatedisplayview) | Async. Takes the capture's request plus a display size; costs follow the display pixels. Labelled `kind: "display-view"`: a preview, never a capture. |
 | Exposure value (EV) of a setting | [`calculateExposureValue100`](api/exposure-exposure.md#calculateexposurevalue100) | EV at ISO 100 = log2(N²/t). |
 | Keep brightness after changing aperture or shutter | [`calculateEquivalentIso`](api/exposure-exposure.md#calculateequivalentiso) | Returns the compensating ISO. Not a noise model. |
 | Compare two exposures in stops | [`calculateRelativeRenderedExposure`](api/exposure-exposure.md#calculaterelativerenderedexposure) | Includes ISO as gain. |

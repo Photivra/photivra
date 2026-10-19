@@ -2583,6 +2583,11 @@
       "kind": "type"
     },
     {
+      "name": "DisplayViewResult",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
       "name": "DistributeIntegratedQuantityAcrossDiscreteLinesInput",
       "source": "src/core/spectral-composition.ts",
       "kind": "type"
@@ -7908,6 +7913,11 @@
       "kind": "runtime"
     },
     {
+      "name": "SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "simulateCapture",
       "source": "src/facade/simulate-capture.ts",
       "kind": "runtime"
@@ -8000,6 +8010,16 @@
     {
       "name": "SimulatedCaptureInput",
       "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "simulateDisplayView",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimulateDisplayViewOptions",
+      "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
     {

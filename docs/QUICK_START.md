@@ -302,6 +302,10 @@ What changes and what does not:
 
 Requests at 0.5–100 µm are byte-identical to 2.4.1.
 
+A whole-frame view simulates a camera with giant pixels. For a preview that looks like the real camera's photo
+shrunk to the frame size (the real pixel pitch for the optics, the real mosaic and the noise of the averaged real
+pixels), use [Display view](#display-view) instead.
+
 ### ISO and pixel size
 
 The tier's ISO signal chain (conversion gain, saturation signal and read noise per ISO setting) is
@@ -1151,6 +1155,62 @@ const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, out
 const [capture, reference] = await Promise.all([simulateCapture(request), simulateIdealReference(request)]);
 console.log(reference.kind, reference.label, capture.image.samples.length === reference.image.samples.length);
 ```
+
+## Display view
+
+`simulateDisplayView(options, view)` returns what the real full-resolution capture of `options` would look like
+resized to `view.width` × `view.height`, at a cost that follows the display pixels. Pass the same request you use
+for the export, with the real sensor's pixel count and pitch:
+
+```ts
+import { NATIVE_RAW_LIMITS, simulateCapture, simulateDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
+
+const request: SimulateCaptureOptions = { scene: { preset: "dead-leaves" }, lens: { prime: 35, fNumber: 2.8 }, subjectDistanceM: 3,
+  sensor: { pixelPitchMicrometers: 6 }, output: { width: 6000, height: 4000, maximumPixels: NATIVE_RAW_LIMITS.ceilingPixels } };
+const preview = await simulateDisplayView(request, { width: 384, height: 256 });   // on screen
+console.log(preview.kind, preview.label, preview.diagnostics.timingsMs.view);
+// The export stays a real capture: simulateCapture(request), or tiles of it with output.region.
+const crop = await simulateCapture({ ...request, output: { ...request.output, region: { x: 2968, y: 1968, width: 64, height: 64 } } });
+console.log(crop.image.width);
+```
+
+**What each display pixel is.** The area-weighted mean, in linear light, of the real output pixels its rectangle covers
+(6000 ÷ 384 = 15.625 real pixels per axis here), sRGB-encoded and rounded: area (box) resampling, the standard
+reduction filter. Lens diffraction, the anti-aliasing filter and the pixel aperture act at the real 6 µm pitch; the
+colour mosaic, demosaic and development are those of the real pixels; the noise is that of the average of the real
+pixels, demosaic correlation included; exposure, white balance, tone curve and framing are the capture's (the same code
+resolves them).
+
+**How it is computed** (details and error analysis in [DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md)):
+
+- The expected value of each display pixel is a stratified Monte Carlo average over K × K real pixels of its rectangle
+  (`view.samplesPerAxis`, default 16), seeded and unbiased. For each sampled pixel the expected electrons of the real
+  sites its demosaic reads are exact, and the clips and tone curve act on the pixel's own noise distribution. A pilot
+  grid gives uniform areas K/4 samples per axis; their error is zero anyway.
+- The noise is one correlated normal draw per display pixel with the covariance of the area mean of the real pixels'
+  independent site noises (shot, dark, read, ADC), including the demosaic's correlation.
+- AHD is represented by its two linear candidates; where the noise is large enough for its homogeneity choice to shift
+  the colour, a control-variate correction runs the engine's AHD steps on drawn noisy neighbourhoods.
+
+Validated against real full-resolution captures resized in linear light: three sensors (12 MP phone, 24 MP full frame,
+100 MP medium format), five charts, f/2.8–f/16, ISO 100–6400, 96–800 display pixels wide, Speed and Quality options (see
+[Validation results](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#validation-results)).
+
+**Options.** `view.width` and `view.height` (1 to the capture's output size), `view.samplesPerAxis` (1–32),
+`view.format` (`"srgb-8"` default or `"srgb-16"`) and `view.region` (a rectangle in display pixels, byte-identical to
+the same pixels of the whole view, for tiling across workers). The capture's file-format options (`format`,
+`colorEncoding`, `bitDepth`, `gamutMapping`, `jpegQuantizationStep`, `dng`, `metadata`) do not apply. The request must
+be one `simulateCapture` accepts (a frame wider or taller than 4094 pixels needs `output.maximumPixels`, although the
+view allocates nothing at full resolution).
+
+**Not supported** (refused with an `InvalidConfigurationError`): `lens.pupilSampling`, `lens.projection`,
+`lens.distortion`, `lens.vignetting`, `lens.psf`, camera rotation, `output.whiteBalance: "auto"`, the luminance tone
+curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `onProgress` is not called;
+`signal` cancels.
+
+The result is labelled `kind: "display-view"` with a `label` for the user interface; it has no RAW, plan or file, and
+the `view.*` assumptions state the definition, the estimator, the noise model, the demosaic treatment and which capture
+options were ignored. The whole-frame views of [Whole-frame views](#whole-frame-views-25) are unchanged.
 
 ## Not available
 

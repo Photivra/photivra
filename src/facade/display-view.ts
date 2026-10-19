@@ -1,0 +1,806 @@
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Display view (`simulateDisplayView`): the image that the real full-resolution capture of a `simulateCapture`
+ * request would give after it is resized to a small display size by area averaging in linear light, computed
+ * without rendering the full-resolution capture. Internal; the public entry point and its option parsing live in
+ * `simulate-capture.ts`. The design and its error analysis are in docs/DISPLAY_VIEW.md.
+ *
+ * Definition (the reference this module estimates): let L_j be the linear-light value of output pixel j of the
+ * real capture (its sRGB samples decoded with the sRGB EOTF). Display pixel P covers the rectangle F_P of
+ * real output pixels [P_x·s_x, (P_x + 1)·s_x) × [P_y·s_y, (P_y + 1)·s_y), s = frame size ÷ view size, and
+ *   D_P = Σ_j (w_j / A) · L_j,
+ * w_j = the area of pixel j inside F_P, A = s_x·s_y (the "area" or box resampling filter). D_P is then
+ * sRGB-encoded and rounded.
+ *
+ * Estimation, per display pixel:
+ * 1. Expected value. The expectation E[D_P] = Σ_j (w_j/A)·E[L_j] is estimated by stratified Monte Carlo over the
+ *    footprint: K × K strata, one uniformly jittered point in each (deterministic, seeded by the capture seed and the
+ *    display pixel index); the real pixel containing the point is the sample. A point drawn uniformly in F_P lands in
+ *    pixel j with probability w_j/A, so the sample mean is unbiased for E[D_P]. For each sampled pixel the module
+ *    computes, at the real pitch, the exact expected electrons of the real sites its demosaic reads (the scene sampled
+ *    at those sites, through the declared pixel aperture, anti-aliasing filter and diffraction kernels, so the real
+ *    colour mosaic and its aliasing are kept), the moments of each site's normalized RAW value (shot, dark, read and
+ *    ADC noise; clipped at the white level), the demosaic's linear kernels, the development (white balance,
+ *    highlight clip, colour matrix) and the output rendering (tone curve, clip to [0, 1]). The non-linear steps act
+ *    on the pixel's own distribution, approximated as normal with the propagated mean and variance, so a clipped
+ *    noise floor or a clipped highlight moves the mean as it does in the real image.
+ * 2. Noise. D_P − E[D_P] is a weighted sum of the independent site noises. Linearizing the non-linear steps with
+ *    their expected slopes (Stein's lemma), its covariance is A·Γ·diag(B_c·σ_c²)·Γᵀ·Aᵀ, where σ_c² is the site
+ *    variance of CFA channel c and B_c = Σ_k β_k² with β_k the total weight of site k in the display pixel after
+ *    demosaicing and averaging. B_c holds the demosaic correlation exactly for the linear kernels and is computed in
+ *    closed form from the footprint. The rest of each pixel's variance that the linearization misses (clipping) is
+ *    added as independent per-pixel variance, weighted by Σ_j (w_j/A)², as is the output quantization (Δ²/12).
+ *    One correlated normal draw per display pixel (the sum of hundreds of independent site noises) gives the noise.
+ */
+
+import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, sampleDeterministicStandardNormal } from "../sensor/stochastic-seed.js";
+import { encodeSrgbComponent } from "../color/srgb-transfer.js";
+import { samplePoisson } from "../sensor/raw-readout.js";
+
+/** Stream IDs of the display view's two seeded streams, distinct from the native charge (0) and read-noise (1) streams. */
+export const DISPLAY_VIEW_JITTER_STREAM_ID = 32 as const;
+export const DISPLAY_VIEW_NOISE_STREAM_ID = 33 as const;
+export const DISPLAY_VIEW_AHD_STREAM_ID = 34 as const;
+
+/** A query offset from a site centre in sites (+x right, +y down) and its weight (pixel-aperture node × filter spot). */
+export interface DisplayViewQueryOffset { x: number; y: number; weight: number }
+
+/** Scene access for the expected signal: chart materials (fast tables) or a radiance function. */
+export type DisplayViewScene =
+  | { kind: "materials"; materialAt(u: number, v: number): number;
+    /** Per material: `{ neutral: reflectance }` (radiance = reflectance × illuminant) or the spectral radiance at each node. */
+    materials: readonly ({ neutral: number } | { radiance: Float64Array })[];
+    /** Illuminant radiance of a perfect white diffuser at each spectral node: irradianceScale·shape(λ)/π. */
+    whiteRadiance: Float64Array }
+  | { kind: "radiance"; radianceAt(u: number, v: number, nm: number): number };
+
+export interface DisplayViewExpectedSignalInput {
+  nativeWidth: number;
+  nativeHeight: number;
+  /** Frame output width: plane coordinates are 2 / outputWidth frame units per site. */
+  outputWidth: number;
+  /** Spectral nodes and, per CFA channel (red, green, blue), the expected electrons per unit spectral radiance at each node. */
+  wavelengthsNm: readonly number[];
+  electronsPerRadiance: readonly [Float64Array, Float64Array, Float64Array];
+  offsets: readonly DisplayViewQueryOffset[];
+  /** Diffraction: per-node kernels on the site lattice, (2R + 1)² taps in row-major order, out(x) = Σ in(x − t)·K(t). */
+  kernels?: { radius: number; perNode: readonly Float64Array[] };
+  scene: DisplayViewScene;
+  /** CFA channel index (0 red, 1 green, 2 blue) of native site (x, y). */
+  channelAt(x: number, y: number): number;
+  /**
+   * Without diffraction: the plane point (frame units) that the environment queries for offset `o` of native site (x, y),
+   * computed with the environment's own arithmetic, so points that fall exactly on a chart boundary resolve to the same
+   * material as in the capture. With diffraction the facade's object-space convolution uses the lattice formula, as here.
+   */
+  queryPoint?(x: number, y: number, offset: number, out: Float64Array): void;
+}
+
+/** Expected photo electrons of real native sites. */
+export interface DisplayViewExpectedSignal {
+  /**
+   * Starts a new cache window: native sites [x0, x1) × [y0, y1) that the following `site` calls mostly read. Sites and
+   * scene lookups inside it are computed once; anything outside is computed without caching.
+   */
+  window(x0: number, y0: number, x1: number, y1: number): void;
+  /** Expected photo electrons of native site (x, y) for its own CFA channel (x, y inside the native raster). */
+  site(x: number, y: number): number;
+  /** A cheap classifier value of the scene at plane point (u, v) frame units: the material, or the radiance at one node. */
+  pilot(u: number, v: number): number;
+  /** Scene lookups performed so far (material or radiance queries), for diagnostics. */
+  readonly lookups: number;
+}
+
+const OFFSET_TOLERANCE = 1e-9;
+/** Largest cache window, in sites or lattice points; larger windows are evaluated without caching. */
+const CACHE_LIMIT = 1 << 22;
+
+/**
+ * Expected photo electrons per site: μ_c(i, j) = Σ_o w_o Σ_λ A_c(λ) Σ_t K_λ(t)·L(p_o(i, j) − t, λ), where p_o is the
+ * query point of offset o and K the diffraction kernel (a single unit tap without diffraction). This is the sum the
+ * facade's environment chain forms for a still, rectilinear, distortion-free planar scene, where the
+ * radiance-to-irradiance factor is the same at every site (docs/DISPLAY_VIEW.md, "Expected signal").
+ *
+ * With diffraction, offsets that share a fractional shift read one lattice, and their kernels are combined in advance:
+ * C_c(d) = Σ_members w·Σ_λ A_c(λ)·K_λ(t)·L(λ) over the taps t that reach lattice offset d. A neutral material's radiance
+ * is its reflectance times the white radiance, so all neutral materials share one combined kernel per channel.
+ */
+export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignalInput): DisplayViewExpectedSignal {
+  const W = input.nativeWidth, H = input.nativeHeight, g = 2 / input.outputWidth, nodes = input.wavelengthsNm.length;
+  const R = input.kernels ? input.kernels.radius : 0, size = 2 * R + 1;
+  if (input.kernels && input.kernels.perNode.length !== nodes) throw new InvalidConfigurationError("Display view kernels must match the spectral nodes.");
+  if (!input.kernels && !input.queryPoint) throw new InvalidConfigurationError("Display view needs the environment query points without diffraction.");
+  const A = input.electronsPerRadiance, scene = input.scene, offsets = input.offsets, channelAt = input.channelAt;
+  const kernelAt = (node: number, t: number): number => (input.kernels ? input.kernels.perNode[node]![t]! : 1);
+  // Materials: neutral ones by reflectance, spectral ones by index.
+  let reflectance = new Float64Array(0), spectralIndex = new Int32Array(0);
+  const spectral: Float64Array[] = [];
+  if (scene.kind === "materials") {
+    reflectance = new Float64Array(scene.materials.length); spectralIndex = new Int32Array(scene.materials.length).fill(-1);
+    scene.materials.forEach((m, index) => { if ("neutral" in m) reflectance[index] = m.neutral; else { spectralIndex[index] = spectral.length; spectral.push(m.radiance); } });
+  }
+  // Offsets grouped by fractional shift: offsets that differ by whole sites share one lattice.
+  const frac = (v: number): number => { const f = v - Math.floor(v); return f > 1 - OFFSET_TOLERANCE || f < OFFSET_TOLERANCE ? 0 : f; };
+  interface Group { fx: number; fy: number; members: { ix: number; iy: number; weight: number }[]; minIx: number; maxIx: number; minIy: number; maxIy: number;
+    cw: number; ch: number; neutral: Float64Array[]; spectral: Float64Array[][]; perNode: Float64Array[][]; cache: Int32Array | Float64Array; cx0: number; cy0: number; cpw: number; cph: number }
+  const groups: Group[] = [];
+  for (const o of offsets) {
+    const fx = frac(o.x), fy = frac(o.y), ix = Math.round(o.x - fx), iy = Math.round(o.y - fy);
+    let group = groups.find((q) => Math.abs(q.fx - fx) <= OFFSET_TOLERANCE && Math.abs(q.fy - fy) <= OFFSET_TOLERANCE);
+    if (!group) { group = { fx, fy, members: [], minIx: ix, maxIx: ix, minIy: iy, maxIy: iy, cw: 0, ch: 0, neutral: [], spectral: [], perNode: [], cache: new Int32Array(0), cx0: 0, cy0: 0, cpw: 0, cph: 0 }; groups.push(group); }
+    group.members.push({ ix, iy, weight: o.weight });
+    group.minIx = Math.min(group.minIx, ix); group.maxIx = Math.max(group.maxIx, ix); group.minIy = Math.min(group.minIy, iy); group.maxIy = Math.max(group.maxIy, iy);
+  }
+  if (input.kernels) for (const group of groups) {
+    // Combined kernel over lattice offsets d = (ix − tu, iy − tv), stored at (d − min + R).
+    const cw = group.maxIx - group.minIx + size, ch = group.maxIy - group.minIy + size;
+    group.cw = cw; group.ch = ch;
+    const combine = (value: (c: number, node: number, t: number) => number): Float64Array[] => [0, 1, 2].map((c) => {
+      const out = new Float64Array(cw * ch);
+      for (const member of group.members) for (let tv = -R, t = 0; tv <= R; tv++) for (let tu = -R; tu <= R; tu++, t++) {
+        let sum = 0;
+        for (let n = 0; n < nodes; n++) sum += value(c, n, t);
+        const index = (member.iy - tv - group.minIy + R) * cw + (member.ix - tu - group.minIx + R);
+        out[index] = out[index]! + member.weight * sum;
+      }
+      return out;
+    });
+    if (scene.kind === "materials") {
+      group.neutral = combine((c, n, t) => A[c]![n]! * kernelAt(n, t) * scene.whiteRadiance[n]!);
+      const perMaterial = spectral.map((radiance) => combine((c, n, t) => A[c]![n]! * kernelAt(n, t) * radiance[n]!));
+      group.spectral = [0, 1, 2].map((c) => perMaterial.map((tables) => tables[c]!));
+    } else {
+      // Radiance scenes: combined kernels per node, applied to the cached radiance at each node.
+      group.perNode = Array.from({ length: nodes }, (_, n) => combine((c, node, t) => (node === n ? A[c]![n]! * kernelAt(n, t) : 0)));
+    }
+  }
+  // Neutral tap-0 signal per channel and spectral per material, for the direct (no-kernel) path.
+  const neutralDirect = scene.kind === "materials" ? [0, 1, 2].map((c) => { let s = 0; for (let n = 0; n < nodes; n++) s += A[c]![n]! * scene.whiteRadiance[n]!; return s; }) : [];
+  const spectralDirect = [0, 1, 2].map((c) => spectral.map((radiance) => { let s = 0; for (let n = 0; n < nodes; n++) s += A[c]![n]! * radiance[n]!; return s; }));
+  let lookups = 0;
+  const point = new Float64Array(2);
+  const materialSignalDirect = (m: number, c: number): number => {
+    const si = spectralIndex[m];
+    if (si === undefined) throw new InvalidConfigurationError("Unknown chart material.");
+    return si < 0 ? reflectance[m]! * neutralDirect[c]! : spectralDirect[c]![si]!;
+  };
+  /** Without diffraction: one site from the environment's own query points. */
+  function directSite(x: number, y: number): number {
+    const c = channelAt(x, y);
+    let sum = 0;
+    for (let o = 0; o < offsets.length; o++) {
+      input.queryPoint!(x, y, o, point);
+      let value: number;
+      if (scene.kind === "materials") { value = materialSignalDirect(scene.materialAt(point[0]!, point[1]!), c); lookups++; }
+      else { value = 0; for (let n = 0; n < nodes; n++) value += A[c]![n]! * scene.radianceAt(point[0]!, point[1]!, input.wavelengthsNm[n]!); lookups += nodes; }
+      sum += offsets[o]!.weight * value;
+    }
+    return sum;
+  }
+  // Lattice point (p, q) of a group: the facade's lattice formula (createDiffractedPlanarProvider).
+  const latticeU = (group: Group, p: number): number => (group.fx === 0 ? (p + 0.5 - W / 2) * g : (p + 0.5 + group.fx - W / 2) * g);
+  const latticeV = (group: Group, q: number): number => (group.fy === 0 ? -(q + 0.5 - H / 2) * g : -(q + 0.5 + group.fy - H / 2) * g);
+  const radianceScratch = new Float64Array(nodes);
+  /** Material (or radiance at each node, into radianceScratch) of a group's lattice point, from the window cache when it holds it. */
+  function latticeMaterial(group: Group, p: number, q: number): number {
+    const i = p - group.cx0, j = q - group.cy0, cached = i >= 0 && j >= 0 && i < group.cpw && j < group.cph;
+    if (cached) { const m = group.cache[j * group.cpw + i]!; if (m >= 0) return m; }
+    const m = (scene as Extract<DisplayViewScene, { kind: "materials" }>).materialAt(latticeU(group, p), latticeV(group, q));
+    lookups++;
+    if (cached) group.cache[j * group.cpw + i] = m;
+    return m;
+  }
+  function latticeRadiance(group: Group, p: number, q: number): Float64Array {
+    const i = p - group.cx0, j = q - group.cy0, cached = i >= 0 && j >= 0 && i < group.cpw && j < group.cph, cache = group.cache as Float64Array;
+    if (cached && !Number.isNaN(cache[(j * group.cpw + i) * nodes]!)) { for (let n = 0; n < nodes; n++) radianceScratch[n] = cache[(j * group.cpw + i) * nodes + n]!; return radianceScratch; }
+    const u = latticeU(group, p), v = latticeV(group, q);
+    for (let n = 0; n < nodes; n++) radianceScratch[n] = (scene as Extract<DisplayViewScene, { kind: "radiance" }>).radianceAt(u, v, input.wavelengthsNm[n]!);
+    lookups += nodes;
+    if (cached) for (let n = 0; n < nodes; n++) cache[(j * group.cpw + i) * nodes + n] = radianceScratch[n]!;
+    return radianceScratch;
+  }
+  /** With diffraction: one site through the combined kernels on each group's lattice. */
+  function kernelSite(x: number, y: number): number {
+    const c = channelAt(x, y);
+    let sum = 0;
+    for (const group of groups) {
+      const p0 = x + group.minIx - R, q0 = y + group.minIy - R, cw = group.cw, ch = group.ch;
+      if (scene.kind === "materials") {
+        const nk = group.neutral[c]!, sk = group.spectral[c]!;
+        for (let dy = 0; dy < ch; dy++) for (let dx = 0; dx < cw; dx++) {
+          const m = latticeMaterial(group, p0 + dx, q0 + dy), si = spectralIndex[m];
+          if (si === undefined) throw new InvalidConfigurationError("Unknown chart material.");
+          sum += si < 0 ? reflectance[m]! * nk[dy * cw + dx]! : sk[si]![dy * cw + dx]!;
+        }
+      } else {
+        for (let dy = 0; dy < ch; dy++) for (let dx = 0; dx < cw; dx++) {
+          const radiance = latticeRadiance(group, p0 + dx, q0 + dy);
+          for (let n = 0; n < nodes; n++) sum += group.perNode[n]![c]![dy * cw + dx]! * radiance[n]!;
+        }
+      }
+    }
+    return sum;
+  }
+  let sx0 = 0, sy0 = 0, sw = 0, sh = 0, siteCache = new Float64Array(0);
+  const pilotNode = input.wavelengthsNm[Math.floor(nodes / 2)]!;
+  return {
+    get lookups(): number { return lookups; },
+    window(x0: number, y0: number, x1: number, y1: number): void {
+      sx0 = x0; sy0 = y0; sw = Math.max(0, x1 - x0); sh = Math.max(0, y1 - y0);
+      if (sw * sh > CACHE_LIMIT) { sw = 0; sh = 0; }
+      if (siteCache.length < sw * sh) siteCache = new Float64Array(sw * sh);
+      siteCache.fill(NaN, 0, sw * sh);
+      if (input.kernels) for (const group of groups) {
+        group.cx0 = x0 + group.minIx - R; group.cy0 = y0 + group.minIy - R;
+        group.cpw = sw === 0 ? 0 : sw + group.cw - 1; group.cph = sh === 0 ? 0 : sh + group.ch - 1;
+        const n = group.cpw * group.cph * (scene.kind === "materials" ? 1 : nodes);
+        if (n > CACHE_LIMIT) { group.cpw = 0; group.cph = 0; continue; }
+        if (scene.kind === "materials") { if (group.cache.length < n || !(group.cache instanceof Int32Array)) group.cache = new Int32Array(n); group.cache.fill(-1, 0, n); }
+        else { if (group.cache.length < n || !(group.cache instanceof Float64Array)) group.cache = new Float64Array(n); group.cache.fill(NaN, 0, n); }
+      }
+    },
+    site(x: number, y: number): number {
+      const i = x - sx0, j = y - sy0, cached = i >= 0 && j >= 0 && i < sw && j < sh;
+      if (cached) { const v = siteCache[j * sw + i]!; if (!Number.isNaN(v)) return v; }
+      const v = input.kernels ? kernelSite(x, y) : directSite(x, y);
+      if (cached) siteCache[j * sw + i] = v;
+      return v;
+    },
+    pilot(u: number, v: number): number {
+      lookups++;
+      return scene.kind === "materials" ? scene.materialAt(u, v) : scene.radianceAt(u, v, pilotNode);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Normal-distribution helpers.
+
+/** Standard normal density. */
+function phi(z: number): number { return 0.3989422804014327 * Math.exp(-0.5 * z * z); }
+/**
+ * Standard normal distribution function, Φ(z) = 1 − Q(z), with Q from the rational approximation 26.2.17 of
+ * Abramowitz & Stegun, Handbook of Mathematical Functions (NBS AMS 55, 1964; free, US government work):
+ * absolute error below 7.5e-8.
+ */
+function bigPhi(z: number): number {
+  const x = Math.abs(z), t = 1 / (1 + 0.2316419 * x);
+  const q = phi(x) * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  return z >= 0 ? 1 - q : q;
+}
+/** Beyond this many standard deviations from a clip level the clip changes the moments by less than 1e-15 of σ². */
+const CLIP_REACH_SIGMA = 8.5;
+
+/**
+ * Internal (exported for tests). Moments of min(Y, top) for Y ~ N(m, v): mean, variance and the slope d E/d m = P(Y < top). Exact for a normal Y:
+ * E[min(Y,t)] = m − s·(φ(z) − z·(1 − Φ(z))), z = (t − m)/s.
+ */
+export function upperClip(m: number, v: number, top: number, out: Float64Array): void {
+  if (!(v > 0)) { const c = m < top ? m : top; out[0] = c; out[1] = 0; out[2] = m < top ? 1 : 0; return; }
+  const s = Math.sqrt(v), z = (top - m) / s;
+  if (z > CLIP_REACH_SIGMA) { out[0] = m; out[1] = v; out[2] = 1; return; }
+  if (z < -CLIP_REACH_SIGMA) { out[0] = top; out[1] = 0; out[2] = 0; return; }
+  const P = bigPhi(z), d = phi(z);
+  const mean = m - s * (d - z * (1 - P));
+  // E[min(Y,t)²] = m²Φ − 2msφ + s²(Φ − zφ) + t²(1 − Φ).
+  const second = m * m * P - 2 * m * s * d + v * (P - z * d) + top * top * (1 - P);
+  out[0] = mean; out[1] = Math.max(0, second - mean * mean); out[2] = P;
+}
+/**
+ * Internal (exported for tests). Moments of clip(Y, 0, 1) for Y with mean m, variance v and standardized skewness γ
+ * (default 0: normal, closed form). The mean carries the first-order Edgeworth term of a skewed Y: for
+ * E[(Y − t)₊] it adds s·γ·z·φ(z)/6 at z = (t − m)/s, so E[clip] gains (s·γ/6)·(a·φ(a) − b·φ(b)) with a = −m/s,
+ * b = (1 − m)/s (docs/DISPLAY_VIEW.md, "Readout"). |γ| is limited to 1, where the first-order term is still a small part.
+ */
+export function unitClip(m: number, v: number, out: Float64Array, skewness = 0): void {
+  if (!(v > 0)) { const c = m < 0 ? 0 : m > 1 ? 1 : m; out[0] = c; out[1] = 0; out[2] = m > 0 && m < 1 ? 1 : 0; return; }
+  const s = Math.sqrt(v), a = -m / s, b = (1 - m) / s;
+  if (a < -CLIP_REACH_SIGMA && b > CLIP_REACH_SIGMA) { out[0] = m; out[1] = v; out[2] = 1; return; }
+  const Pa = a < -CLIP_REACH_SIGMA ? 0 : bigPhi(a), Pb = b > CLIP_REACH_SIGMA ? 1 : bigPhi(b), da = a < -CLIP_REACH_SIGMA ? 0 : phi(a), db = b > CLIP_REACH_SIGMA ? 0 : phi(b);
+  const inside = Pb - Pa, gamma = skewness > 1 ? 1 : skewness < -1 ? -1 : skewness;
+  const mean = m * inside + s * (da - db) + (1 - Pb) + (gamma === 0 ? 0 : s * gamma / 6 * ((a < -CLIP_REACH_SIGMA ? 0 : a * da) - (b > CLIP_REACH_SIGMA ? 0 : b * db)));
+  // E[Y² 1(0<Y<1)] = (m² + s²)(Φb − Φa) + 2ms(φa − φb) + s²(aφa − bφb); plus P(Y ≥ 1).
+  const aa = a < -CLIP_REACH_SIGMA ? 0 : a * da, bb = b > CLIP_REACH_SIGMA ? 0 : b * db;
+  const second = (m * m + v) * inside + 2 * m * s * (da - db) + v * (aa - bb) + (1 - Pb);
+  out[0] = mean; out[1] = Math.max(0, second - mean * mean); out[2] = inside;
+}
+/** Gauss–Legendre nodes and weights on [−1, 1], 16 points (computed once by Newton iteration on P_16). */
+const GL = ((): { x: Float64Array; w: Float64Array } => {
+  const n = 16, x = new Float64Array(n), w = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let z = Math.cos(Math.PI * (i + 0.75) / (n + 0.5)), dp = 0;
+    for (let it = 0; it < 100; it++) {
+      let p0 = 1, p1 = z;
+      for (let k = 2; k <= n; k++) { const p2 = ((2 * k - 1) * z * p1 - (k - 1) * p0) / k; p0 = p1; p1 = p2; }
+      dp = n * (z * p1 - p0) / (z * z - 1);
+      const dz = p1 / dp;
+      z -= dz;
+      if (Math.abs(dz) < 1e-16) break;
+    }
+    x[i] = z; w[i] = 2 / ((1 - z * z) * dp * dp);
+  }
+  return { x, w };
+})();
+/** Internal (exported for tests). Positive Reinhard per channel then the clip to [0, 1]: h(x) = x/(1 + x) for x > 0, else 0 (its slope h' = 1/(1 + x)²). */
+export function reinhardMoments(m: number, v: number, out: Float64Array): void {
+  if (!(v > 0)) { out[0] = m > 0 ? m / (1 + m) : 0; out[1] = 0; out[2] = m > 0 ? 1 / ((1 + m) * (1 + m)) : 0; return; }
+  const s = Math.sqrt(v), lo = Math.max(0, m - CLIP_REACH_SIGMA * s), hi = m + CLIP_REACH_SIGMA * s;
+  if (!(hi > lo)) { out[0] = 0; out[1] = 0; out[2] = 0; return; }
+  // Composite 16-point Gauss–Legendre over [lo, hi] in 4 panels; h is smooth there (the kink at 0 is an end point).
+  let e1 = 0, e2 = 0, ed = 0;
+  const panels = 4, width = (hi - lo) / panels;
+  for (let p = 0; p < panels; p++) {
+    const c = lo + (p + 0.5) * width, half = width / 2;
+    for (let k = 0; k < 16; k++) {
+      const x = c + half * GL.x[k]!, weight = half * GL.w[k]! * phi((x - m) / s) / s, h = x / (1 + x);
+      e1 += weight * h; e2 += weight * h * h; ed += weight / ((1 + x) * (1 + x));
+    }
+  }
+  out[0] = e1; out[1] = Math.max(0, e2 - e1 * e1); out[2] = ed;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The display view renderer.
+
+/** Per CFA channel: normalized RAW value = (code − black)/(white − black) of a site with e expected electrons. */
+export interface DisplayViewChannelReadout {
+  /** Normalized value per electron: digitalGain / (conversionGain·(white − black)). */
+  perElectron: number;
+  /** Mean dark electrons per site during the exposure. */
+  darkElectrons: number;
+  /** Variance of the normalized value not proportional to the electrons: read noise and ADC quantization. */
+  constantVariance: number;
+}
+
+export interface DisplayViewSetup {
+  frameWidth: number;
+  frameHeight: number;
+  /** Native site of output pixel (0, 0). */
+  margin: number;
+  nativeWidth: number;
+  nativeHeight: number;
+  viewWidth: number;
+  viewHeight: number;
+  region: { x: number; y: number; width: number; height: number };
+  /** Samples per axis in display pixels whose pilot finds detail; uniform ones use a quarter (at least 1). */
+  samplesPerAxis: number;
+  /** Sites beyond the footprint that can affect its pixels (demosaic, filter and kernel reach), for the pilot. */
+  reachSites: number;
+  bitDepth: 8 | 16;
+  seed: number;
+  signal: DisplayViewExpectedSignal;
+  readout: readonly [DisplayViewChannelReadout, DisplayViewChannelReadout, DisplayViewChannelReadout];
+  /** Bilinear demosaic kernels per absolute CFA phase (phaseY·2 + phaseX): for each output channel, (dx, dy, weight) triples. */
+  demosaic: readonly (readonly (readonly DisplayViewKernelTap[])[])[];
+  /**
+   * The demosaic whose pixel statistics the view reproduces, per phase: one candidate (bilinear) or AHD's two directional
+   * linear candidates (`ahdCandidateKernels`), each a kernel per output channel. Default: the bilinear kernels.
+   */
+  candidates?: readonly (readonly (readonly (readonly DisplayViewKernelTap[])[])[])[];
+  /** White-balance gains applied to the normalized camera channels and the highlight clip level (the smallest gain). */
+  gains: readonly [number, number, number];
+  clipLevel: number;
+  /** Camera channels (after WB and the highlight clip) → linear sRGB: rows are output components. */
+  matrix: readonly (readonly number[])[];
+  toneCurve: "identity" | "positive-reinhard-per-channel";
+  /**
+   * AHD only: the low-signal correction. `labMatrix` is the camera → XYZ matrix AHD measures homogeneity with (the profile's
+   * matrix times the white-balance gains); the correction runs on `samplesPerPixel` samples of a display pixel whose pixel
+   * variance (linear light) exceeds `thresholdVariance`.
+   */
+  ahdCorrection?: { labMatrix: readonly (readonly number[])[]; samplesPerPixel: number; thresholdVariance: number };
+  yieldControl(): Promise<void>;
+  checkAbort(): void;
+}
+
+export interface DisplayViewRenderResult {
+  samples: Uint8Array | Uint16Array;
+  /** Mean linear-light value of each display pixel before the noise draw (diagnostics and validation). */
+  expected: Float64Array;
+  /** Noise standard deviation of each display pixel's components in linear light (square root of the covariance diagonal). */
+  noiseStd: Float64Array;
+  sampleCount: number;
+  siteCount: number;
+  /** Display pixels whose pilot found detail (full samples) and uniform ones (a quarter per axis). */
+  detailPixelCount: number;
+  uniformPixelCount: number;
+  /** Display pixels whose expected value includes the AHD low-signal correction. */
+  ahdCorrectedPixelCount: number;
+}
+
+/** One tap of a linear demosaic kernel: the site at (dx, dy) from the pixel, and its weight. */
+export interface DisplayViewKernelTap { dx: number; dy: number; weight: number }
+
+/**
+ * AHD's two directional candidates (`createAhdDemosaicTask`, after Hirakawa & Parks 2005) as linear kernels, for a pixel of
+ * CFA phase (phaseX, phaseY) of an RGGB mosaic: green along the rows (or columns) with the 5-tap filter
+ * [−1/4, 1/2, 1/2, 1/2, −1/4], then red and blue from bilinearly interpolated colour differences against that green. Each
+ * candidate is linear in the mosaic, so its kernel is its response to a unit site; AHD then picks one candidate per pixel
+ * by homogeneity, which is the only non-linear step. Returns [horizontal, vertical], each [red, green, blue] kernels.
+ */
+export function ahdCandidateKernels(phaseX: number, phaseY: number): DisplayViewKernelTap[][][] {
+  const role = (dx: number, dy: number): number => { const x = (phaseX + dx) & 1, y = (phaseY + dy) & 1; return y === 0 ? (x === 0 ? 0 : 1) : (x === 0 ? 1 : 2); };
+  const evaluate = (site: (dx: number, dy: number) => number, horizontal: boolean): number[] => {
+    const green = (dx: number, dy: number): number => {
+      const c = site(dx, dy);
+      if (role(dx, dy) === 1) return c;
+      return horizontal ? (site(dx - 1, dy) + site(dx + 1, dy)) / 2 + (2 * c - site(dx - 2, dy) - site(dx + 2, dy)) / 4
+        : (site(dx, dy - 1) + site(dx, dy + 1)) / 2 + (2 * c - site(dx, dy - 2) - site(dx, dy + 2)) / 4;
+    };
+    const diff = (dx: number, dy: number): number => site(dx, dy) - green(dx, dy);
+    const out = [0, 0, 0], own = role(0, 0), g = green(0, 0);
+    out[1] = g;
+    if (own === 1) {
+      const hRole = role(1, 0), vRole = 2 - hRole;
+      out[hRole] = g + (diff(-1, 0) + diff(1, 0)) / 2;
+      out[vRole] = g + (diff(0, -1) + diff(0, 1)) / 2;
+    } else {
+      out[own] = site(0, 0);
+      out[2 - own] = g + (diff(-1, -1) + diff(1, -1) + diff(-1, 1) + diff(1, 1)) / 4;
+    }
+    return out;
+  };
+  return [true, false].map((horizontal) => {
+    const kernels: DisplayViewKernelTap[][] = [[], [], []];
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const response = evaluate((x, y) => (x === dx && y === dy ? 1 : 0), horizontal);
+      for (let c = 0; c < 3; c++) if (response[c] !== 0) kernels[c]!.push({ dx, dy, weight: response[c]! });
+    }
+    return kernels;
+  });
+}
+
+/** 1-D overlaps of real output columns with one display column: first column index and the overlaps. */
+function overlaps(start: number, end: number, limit: number): { first: number; w: Float64Array } {
+  const first = Math.floor(start), last = Math.min(limit - 1, Math.ceil(end) - 1), w = new Float64Array(last - first + 1);
+  for (let k = first; k <= last; k++) w[k - first] = Math.min(end, k + 1) - Math.max(start, k);
+  return { first, w };
+}
+/**
+ * Internal (exported for tests). Footprint sums along one axis, for the closed-form B_c (docs/DISPLAY_VIEW.md, "Demosaic correlation"). Native
+ * coordinate parity decides the CFA: red columns/rows are even, blue odd. With w(k) the overlap of real column k:
+ * - b(k) = w(k) + ½(w(k − 1) + w(k + 1)), the bilinear red/blue spread; sums of b² over even and odd native k;
+ * - p(k) = w(k), q(k) = ¼(w(k − 1) + w(k + 1)) for green: sums of p², q² and p·q over even and odd native k;
+ * - Σ w².
+ */
+export interface AxisSums { bEven: number; bOdd: number; ppEven: number; ppOdd: number; qqEven: number; qqOdd: number; pqEven: number; pqOdd: number; ww: number }
+export function axisSums(start: number, end: number, limit: number, margin: number): AxisSums {
+  const { first, w } = overlaps(start, end, limit);
+  const at = (k: number): number => (k >= first && k < first + w.length ? w[k - first]! : 0);
+  const s: AxisSums = { bEven: 0, bOdd: 0, ppEven: 0, ppOdd: 0, qqEven: 0, qqOdd: 0, pqEven: 0, pqOdd: 0, ww: 0 };
+  for (let k = first - 1; k <= first + w.length; k++) {
+    const p = at(k), q = (at(k - 1) + at(k + 1)) / 4, b = p + 2 * q, even = ((k + margin) & 1) === 0;
+    if (even) { s.bEven += b * b; s.ppEven += p * p; s.qqEven += q * q; s.pqEven += p * q; } else { s.bOdd += b * b; s.ppOdd += p * p; s.qqOdd += q * q; s.pqOdd += p * q; }
+    s.ww += p * p;
+  }
+  return s;
+}
+/** Internal (exported for tests). B for red, green and blue (Σ β² over the channel's sites, β normalized to unit sum) and Σ (w/A)². */
+export function footprintWeights(x: AxisSums, y: AxisSums, area: number, out: Float64Array): void {
+  const a2 = area * area;
+  const green = (xpp: number, xqq: number, xpq: number, ypp: number, yqq: number, ypq: number): number =>
+    xpp * ypp + xqq * ypp + xpp * yqq + 2 * xpq * ypp + 2 * xpp * ypq + 2 * xpq * ypq;
+  out[0] = x.bEven * y.bEven / a2;
+  // Green sites: (odd x, even y) and (even x, odd y).
+  out[1] = (green(x.ppOdd, x.qqOdd, x.pqOdd, y.ppEven, y.qqEven, y.pqEven) + green(x.ppEven, x.qqEven, x.pqEven, y.ppOdd, y.qqOdd, y.pqOdd)) / a2;
+  out[2] = x.bOdd * y.bOdd / a2;
+  out[3] = x.ww * y.ww / a2;
+}
+/** AHD's dependence reach in sites (directional green ±2, colour differences ±1, homogeneity 4-neighbours and 3 × 3 sum). */
+const AHD_REACH = 5, AHD_SIDE = 2 * AHD_REACH + 1;
+/** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
+function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
+
+/** Renders the display view (docs/DISPLAY_VIEW.md). */
+export async function renderDisplayView(setup: DisplayViewSetup): Promise<DisplayViewRenderResult> {
+  const { frameWidth, frameHeight, margin, nativeWidth, nativeHeight, viewWidth, viewHeight, region, seed, reachSites } = setup;
+  const sx = frameWidth / viewWidth, sy = frameHeight / viewHeight, area = sx * sy, g = 2 / frameWidth;
+  const fullK = setup.samplesPerAxis, uniformK = Math.max(1, Math.round(fullK / 4));
+  const maximum = setup.bitDepth === 8 ? 255 : 65535, step = 1 / maximum;
+  const pixelCount = region.width * region.height;
+  const samples = setup.bitDepth === 8 ? new Uint8Array(pixelCount * 3) : new Uint16Array(pixelCount * 3);
+  const expected = new Float64Array(pixelCount * 3), noiseStd = new Float64Array(pixelCount * 3);
+  const columns = Array.from({ length: region.width }, (_, i) => axisSums((region.x + i) * sx, (region.x + i + 1) * sx, frameWidth, margin));
+  const M = setup.matrix, m00 = M[0]![0]!, m01 = M[0]![1]!, m02 = M[0]![2]!, m10 = M[1]![0]!, m11 = M[1]![1]!, m12 = M[1]![2]!, m20 = M[2]![0]!, m21 = M[2]![1]!, m22 = M[2]![2]!;
+  const g0 = setup.gains[0], g1 = setup.gains[1], g2 = setup.gains[2], L = setup.clipLevel, reinhard = setup.toneCurve === "positive-reinhard-per-channel";
+  const k = setup.readout.map((r) => r.perElectron), dark = setup.readout.map((r) => r.darkElectrons), c0 = setup.readout.map((r) => r.constantVariance);
+  // Site window: 3 × 3 for the bilinear kernels, 7 × 7 when AHD's candidates read up to 3 sites away. Slot (dy + r)·(2r + 1) + dx + r.
+  const candidates = setup.candidates ?? setup.demosaic.map((phase) => [phase]);
+  const reach = Math.max(1, ...candidates.flat(3).map((t) => Math.max(Math.abs(t.dx), Math.abs(t.dy)))), side = 2 * reach + 1, slotsCount = side * side;
+  const slotOf = (t: DisplayViewKernelTap): number => (t.dy + reach) * side + t.dx + reach;
+  // Per phase: the bilinear kernels (for the site variance of each channel), the candidates, and the slots they read.
+  const phaseSlots: Int32Array[][] = [], phaseWeights: Float64Array[][] = [], phaseW2: Float64Array[] = [], phaseList: Int32Array[] = [];
+  const candidateSlots: Int32Array[][][] = [], candidateWeights: Float64Array[][][] = [], candidateDense: Float64Array[][] = [];
+  for (let p = 0; p < 4; p++) {
+    const kernels = setup.demosaic[p]!;
+    phaseSlots[p] = kernels.map((list) => Int32Array.from(list, slotOf));
+    phaseWeights[p] = kernels.map((list) => Float64Array.from(list, (t) => t.weight));
+    phaseW2[p] = Float64Array.from(kernels, (list) => list.reduce((sum, t) => sum + t.weight * t.weight, 0));
+    candidateSlots[p] = candidates[p]!.map((candidate) => candidate.map((list) => Int32Array.from(list, slotOf)));
+    candidateDense[p] = candidates[p]!.map((candidate) => { const dense = new Float64Array(3 * slotsCount); candidate.forEach((list, c) => { for (const t of list) { const i = c * slotsCount + slotOf(t); dense[i] = dense[i]! + t.weight; } }); return dense; });
+    candidateWeights[p] = candidates[p]!.map((candidate) => candidate.map((list) => Float64Array.from(list, (t) => t.weight)));
+    const used = new Set<number>([...phaseSlots[p]!.flatMap((a) => Array.from(a)), ...candidateSlots[p]!.flat().flatMap((a) => Array.from(a))]);
+    phaseList[p] = Int32Array.from([...used].sort((a, b) => a - b));
+  }
+  const siteMean = new Float64Array(slotsCount), siteVar = new Float64Array(slotsCount), siteThird = new Float64Array(slotsCount), siteChannel = new Int32Array(slotsCount), clip = new Float64Array(3), B = new Float64Array(4), C = new Float64Array(9);
+  const cm = new Float64Array(3), cv = new Float64Array(3), csv = new Float64Array(3), bm = new Float64Array(3), bv = new Float64Array(3), bs = new Float64Array(3);
+  const hm = new Float64Array(3), hv = new Float64Array(3), hs = new Float64Array(3), an = new Float64Array(9);
+  const reach2 = CLIP_REACH_SIGMA * CLIP_REACH_SIGMA;
+  // AHD low-signal correction: an 11 × 11 noisy neighbourhood (AHD reads up to 5 sites away) and the local AHD steps.
+  const ahdCorrection = setup.ahdCorrection, windowReach = ahdCorrection ? Math.max(reach, AHD_REACH) : reach;
+  const corrSum = new Float64Array(3), corrSq = new Float64Array(3), correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE);
+  let correctionRandom = createDeterministicUniformStream(0), correctedPixels = 0;
+  const sampleX = new Int32Array(ahdCorrection ? setup.samplesPerAxis * setup.samplesPerAxis : 0), sampleY = new Int32Array(sampleX.length);
+  const readStd = c0.map((v) => Math.sqrt(v));
+  function drawNeighbourhood(x: number, y: number): void {
+    for (let dy = -AHD_REACH; dy <= AHD_REACH; dy++) for (let dx = -AHD_REACH; dx <= AHD_REACH; dx++) {
+      let sxs = x + dx, sys = y + dy;
+      if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
+      if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
+      const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
+      const electrons = samplePoisson(Math.max(0, setup.signal.site(sxs, sys) + dark[c]!), correctionRandom);
+      const value = k[c]! * electrons + readStd[c]! * sampleDeterministicStandardNormal(correctionRandom);
+      patch[(dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH] = value < 1 ? value : 1;
+    }
+  }
+  const lab = ahdCorrection?.labMatrix, labWhite = lab ? lab.map((row) => row[0]! + row[1]! + row[2]!) : [1, 1, 1];
+  const gh = new Float64Array(49), gv = new Float64Array(49), cand = [new Float64Array(75), new Float64Array(75)], labs = [new Float64Array(75), new Float64Array(75)];
+  const homo = [new Float64Array(9), new Float64Array(9)], rgb = new Float64Array(3), rendered = new Float64Array(3), linear = new Float64Array(3);
+  /** Develops one deterministic camera pixel and renders it: WB, highlight clip, colour matrix, tone curve, clip to [0, 1]. */
+  function renderPixel(r: number, gr: number, b: number, out: Float64Array): void {
+    const u0 = Math.min(L, g0 * r), u1 = Math.min(L, g1 * gr), u2 = Math.min(L, g2 * b);
+    for (let comp = 0; comp < 3; comp++) {
+      let v = comp === 0 ? m00 * u0 + m01 * u1 + m02 * u2 : comp === 1 ? m10 * u0 + m11 * u1 + m12 * u2 : m20 * u0 + m21 * u1 + m22 * u2;
+      if (reinhard) v = v > 0 ? v / (1 + v) : v;
+      out[comp] = v < 0 ? 0 : v > 1 ? 1 : v;
+    }
+  }
+  /** h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (createAhdDemosaicTask's steps, centre pixel only). */
+  function ahdDifference(phase: number, out: Float64Array): void {
+    const px = phase & 1, py = phase >> 1;
+    const role = (dx: number, dy: number): number => { const xx = (px + dx) & 1, yy = (py + dy) & 1; return yy === 0 ? (xx === 0 ? 0 : 1) : (xx === 0 ? 1 : 2); };
+    const at = (dx: number, dy: number): number => patch[(dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH]!;
+    // 1. Directional greens within 3 sites.
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const i = (dy + 3) * 7 + dx + 3, c = at(dx, dy);
+      if (role(dx, dy) === 1) { gh[i] = c; gv[i] = c; continue; }
+      gh[i] = (at(dx - 1, dy) + at(dx + 1, dy)) / 2 + (2 * c - at(dx - 2, dy) - at(dx + 2, dy)) / 4;
+      gv[i] = (at(dx, dy - 1) + at(dx, dy + 1)) / 2 + (2 * c - at(dx, dy - 2) - at(dx, dy + 2)) / 4;
+    }
+    // 2. Candidates within 2 sites; 3. their CIELAB.
+    const f = (t: number): number => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+    for (let d = 0; d < 2; d++) {
+      const g = d === 0 ? gh : gv, o = cand[d]!, ol = labs[d]!;
+      const gAt = (dx: number, dy: number): number => g[(dy + 3) * 7 + dx + 3]!, diff = (dx: number, dy: number): number => at(dx, dy) - gAt(dx, dy);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const i = (dy + 2) * 5 + dx + 2, own = role(dx, dy), gc = gAt(dx, dy);
+        o[3 * i + 1] = gc;
+        if (own === 1) {
+          const hRole = role(dx + 1, dy), vRole = 2 - hRole;
+          o[3 * i + hRole] = gc + (diff(dx - 1, dy) + diff(dx + 1, dy)) / 2;
+          o[3 * i + vRole] = gc + (diff(dx, dy - 1) + diff(dx, dy + 1)) / 2;
+        } else {
+          o[3 * i + own] = at(dx, dy);
+          o[3 * i + 2 - own] = gc + (diff(dx - 1, dy - 1) + diff(dx + 1, dy - 1) + diff(dx - 1, dy + 1) + diff(dx + 1, dy + 1)) / 4;
+        }
+        const R = o[3 * i]!, G = o[3 * i + 1]!, Bc = o[3 * i + 2]!, m = lab!;
+        const fx = f((m[0]![0]! * R + m[0]![1]! * G + m[0]![2]! * Bc) / labWhite[0]!), fy = f((m[1]![0]! * R + m[1]![1]! * G + m[1]![2]! * Bc) / labWhite[1]!);
+        const fz = f((m[2]![0]! * R + m[2]![1]! * G + m[2]![2]! * Bc) / labWhite[2]!);
+        ol[3 * i] = 116 * fy - 16; ol[3 * i + 1] = 500 * (fx - fy); ol[3 * i + 2] = 200 * (fy - fz);
+      }
+    }
+    // 4. Homogeneity within 1 site, with the adaptive tolerances; 5. the 3 × 3 sum selects the candidate.
+    const n4 = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const i = (dy + 2) * 5 + dx + 2, dL = [[0, 0, 0, 0], [0, 0, 0, 0]], dC = [[0, 0, 0, 0], [0, 0, 0, 0]];
+      for (let d = 0; d < 2; d++) {
+        const o = labs[d]!;
+        for (let q = 0; q < 4; q++) {
+          const j = (dy + n4[q]![1] + 2) * 5 + dx + n4[q]![0] + 2;
+          dL[d]![q] = Math.abs(o[3 * i]! - o[3 * j]!);
+          dC[d]![q] = (o[3 * i + 1]! - o[3 * j + 1]!) ** 2 + (o[3 * i + 2]! - o[3 * j + 2]!) ** 2;
+        }
+      }
+      const epsL = Math.min(Math.max(dL[0]![0]!, dL[0]![1]!), Math.max(dL[1]![2]!, dL[1]![3]!));
+      const epsC = Math.min(Math.max(dC[0]![0]!, dC[0]![1]!), Math.max(dC[1]![2]!, dC[1]![3]!));
+      for (let d = 0; d < 2; d++) { let count = 0; for (let q = 0; q < 4; q++) if (dL[d]![q]! <= epsL && dC[d]![q]! <= epsC) count++; homo[d]![(dy + 1) * 3 + dx + 1] = count; }
+    }
+    let sh = 0, sv = 0;
+    for (let q = 0; q < 9; q++) { sh += homo[0]![q]!; sv += homo[1]![q]!; }
+    const centre = 12, a = cand[0]!, b = cand[1]!;
+    for (let c = 0; c < 3; c++) rgb[c] = sh > sv ? a[3 * centre + c]! : sv > sh ? b[3 * centre + c]! : (a[3 * centre + c]! + b[3 * centre + c]!) / 2;
+    renderPixel(rgb[0]!, rgb[1]!, rgb[2]!, rendered);
+    renderPixel(a[3 * centre]!, a[3 * centre + 1]!, a[3 * centre + 2]!, linear);
+    for (let c = 0; c < 3; c++) out[c] = rendered[c]! - linear[c]! / 2;
+    renderPixel(b[3 * centre]!, b[3 * centre + 1]!, b[3 * centre + 2]!, linear);
+    for (let c = 0; c < 3; c++) out[c] = out[c]! - linear[c]! / 2;
+  }
+  let siteCount = 0, sampleCount = 0, detail = 0, uniform = 0, lastYield = Date.now();
+  // Pilot: the scene at a deterministic grid over each display pixel's footprint widened by the reach; a pixel is uniform when
+  // every point returns the same value. Pixels next to a detailed pixel count as detailed too, so an edge that only clips a
+  // footprint's corner (too thin for the grid) still gets the full samples. The grid is fixed, so the sample count is not
+  // random and the estimate stays unbiased either way.
+  const pilotUniform = (vx: number, vy: number): boolean => {
+    const ax0 = vx * sx + margin - reachSites, ax1 = (vx + 1) * sx + margin + reachSites, ay0 = vy * sy + margin - reachSites, ay1 = (vy + 1) * sy + margin + reachSites;
+    const px = pilotCount(ax1 - ax0), py = pilotCount(ay1 - ay0);
+    let first = NaN;
+    for (let j = 0; j < py; j++) {
+      const v = -(ay0 + (j + 0.5) * (ay1 - ay0) / py - nativeHeight / 2) * g;
+      for (let i = 0; i < px; i++) {
+        const value = setup.signal.pilot((ax0 + (i + 0.5) * (ax1 - ax0) / px - nativeWidth / 2) * g, v);
+        if (i === 0 && j === 0) first = value; else if (value !== first) return false;
+      }
+    }
+    return true;
+  };
+  // Pilot flags for the region and a one-pixel ring (clipped to the view), three rows at a time.
+  const ringWidth = region.width + 2, flagRows: Uint8Array[] = [];
+  const pilotRow = (vy: number): Uint8Array => {
+    const row = new Uint8Array(ringWidth);
+    if (vy < 0 || vy >= viewHeight) return row.fill(1);
+    for (let i = 0; i < ringWidth; i++) { const vx = region.x - 1 + i; row[i] = vx < 0 || vx >= viewWidth ? 1 : pilotUniform(vx, vy) ? 1 : 0; }
+    return row;
+  };
+  flagRows.push(pilotRow(region.y - 1), pilotRow(region.y));
+  for (let ry = 0; ry < region.height; ry++) {
+    const vy = region.y + ry, rows = axisSums(vy * sy, (vy + 1) * sy, frameHeight, margin);
+    flagRows.push(pilotRow(vy + 1));
+    if (flagRows.length > 3) flagRows.shift();
+    for (let rx = 0; rx < region.width; rx++) {
+      const vx = region.x + rx, index = vy * viewWidth + vx;
+      footprintWeights(columns[rx]!, rows, area, B);
+      let same = true;
+      for (let j = 0; j < 3 && same; j++) for (let i = rx; i <= rx + 2; i++) if (flagRows[j]![i] === 0) { same = false; break; }
+      const K = same ? uniformK : fullK, Q = K * K;
+      if (same) uniform++; else detail++;
+      setup.signal.window(Math.floor(vx * sx) + margin - windowReach, Math.floor(vy * sy) + margin - windowReach, Math.ceil((vx + 1) * sx) + margin + windowReach,
+        Math.ceil((vy + 1) * sy) + margin + windowReach);
+      const jitter = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID));
+      let s0 = 0, s1 = 0, s2 = 0, c00 = 0, c01 = 0, c02 = 0, c11 = 0, c12 = 0, c22 = 0, r0 = 0, r1 = 0, r2 = 0, pixelVariance = 0, maxPixelVariance = 0, sampleIndex = 0, corrCount = 0;
+      corrSum.fill(0); corrSq.fill(0);
+      if (ahdCorrection) correctionRandom = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_AHD_STREAM_ID));
+      for (let b = 0; b < K; b++) for (let a = 0; a < K; a++) {
+        const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
+        const x = Math.min(frameWidth - 1, Math.floor(fx)) + margin, y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
+        const phase = (y & 1) * 2 + (x & 1), list = phaseList[phase]!;
+        // Normalized site values: normal with mean k·e and variance k²·e + constant, clipped at the white level (1). Sites
+        // outside the raster (mirror borders) are read reflect-101.
+        for (let li = 0; li < list.length; li++) {
+          const slot = list[li]!;
+          siteCount++;
+          let sxs = x + (slot % side) - reach, sys = y + ((slot / side) | 0) - reach;
+          if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
+          if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
+          const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
+          const e = setup.signal.site(sxs, sys) + dark[c]!, kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
+          // Third cumulant of the normalized value: Poisson electrons have κ₃ = e (read and rounding noise add none).
+          siteThird[slot] = kc * kc * kc * e; siteChannel[slot] = c;
+          if (gap > 0 && gap * gap > reach2 * variance) { siteMean[slot] = mean; siteVar[slot] = variance; }
+          else { upperClip(mean, variance, 1, clip); siteMean[slot] = clip[0]!; siteVar[slot] = clip[1]!; }
+        }
+        // Site variance of each channel through the bilinear kernels (for B_c), then the demosaic's own pixel statistics: the
+        // mean and covariance of its camera channels, averaged over its candidates (AHD picks one per pixel).
+        const slots = phaseSlots[phase]!, weights = phaseWeights[phase]!, w2 = phaseW2[phase]!;
+        for (let c = 0; c < 3; c++) {
+          const sl = slots[c]!, wt = weights[c]!;
+          let variance = 0;
+          for (let t = 0; t < sl.length; t++) variance += wt[t]! * wt[t]! * siteVar[sl[t]!]!;
+          csv[c] = variance / w2[c]!;
+        }
+        // Each candidate of the demosaic (one for bilinear; AHD's horizontal and vertical ones, of which AHD picks one per pixel)
+        // is propagated on its own: camera-channel mean and covariance, white balance and highlight clip, colour matrix and
+        // rendering; the pixel's statistics are their average.
+        const cs = candidateSlots[phase]!, cw = candidateWeights[phase]!, count = cs.length, share = 1 / count;
+        let e0 = 0, e1 = 0, e2 = 0;
+        for (let d = 0; d < count; d++) {
+          for (let c = 0; c < 3; c++) {
+            const sl = cs[d]![c]!, wt = cw[d]![c]!;
+            let mean = 0;
+            for (let t = 0; t < sl.length; t++) mean += wt[t]! * siteMean[sl[t]!]!;
+            cm[c] = mean;
+          }
+          // Covariance of channels i, j: Σ over shared sites of w_i·w_j·Var(site).
+          for (let i = 0; i < 3; i++) for (let j = i; j < 3; j++) {
+            const si = cs[d]![i]!, wi = cw[d]![i]!, sj = cs[d]![j]!, wj = cw[d]![j]!;
+            let cov = 0;
+            for (let u = 0; u < si.length; u++) { const slot = si[u]!; for (let w = 0; w < sj.length; w++) if (sj[w] === slot) cov += wi[u]! * wj[w]! * siteVar[slot]!; }
+            C[i * 3 + j] = cov; if (i !== j) C[j * 3 + i] = cov;
+          }
+          // White balance and the highlight clip at the smallest gain (per channel; covariances scaled by the expected slopes).
+          for (let c = 0; c < 3; c++) {
+            const mean = cm[c]!, variance = C[c * 4]!;
+            cv[c] = variance;
+            const gc = c === 0 ? g0 : c === 1 ? g1 : g2, um = gc * mean, uv = gc * gc * variance, gap = L - um;
+            if (gap > 0 && gap * gap > reach2 * uv) { bm[c] = um; bv[c] = uv; bs[c] = gc; }
+            else { upperClip(um, uv, L, clip); bm[c] = clip[0]!; bv[c] = clip[1]!; bs[c] = gc * clip[2]!; }
+          }
+          // Colour matrix, then the rendering of each component (tone curve, clip to [0, 1]).
+          for (let comp = 0; comp < 3; comp++) {
+            const r0m = comp === 0 ? m00 : comp === 1 ? m10 : m20, r1m = comp === 0 ? m01 : comp === 1 ? m11 : m21, r2m = comp === 0 ? m02 : comp === 1 ? m12 : m22;
+            const mean = r0m * bm[0]! + r1m * bm[1]! + r2m * bm[2]!;
+            const variance = r0m * r0m * bv[0]! + r1m * r1m * bv[1]! + r2m * r2m * bv[2]! +
+              2 * (r0m * r1m * bs[0]! * bs[1]! * C[1]! + r0m * r2m * bs[0]! * bs[2]! * C[2]! + r1m * r2m * bs[1]! * bs[2]! * C[5]!);
+            if (!reinhard && mean > 0 && mean < 1 && mean * mean > reach2 * variance && (1 - mean) * (1 - mean) > reach2 * variance) { hm[comp] = mean; hv[comp] = variance; hs[comp] = 1; }
+            else if (reinhard) { reinhardMoments(mean, variance, clip); hm[comp] = clip[0]!; hv[comp] = clip[1]!; hs[comp] = clip[2]!; }
+            else {
+              // The component is a linear combination of the sites: κ₃ = Σ (Σ_c M·Γ_c·w_c,site)³·κ₃(site).
+              const dense = candidateDense[phase]![d]!, list = phaseList[phase]!;
+              let third = 0;
+              for (let li = 0; li < list.length; li++) {
+                const slot = list[li]!, coefficient = r0m * bs[0]! * dense[slot]! + r1m * bs[1]! * dense[slotsCount + slot]! + r2m * bs[2]! * dense[2 * slotsCount + slot]!;
+                third += coefficient * coefficient * coefficient * siteThird[slot]!;
+              }
+              unitClip(mean, variance, clip, variance > 0 ? third / (variance * Math.sqrt(variance)) : 0);
+              hm[comp] = clip[0]!; hv[comp] = clip[1]!; hs[comp] = clip[2]!;
+            }
+          }
+          e0 += share * hm[0]!; e1 += share * hm[1]!; e2 += share * hm[2]!;
+          // Linear (Stein) part: a_c = J ∘ M[:, c]·Γ_c, accumulated with B_c·σ_c² (site variance of channel c); the pixel's own
+          // linear variance (aᵀ·C·a, full channel covariance) for the residual.
+          let l0 = 0, l1 = 0, l2 = 0;
+          for (let c = 0; c < 3; c++) {
+            const a0 = hs[0]! * (c === 0 ? m00 : c === 1 ? m01 : m02) * bs[c]!, a1 = hs[1]! * (c === 0 ? m10 : c === 1 ? m11 : m12) * bs[c]!, a2 = hs[2]! * (c === 0 ? m20 : c === 1 ? m21 : m22) * bs[c]!;
+            const wgt = share * B[c]! * csv[c]!;
+            c00 += wgt * a0 * a0; c01 += wgt * a0 * a1; c02 += wgt * a0 * a2; c11 += wgt * a1 * a1; c12 += wgt * a1 * a2; c22 += wgt * a2 * a2;
+            an[c] = a0; an[3 + c] = a1; an[6 + c] = a2;
+          }
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const cij = C[i * 3 + j]!; l0 += an[i]! * an[j]! * cij; l1 += an[3 + i]! * an[3 + j]! * cij; l2 += an[6 + i]! * an[6 + j]! * cij; }
+          r0 += share * Math.max(0, hv[0]! - l0); r1 += share * Math.max(0, hv[1]! - l1); r2 += share * Math.max(0, hv[2]! - l2);
+          pixelVariance = Math.max(pixelVariance, hv[0]!, hv[1]!, hv[2]!);
+        }
+        s0 += e0; s1 += e1; s2 += e2;
+        // AHD at low signal: its homogeneity choice reacts to the noise, which the linear candidates cannot express. On every
+        // `stride`-th sample whose pixel noise exceeds the threshold, a noisy neighbourhood is drawn (exact Poisson electrons
+        // plus read and ADC noise), AHD and the two linear candidates run on that same draw, and the difference of the
+        // rendered results is averaged: a control variate whose expectation is the AHD bias (docs/DISPLAY_VIEW.md).
+        if (ahdCorrection) { sampleX[sampleIndex] = x; sampleY[sampleIndex] = y; maxPixelVariance = Math.max(maxPixelVariance, pixelVariance); }
+        sampleIndex++;
+        pixelVariance = 0;
+      }
+      if (ahdCorrection && maxPixelVariance > ahdCorrection.thresholdVariance) for (let j = 0; j < ahdCorrection.samplesPerPixel; j++) {
+        // Draws cycle through the sampled pixels, so they are spread over the footprint like the samples.
+        const x = sampleX[j % Q]!, y = sampleY[j % Q]!;
+        drawNeighbourhood(x, y);
+        ahdDifference((y & 1) * 2 + (x & 1), correction);
+        for (let comp = 0; comp < 3; comp++) { corrSum[comp] = corrSum[comp]! + correction[comp]!; corrSq[comp] = corrSq[comp]! + correction[comp]! * correction[comp]!; }
+        corrCount++;
+      }
+      sampleCount += Q;
+      // The AHD correction's mean is added; its own sampling variance is taken from the noise drawn below (when it is smaller),
+      // so the total variance stays that of the resized capture.
+      const cm0 = corrCount ? corrSum[0]! / corrCount : 0, cm1 = corrCount ? corrSum[1]! / corrCount : 0, cm2 = corrCount ? corrSum[2]! / corrCount : 0;
+      const cv0 = corrCount > 1 ? Math.max(0, corrSq[0]! / corrCount - cm0 * cm0) / (corrCount - 1) : 0, cv1 = corrCount > 1 ? Math.max(0, corrSq[1]! / corrCount - cm1 * cm1) / (corrCount - 1) : 0,
+        cv2 = corrCount > 1 ? Math.max(0, corrSq[2]! / corrCount - cm2 * cm2) / (corrCount - 1) : 0;
+      if (corrCount) correctedPixels++;
+      const mean0 = s0 / Q + cm0, mean1 = s1 / Q + cm1, mean2 = s2 / Q + cm2, pixels = B[3]!;
+      // The real pixels' output rounding (Δ²/12 in the encoded domain), mapped to linear light at the mean.
+      const q0 = quantizationVariance(mean0, step), q1 = quantizationVariance(mean1, step), q2 = quantizationVariance(mean2, step);
+      // Covariance in linear light: the linear part plus the independent per-pixel residuals and rounding.
+      const v00 = Math.max(0, c00 / Q + pixels * (r0 / Q + q0) - cv0), v01 = c01 / Q, v02 = c02 / Q, v11 = Math.max(0, c11 / Q + pixels * (r1 / Q + q1) - cv1), v12 = c12 / Q,
+        v22 = Math.max(0, c22 / Q + pixels * (r2 / Q + q2) - cv2);
+      const noise = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_NOISE_STREAM_ID));
+      const z0 = sampleDeterministicStandardNormal(noise), z1 = sampleDeterministicStandardNormal(noise), z2 = sampleDeterministicStandardNormal(noise);
+      // Cholesky factor of the 3 × 3 covariance (positive semidefinite; tiny negative pivots are treated as 0).
+      const l00 = Math.sqrt(Math.max(0, v00)), l10 = l00 > 0 ? v01 / l00 : 0, l20 = l00 > 0 ? v02 / l00 : 0;
+      const l11 = Math.sqrt(Math.max(0, v11 - l10 * l10)), l21 = l11 > 0 ? (v12 - l20 * l10) / l11 : 0;
+      const l22 = Math.sqrt(Math.max(0, v22 - l20 * l20 - l21 * l21));
+      const o = (ry * region.width + rx) * 3;
+      const n0 = mean0 + l00 * z0, n1 = mean1 + l10 * z0 + l11 * z1, n2 = mean2 + l20 * z0 + l21 * z1 + l22 * z2;
+      samples[o] = Math.round(encodeSrgbComponent(n0 < 0 ? 0 : n0 > 1 ? 1 : n0) * maximum);
+      samples[o + 1] = Math.round(encodeSrgbComponent(n1 < 0 ? 0 : n1 > 1 ? 1 : n1) * maximum);
+      samples[o + 2] = Math.round(encodeSrgbComponent(n2 < 0 ? 0 : n2 > 1 ? 1 : n2) * maximum);
+      expected[o] = mean0; expected[o + 1] = mean1; expected[o + 2] = mean2;
+      noiseStd[o] = Math.sqrt(Math.max(0, v00)); noiseStd[o + 1] = Math.sqrt(Math.max(0, v11)); noiseStd[o + 2] = Math.sqrt(Math.max(0, v22));
+      if (Date.now() - lastYield >= 8) { await setup.yieldControl(); setup.checkAbort(); lastYield = Date.now(); }
+    }
+  }
+  return { samples, expected, noiseStd, sampleCount, siteCount, detailPixelCount: detail, uniformPixelCount: uniform, ahdCorrectedPixelCount: correctedPixels };
+}
+
+/** Variance in linear light of rounding an sRGB-encoded value to steps of `step`: (dEOTF/de)²·step²/12 at the encoded mean. */
+function quantizationVariance(linear: number, step: number): number {
+  const e = encodeSrgbComponent(linear < 0 ? 0 : linear > 1 ? 1 : linear), slope = e <= 0.04045 ? 1 / 12.92 : 2.4 / 1.055 * ((e + 0.055) / 1.055) ** 1.4;
+  return slope * slope * step * step / 12;
+}
