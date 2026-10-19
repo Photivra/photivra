@@ -730,13 +730,14 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             cm[c] = mean;
             cmAverage[c] = (d === 0 ? 0 : cmAverage[c]!) + mean * share;
           }
-          // Covariance of channels i, j: Σ over shared sites of w_i·w_j·Var(site).
-          for (let i = 0; i < 3; i++) for (let j = i; j < 3; j++) {
-            const si = cs[d]![i]!, wi = cw[d]![i]!, sj = cs[d]![j]!, wj = cw[d]![j]!;
-            let cov = 0;
-            for (let u = 0; u < si.length; u++) { const slot = si[u]!; for (let w = 0; w < sj.length; w++) if (sj[w] === slot) cov += wi[u]! * wj[w]! * siteVar[slot]!; }
-            C[i * 3 + j] = cov; if (i !== j) C[j * 3 + i] = cov;
+          // Covariance of channels i, j: Σ over the sites of w_i·w_j·Var(site), with the kernels as dense weights over the window.
+          const dense = candidateDense[phase]![d]!, list = phaseList[phase]!;
+          let v00 = 0, v01 = 0, v02 = 0, v11 = 0, v12 = 0, v22 = 0;
+          for (let li = 0; li < list.length; li++) {
+            const slot = list[li]!, v = siteVar[slot]!, w0 = dense[slot]!, w1 = dense[slotsCount + slot]!, w2 = dense[2 * slotsCount + slot]!;
+            v00 += w0 * w0 * v; v01 += w0 * w1 * v; v02 += w0 * w2 * v; v11 += w1 * w1 * v; v12 += w1 * w2 * v; v22 += w2 * w2 * v;
           }
+          C[0] = v00; C[1] = v01; C[2] = v02; C[3] = v01; C[4] = v11; C[5] = v12; C[6] = v02; C[7] = v12; C[8] = v22;
           // White balance and the highlight clip at the smallest gain (per channel; covariances scaled by the expected slopes).
           for (let c = 0; c < 3; c++) {
             const mean = cm[c]!, variance = C[c * 4]!;
@@ -793,10 +794,11 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           }
           r0 += x0 / 4; r1 += x1 / 4; r2 += x2 / 4;
         }
-        // AHD at low signal: its homogeneity choice reacts to the noise, which the linear candidates cannot express. On every
-        // `stride`-th sample whose pixel noise exceeds the threshold, a noisy neighbourhood is drawn (exact Poisson electrons
-        // plus read and ADC noise), AHD and the two linear candidates run on that same draw, and the difference of the
-        // rendered results is averaged: a control variate whose expectation is the AHD bias (docs/DISPLAY_VIEW.md).
+        // AHD at low signal: its homogeneity choice reacts to the noise, which the linear candidates cannot express. A sample
+        // whose pixel noise exceeds the threshold adds the correction of a flat neighbourhood with its channel means, from the
+        // shared grid of states (flatCorrection): there AHD and the two linear candidates run on the same drawn neighbourhoods
+        // and the difference of the rendered results is averaged, a control variate whose expectation is the AHD bias
+        // (docs/DISPLAY_VIEW.md).
         if (ahdCorrection && pixelVariance > ahdCorrection.thresholdVariance) {
           const fix = flatCorrection(cmAverage[0]!, cmAverage[1]!, cmAverage[2]!);
           s0 += fix[0]!; s1 += fix[1]!; s2 += fix[2]!; corrected = true;

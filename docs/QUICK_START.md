@@ -941,6 +941,8 @@ Ratios below about 1.1× are within the run-to-run spread (the three default run
 (anti-aliasing spots, pupil rays, PSF taps, temporal samples) multiply the run time by about the same
 factor, and output-side options cost almost nothing.
 
+The cost of `simulateDisplayView` is in [Display view](#display-view).
+
 ### Measuring cost on the user's device
 
 From 2.1 every result says what ran and how long each stage took, so an application can decide on the
@@ -1195,6 +1197,22 @@ resolves them).
 Validated against real full-resolution captures resized in linear light: three sensors (12 MP phone, 24 MP full frame,
 100 MP medium format), five charts, f/2.8–f/16, ISO 100–6400, 96–800 display pixels wide, Speed and Quality options (see
 [Validation results](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#validation-results)).
+
+**Cost.** It follows the detailed display pixels × `samplesPerAxis`², not the real pixel count. Measured against the
+whole-frame view of the same request (Siemens star, f/8, ISO 100, one run, Node 24.21.0 on a 4-vCPU 2.80 GHz Xeon;
+every row in [DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#cost)):
+
+| Sensor | Options | 96 wide | 384 wide | 800 wide |
+| --- | --- | --- | --- | --- |
+| 24 MP full frame, 6 µm | Speed (defaults) | 1.7 s (1.8×) | 9.2 s (0.87×) | 23.3 s (0.61×) |
+| 12 MP phone, 1.4 µm | Speed | 2.2 s (2.2×) | 11.5 s (0.92×) | 30.9 s (0.60×) |
+| 100 MP medium format, 3.76 µm | Speed | 2.2 s (2.3×) | 13.6 s (1.3×) | 29.7 s (0.65×) |
+| 24 MP full frame | Quality (diffraction, four-spot filter, AHD) | 15.7 s (5.0×) | 59.5 s (2.6×) | 144 s (1.5×) |
+| 12 MP phone | Quality | 201 s (77×) | 400 s (16×) | 758 s (6.3×) |
+| 100 MP medium format | Quality | 59.1 s (15×) | 206 s (7.4×) | 404 s (3.5×) |
+
+Quality is dear on small pixels. The diffraction kernel spans several real sites, and at 1.4 µm even ISO 100 is
+noisy enough for the AHD correction to run on every sampled pixel.
 
 **Options.** `view.width` and `view.height` (1 to the capture's output size), `view.samplesPerAxis` (1–32),
 `view.format` (`"srgb-8"` default or `"srgb-16"`) and `view.region` (a rectangle in display pixels, byte-identical to

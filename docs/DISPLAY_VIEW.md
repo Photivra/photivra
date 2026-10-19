@@ -295,7 +295,7 @@ same exposure); display widths 96, 192, 384 and 800; Speed (the engine defaults)
 
 | Metric | Limit | Why |
 | --- | --- | --- |
-| Mean error per channel | ≤ 0.5 code, or ≤ 2 standard errors when noise dominates | Half a code is below the 8-bit rounding of the output itself; a block of n display pixels cannot resolve a difference below about 2σ/√n. |
+| Mean error per channel | ≤ 0.5 code, or ≤ 3 standard errors when noise dominates | Half a code is below the 8-bit rounding of the output itself; a block of n display pixels cannot resolve a difference below a few σ/√n. The matrix makes 465 channel tests: at 2 standard errors about 4.6 % of unbiased tests (up to 21) would fail by chance, at 3 about 0.27 % (about 1). Both counts are reported. |
 | Noise ratio (predicted ÷ reference) | 0.85–1.15 on 16 × 16 blocks, 0.75–1.25 on 8 × 8 | The reference's standard deviation from n pixels has a relative sampling error of 1/√(2(n − 1)): 4.4 % at n = 256, 8.9 % at n = 64; the limits are about 3 such errors. |
 | Expected-value RMS at ISO 100 | ≤ 1 code on edges, ≤ 2 codes in the busiest pixels (star centre) | The Monte Carlo error at K = 16 (σ ≈ 0.006·C per edge); it averages out over any feature larger than a display pixel. |
 | MTF50 difference at ISO 100 | ≤ 3 % | Slanted-edge MTF50 repeatability between noise realizations is about 1–2 %. |
@@ -304,11 +304,127 @@ same exposure); display widths 96, 192, 384 and 800; Speed (the engine defaults)
 
 ## Validation results
 
-(Filled in from `scripts/validate-display-view.mjs`; see below.)
+155 cases on the final code (`node scripts/validate-display-view.mjs`; every row, and the raw lines, in
+[the validation record](validation/display-view-2026-10-19/README.md)). Summary by options, ISO and block type:
+
+| Options | ISO | Blocks | Cases | Largest mean error (codes) | Noise, predicted ÷ reference | MTF50 change | Lowest SSIM (blocks ≥ 16) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Speed | ISO 100 | charts | 41 | 0.24 | — | −2.6 to +0.8 % | 0.9874 |
+| Speed | ISO 100 | uniform patches | 9 | 0.14 | 0.90–1.12 | — | — |
+| Speed | ISO 1600 | charts | 2 | 0.37 | — | +0.9 to +0.9 % | 0.9667 |
+| Speed | ISO 1600 | uniform patches | 1 | 0.28 | 1.00–1.08 | — | — |
+| Speed | ISO 6400 | charts | 9 | 1.14 | — | −9.9 to +4.0 % | 0.8716 |
+| Speed | ISO 6400 | uniform patches | 18 | 3.51 | 0.85–1.14 | — | — |
+| Quality | ISO 100 | charts | 39 | 0.28 | — | −2.4 to +2.9 % | 0.9912 |
+| Quality | ISO 100 | uniform patches | 8 | 0.25 | 0.84–1.12 | — | — |
+| Quality | ISO 1600 | charts | 2 | 0.54 | — | +1.0 to +1.0 % | 0.9634 |
+| Quality | ISO 1600 | uniform patches | 1 | 1.09 | 0.96–1.01 | — | — |
+| Quality | ISO 6400 | charts | 9 | 1.02 | — | −2.5 to +22.2 % | 0.8644 |
+| Quality | ISO 6400 | uniform patches | 16 | 1.72 | 0.84–1.19 | — | — |
+
+Against the limits:
+
+- **Mean error per channel: every channel of every case passes** (|error| ≤ max(0.5 code, 3 standard errors of the
+  noise)). At ISO 100 the largest is 0.28 code (Monte Carlo error at a Siemens star's centre). The largest absolute
+  values are where each display pixel averages a few very noisy pixels: a 1.4 µm sensor at ISO 6400 shown 800 pixels
+  wide, +3.5 ± 1.7 codes in red (2.1 standard errors). Five of the 465 channel tests exceed 2 standard errors (all
+  on the 1.4 µm sensor at ISO 1600–6400, with both signs), fewer than chance alone would give, so the data show no
+  bias at that level.
+- **Expected value at ISO 100:** with the reference's own noise taken out (the predicted noise, which the uniform
+  patches confirm), the estimator's RMS error is at most 0.52 code on edges, bars, dead leaves and grey steps and 1.9
+  codes in the busiest pixels (star centres, many edges per pixel).
+- **Noise:** the predicted standard deviation is 0.85–1.14 of the reference's for Speed and 0.84–1.19 for Quality
+  (8 × 8 blocks at 96 pixels wide have a ±25 % limit). Two Quality values fall just below 0.85: blue on the 24 MP
+  sensor at 384 pixels wide, 0.84 and 0.85. AHD's choice between its candidates correlates neighbouring pixels (it sums
+  homogeneity over 3 × 3), and the view models that choice's variance per pixel only, so Quality blue (and to a lesser
+  degree red) noise is 5–15 % below the resized AHD capture's at mid scales.
+- **Sharpness:** MTF50 of the slanted edge at ISO 100 changes by −2.6 % to +2.9 % (limit 3 %), over three sensors,
+  f/2.8–f/16 and 192–800 pixels wide. At ISO 6400 MTF50 measured on a noisy reference block is dominated by the
+  reference's noise (the change ranges from −10 % to +22 % between two noise realizations of the same blur) and is not
+  a fidelity measure.
+- **SSIM** of structured blocks at ISO 100 is 0.9874 or higher. It misses the 0.99 limit only at star centres
+  (0.987–0.990), where the Monte Carlo error is largest; a larger `view.samplesPerAxis` reduces it (with stratified
+  samples the variance falls at least as 1/K²) at a detail-pixel cost proportional to K² (not measured in this matrix). At high ISO SSIM compares two independent noise realizations.
+- **False colour** of neutral charts agrees within 0.1–0.3 code except at star centres, where per-channel Monte Carlo
+  error adds 0.4–1.4 codes of apparent false colour (for example 9.69 → 10.09 on the 24 MP sensor, Speed).
+- **Aperture:** with the engine defaults (no diffraction) the f-number changes only the exposure, which the matrix
+  compensates with the shutter, so Speed results are the same at f/2.8, f/8 and f/16; with diffraction (Quality) the
+  slanted-edge MTF50 falls from 0.533 to 0.523 cycles per display pixel between f/2.8 and f/16 on the 24 MP sensor,
+  and the view follows within 1.5 %.
+
+What changed during validation (each found by this matrix and checked again on it):
+
+1. Lattice points that fall exactly on a chart boundary resolved to different materials than in the capture, giving
+   errors up to 15 codes along a star's diagonals; the view now uses the capture's own query arithmetic.
+2. AHD at low signal shifted the colour by up to 6.6 codes; the control-variate correction removed it, first with
+   per-pixel draws (whose own noise exceeded the display noise at large scales) and then with the shared grid.
+3. The normal approximation over-stated the clipped noise floor at a few electrons per site; the skewness term fixed it.
+4. Thin edge slivers in a footprint's corner were missed by the pilot (one pixel 10.8 codes off); neighbouring pilots
+   now count.
+5. The clipped noise draw biased very noisy display pixels upward (+3.5 codes); its centre is now adjusted.
 
 ## Cost
 
-(Filled in from the cost measurements below.)
+**Method.** `node scripts/benchmark-display-view.mjs`: one fresh Node process per row, a 16 × 16 warm-up capture,
+then one timed `simulateDisplayView` of the whole view and one timed 2.5 whole-frame view (a `simulateCapture` at
+pitch = sensor width ÷ view width) of the same scene, lens, exposure and options. f/8, ISO 100, default
+`samplesPerAxis` (16). Speed is the engine defaults; Quality is `lens.diffraction: "circular-aperture"`, the four-spot
+anti-aliasing filter and AHD. Built `dist`, Node 24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, nothing else running.
+One run on one machine: not a performance claim.
+
+| Chart | Sensor | Options | View | Display view | Whole-frame view (2.5) | Ratio |
+| --- | --- | --- | --- | --- | --- | --- |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 96 × 64 | 1.7 s | 1.0 s | 1.8× |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 192 × 128 | 4.5 s | 2.6 s | 1.7× |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 384 × 256 | 9.2 s | 10.6 s | 0.87× |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 800 × 533 | 23.3 s | 38.1 s | 0.61× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 96 × 64 | 15.7 s | 3.2 s | 5.0× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 192 × 128 | 27.8 s | 6.4 s | 4.3× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 384 × 256 | 59.5 s | 23.1 s | 2.6× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 800 × 533 | 143.6 s | 97.3 s | 1.5× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 96 × 72 | 2.2 s | 1.0 s | 2.2× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 192 × 144 | 5.3 s | 3.3 s | 1.6× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 384 × 288 | 11.5 s | 12.5 s | 0.92× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 800 × 600 | 30.9 s | 51.2 s | 0.60× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 96 × 72 | 200.6 s | 2.6 s | 77× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 192 × 144 | 265.2 s | 6.6 s | 40× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 384 × 288 | 400.4 s | 25.8 s | 16× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 800 × 600 | 758.0 s | 119.8 s | 6.3× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 96 × 72 | 2.2 s | 1.0 s | 2.3× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 192 × 144 | 6.4 s | 3.1 s | 2.1× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 384 × 288 | 13.6 s | 10.9 s | 1.3× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 800 × 600 | 29.7 s | 45.9 s | 0.65× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 96 × 72 | 59.1 s | 4.0 s | 15× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 192 × 144 | 127.1 s | 8.0 s | 16× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 384 × 288 | 205.6 s | 27.8 s | 7.4× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 800 × 600 | 404.3 s | 116.1 s | 3.5× |
+| Dead leaves | 24 MP full frame | Speed | 384 × 256 | 17.7 s | 11.3 s | 1.6× |
+| Dead leaves | 24 MP full frame | Quality | 384 × 256 | 93.9 s | 25.0 s | 3.8× |
+| Dead leaves | 12 MP phone | Speed | 384 × 288 | 19.2 s | 12.0 s | 1.6× |
+| Dead leaves | 12 MP phone | Quality | 384 × 288 | 423.0 s | 28.6 s | 15× |
+| Dead leaves | 100 MP medium format | Speed | 384 × 288 | 28.6 s | 12.0 s | 2.4× |
+| Dead leaves | 100 MP medium format | Quality | 384 × 288 | 284.2 s | 28.5 s | 10× |
+
+**Speed** costs 0.6–2.4× the whole-frame view at every size and sensor: 0.87–1.3× for the star and 1.6–2.4× for dead
+leaves at 384 pixels wide. The cost follows the detailed display pixels × K², not the 12–100 million real pixels.
+
+**Quality** is much dearer on small pixels, for two reasons that the accuracy requirements impose (one run each, 12 MP
+phone star at 96 × 72, one option at a time: diffraction 50 s, anti-aliasing 3.7 s, AHD 316 s):
+
+- *Diffraction at the real pitch.* The Airy pattern's first dark ring at f/8 and 550 nm has a radius of
+  1.22·λ·N ≈ 5.4 µm: under one site at 6 µm but almost four at 1.4 µm, so every site's expectation sums many more
+  kernel taps. At the whole-frame view's giant pitch the kernel is far below one pixel.
+- *AHD at low signal.* At ISO 100 a 1.4 µm pixel already has a linear noise of 0.014–0.018, above the 0.01 threshold,
+  so every sampled pixel takes the correction. Each grid state the image touches costs 2048 drawn neighbourhoods
+  through the AHD steps, about 0.11 s. The star touches 2 779 states (the eight corners around every pixel's channel
+  means on the logarithmic grid). With the correction off, a uniform 18 %
+  grey at ISO 100 on that sensor moves by −0.11 code in red (+0.05 in blue); at ISO 1600 by −1.07 code. Those are the
+  biases the correction removes.
+
+The whole-frame view has neither cost because its giant pixels make one tap and almost no noise per pixel. Both can
+be made cheaper without approximation: correction states can be shared across calls with the same sensor and
+development, and the per-pixel lattice convolution can use a separable or transform method. Neither is in this
+change.
 
 ## Limits and refusals
 

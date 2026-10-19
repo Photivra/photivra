@@ -116,7 +116,9 @@ async function runCase(c) {
     block: b, s: sx, tView, tRef, refSites: (rx1 - rx0) * (ry1 - ry0), viewSamples: result.diagnostics.sampleCount };
   const mlin = (a, k) => mean(channel(a, k));
   out.meanErrLin8 = [0, 1, 2].map((k) => code8(mlin(viewLin, k)) - code8(mlin(refLin, k)));
-  out.se8 = [0, 1, 2].map((k) => { const m = mlin(refLin, k), se = Math.sqrt((std(channel(refLin, k)) ** 2 + std(channel(viewLin, k)) ** 2) / n); return code8(m + se) - code8(m); });
+  // Standard error of the mean difference from the noise alone (the view's predicted standard deviation for both blocks; the
+  // blocks' own spread would include the chart's structure).
+  out.se8 = [0, 1, 2].map((k) => { const m = mlin(refLin, k), se = Math.sqrt(2 * mean(channel(internals.noiseStd, k).map((v) => v * v)) / n); return code8(m + se) - code8(m); });
   let sq = 0, mx = 0;
   for (let i = 0; i < 3 * n; i++) { const d = exp8[i] - ref8[i]; sq += d * d; mx = Math.max(mx, Math.abs(d)); }
   out.rmsExp8 = Math.sqrt(sq / (3 * n)); out.maxExp8 = mx;
