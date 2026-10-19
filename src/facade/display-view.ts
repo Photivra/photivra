@@ -35,9 +35,10 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, fmix32, sampleDeterministicStandardNormal } from "../sensor/stochastic-seed.js";
-import { encodeSrgbComponent } from "../color/srgb-transfer.js";
+import { createDeterministicUniformStream, createPortableStandardNormalPairs, deriveNativeSiteStreamSeedUint32, fmix32, samplePortableStandardNormal } from "../sensor/stochastic-seed.js";
+import { encodeSrgbComponentPortable } from "../color/srgb-transfer.js";
 import { createPoissonSampler } from "../sensor/raw-readout.js";
+import { portableCbrt, portableCosTwoPi, portableExp, portableExp2, portableLog2, portablePow } from "../core/portable-math.js";
 
 /** Stream IDs of the display view's two seeded streams, distinct from the native charge (0) and read-noise (1) streams. */
 export const DISPLAY_VIEW_JITTER_STREAM_ID = 32 as const;
@@ -447,7 +448,8 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
         if (windowMaterial.length < sw * sh) windowMaterial = new Int32Array(sw * sh);
         // A ring of at least twice the window's rows keeps the rows of the previous display row's windows.
         if (ringRows < 2 * sh) {
-          const rows = 2 ** Math.ceil(Math.log2(2 * sh));
+          let rows = 1;
+          while (rows < 2 * sh) rows *= 2;
           if (rows * W <= CACHE_LIMIT) { ringRows = rows; ring = new Float64Array(rows * W).fill(NaN); ringMaterial = new Int32Array(rows * W); ringRowId = new Int32Array(rows).fill(-1); }
         }
         ringOn = ringRows >= 2 * sh;
@@ -476,7 +478,7 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
 // Normal-distribution helpers.
 
 /** Standard normal density. */
-function phi(z: number): number { return 0.3989422804014327 * Math.exp(-0.5 * z * z); }
+function phi(z: number): number { return 0.3989422804014327 * portableExp(-0.5 * z * z); }
 /**
  * Standard normal distribution function, Φ(z) = 1 − Q(z), with Q from the rational approximation 26.2.17 of
  * Abramowitz & Stegun, Handbook of Mathematical Functions (NBS AMS 55, 1964; free, US government work):
@@ -523,11 +525,11 @@ export function unitClip(m: number, v: number, out: Float64Array, skewness = 0):
   const second = (m * m + v) * inside + 2 * m * s * (da - db) + v * (aa - bb) + (1 - Pb);
   out[0] = mean; out[1] = Math.max(0, second - mean * mean); out[2] = inside;
 }
-/** Gauss–Legendre nodes and weights on [−1, 1], 16 points (computed once by Newton iteration on P_16). */
+/** Gauss–Legendre nodes and weights on [−1, 1], 16 points (computed once by Newton iteration on P_16 from cos(π(i + ¾)/(n + ½))). */
 const GL = ((): { x: Float64Array; w: Float64Array } => {
   const n = 16, x = new Float64Array(n), w = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    let z = Math.cos(Math.PI * (i + 0.75) / (n + 0.5)), dp = 0;
+    let z = portableCosTwoPi((i + 0.75) / (2 * n + 1)), dp = 0;
     for (let it = 0; it < 100; it++) {
       let p0 = 1, p1 = z;
       for (let k = 2; k <= n; k++) { const p2 = ((2 * k - 1) * z * p1 - (k - 1) * p0) / k; p0 = p1; p1 = p2; }
@@ -726,10 +728,14 @@ const AHD_READ = Uint8Array.from({ length: AHD_SIDE * AHD_SIDE }, (_, p) => {
   const dx = (p % AHD_SIDE) - AHD_REACH, dy = Math.floor(p / AHD_SIDE) - AHD_REACH;
   return Math.abs(dx) <= 3 || Math.abs(dy) <= 3 ? 1 : 0;
 });
+/** x², as one correctly rounded product (`**` is implementation-approximated in ECMA-262). */
+function square(x: number): number { return x * x; }
 /** CIELAB's f(t) constants (CIE 15:2004): linear below (6/29)³ with slope (29/3)³/116. */
 const LAB_EPSILON = 216 / 24389, LAB_KAPPA = 24389 / 27;
 /** A 32-bit hash of a correction key (MurmurHash3 finalizer of the three quantized means). */
 function fmixKey(a: number, b: number, c: number): number { return fmix32((Math.imul(a + 1, 0x9e3779b1) ^ Math.imul(b + 1, 0x85ebca77) ^ Math.imul(c + 1, 0xc2b2ae3d)) >>> 0); }
+/** Lowest grid level, 2^-AHD_KEY_OCTAVES of white (exact). */
+const AHD_KEY_FLOOR = 1 / 4096;
 /** Grid levels per channel (indices 0 to AHD_KEY_OCTAVES·AHD_KEY_STEPS). */
 const AHD_KEY_LEVELS = AHD_KEY_OCTAVES * AHD_KEY_STEPS + 1;
 /** Correction states kept per setup, and setups kept (least recently used first out); about 50 bytes per state. */
@@ -820,20 +826,16 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   function gridCorrection(i0: number, i1: number, i2: number): number {
     const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = states.index.get(key);
     if (cached !== undefined) return 3 * cached;
-    const electrons = [i0, i1, i2].map((i, c) => 2 ** (i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
+    const electrons = [i0, i1, i2].map((i, c) => portableExp2(i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
     const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
-    const sum = new Float64Array(3), draws = ahdCorrection!.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e));
+    const sum = new Float64Array(3), draws = ahdCorrection!.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e, true));
+    const normal = createPortableStandardNormalPairs(random);
     for (let draw = 0; draw < draws; draw++) {
       const phase = draw & 3, roles = AHD_ROLES[phase]!;
       for (let p = 0; p < AHD_SIDE * AHD_SIDE; p++) {
-        const c = roles[p]!;
-        if (AHD_READ[p] === 0) {
-          // A site the AHD steps never read: its draws only advance the stream, by the uniforms the Poisson draw takes (a
-          // variable number) and the normal's two.
-          poisson[c]!(random); random.next(); random.next();
-          continue;
-        }
-        const value = k[c]! * poisson[c]!(random) + readStd[c]! * sampleDeterministicStandardNormal(random);
+        // The 16 sites the AHD steps never read are not drawn.
+        if (AHD_READ[p] === 0) continue;
+        const c = roles[p]!, value = k[c]! * poisson[c]!(random) + readStd[c]! * normal();
         patch[p] = value < 1 ? value : 1;
       }
       ahdDifference(phase, correction);
@@ -850,7 +852,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const gridBase = new Float64Array(3), gridFrac = new Float64Array(3);
   function flatCorrection(m0: number, m1: number, m2: number): Float64Array {
     for (let i = 0; i < 3; i++) {
-      const m = i === 0 ? m0 : i === 1 ? m1 : m2, g = (Math.log2(Math.min(1, Math.max(2 ** -AHD_KEY_OCTAVES, m))) + AHD_KEY_OCTAVES) * AHD_KEY_STEPS;
+      const m = i === 0 ? m0 : i === 1 ? m1 : m2, g = (portableLog2(Math.min(1, Math.max(AHD_KEY_FLOOR, m))) + AHD_KEY_OCTAVES) * AHD_KEY_STEPS;
       const base = Math.min(Math.floor(g), AHD_KEY_OCTAVES * AHD_KEY_STEPS - 1);
       gridBase[i] = base; gridFrac[i] = g - base;
     }
@@ -881,7 +883,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   /**
    * h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (createAhdDemosaicTask's steps, centre pixel only). The
    * patch and the greens are read by flat index (patch (dy + 5)·11 + dx + 5, greens (dy + 3)·7 + dx + 3); every value is formed
-   * with the same operations in the same order as the steps themselves, so the result is bit-identical to them.
+   * with the same operations in the same order as the steps themselves, except that CIELAB's cube root is `portableCbrt`
+   * (within 1 ulp of Math.cbrt) and squares are products, so the result has the same bits in every JavaScript engine.
    */
   function ahdDifference(phase: number, out: Float64Array): void {
     const roles = AHD_ROLES[phase]!;
@@ -910,9 +913,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         }
         const R = o[3 * i]!, G = o[3 * i + 1]!, Bc = o[3 * i + 2]!;
         let tx = (l00 * R + l01 * G + l02 * Bc) / lw0, ty = (l10 * R + l11 * G + l12 * Bc) / lw1, tz = (l20 * R + l21 * G + l22 * Bc) / lw2;
-        tx = tx > LAB_EPSILON ? Math.cbrt(tx) : (LAB_KAPPA * tx + 16) / 116;
-        ty = ty > LAB_EPSILON ? Math.cbrt(ty) : (LAB_KAPPA * ty + 16) / 116;
-        tz = tz > LAB_EPSILON ? Math.cbrt(tz) : (LAB_KAPPA * tz + 16) / 116;
+        tx = tx > LAB_EPSILON ? portableCbrt(tx) : (LAB_KAPPA * tx + 16) / 116;
+        ty = ty > LAB_EPSILON ? portableCbrt(ty) : (LAB_KAPPA * ty + 16) / 116;
+        tz = tz > LAB_EPSILON ? portableCbrt(tz) : (LAB_KAPPA * tz + 16) / 116;
         ol[3 * i] = 116 * ty - 16; ol[3 * i + 1] = 500 * (tx - ty); ol[3 * i + 2] = 200 * (ty - tz);
       }
     }
@@ -924,10 +927,10 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       const i = 3 * ((dy + 2) * 5 + dx + 2), j0 = i - 3, j1 = i + 3, j2 = i - 15, j3 = i + 15;
       const hL0 = Math.abs(h[i]! - h[j0]!), hL1 = Math.abs(h[i]! - h[j1]!), hL2 = Math.abs(h[i]! - h[j2]!), hL3 = Math.abs(h[i]! - h[j3]!);
       const vL0 = Math.abs(v[i]! - v[j0]!), vL1 = Math.abs(v[i]! - v[j1]!), vL2 = Math.abs(v[i]! - v[j2]!), vL3 = Math.abs(v[i]! - v[j3]!);
-      const hC0 = (h[i + 1]! - h[j0 + 1]!) ** 2 + (h[i + 2]! - h[j0 + 2]!) ** 2, hC1 = (h[i + 1]! - h[j1 + 1]!) ** 2 + (h[i + 2]! - h[j1 + 2]!) ** 2;
-      const hC2 = (h[i + 1]! - h[j2 + 1]!) ** 2 + (h[i + 2]! - h[j2 + 2]!) ** 2, hC3 = (h[i + 1]! - h[j3 + 1]!) ** 2 + (h[i + 2]! - h[j3 + 2]!) ** 2;
-      const vC0 = (v[i + 1]! - v[j0 + 1]!) ** 2 + (v[i + 2]! - v[j0 + 2]!) ** 2, vC1 = (v[i + 1]! - v[j1 + 1]!) ** 2 + (v[i + 2]! - v[j1 + 2]!) ** 2;
-      const vC2 = (v[i + 1]! - v[j2 + 1]!) ** 2 + (v[i + 2]! - v[j2 + 2]!) ** 2, vC3 = (v[i + 1]! - v[j3 + 1]!) ** 2 + (v[i + 2]! - v[j3 + 2]!) ** 2;
+      const hC0 = square(h[i + 1]! - h[j0 + 1]!) + square(h[i + 2]! - h[j0 + 2]!), hC1 = square(h[i + 1]! - h[j1 + 1]!) + square(h[i + 2]! - h[j1 + 2]!);
+      const hC2 = square(h[i + 1]! - h[j2 + 1]!) + square(h[i + 2]! - h[j2 + 2]!), hC3 = square(h[i + 1]! - h[j3 + 1]!) + square(h[i + 2]! - h[j3 + 2]!);
+      const vC0 = square(v[i + 1]! - v[j0 + 1]!) + square(v[i + 2]! - v[j0 + 2]!), vC1 = square(v[i + 1]! - v[j1 + 1]!) + square(v[i + 2]! - v[j1 + 2]!);
+      const vC2 = square(v[i + 1]! - v[j2 + 1]!) + square(v[i + 2]! - v[j2 + 2]!), vC3 = square(v[i + 1]! - v[j3 + 1]!) + square(v[i + 2]! - v[j3 + 2]!);
       const epsL = Math.min(Math.max(hL0, hL1), Math.max(vL2, vL3)), epsC = Math.min(Math.max(hC0, hC1), Math.max(vC2, vC3));
       sh += (hL0 <= epsL && hC0 <= epsC ? 1 : 0) + (hL1 <= epsL && hC1 <= epsC ? 1 : 0) + (hL2 <= epsL && hC2 <= epsC ? 1 : 0) + (hL3 <= epsL && hC3 <= epsC ? 1 : 0);
       sv += (vL0 <= epsL && vC0 <= epsC ? 1 : 0) + (vL1 <= epsL && vC1 <= epsC ? 1 : 0) + (vL2 <= epsL && vC2 <= epsC ? 1 : 0) + (vL3 <= epsL && vC3 <= epsC ? 1 : 0);
@@ -1147,7 +1150,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       // Covariance in linear light: the linear part plus the independent per-pixel residuals and rounding.
       const v00 = c00 / Q + pixels * (r0 / Q + q0), v01 = c01 / Q, v02 = c02 / Q, v11 = c11 / Q + pixels * (r1 / Q + q1), v12 = c12 / Q, v22 = c22 / Q + pixels * (r2 / Q + q2);
       const noise = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_NOISE_STREAM_ID));
-      const z0 = sampleDeterministicStandardNormal(noise), z1 = sampleDeterministicStandardNormal(noise), z2 = sampleDeterministicStandardNormal(noise);
+      const z0 = samplePortableStandardNormal(noise), z1 = samplePortableStandardNormal(noise), z2 = samplePortableStandardNormal(noise);
       // Cholesky factor of the 3 × 3 covariance (positive semidefinite; tiny negative pivots are treated as 0).
       const l00 = Math.sqrt(Math.max(0, v00)), l10 = l00 > 0 ? v01 / l00 : 0, l20 = l00 > 0 ? v02 / l00 : 0;
       const l11 = Math.sqrt(Math.max(0, v11 - l10 * l10)), l21 = l11 > 0 ? (v12 - l20 * l10) / l11 : 0;
@@ -1156,9 +1159,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       // The drawn value is clipped to [0, 1] like any light level; where the noise reaches a bound, the normal's centre is
       // moved so that the clipped draw keeps the expected value (the mean of real pixels in [0, 1] is in [0, 1] already).
       const n0 = clipCentre(mean0, v00) + l00 * z0, n1 = clipCentre(mean1, v11) + l10 * z0 + l11 * z1, n2 = clipCentre(mean2, v22) + l20 * z0 + l21 * z1 + l22 * z2;
-      samples[o] = Math.round(encodeSrgbComponent(n0 < 0 ? 0 : n0 > 1 ? 1 : n0) * maximum);
-      samples[o + 1] = Math.round(encodeSrgbComponent(n1 < 0 ? 0 : n1 > 1 ? 1 : n1) * maximum);
-      samples[o + 2] = Math.round(encodeSrgbComponent(n2 < 0 ? 0 : n2 > 1 ? 1 : n2) * maximum);
+      samples[o] = Math.round(encodeSrgbComponentPortable(n0 < 0 ? 0 : n0 > 1 ? 1 : n0) * maximum);
+      samples[o + 1] = Math.round(encodeSrgbComponentPortable(n1 < 0 ? 0 : n1 > 1 ? 1 : n1) * maximum);
+      samples[o + 2] = Math.round(encodeSrgbComponentPortable(n2 < 0 ? 0 : n2 > 1 ? 1 : n2) * maximum);
       expected[o] = mean0; expected[o + 1] = mean1; expected[o + 2] = mean2;
       noiseStd[o] = Math.sqrt(Math.max(0, v00)); noiseStd[o + 1] = Math.sqrt(Math.max(0, v11)); noiseStd[o + 2] = Math.sqrt(Math.max(0, v22));
       if (Date.now() - lastYield >= 8) { await setup.yieldControl(); setup.checkAbort(); lastYield = Date.now(); }
@@ -1182,6 +1185,6 @@ function clipCentre(target: number, v: number): number {
 }
 /** Variance in linear light of rounding an sRGB-encoded value to steps of `step`: (dEOTF/de)²·step²/12 at the encoded mean. */
 function quantizationVariance(linear: number, step: number): number {
-  const e = encodeSrgbComponent(linear < 0 ? 0 : linear > 1 ? 1 : linear), slope = e <= 0.04045 ? 1 / 12.92 : 2.4 / 1.055 * ((e + 0.055) / 1.055) ** 1.4;
+  const e = encodeSrgbComponentPortable(linear < 0 ? 0 : linear > 1 ? 1 : linear), slope = e <= 0.04045 ? 1 / 12.92 : 2.4 / 1.055 * portablePow((e + 0.055) / 1.055, 1.4);
   return slope * slope * step * step / 12;
 }

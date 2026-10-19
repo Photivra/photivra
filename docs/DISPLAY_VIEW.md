@@ -442,6 +442,16 @@ instead of 63.0 s; a different scene needs mostly different states (dead leaves 
 
 The whole-frame view has neither cost because its giant pixels make one tap and almost no noise per pixel.
 
+**Cost of the portable functions** ([Same bytes in every engine](#same-bytes-in-every-engine)). They take more
+operations than the engines' native `Math` (on this host about 39 ns per logarithm against 12 ns, 38 ns per cube
+root against 10 ns), which matters where the display view calls them most: the AHD correction states (a normal draw,
+some Poisson rejection tests and 126 CIELAB cube roots per drawn neighbourhood). Two changes made with the move recover
+part of it: the states use both values of each Box–Muller pair and no longer draw for the 16 sites AHD never reads.
+Same benchmark, main before the change and this build, one run each on the same host (the unchanged whole-frame view
+varied by up to 26 % between the two runs of a row): Speed, Siemens star at 384 wide, 9.5 → 10.6 s (full frame) and
+12.3 → 13.2 s (phone); Quality, full frame star 27.0 → 28.2 s, phone star 47.5 → 60.2 s at 96 wide and 97.2 →
+114.6 s at 384 wide, phone dead leaves 117.0 → 122.0 s at 384 wide. The table above is from before the change.
+
 ### Exact speed-ups
 
 Quality was made cheaper without changing a byte of any display view: the samples, the expected values, the noise and
@@ -456,7 +466,8 @@ same values with the same operations in the same order; none reassociates a floa
   are computed once per state, the xorshift stream keeps its state in a `Uint32Array` (a uint32 in a closure variable
   was boxed on every step; this speeds every seeded draw in the engine), the AHD steps run on flat arrays without
   temporary objects and skip the four corner candidates their homogeneity step never reads, and the 16 patch sites the
-  steps never read skip the normal transform (their uniforms are still drawn, so the stream is where it was).
+  steps never read skip the normal transform (their uniforms were still drawn, so the stream was where it was; since the
+  move to the portable functions below, those sites are not drawn at all and the normals come in Box–Muller pairs).
 - **Diffraction sums are shared, not rearranged.** A site's expected electrons are a sum of kernel taps in a fixed
   order; a separable, summed-area or transform evaluation would reassociate it and change the last bits, so the sum
   itself is kept. With chart materials (every preset): each lattice point is looked up once per display row (a band
@@ -477,11 +488,52 @@ the expected values and noise, and of the whole result with the timings removed)
 reusing the earlier cases' correction states in the same process. A test locks six more requests that exercise each
 path (uniform and mixed diffraction sites, the AHD correction, spectral materials with mirror borders, a radiance
 scene, AHD with a tone curve, Speed) to hashes recorded before the change, and another checks that shared states give
-the same bytes as fresh ones. The display view's bytes depend on the runtime's `Math.pow`: Node 22 (V8 12) and Node 24
-(V8 13) differ by one ulp in about 10 % of x^(1/2.4) values, so four of those six requests already gave different bytes
-on the two before the change; the test records both sets from the code before the change and holds each runtime to its
-own (byte identity before and after was also checked on Node 22.13.0). The capture hash locks and the facade fingerprints of 15 default-path results are
-unchanged.
+the same bytes as fresh ones (at that time the display view still used `Math.pow`, whose last bit differs between
+Node 22 and Node 24, so the test held each runtime to its own recording; byte identity before and after was checked on
+both). The capture hash locks and the facade fingerprints of 15 default-path results are unchanged. The display view
+has since moved to the engine's portable functions (next section), which changed its last bits once; the six requests
+are now locked to one set of hashes for every runtime.
+
+## Same bytes in every engine
+
+ECMAScript defines `+`, `−`, `×`, `÷` and `Math.sqrt` as correctly rounded binary64 operations, but leaves `Math.pow`
+(and `**`), `Math.exp`, `Math.log`, `Math.cbrt`, `Math.cos` and the other transcendental functions
+"implementation-approximated" (ECMA-262, `Number::exponentiate` and §21.3.2, "Function Properties of the Math Object"). They do differ: measured on
+200 000 arguments each, Node 22 (V8 12) and Node 24 (V8 13) differ in the last bit of `x ** (1/2.4)`, `x ** 2.4`,
+`x ** 1.4` and integer powers such as `λ ** 5` (V8 13 rounds `x ** 5` correctly in 99.9 % of cases, V8 12 in 90 %), but
+agree on `exp`, `log`, `cbrt`, `sin` and `cos`; Chromium 141 also differs from Node in `sin` and `cos`, and Chromium 153
+and Bun 1.4 (JavaScriptCore) in nearly all of them.
+
+So the display view's own arithmetic uses only correctly rounded operations and the engine's portable functions
+(`src/core/portable-math.ts`): logarithm, exponential, power, cube root, e^x − 1 and cos/sin of 2πu, each a fixed
+sequence of `+ − × ÷`, exact power-of-two scaling and integer operations, within 1 ulp (2 ulps for e^x − 1, cos and
+sin) of the exact function. Methods: double-double arithmetic (Dekker 1971; Knuth, TAOCP vol. 2, §4.2.2), log via
+2·atanh((m − 1)/(m + 1)) and 2^r by its Taylor series after additive range reduction (J.-M. Muller, *Elementary
+Functions*, 3rd ed., 2016, ch. 11); the bounds were checked against 60-digit decimal references. They replace:
+
+- the sRGB encoding of the drawn value and the slope of its quantization variance (x^(1/2.4), x^1.4);
+- the normal density in the clip moments (exp), the Gauss–Legendre starting points (cos), CIELAB's cube root in the AHD
+  correction, the correction grid (2^x, log2) and squares (`**2` becomes a product);
+- the Box–Muller normal draws (log, cos and sin; the correction states use both values of each pair and no longer draw
+  for the 16 sites AHD never reads) and the Poisson draws of the AHD correction states (exp, log, ln n!);
+- the scene illuminant: the engine's own formulas (Planck's law, CIE illuminant A, the daylight-locus polynomial) are
+  evaluated with the portable power and e^x − 1, and the view's irradiance scale, radiances and scene-illuminant white
+  balance are computed from that evaluation; a Kelvin white balance takes its white point from the Planckian locus
+  evaluated the same way; a step wedge's equal-density levels use the portable power. These differ from the
+  capture's own values by at most a few ulps.
+
+Captures keep `Math` and `**`: their bytes are a 2.x guarantee. The display view therefore still takes some inputs
+from the capture's code: the sensor's spectral response, the CIE 1931 colour-matching fit (`Math.exp`), the diffraction
+kernels (`Math.sin`, `Math.cos` and others), the chart geometry (`Math.atan2` and others), the capture's query
+arithmetic (`Math.hypot`) and an automatic exposure. Their bits are the same on every Node.js version tested, so the
+display view is byte-identical across them: the six hash-locked requests give one set of hashes on Node 22.13.0,
+22.22.0, 24.21.0 and 26.12.0, and so did 156 other requests on Node 22.13.0, 24.21.0 and 26.12.0 (three sensors, Speed
+and Quality, six charts, four f-number and ISO pairs; plus CIE A, a 3200 K blackbody, a daylight basis, Kelvin, fixed
+and no white balance, the tone curve, mirror borders, a 21-step equal-density wedge, a composite chart, and
+aperture-priority and program exposure). In browsers whose `Math` differs (Chromium 141 with diffraction, Chromium 153,
+Bun/JavaScriptCore) those inputs, and with them the expected values and noise, differ in the last bits; the samples of
+the six requests were identical there too. The capture's own floating-point results differ in the same browsers (for
+example its diffraction kernels), while its samples were identical in every case tested.
 
 ## Limits and refusals
 

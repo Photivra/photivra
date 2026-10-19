@@ -47,7 +47,7 @@ import { resolveManualExposureMode, resolveAperturePriorityExposureMode, resolve
 import { parseExposureProgramLineProfile, type ExposureProgramLineProfile } from "../exposure/program-line.js";
 import { resolveCaptureGeometry } from "../output/capture-geometry.js";
 import { estimateCie1931ColorMatchingFunctions, type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
-import { createColorTemperatureWhiteBalanceIntent, resolveColorTemperatureWhiteBalance, resolveCustomWhiteBalance,
+import { createColorTemperatureWhiteBalanceIntent, resolveColorTemperatureWhiteBalance, resolvePortableColorTemperatureWhiteBalance, resolveCustomWhiteBalance,
   resolveManualWhiteBalance, estimateAutoWhiteBalance, type ResolvedWhiteBalanceState } from "../color/white-balance.js";
 import { createCaptureWhiteBalanceIntent, type CaptureWhiteBalanceIntent } from "../capture/simulated-capture.js";
 import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "../capture/sensor-raw-producer.js";
@@ -99,8 +99,8 @@ import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../col
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
 import { parseSensorReadoutConversionProfile, resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
-import { resolveChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
-import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
+import { resolveChartScene, resolvePortableChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
+import { resolveCaptureIlluminant, resolvePortableCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   resolveChartSizeOption, type ChartSizeOption,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
   type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
@@ -650,6 +650,12 @@ function luminanceOf(radiance: (nm: number) => number): number {
     sum += w * radiance(nm) * estimateCie1931ColorMatchingFunctions(nm).y;
   }
   return PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W * sum;
+}
+/** The white balance measured from a perfect white diffuser under the scene illuminant ("scene-illuminant"). */
+function sceneIlluminantWhiteBalance(illuminant: ResolvedCaptureIlluminant): ResolvedWhiteBalanceState {
+  const xyz = illuminantXyz(illuminant), camera = XYZ_TO_CAMERA.map((row) => row[0] * xyz[0] + row[1] * xyz[1] + row[2] * xyz[2]);
+  return resolveCustomWhiteBalance({ stateId: "facade-wb-scene-illuminant", sampleSet: { imageStateId: "facade-white-diffuser",
+    inputDomain: "relative-pre-wb-camera-linear-rgb", samples: [{ sampleId: "white", red: camera[0]!, green: camera[1]!, blue: camera[2]!, weight: 1, clipped: false }] } });
 }
 function illuminantXyz(illuminant: ResolvedCaptureIlluminant): [number, number, number] {
   let x = 0, y = 0, z = 0;
@@ -1284,10 +1290,11 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
   if (callerScene) assume("scene.digest", "model", "caller-function-not-hashed", "The source digest covers the caller's sceneId and the framing, not the body of the caller's evaluate function.");
   const sourceSha256 = await sha256Hex(JSON.stringify(sceneDescription, (_key, value: unknown) => (typeof value === "object" && value !== null && "evaluate" in value ? "caller-spectrum" : value)));
   checkAbort();
-  const provider: PlanarSceneRadianceProvider = buildPlanarSceneRadianceProvider({ scene: chart ?? callerScene!, sceneId: IDS.scene, providerProfileId: IDS.provider,
-    illuminant, irradianceScale, geometry: { distanceM: subjectDistanceM, metresPerFrameUnit,
+  const buildProvider = (sceneIlluminant: ResolvedCaptureIlluminant, scale: number): PlanarSceneRadianceProvider => buildPlanarSceneRadianceProvider({ scene: chart ?? callerScene!,
+    sceneId: IDS.scene, providerProfileId: IDS.provider, illuminant: sceneIlluminant, irradianceScale: scale, geometry: { distanceM: subjectDistanceM, metresPerFrameUnit,
       ...(chartSize ? { chart: { widthM: chartSize.widthM, heightM: chartSize.heightM, surroundReflectance: chartSize.surroundReflectance } } : {}) }, evidence: FACADE_EVIDENCE,
     limitations: Object.freeze(["Planar Lambertian scene under uniform illumination; no shadows, inter-reflection, gloss or fluorescence."]) });
+  const provider = buildProvider(illuminant, irradianceScale);
   // 2.6: a chart preset's evaluator is engine-built end to end (its results: the schema's exact keys, constant fields,
   // the request's identifiers, deep-frozen FACADE_EVIDENCE, UNCERTAINTY and limitations, and an engine-computed
   // radiance), so the native task may skip re-parsing the fixed parts. Caller scenes keep the full validation.
@@ -1452,22 +1459,21 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
   else assume("lens.projection", "model", projection, "Ideal " + projection + " projection through the environment lens field mapping. At finite focus its scale is the thin-lens image distance (an approximation); the chart is still sized with the rectilinear thin-lens scale, so its edges move with the projection.");
 
   // White balance
-  let whiteBalanceState: ResolvedWhiteBalanceState | null = null, needsAuto = false;
+  let whiteBalanceState: ResolvedWhiteBalanceState | null = null, needsAuto = false, portableKelvinWhiteBalance: (() => ResolvedWhiteBalanceState) | undefined;
   if (whiteBalanceOption === "none") whiteBalanceState = null;
   else if (whiteBalanceOption === "auto") {
     if (region) fail("output.region cannot be combined with output.whiteBalance \"auto\": grey-world statistics of a region differ from the whole frame's.");
     needsAuto = true;
   }
-  else if (whiteBalanceOption === "scene-illuminant") {
-    const xyz = illuminantXyz(illuminant), camera = XYZ_TO_CAMERA.map((row) => row[0] * xyz[0] + row[1] * xyz[1] + row[2] * xyz[2]);
-    whiteBalanceState = resolveCustomWhiteBalance({ stateId: "facade-wb-scene-illuminant", sampleSet: { imageStateId: "facade-white-diffuser",
-      inputDomain: "relative-pre-wb-camera-linear-rgb", samples: [{ sampleId: "white", red: camera[0]!, green: camera[1]!, blue: camera[2]!, weight: 1, clipped: false }] } });
-  } else if (typeof whiteBalanceOption === "object" && whiteBalanceOption !== null && "kelvin" in whiteBalanceOption) {
+  else if (whiteBalanceOption === "scene-illuminant") whiteBalanceState = sceneIlluminantWhiteBalance(illuminant);
+  else if (typeof whiteBalanceOption === "object" && whiteBalanceOption !== null && "kelvin" in whiteBalanceOption) {
     const wb = allowKeys(whiteBalanceOption, "output.whiteBalance", ["kelvin", "tint"]);
     const intent = createColorTemperatureWhiteBalanceIntent({ intentId: "facade-wb-cct", colorTemperatureKelvin: positive(wb.kelvin, "output.whiteBalance.kelvin"),
       tint: wb.tint === undefined ? 0 : wb.tint as number });
-    whiteBalanceState = resolveColorTemperatureWhiteBalance({ stateId: "facade-wb-cct", intent, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv",
-      camera: { profileId: IDS.spectral, profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, xyzToCameraRgb: XYZ_TO_CAMERA.map((r) => [...r]) as unknown as Parameters<typeof resolveColorTemperatureWhiteBalance>[0]["camera"]["xyzToCameraRgb"] } });
+    const kelvinInput: Parameters<typeof resolveColorTemperatureWhiteBalance>[0] = { stateId: "facade-wb-cct", intent, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv",
+      camera: { profileId: IDS.spectral, profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, xyzToCameraRgb: XYZ_TO_CAMERA.map((r) => [...r]) as unknown as Parameters<typeof resolveColorTemperatureWhiteBalance>[0]["camera"]["xyzToCameraRgb"] } };
+    whiteBalanceState = resolveColorTemperatureWhiteBalance(kelvinInput);
+    portableKelvinWhiteBalance = (): ResolvedWhiteBalanceState => resolvePortableColorTemperatureWhiteBalance(kelvinInput);
   } else if (typeof whiteBalanceOption === "object" && whiteBalanceOption !== null && "channelGains" in whiteBalanceOption) {
     allowKeys(whiteBalanceOption, "output.whiteBalance", ["channelGains"]);
     requireInputObject(whiteBalanceOption.channelGains, "output.whiteBalance.channelGains");
@@ -1721,6 +1727,15 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
   // Display view: the real full-resolution capture resized to the display size, estimated per display pixel (display-view.ts).
   if (displayView) {
     const viewStarted = clockMs(), v = parsedView!;
+    // The engine's illuminant formulas (Planckian, CIE A, daylight locus) evaluated with the portable power and e^x − 1, so
+    // the view's radiances, irradiance scale and scene-illuminant white balance have the same bits in every JavaScript
+    // engine; they differ from the capture's own by at most a few ulps (docs/DISPLAY_VIEW.md, "Same bytes in every engine").
+    const viewIlluminant = resolvePortableCaptureIlluminant(illuminantOption), viewIrradianceScale = calculateIlluminantIrradianceScale(viewIlluminant.shape, illuminanceLux);
+    const viewProvider = buildProvider(viewIlluminant, viewIrradianceScale);
+    const viewWhiteBalanceState = whiteBalanceOption === "scene-illuminant" ? sceneIlluminantWhiteBalance(viewIlluminant) : portableKelvinWhiteBalance ? portableKelvinWhiteBalance() : whiteBalanceState;
+    // The chart's materials likewise (a step wedge's geometric levels use the portable power); same geometry and order.
+    const viewChart = chart ? resolvePortableChartScene({ scene: sceneOption as ChartScene, aspect: chartSize ? chartSize.heightM / chartSize.widthM : aspect }) : undefined;
+    if (chart && viewChart!.materials.length !== chart.materials.length) fail("simulateDisplayView: the chart's materials could not be resolved portably.");
     const { electronsPerRadiance, wavelengths, relativePerElectron } = axisChannelResponse("simulateDisplayView");
     const perNode = CHANNELS.map((c) => Float64Array.from(wavelengths, (nm) => electronsPerRadiance[c].get(nm) ?? 0)) as [Float64Array, Float64Array, Float64Array];
     // Query offsets of each site: pixel-aperture nodes minus anti-aliasing split offsets (sites, +x right, +y down), as the environment forms them.
@@ -1740,10 +1755,10 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
       }) };
     }
     const scene: DisplayViewScene = chart && provider.chartMaterialAt ? { kind: "materials", materialAt: provider.chartMaterialAt,
-      materials: [...chart.materials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: Float64Array.from(wavelengths, (nm) => provider.materialRadiance!(index, nm)) })),
+      materials: [...viewChart!.materials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: Float64Array.from(wavelengths, (nm) => viewProvider.materialRadiance!(index, nm)) })),
         ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])],
-      whiteRadiance: Float64Array.from(wavelengths, (nm) => irradianceScale * illuminant.shape.evaluate(nm) / Math.PI) } :
-      { kind: "radiance", radianceAt: provider.radianceAt };
+      whiteRadiance: Float64Array.from(wavelengths, (nm) => viewIrradianceScale * viewIlluminant.shape.evaluate(nm) / Math.PI) } :
+      { kind: "radiance", radianceAt: viewProvider.radianceAt };
     const channelIndex = (x: number, y: number): number => ((y & 1) === 0 ? ((x & 1) === 0 ? 0 : 1) : ((x & 1) === 0 ? 1 : 2));
     // Without diffraction the environment's own query arithmetic (native-environment-lean.ts `geometry`, then the rectilinear
     // still-camera ray and the planar provider's plane point), so boundary points resolve as in the capture.
@@ -1772,7 +1787,7 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
     const phases = bilinearPhaseProfiles(), demosaicTable: { dx: number; dy: number; weight: number }[][][] = [];
     for (const phase of phases) demosaicTable[phase.phaseY * 2 + phase.phaseX] = CHANNELS.map((c) => phase.profile.kernels.find((k) => k.outputChannelId === c)!.contributions
       .map((t) => ({ dx: t.offsetX, dy: t.offsetY, weight: t.weight })));
-    const viewIntent = intentOf(whiteBalanceState), viewGains = viewIntent ? [viewIntent.channelGains.red, viewIntent.channelGains.green, viewIntent.channelGains.blue] : null;
+    const viewIntent = intentOf(viewWhiteBalanceState), viewGains = viewIntent ? [viewIntent.channelGains.red, viewIntent.channelGains.green, viewIntent.channelGains.blue] : null;
     const colour = prepareSensorColorDevelopment(CAMERA_TO_XYZ as unknown as Parameters<typeof prepareSensorColorDevelopment>[0], viewGains, highlightMode);
     const toSrgb = resolveCaptureColorModel().xyzToCameraRgb, m = colour.cameraToXyz;
     const matrix = [0, 1, 2].map((r) => [0, 1, 2].map((c) => toSrgb[r]![0]! * m[0]![c]! + toSrgb[r]![1]! * m[1]![c]! + toSrgb[r]![2]! * m[2]![c]!));
@@ -1783,7 +1798,7 @@ async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ide
       region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
       ...(ahd ? { candidates: [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))),
         ahdCorrection: { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), drawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS,
-          thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD ** 2 } } : {}),
+          thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD * DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } } : {}),
       gains: colour.appliedGains as [number, number, number], clipLevel: Math.min(...colour.appliedGains), matrix, toneCurve: toneCurve as "identity" | "positive-reinhard-per-channel",
       yieldControl, checkAbort });
     if (viewInternals) { viewInternals.value = rendered; viewInternals.signal = signal; }

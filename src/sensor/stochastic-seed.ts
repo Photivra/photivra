@@ -18,6 +18,7 @@
  */
 
 import { InvalidScientificInputError } from "../core/validation.js";
+import { portableCosTwoPi, portableLog, portableSinTwoPi } from "../core/portable-math.js";
 
 /** Stream IDs. Changing them changes every simulated RAW code. */
 export const NATIVE_SITE_CHARGE_STREAM_ID = 0 as const;
@@ -115,6 +116,33 @@ export function sampleDeterministicStandardNormal(random: DeterministicUniformSt
   const u1 = random.next();
   const u2 = random.next();
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+/**
+ * The same Box–Muller draw (same two uniforms, same order) with the engine's portable logarithm and cosine
+ * (`portableLog`, `portableCosTwoPi`), so the sample has the same bits in every JavaScript engine. Used by the
+ * display view; the native noise keeps `sampleDeterministicStandardNormal`.
+ */
+export function samplePortableStandardNormal(random: DeterministicUniformStream): number {
+  const u1 = random.next();
+  const u2 = random.next();
+  return Math.sqrt(-2 * portableLog(u1)) * portableCosTwoPi(u2);
+}
+
+/**
+ * Standard normal samples from one stream, two per pair of uniforms: both Box–Muller outputs, r·cos(2πu₂) and then
+ * r·sin(2πu₂) with r = √(−2 ln u₁) (Box & Muller 1958; the two are independent standard normals), with the portable
+ * functions. Each call returns the next sample; the stream advances by two uniforms on every other call. Used by the
+ * display view's AHD correction states, which draw many normals from one stream.
+ */
+export function createPortableStandardNormalPairs(random: DeterministicUniformStream): () => number {
+  let spare = 0, hasSpare = false;
+  return () => {
+    if (hasSpare) { hasSpare = false; return spare; }
+    const u1 = random.next(), u2 = random.next(), r = Math.sqrt(-2 * portableLog(u1));
+    spare = r * portableSinTwoPi(u2); hasSpare = true;
+    return r * portableCosTwoPi(u2);
+  };
 }
 
 /**

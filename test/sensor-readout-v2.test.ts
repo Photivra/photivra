@@ -18,7 +18,9 @@ import {
   type SensorReadoutConversionProfile
 } from "../src/index.js";
 import { createPoissonSampler, samplePoisson, samplePoissonStreamForValidation, sampleStandardNormalStreamForValidation } from "../src/sensor/raw-readout.js";
-import { createDeterministicUniformStream, fmix32 } from "../src/sensor/stochastic-seed.js";
+import { createDeterministicUniformStream, createPortableStandardNormalPairs, fmix32, sampleDeterministicStandardNormal, samplePortableStandardNormal } from "../src/sensor/stochastic-seed.js";
+import { portableCosTwoPi, portableLog, portableSinTwoPi } from "../src/core/portable-math.js";
+import { createHash } from "node:crypto";
 import { resolveSensorReadoutRegime } from "../src/index.js";
 
 const evidence = [{ sourceOrigin: "photivra", sourceReference: "test:sensor-readout-v2", reuseStatus: "photivra-owned" }] as const;
@@ -120,6 +122,48 @@ describe("prepared Poisson sampler and the uniform stream", () => {
     }
     expect(() => createPoissonSampler(-1)).toThrow();
     expect(() => createPoissonSampler(Number.NaN)).toThrow();
+  });
+  it("in its portable form, draws the same in every JavaScript engine and agrees with samplePoisson but for last-bit ties", () => {
+    // The portable form uses portableExp, portableLog and the portable Box–Muller instead of Math.exp, Math.log and Math.cos.
+    // Its draws can differ from samplePoisson's only where a comparison falls within the last-bit difference of those
+    // functions, so almost never; one digest of 44 000 draws locks them (the same on Node 22, 24 and 26 and on Bun, JavaScriptCore); all 44 000 equal samplePoisson's here.
+    const bytes = new DataView(new ArrayBuffer(4 * 44_000));
+    let o = 0, same = 0;
+    for (const mean of [0, 1e-3, 0.7, 5, 29.999, 30, 31.5, 250, 4000, 1e6, 2e9]) {
+      const a = createDeterministicUniformStream(77), b = createDeterministicUniformStream(77), sampler = createPoissonSampler(mean, true);
+      for (let i = 0; i < 4000; i++) { const k = sampler(b); if (k === samplePoisson(mean, a)) same++; bytes.setUint32(o, k, true); o += 4; }
+      expect(Number.isInteger(sampler(b))).toBe(true);
+    }
+    expect(same).toBeGreaterThanOrEqual(43_990);
+    expect(createHash("sha256").update(new Uint8Array(bytes.buffer)).digest("hex")).toBe("c2309c7372de0e0a9ec3c02aa92a0700805c1f9d5821cabdc5507e61c35432ea");
+    // Mean and variance of a high-mean portable sampler.
+    const sampler = createPoissonSampler(400, true), random = createDeterministicUniformStream(5), draws = Array.from({ length: 20_000 }, () => sampler(random));
+    const m = draws.reduce((x, y) => x + y, 0) / draws.length, v = draws.reduce((x, y) => x + (y - m) * (y - m), 0) / (draws.length - 1);
+    expect(Math.abs(m - 400)).toBeLessThan(5 * Math.sqrt(400 / 20_000));
+    expect(Math.abs(v / 400 - 1)).toBeLessThan(0.05);
+  });
+  it("draws the portable Box–Muller normal from the same two uniforms, within a few ulps of the native one", () => {
+    const a = createDeterministicUniformStream(9), b = createDeterministicUniformStream(9);
+    for (let i = 0; i < 20_000; i++) {
+      const native = sampleDeterministicStandardNormal(a), portable = samplePortableStandardNormal(b);
+      expect(Math.abs(portable - native)).toBeLessThanOrEqual(1e-14 * Math.max(1, Math.abs(native)));
+    }
+    expect(b.next()).toBe(a.next());
+  });
+  it("draws portable Box–Muller pairs: r·cos(2πu₂) then r·sin(2πu₂), independent standard normals", () => {
+    const pairs = createPortableStandardNormalPairs(createDeterministicUniformStream(3)), check = createDeterministicUniformStream(3);
+    for (let i = 0; i < 1000; i++) {
+      const u1 = check.next(), u2 = check.next(), r = Math.sqrt(-2 * portableLog(u1));
+      expect(pairs()).toBe(r * portableCosTwoPi(u2));
+      expect(pairs()).toBe(r * portableSinTwoPi(u2));
+    }
+    const z = Array.from({ length: 100_000 }, createPortableStandardNormalPairs(createDeterministicUniformStream(11)));
+    const m = z.reduce((x, y) => x + y, 0) / z.length, v = z.reduce((x, y) => x + (y - m) * (y - m), 0) / (z.length - 1);
+    let c = 0;
+    for (let i = 0; i < z.length; i += 2) c += z[i]! * z[i + 1]!;
+    expect(Math.abs(m)).toBeLessThan(5 / Math.sqrt(z.length));
+    expect(Math.abs(v - 1)).toBeLessThan(0.02);
+    expect(Math.abs(c / (z.length / 2))).toBeLessThan(5 / Math.sqrt(z.length / 2));
   });
   it("keeps the xorshift32 stream's values", () => {
     // The stream as first written: the state in a closure variable, reduced with >>> 0.

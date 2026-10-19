@@ -20,6 +20,7 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 import {
   calculateChromaticityFromCorrelatedColorTemperature,
+  calculatePortableChromaticityFromCorrelatedColorTemperature,
   type PlanckianLocusModel,
   type WhiteLocus
 } from "./illuminants.js";
@@ -705,6 +706,17 @@ export function createColorTemperatureWhiteBalanceIntent(
 export function resolveColorTemperatureWhiteBalance(
   input: ResolveColorTemperatureWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
+  return colorTemperatureWhiteBalance(input, false);
+}
+/**
+ * Internal (not exported from the package): {@link resolveColorTemperatureWhiteBalance} with the white point from
+ * `calculatePortableChromaticityFromCorrelatedColorTemperature`, so the gains have the same bits in every JavaScript
+ * engine. The display view uses it for a Kelvin white balance; captures keep {@link resolveColorTemperatureWhiteBalance}.
+ */
+export function resolvePortableColorTemperatureWhiteBalance(input: ResolveColorTemperatureWhiteBalanceInput): ResolvedWhiteBalanceState {
+  return colorTemperatureWhiteBalance(input, true);
+}
+function colorTemperatureWhiteBalance(input: ResolveColorTemperatureWhiteBalanceInput, portable: boolean): ResolvedWhiteBalanceState {
   requireInputKeys(input, "resolveColorTemperatureWhiteBalance", ["stateId", "intent", "whiteLocus", "tintInterpretation", "planckianLocus", "camera"]);
   const intent = input.intent;
   if (
@@ -732,7 +744,7 @@ export function resolveColorTemperatureWhiteBalance(
   const profileVersion = requireScientificNonEmptyString(camera.profileVersion, "camera.profileVersion");
   const matrix = parseMatrix3x3(camera.xyzToCameraRgb, "camera.xyzToCameraRgb");
   const locus: PlanckianLocusModel = input.planckianLocus ?? { kind: "planck-analytic-cmf" };
-  const white = calculateChromaticityFromCorrelatedColorTemperature({
+  const white = (portable ? calculatePortableChromaticityFromCorrelatedColorTemperature : calculateChromaticityFromCorrelatedColorTemperature)({
     correlatedColorTemperatureKelvin: kelvin,
     duv: tint,
     whiteLocus: input.whiteLocus,

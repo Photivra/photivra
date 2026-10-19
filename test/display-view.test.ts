@@ -206,31 +206,30 @@ describe("simulateDisplayView", () => {
     expect(Array.from(seeded.image.samples)).not.toEqual(Array.from(a.image.samples));
   }, testTimeout(60_000));
 
-  it("keeps its bytes: hash locks recorded before the exact speed-ups", async () => {
-    // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics (timings removed),
-    // recorded with the display view as merged in #368 (before the filled windows, the one-material sample replay and the
-    // shared AHD correction states). Each case exercises one path: non-uniform and uniform diffraction sites, the AHD
-    // correction, spectral materials with mirror borders, a radiance scene, AHD with a tone curve, and Speed.
-    // The display view's bytes depend on the runtime's Math.pow: V8 12 (Node 22) and V8 13 (Node 24) differ by one ulp in
-    // about 10 % of x^(1/2.4) values, so #368 itself gives different bytes for four of the cases on the two. Each runtime is
-    // held to #368's bytes on that runtime; a third pow variant fails here as a portability finding.
-    const pow = Math.pow(0.6849773789290339, 1 / 2.4), variant = pow === 0.8541453132517011 ? 1 : pow === 0.854145313251701 ? 0 : -1;
-    expect(variant, "Math.pow variant not recorded for these hash locks").toBeGreaterThanOrEqual(0);
+  it("keeps its bytes, the same on every JavaScript engine: one set of hash locks", async () => {
+    // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics (timings removed).
+    // Each case exercises one path: non-uniform and uniform diffraction sites, the AHD correction, spectral materials with
+    // mirror borders, a radiance scene, AHD with a tone curve, and Speed. The display view's own arithmetic and its
+    // illuminant use only correctly rounded operations and the engine's portable functions (src/core/portable-math.ts), so
+    // these hashes are the same on Node 22.13, 22 LTS, 24 and 26 (V8 12, 13 and 14), which differ in the last bit of
+    // Math.pow: there is one set, with no per-runtime variant. A mismatch on some runtime is a portability finding
+    // (docs/DISPLAY_VIEW.md, "Same bytes in every engine"). The radiance scene's own function uses exact operations only.
     const red = { kind: "function" as const, wavelengthRangeNanometers: { minimum: 380, maximum: 780 }, evaluate: (nm: number): number => (nm > 600 ? 0.7 : 0.08) };
-    const cases: [SimulateCaptureOptions, SimulateDisplayViewOptions, [string, string]][] = [
+    const rings = (p: { u: number; v: number }): number => { const t = 20 * (p.u * p.u + p.v * p.v), f = t - Math.floor(t); return 0.1 + 0.6 * (f < 0.5 ? 2 * f : 2 - 2 * f); };
+    const cases: [SimulateCaptureOptions, SimulateDisplayViewOptions, string][] = [
       [{ scene: { preset: "siemens-star" }, lens: { fNumber: 8, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 1.4, antiAliasing: { kind: "four-spot" } },
-        output: { width: 400, height: 300 } }, { width: 20, height: 15 }, ["92eed1f8db92ce80b4bf6e8c156ebc58deb14fe5d450e185d3ff2a276e0f0e6e", "9611a1f4e4f50a2e1af172d3842e16e37721396c2b4a92d438d4789c4aaf508a"]],
+        output: { width: 400, height: 300 } }, { width: 20, height: 15 }, "0b049fcb5c770bc018cfb318b292f1cffe23b2e4b6dbe53004756c107d7b0e57"],
       [{ scene: { preset: "uniform", reflectance: 0.18 }, lens: { fNumber: 8, diffraction: "circular-aperture" }, exposure: { iso: 1600, shutterSeconds: 1 / 2000 },
-        sensor: { pixelPitchMicrometers: 1.4 }, output: { width: 200, height: 150, demosaic: "ahd" } }, { width: 10, height: 8 }, ["92d0ffc50a2c79832a4cc0a6bf8246a49f7e2e6c6c1d5fa4c93760712a8f2d09", "92d0ffc50a2c79832a4cc0a6bf8246a49f7e2e6c6c1d5fa4c93760712a8f2d09"]],
+        sensor: { pixelPitchMicrometers: 1.4 }, output: { width: 200, height: 150, demosaic: "ahd" } }, { width: 10, height: 8 }, "3c4d6097d5358111358165c7a820eab707b41eb5621c4ba5f2fe51bd004fb3b0"],
       [{ scene: { preset: "patches", patches: [{ patchId: "a", reflectance: red }, { patchId: "b", reflectance: 0.5 }], columns: 2 }, chartSize: { widthM: 0.002, surroundReflectance: 0.3 },
         lens: { diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 60, height: 40, borderHandling: "mirror" } }, { width: 12, height: 8 },
-      ["1461b948abc45ee34bf58fd0454f7cb8c2787f6c3b96647dc61b98b5f821c7f0", "1461b948abc45ee34bf58fd0454f7cb8c2787f6c3b96647dc61b98b5f821c7f0"]],
-      [{ scene: { kind: "reflectance-function", sceneId: "rings", evaluate: (p) => 0.4 + 0.3 * Math.cos(40 * Math.hypot(p.u, p.v)) }, lens: { diffraction: "circular-aperture" },
-        sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, ["db00e08a0d83d69fa0b8899c44b8cb695e8a12cb62d3b7b4f9c1efb7eb9c646a", "46bf639dcf58e65e85351b01350c4b1a8b2e9db1ea0bb22f8f227d9c68db1ed4"]],
+      "f1f52a0a779391825983a305aa26c0a8121e746133462a802b231bd2b7ab13d3"],
+      [{ scene: { kind: "reflectance-function", sceneId: "rings", evaluate: rings }, lens: { diffraction: "circular-aperture" },
+        sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, "4ea00b3d9af453c4e1dd82de4d7d018d974885a751788eeed6a327dc3edd50dd"],
       [{ scene: { preset: "dead-leaves" }, lens: { fNumber: 11, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 4 },
         output: { width: 300, height: 200, demosaic: "ahd", toneCurve: "positive-reinhard-per-channel" } }, { width: 30, height: 20, region: { x: 5, y: 4, width: 9, height: 7 }, format: "srgb-16" },
-      ["2258352b70d562a2d6ea6726d05c0feda79918812531063c6b413b8cc3803134", "f94edbe2123546653d89d8c78a8df71ecb98a84a1b2708a3f68bcc63e45a0d06"]],
-      [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 300, height: 200 } }, { width: 30, height: 20 }, ["ab470cbfe4fb07ee597621f943aed0ce78cd997196a0ea41838c9e598ca830ae", "e9ab7390dfc1587398aa41335ebeab21febb43060d07ca8b1844a826c6b396ec"]]
+      "0c459f1395213976a4c29d2441161749757141e6dada2a6e49997fa9f4954f68"],
+      [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 300, height: 200 } }, { width: 30, height: 20 }, "c3c2809d9aab37e7c8269a97804d14d930fd7bf06f29eedb02f1141dcded03e8"]
     ];
     for (const [options, view, expected] of cases) {
       const { result, internals } = await simulateDisplayViewWithInternals(options, view);
@@ -238,8 +237,7 @@ describe("simulateDisplayView", () => {
       delete diagnostics.timingsMs;
       for (const a of [result.image.samples, internals.expected, internals.noiseStd]) hash.update(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
       hash.update(JSON.stringify(diagnostics));
-      // [V8 13 pow, V8 12 pow]
-      expect(hash.digest("hex")).toBe(expected[variant === 1 ? 0 : 1]);
+      expect(hash.digest("hex")).toBe(expected);
     }
   }, testTimeout(120_000));
 

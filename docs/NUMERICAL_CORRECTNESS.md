@@ -178,6 +178,9 @@ Rules from package 2.0.0:
 - Parsers that re-derive a floating-point value compare it within a few ulps instead of with `!==`. `parseSimulatedCapture` and packed-RAW validation (`createNativeRawDevelopmentTask`) accept an archived `equivalentFocalLength35Mm` within 8 ulps of the re-derived value, and return the re-derived value. This also accepts records written by releases before 2.0.0, which used `Math.hypot`.
 - Integer, string, enum and structural identities stay exact.
 
+- `**`/`pow` also differs between V8 versions: Node 22 (V8 12) and Node 24 (V8 13) differ in the last bit of about 10 % of `x ** (1/2.4)` and of integer powers such as `x ** 5` (measured for 2.6.0 on 200 000 arguments each; `exp`, `log`, `cbrt`, `sin` and `cos` agree between them). Because the 8- and 16-bit sRGB codes are rounded from `1.055·x ** (1/2.4) − 0.055`, 57 of the 255 8-bit and 14 968 of the 65 535 16-bit code boundaries sit 1–2 ulps apart on the two: a linear value exactly there gets codes one apart. No tested capture has hit one; the hash locks and the facade fingerprints are identical on Node 22, 24 and 26.
+- From 2.6.0, `src/core/portable-math.ts` also has a portable logarithm, exponential, power, cube root, e^x − 1 and cosine/sine of 2πu (`portableLog`, `portableLog2`, `portableExp`, `portableExp2`, `portableExpm1`, `portablePow`, `portableCbrt`, `portableCosTwoPi`, `portableSinTwoPi`): fixed sequences of correctly rounded operations, within 1 ulp (2 for e^x − 1, cos and sin) of the exact functions. A test locks one digest of 49 152 of their results, the same on Node 22, 24 and 26, Chromium 141 and 153 and Bun (JavaScriptCore). The display view uses them for its own arithmetic and its illuminant ([display view](DISPLAY_VIEW.md), "Same bytes in every engine"); captures keep `Math` and `**`.
+
 **Engine-portable identities** (equal bits for equal inputs in every conforming engine):
 
 - the simulated-capture and packed-RAW metadata identities;

@@ -34,8 +34,10 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import {
   createDeterministicUniformStream,
   sampleDeterministicStandardNormal,
+  samplePortableStandardNormal,
   type DeterministicUniformStream
 } from "./stochastic-seed.js";
+import { portableExp, portableLog } from "../core/portable-math.js";
 import type {
   SensorPhotoAccumulatedChargeComposition as SensorAccumulatedChargeComposition
 } from "./accumulated-charge.js";
@@ -1636,14 +1638,39 @@ export function samplePoisson(
   }
 }
 
+/** log(n!) as `logFactorial` computes it, with the portable logarithm (`portableLog`) in place of Math.log. */
+let portableSmallLogFactorials: Float64Array | undefined;
+function portableLogFactorial(n: number): number {
+  if (n < 2) return 0;
+  if (n < 256) {
+    if (!portableSmallLogFactorials) {
+      const table = new Float64Array(256);
+      let sum = 0;
+      for (let value = 2; value < 256; value += 1) { sum += portableLog(value); table[value] = sum; }
+      portableSmallLogFactorials = table;
+    }
+    return portableSmallLogFactorials[n]!;
+  }
+  const inverse = 1 / n, inverseCubed = inverse * inverse * inverse;
+  return (n + 0.5) * portableLog(n) - n + PORTABLE_HALF_LOG_TWO_PI + inverse / 12 - inverseCubed / 360;
+}
+/** 0.5·ln(2π), as logFactorial forms it. */
+const PORTABLE_HALF_LOG_TWO_PI = 0.5 * portableLog(2 * Math.PI);
+
 /**
  * Internal (not exported from the package): `samplePoisson` for one fixed mean, with the per-mean constants (e^(−mean),
  * the PTRS constants and ln mean) computed once. Each draw takes the same branch, reads the same random values and
  * forms every value with the same expressions as `samplePoisson(mean, random)`, so the draws are identical; it is for
  * callers that draw many times with one mean (the display view's AHD correction).
+ *
+ * With `portable` true, every exponential, logarithm and normal draw uses the engine's portable functions
+ * (`portableExp`, `portableLog`, `samplePortableStandardNormal`) instead of Math.exp, Math.log and the Box–Muller of
+ * Math.log/Math.cos, so the draws are the same in every JavaScript engine; they then equal `samplePoisson`'s except
+ * where a comparison falls within the last-bit difference of those functions. The display view uses this form.
  */
 export function createPoissonSampler(
-  mean: number
+  mean: number,
+  portable = false
 ): (random: DeterministicRandom) => number {
   if (
     !Number.isFinite(mean) ||
@@ -1656,15 +1683,19 @@ export function createPoissonSampler(
   if (mean === 0) {
     return () => 0;
   }
+  const exp = portable ? portableExp : Math.exp, log = portable ? portableLog : Math.log;
+  const logFactorialOf = portable ? portableLogFactorial : logFactorial;
   if (
     mean >=
     POISSON_NORMAL_APPROXIMATION_MINIMUM_MEAN
   ) {
-    return (random) => samplePoisson(mean, random);
+    if (!portable) return (random) => samplePoisson(mean, random);
+    const sqrtMean = Math.sqrt(mean);
+    return (random) => Math.max(0, Math.floor(mean + sqrtMean * samplePortableStandardNormal(random) + 0.5));
   }
   if (mean < 30) {
     const threshold =
-      Math.exp(-mean);
+      exp(-mean);
     return (random) => {
       let product = 1;
       let count = 0;
@@ -1695,7 +1726,7 @@ export function createPoissonSampler(
     3.6224 /
       (b - 2);
   const logMean =
-    Math.log(mean);
+    log(mean);
   return (random) => {
     for (;;) {
       const u =
@@ -1731,7 +1762,7 @@ export function createPoissonSampler(
         continue;
       }
       const lhs =
-        Math.log(
+        log(
           v *
             inverseAlpha /
             (a /
@@ -1741,7 +1772,7 @@ export function createPoissonSampler(
       const rhs =
         -mean +
         k * logMean -
-        logFactorial(k);
+        logFactorialOf(k);
       if (lhs <= rhs) {
         return k;
       }
