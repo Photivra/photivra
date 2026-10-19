@@ -23,7 +23,8 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireInputObject } from "../core/record-validation.js";
 import { estimateCie1931ColorMatchingFunctions, prepareColorimetricSpectrum, type ColorimetricSpectrum,
   type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
-import { createCieIlluminantASpectrum, createCieDaylightSpectrum, createPlanckianSpectrum, type CieDaylightBasis } from "../color/illuminants.js";
+import { createCieIlluminantASpectrum, createCieDaylightSpectrum, createPlanckianSpectrum, createPortableCieDaylightSpectrum, createPortableCieIlluminantASpectrum,
+  createPortablePlanckianSpectrum, type CieDaylightBasis } from "../color/illuminants.js";
 import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
 import type { SensorApertureRay } from "../optics/sensor-aperture-rays.js";
@@ -56,7 +57,19 @@ export interface ResolvedCaptureIlluminant {
 }
 
 export function resolveCaptureIlluminant(value: CaptureIlluminant): ResolvedCaptureIlluminant {
-  if (value === "cie-a") return resolveCaptureIlluminant({ kind: "cie-a" });
+  return resolveIlluminant(value, false);
+}
+/**
+ * Internal (not exported from the package): {@link resolveCaptureIlluminant} with the engine's own formulas (Planckian,
+ * CIE A, daylight locus) evaluated with the portable power and e^x − 1 (`portablePow`, `portableExpm1`), so the spectrum
+ * has the same bits in every JavaScript engine. The display view uses it; captures keep {@link resolveCaptureIlluminant}.
+ * A caller spectrum is the caller's own.
+ */
+export function resolvePortableCaptureIlluminant(value: CaptureIlluminant): ResolvedCaptureIlluminant {
+  return resolveIlluminant(value, true);
+}
+function resolveIlluminant(value: CaptureIlluminant, portable: boolean): ResolvedCaptureIlluminant {
+  if (value === "cie-a") return resolveIlluminant({ kind: "cie-a" }, portable);
   requireInputObject(value, "illuminant");
   const record = value as unknown as Record<string, unknown>;
   const allowed: Record<string, readonly string[]> = { planckian: ["kind", "temperatureKelvin"], "cie-a": ["kind"],
@@ -70,15 +83,15 @@ export function resolveCaptureIlluminant(value: CaptureIlluminant): ResolvedCapt
       case "planckian": {
         const t = value.temperatureKelvin;
         if (typeof t !== "number" || !Number.isFinite(t) || t < 1000 || t > 25000) throw new InvalidConfigurationError("Planckian temperature must be 1000-25000 K.");
-        spectrum = createPlanckianSpectrum({ temperatureKelvin: t, wavelengthRangeNanometers: { ...FACADE_SPECTRAL_RANGE_NANOMETERS } });
+        spectrum = (portable ? createPortablePlanckianSpectrum : createPlanckianSpectrum)({ temperatureKelvin: t, wavelengthRangeNanometers: { ...FACADE_SPECTRAL_RANGE_NANOMETERS } });
         id = "planckian-" + t + "K"; description = "Planck blackbody spectrum at " + t + " K (Planck's law).";
         break;
       }
       case "cie-a":
-        spectrum = createCieIlluminantASpectrum(); id = "cie-a"; description = "CIE standard illuminant A from its defining formula: Planck's law with c2 = 1.435e-2 m·K and T = 2848 K, 100 at 560 nm.";
+        spectrum = portable ? createPortableCieIlluminantASpectrum() : createCieIlluminantASpectrum(); id = "cie-a"; description = "CIE standard illuminant A from its defining formula: Planck's law with c2 = 1.435e-2 m·K and T = 2848 K, 100 at 560 nm.";
         break;
       case "daylight":
-        spectrum = createCieDaylightSpectrum({ correlatedColorTemperatureKelvin: value.correlatedColorTemperatureKelvin, coefficientRounding: "cie-three-decimals", basis: value.basis });
+        spectrum = (portable ? createPortableCieDaylightSpectrum : createCieDaylightSpectrum)({ correlatedColorTemperatureKelvin: value.correlatedColorTemperatureKelvin, coefficientRounding: "cie-three-decimals", basis: value.basis });
         id = "cie-daylight-" + value.correlatedColorTemperatureKelvin + "K"; description = "CIE daylight from the caller's S0/S1/S2 basis (" + value.basis.datasetId + ").";
         break;
       case "spectrum":

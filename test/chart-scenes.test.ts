@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
+import { resolvePortableChartScene } from "../src/facade/chart-scenes.js";
 import { CHART_SCENE_PRESETS, InvalidConfigurationError, calculatePointGridCenters, calculateStepWedgeReflectances, createPlanarSceneRadianceProvider,
   estimateCie1931ColorMatchingFunctions, resolveCaptureIlluminant, resolveChartScene, type SceneRadianceEvaluationRequest } from "../src/index.js";
 
@@ -45,6 +46,18 @@ describe("procedural chart presets", () => {
     const d = calculateStepWedgeReflectances({ steps: 5, minimumReflectance: 0.01, maximumReflectance: 1, spacing: "equal-density" });
     expect(d.map((r) => -Math.log10(r))).toEqual([2, 1.5, 1, 0.5, 0].map((x, i) => expect.closeTo(i === 4 ? 0 : x, 12)));
     expect(calculateStepWedgeReflectances({ steps: 3, minimumReflectance: 0.1, maximumReflectance: 0.9, spacing: "linear" })).toEqual([0.1, 0.5, 0.9]);
+    // The display view's portable resolution: the same geometry, order and parameters, with the geometric levels from
+    // the portable power, within 2 ulps of `**`.
+    for (const scene of [{ preset: "step-wedge" as const, steps: 21 }, { preset: "composite" as const, elements: [{ scene: { preset: "step-wedge" as const }, centerU: 0, centerV: 0, width: 1, height: 0.5 }] }]) {
+      const native = resolveChartScene({ scene, aspect: 2 / 3 }), portable = resolvePortableChartScene({ scene, aspect: 2 / 3 });
+      expect(portable.materials.length).toBe(native.materials.length);
+      portable.materials.forEach((m, i) => {
+        const n = native.materials[i]!;
+        expect(m.kind).toBe(n.kind);
+        if (m.kind === "neutral" && n.kind === "neutral") expect(Math.abs(m.reflectance - n.reflectance)).toBeLessThanOrEqual(2 * Number.EPSILON * n.reflectance);
+      });
+      for (let i = 0; i < 200; i++) { const u = -1 + i / 100, v = (i % 7) / 10 - 0.3; expect(portable.materialAt(u, v)).toBe(native.materialAt(u, v)); }
+    }
     const chart = resolveChartScene({ scene: { preset: "step-wedge", steps: 4 }, aspect: 1 });
     const steps = chart.parameters.stepReflectances as number[];
     expect([-0.9, -0.4, 0.1, 0.6].map((u) => chart.reflectanceAt(u, 0, 550))).toEqual(steps);

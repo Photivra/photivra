@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readFileSync } from "node:fs";
+import { resolveCaptureIlluminant, resolvePortableCaptureIlluminant } from "../src/facade/scene-radiance.js";
+import { calculateChromaticityFromCorrelatedColorTemperature as nativeCctChromaticity, calculatePortableChromaticityFromCorrelatedColorTemperature } from "../src/color/illuminants.js";
 import { describe, expect, it } from "vitest";
 import {
   calculateChromaticAdaptationMatrix,
@@ -168,6 +170,30 @@ describe("illuminants and correlated colour temperature", () => {
       const cct = calculateCorrelatedColorTemperature({ chromaticity: a.value.chromaticity!, locus });
       expect(cct.value.correlatedColorTemperatureKelvin).toBeCloseTo(tA, 0);
       expect(Math.abs(cct.value.duv)).toBeLessThan(1e-9);
+    }
+  });
+
+  it("evaluates the engine's illuminants portably for the display view, within a few ulps of the capture's", () => {
+    // The portable forms (portablePow for λ⁵ and the daylight-locus powers, portableExpm1) are the same formulas; they only
+    // replace operations whose last bit differs between JavaScript engines.
+    const flat = (value: number): { wavelengthNanometers: number; value: number }[] => [{ wavelengthNanometers: 300, value }, { wavelengthNanometers: 830, value }];
+    const basis = { datasetId: "synthetic-test-basis", s0: flat(100), s1: flat(10), s2: flat(5) };
+    for (const option of [{ kind: "planckian" as const, temperatureKelvin: 6500 }, { kind: "planckian" as const, temperatureKelvin: 1000 }, { kind: "planckian" as const, temperatureKelvin: 25000 },
+      { kind: "cie-a" as const }, { kind: "daylight" as const, correlatedColorTemperatureKelvin: 5003, basis }]) {
+      const native = resolveCaptureIlluminant(option), portable = resolvePortableCaptureIlluminant(option);
+      expect(portable.id).toBe(native.id);
+      expect(portable.description).toBe(native.description);
+      for (let nm = 380; nm <= 780; nm += 0.5) {
+        const a = native.shape.evaluate(nm), b = portable.shape.evaluate(nm);
+        expect(Math.abs(b - a), option.kind + " " + String(nm)).toBeLessThanOrEqual(8 * Number.EPSILON * Math.abs(a));
+      }
+    }
+    // The Kelvin white point (Planckian locus and its normal for the tint; daylight locus) likewise.
+    for (const [t, duv, whiteLocus] of [[2700, 0, "planckian"], [5000, 0.01, "planckian"], [9000, -0.02, "planckian"], [6504, 0.003, "cie-daylight"]] as const) {
+      const input = { correlatedColorTemperatureKelvin: t, duv, whiteLocus, locus: { kind: "planck-analytic-cmf" as const } };
+      const a = nativeCctChromaticity(input).value, b = calculatePortableChromaticityFromCorrelatedColorTemperature(input).value;
+      expect(Math.abs(b.x - a.x)).toBeLessThanOrEqual(1e-14);
+      expect(Math.abs(b.y - a.y)).toBeLessThanOrEqual(1e-14);
     }
   });
 
