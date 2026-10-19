@@ -96,6 +96,8 @@ export interface DisplayViewExpectedSignal {
    * then a function of that material and the site's CFA channel only); −1 when unknown or mixed.
    */
   readonly uniformMaterial: number;
+  /** Whether `uniformMaterial` is tracked in the current window (otherwise it is not meaningful). */
+  readonly tracksMaterial: boolean;
 }
 
 const OFFSET_TOLERANCE = 1e-9;
@@ -362,19 +364,16 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     ring[q] = v; ringMaterial[q] = lastMaterial;
     return v;
   }
-  /** Every other site read: filled windows without the ring, the lazy window caches, or no caching. */
-  function otherSite(x: number, y: number): number {
-    const i = x - sx0, j = y - sy0, cached = i >= 0 && j >= 0 && i < sw && j < sh;
-    if (filled) {
-      if (!cached) outsideRead(i, j);
-      if (cached) { const v = siteCache[j * sw + i]!; if (!Number.isNaN(v)) { lastMaterial = -1; return v; } }
-      const v = filledSite(x, y, i, j);
-      if (cached) siteCache[j * sw + i] = v;
+  /** A site not in the window's site cache: from the ring, a filled window without the ring, the lazy window caches, or uncached. */
+  function siteMiss(x: number, y: number, i: number, j: number, cached: boolean): number {
+    if (ringOn) {
+      if (!cached) { outsideRead(i, j); return ringRead(x, y, i, j); }
+      const v = ringRead(x, y, i, j);
+      siteCache[j * sw + i] = v; windowMaterial[j * sw + i] = lastMaterial;
       return v;
     }
-    lastMaterial = -1;
-    if (cached) { const v = siteCache[j * sw + i]!; if (!Number.isNaN(v)) return v; }
-    const v = input.kernels ? kernelSite(x, y) : directSite(x, y);
+    if (filled && !cached) outsideRead(i, j);
+    const v = filled ? filledSite(x, y, i, j) : input.kernels ? kernelSite(x, y) : directSite(x, y);
     if (cached) siteCache[j * sw + i] = v;
     return v;
   }
@@ -427,6 +426,7 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   return {
     get lookups(): number { return lookups + (filled ? windowLookups() : 0); },
     get uniformMaterial(): number { return lastMaterial; },
+    get tracksMaterial(): boolean { return ringOn; },
     window(x0: number, y0: number, x1: number, y1: number): void {
       if (filled) lookups += windowLookups();
       filled = false; ringOn = false; outsideSites = [];
@@ -460,20 +460,10 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
       }
     },
     site(x: number, y: number): number {
-      if (ringOn) {
-        // The window's own small cache first (the sites read in this window, for the lookup count too), then the ring.
-        const i = x - sx0, j = y - sy0;
-        if (i >= 0 && j >= 0 && i < sw && j < sh) {
-          const w = j * sw + i, cachedValue = siteCache[w]!;
-          if (cachedValue === cachedValue) { lastMaterial = windowMaterial[w]!; return cachedValue; }
-          const v = ringRead(x, y, i, j);
-          siteCache[w] = v; windowMaterial[w] = lastMaterial;
-          return v;
-        }
-        outsideRead(i, j);
-        return ringRead(x, y, i, j);
-      }
-      return otherSite(x, y);
+      // The window's site cache first (with the ring: the sites read in this window, which its lookup count needs too).
+      const i = x - sx0, j = y - sy0, cached = i >= 0 && j >= 0 && i < sw && j < sh;
+      if (cached) { const w = j * sw + i, v = siteCache[w]!; if (v === v) { if (ringOn) lastMaterial = windowMaterial[w]!; return v; } }
+      return siteMiss(x, y, i, j, cached);
     },
     pilot(u: number, v: number): number {
       lookups++;
@@ -944,6 +934,14 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
     renderPixel(b[3 * centre]!, b[3 * centre + 1]!, b[3 * centre + 2]!, linear);
     for (let c = 0; c < 3; c++) out[c] = out[c]! - linear[c]! / 2;
   }
+  /** Normalized site value of a slot: normal with mean k·e and variance k²·e + constant, clipped at the white level (1). */
+  function siteStatistics(slot: number, c: number, e: number): void {
+    const kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
+    // Third cumulant of the normalized value: Poisson electrons have κ₃ = e (read and rounding noise add none).
+    siteThird[slot] = kc * kc * kc * e;
+    if (gap > 0 && gap * gap > reach2 * variance) { siteMean[slot] = mean; siteVar[slot] = variance; }
+    else { upperClip(mean, variance, 1, clip); siteMean[slot] = clip[0]!; siteVar[slot] = clip[1]!; }
+  }
   let siteCount = 0, sampleCount = 0, detail = 0, uniform = 0, lastYield = Date.now();
   /** Recorded terms of samples whose sites all read one chart material, by material·4 + CFA phase (layout: MEMO_SIZE). */
   const sampleMemo = new Map<number, Float64Array>();
@@ -986,7 +984,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       if (same) uniform++; else detail++;
       setup.signal.window(Math.floor(vx * sx) + margin - windowReach, Math.floor(vy * sy) + margin - windowReach, Math.ceil((vx + 1) * sx) + margin + windowReach,
         Math.ceil((vy + 1) * sy) + margin + windowReach);
-      const jitter = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID));
+      const jitter = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID)), tracking = setup.signal.tracksMaterial;
       let s0 = 0, s1 = 0, s2 = 0, c00 = 0, c01 = 0, c02 = 0, c11 = 0, c12 = 0, c22 = 0, r0 = 0, r1 = 0, r2 = 0, pixelVariance = 0, corrected = false;
       for (let b = 0; b < K; b++) for (let a = 0; a < K; a++) {
         const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
@@ -994,7 +992,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         const phase = (y & 1) * 2 + (x & 1), list = phaseList[phase]!;
         let material = -2;
         // The expected electrons of the sites the demosaic reads (sites outside the raster, at mirror borders, are read
-        // reflect-101), and whether they all read one chart material.
+        // reflect-101); where the signal tracks it, whether they all read one chart material, with the statistics below only
+        // when the sample is not replayed; otherwise the statistics at once.
         for (let li = 0; li < list.length; li++) {
           const slot = list[li]!;
           siteCount++;
@@ -1002,10 +1001,12 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
           if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
           const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
-          siteElectrons[slot] = setup.signal.site(sxs, sys) + dark[c]!; siteChannel[slot] = c;
-          const own = setup.signal.uniformMaterial;
-          material = material === -2 || material === own ? own : -1;
+          const e = setup.signal.site(sxs, sys) + dark[c]!;
+          siteChannel[slot] = c;
+          if (tracking) { siteElectrons[slot] = e; const own = setup.signal.uniformMaterial; material = material === -2 || material === own ? own : -1; continue; }
+          siteStatistics(slot, c, e);
         }
+        if (!tracking) material = -1;
         // A sample whose sites all read one chart material only has the statistics of every other such sample of that material
         // and CFA phase: replay its recorded terms (the same values added to the same sums in the same order).
         const memoKey = material >= 0 ? material * 4 + phase : -1, memo = memoKey >= 0 ? sampleMemo.get(memoKey) : undefined;
@@ -1024,14 +1025,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           continue;
         }
         const record = memoKey >= 0 ? new Float64Array(MEMO_SIZE) : undefined;
-        // Normalized site values: normal with mean k·e and variance k²·e + constant, clipped at the white level (1).
-        for (let li = 0; li < list.length; li++) {
-          const slot = list[li]!, c = siteChannel[slot]!, e = siteElectrons[slot]!, kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
-          // Third cumulant of the normalized value: Poisson electrons have κ₃ = e (read and rounding noise add none).
-          siteThird[slot] = kc * kc * kc * e;
-          if (gap > 0 && gap * gap > reach2 * variance) { siteMean[slot] = mean; siteVar[slot] = variance; }
-          else { upperClip(mean, variance, 1, clip); siteMean[slot] = clip[0]!; siteVar[slot] = clip[1]!; }
-        }
+        if (tracking) for (let li = 0; li < list.length; li++) { const slot = list[li]!; siteStatistics(slot, siteChannel[slot]!, siteElectrons[slot]!); }
         // Site variance of each channel through the bilinear kernels (for B_c), then the demosaic's own pixel statistics: the
         // mean and covariance of its camera channels, averaged over its candidates (AHD picks one per pixel).
         const slots = phaseSlots[phase]!, weights = phaseWeights[phase]!, w2 = phaseW2[phase]!;

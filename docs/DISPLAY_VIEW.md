@@ -239,7 +239,11 @@ variance than AHD's own output.
 
 The bias is a smooth function of the channel means, so it is computed on a logarithmic grid of
 states (8 steps per octave over 12 octaves below white), 2048 draws per state seeded by the state
-alone, and interpolated trilinearly between the 8 states around the pixel's means. A first version
+alone, and interpolated trilinearly between the 8 states around the pixel's means. A state depends
+only on its grid indices, the noise seed, the draws and the readout and development inputs (the
+normalized value per electron and the read and ADC variance of each channel, the homogeneity matrix,
+the white-balance gains, the highlight clip, the colour matrix and the tone curve), so each one is
+computed once per view and kept for later calls with the same inputs (see "Cost"). A first version
 drew 64 neighbourhoods per display pixel instead: unbiased, but its sampling noise exceeded the display
 pixel's own noise wherever many real pixels are averaged (up to 4× the reference's noise at 96 pixels
 wide), because the display noise falls with the number of averaged pixels and the correction's did not.
