@@ -1448,10 +1448,24 @@ function createRandom(
 }
 
 /**
+ * log(n!) for n < 256: entry n is ln 2 + ln 3 + … + ln n, summed in that order, so each entry
+ * is bit-identical to summing the logarithms on demand (the partial sums of one loop).
+ */
+const SMALL_LOG_FACTORIALS = ((): Float64Array => {
+  const table = new Float64Array(256);
+  let sum = 0;
+  for (let value = 2; value < 256; value += 1) {
+    sum += Math.log(value);
+    table[value] = sum;
+  }
+  return table;
+})();
+
+/**
  * Computes log(n!) without forming the factorial, which would overflow. Small counts
- * sum the logarithms directly. Larger counts use Stirling's formula with the
- * correction terms 1/(12n) - 1/(360n³). This is internal to the Poisson rejection
- * sampler; it is not a claim about physical accuracy or uncertainty.
+ * sum the logarithms directly (read from a table of the same partial sums). Larger counts
+ * use Stirling's formula with the correction terms 1/(12n) - 1/(360n³). This is internal
+ * to the Poisson rejection sampler; it is not a claim about physical accuracy or uncertainty.
  */
 function logFactorial(
   n: number
@@ -1460,15 +1474,7 @@ function logFactorial(
     return 0;
   }
   if (n < 256) {
-    let sum = 0;
-    for (
-      let value = 2;
-      value <= n;
-      value += 1
-    ) {
-      sum += Math.log(value);
-    }
-    return sum;
+    return SMALL_LOG_FACTORIALS[n]!;
   }
 
   const inverse = 1 / n;
@@ -1628,6 +1634,119 @@ export function samplePoisson(
       return k;
     }
   }
+}
+
+/**
+ * Internal (not exported from the package): `samplePoisson` for one fixed mean, with the per-mean constants (e^(−mean),
+ * the PTRS constants and ln mean) computed once. Each draw takes the same branch, reads the same random values and
+ * forms every value with the same expressions as `samplePoisson(mean, random)`, so the draws are identical; it is for
+ * callers that draw many times with one mean (the display view's AHD correction).
+ */
+export function createPoissonSampler(
+  mean: number
+): (random: DeterministicRandom) => number {
+  if (
+    !Number.isFinite(mean) ||
+    mean < 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Poisson mean must be finite and nonnegative."
+    );
+  }
+  if (mean === 0) {
+    return () => 0;
+  }
+  if (
+    mean >=
+    POISSON_NORMAL_APPROXIMATION_MINIMUM_MEAN
+  ) {
+    return (random) => samplePoisson(mean, random);
+  }
+  if (mean < 30) {
+    const threshold =
+      Math.exp(-mean);
+    return (random) => {
+      let product = 1;
+      let count = 0;
+      do {
+        count += 1;
+        product *=
+          random.next();
+      } while (
+        product > threshold
+      );
+      return count - 1;
+    };
+  }
+  const sqrtMean =
+    Math.sqrt(mean);
+  const b =
+    0.931 +
+    2.53 * sqrtMean;
+  const a =
+    -0.059 +
+    0.02483 * b;
+  const inverseAlpha =
+    1.1239 +
+    1.1328 /
+      (b - 3.4);
+  const vR =
+    0.9277 -
+    3.6224 /
+      (b - 2);
+  const logMean =
+    Math.log(mean);
+  return (random) => {
+    for (;;) {
+      const u =
+        random.next() - 0.5;
+      const v =
+        random.next();
+      const uS =
+        0.5 - Math.abs(u);
+      if (uS <= 0) {
+        continue;
+      }
+      const k =
+        Math.floor(
+          (2 * a / uS + b) *
+            u +
+            mean +
+            0.43
+        );
+      if (
+        uS >= 0.07 &&
+        v <= vR &&
+        k >= 0
+      ) {
+        return k;
+      }
+      if (
+        k < 0 ||
+        (
+          uS < 0.013 &&
+          v > uS
+        )
+      ) {
+        continue;
+      }
+      const lhs =
+        Math.log(
+          v *
+            inverseAlpha /
+            (a /
+              (uS * uS) +
+              b)
+        );
+      const rhs =
+        -mean +
+        k * logMean -
+        logFactorial(k);
+      if (lhs <= rhs) {
+        return k;
+      }
+    }
+  };
 }
 
 /**

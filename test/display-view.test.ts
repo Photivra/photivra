@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, simulateCapture, simulateDisplayView,
-  SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS, type CalculateEnvironmentSensorPhotoSignalInput, type SimulateCaptureOptions } from "../src/index.js";
+  SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS, type CalculateEnvironmentSensorPhotoSignalInput, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "../src/index.js";
 import { simulateDisplayViewWithInternals } from "../src/facade/simulate-capture.js";
 import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
-import { axisSums, footprintWeights, reinhardMoments, unitClip, upperClip } from "../src/facade/display-view.js";
+import { axisSums, clearDisplayViewCorrectionStates, displayViewCorrectionStateCount, footprintWeights, reinhardMoments, unitClip, upperClip } from "../src/facade/display-view.js";
 import { scaledTimeout as testTimeout } from "./helpers/test-timeout.js";
 
 const decode = (code: number, maximum: number): number => { const e = code / maximum; return e <= 0.04045 ? e / 12.92 : ((e + 0.055) / 1.055) ** 2.4; };
@@ -203,6 +204,62 @@ describe("simulateDisplayView", () => {
     // A different noise seed draws a different realization of the same statistics.
     const seeded = await simulateDisplayView({ ...options, sensor: { ...options.sensor, noiseSeed: 2 } }, { width: 30, height: 20 });
     expect(Array.from(seeded.image.samples)).not.toEqual(Array.from(a.image.samples));
+  }, testTimeout(60_000));
+
+  it("keeps its bytes: hash locks recorded before the exact speed-ups", async () => {
+    // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics (timings removed),
+    // recorded with the display view as merged in #368 (before the filled windows, the one-material sample replay and the
+    // shared AHD correction states). Each case exercises one path: non-uniform and uniform diffraction sites, the AHD
+    // correction, spectral materials with mirror borders, a radiance scene, AHD with a tone curve, and Speed.
+    // The display view's bytes depend on the runtime's Math.pow: V8 12 (Node 22) and V8 13 (Node 24) differ by one ulp in
+    // about 10 % of x^(1/2.4) values, so #368 itself gives different bytes for four of the cases on the two. Each runtime is
+    // held to #368's bytes on that runtime; a third pow variant fails here as a portability finding.
+    const pow = Math.pow(0.6849773789290339, 1 / 2.4), variant = pow === 0.8541453132517011 ? 1 : pow === 0.854145313251701 ? 0 : -1;
+    expect(variant, "Math.pow variant not recorded for these hash locks").toBeGreaterThanOrEqual(0);
+    const red = { kind: "function" as const, wavelengthRangeNanometers: { minimum: 380, maximum: 780 }, evaluate: (nm: number): number => (nm > 600 ? 0.7 : 0.08) };
+    const cases: [SimulateCaptureOptions, SimulateDisplayViewOptions, [string, string]][] = [
+      [{ scene: { preset: "siemens-star" }, lens: { fNumber: 8, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 1.4, antiAliasing: { kind: "four-spot" } },
+        output: { width: 400, height: 300 } }, { width: 20, height: 15 }, ["92eed1f8db92ce80b4bf6e8c156ebc58deb14fe5d450e185d3ff2a276e0f0e6e", "9611a1f4e4f50a2e1af172d3842e16e37721396c2b4a92d438d4789c4aaf508a"]],
+      [{ scene: { preset: "uniform", reflectance: 0.18 }, lens: { fNumber: 8, diffraction: "circular-aperture" }, exposure: { iso: 1600, shutterSeconds: 1 / 2000 },
+        sensor: { pixelPitchMicrometers: 1.4 }, output: { width: 200, height: 150, demosaic: "ahd" } }, { width: 10, height: 8 }, ["92d0ffc50a2c79832a4cc0a6bf8246a49f7e2e6c6c1d5fa4c93760712a8f2d09", "92d0ffc50a2c79832a4cc0a6bf8246a49f7e2e6c6c1d5fa4c93760712a8f2d09"]],
+      [{ scene: { preset: "patches", patches: [{ patchId: "a", reflectance: red }, { patchId: "b", reflectance: 0.5 }], columns: 2 }, chartSize: { widthM: 0.002, surroundReflectance: 0.3 },
+        lens: { diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 60, height: 40, borderHandling: "mirror" } }, { width: 12, height: 8 },
+      ["1461b948abc45ee34bf58fd0454f7cb8c2787f6c3b96647dc61b98b5f821c7f0", "1461b948abc45ee34bf58fd0454f7cb8c2787f6c3b96647dc61b98b5f821c7f0"]],
+      [{ scene: { kind: "reflectance-function", sceneId: "rings", evaluate: (p) => 0.4 + 0.3 * Math.cos(40 * Math.hypot(p.u, p.v)) }, lens: { diffraction: "circular-aperture" },
+        sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, ["db00e08a0d83d69fa0b8899c44b8cb695e8a12cb62d3b7b4f9c1efb7eb9c646a", "46bf639dcf58e65e85351b01350c4b1a8b2e9db1ea0bb22f8f227d9c68db1ed4"]],
+      [{ scene: { preset: "dead-leaves" }, lens: { fNumber: 11, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 4 },
+        output: { width: 300, height: 200, demosaic: "ahd", toneCurve: "positive-reinhard-per-channel" } }, { width: 30, height: 20, region: { x: 5, y: 4, width: 9, height: 7 }, format: "srgb-16" },
+      ["2258352b70d562a2d6ea6726d05c0feda79918812531063c6b413b8cc3803134", "f94edbe2123546653d89d8c78a8df71ecb98a84a1b2708a3f68bcc63e45a0d06"]],
+      [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 300, height: 200 } }, { width: 30, height: 20 }, ["ab470cbfe4fb07ee597621f943aed0ce78cd997196a0ea41838c9e598ca830ae", "e9ab7390dfc1587398aa41335ebeab21febb43060d07ca8b1844a826c6b396ec"]]
+    ];
+    for (const [options, view, expected] of cases) {
+      const { result, internals } = await simulateDisplayViewWithInternals(options, view);
+      const diagnostics: Partial<typeof result.diagnostics> = { ...result.diagnostics }, hash = createHash("sha256");
+      delete diagnostics.timingsMs;
+      for (const a of [result.image.samples, internals.expected, internals.noiseStd]) hash.update(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
+      hash.update(JSON.stringify(diagnostics));
+      // [V8 13 pow, V8 12 pow]
+      expect(hash.digest("hex")).toBe(expected[variant === 1 ? 0 : 1]);
+    }
+  }, testTimeout(120_000));
+
+  it("shares AHD correction states across calls without changing a byte", async () => {
+    const options: SimulateCaptureOptions = { scene: { preset: "uniform", reflectance: 0.18 }, exposure: { iso: 1600, shutterSeconds: 1 / 2000 }, sensor: { pixelPitchMicrometers: 1.4 },
+      output: { width: 200, height: 150, demosaic: "ahd" } };
+    clearDisplayViewCorrectionStates();
+    const cold = await simulateDisplayView(options, { width: 10, height: 8 }), states = displayViewCorrectionStateCount();
+    expect(cold.diagnostics.ahdCorrectedPixelCount).toBe(80);
+    expect(states).toBeGreaterThan(0);
+    const warm = await simulateDisplayView(options, { width: 10, height: 8 });
+    expect(displayViewCorrectionStateCount()).toBe(states);
+    expect(Array.from(warm.image.samples)).toEqual(Array.from(cold.image.samples));
+    const region = await simulateDisplayView(options, { width: 10, height: 8, region: { x: 3, y: 2, width: 4, height: 3 } });
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 12; x++) expect(region.image.samples[y * 12 + x]).toBe(cold.image.samples[((y + 2) * 10 + 3) * 3 + x]);
+    // Another seed is another set of states.
+    await simulateDisplayView({ ...options, sensor: { ...options.sensor, noiseSeed: 9 } }, { width: 10, height: 8 });
+    expect(displayViewCorrectionStateCount()).toBeGreaterThan(states);
+    clearDisplayViewCorrectionStates();
+    expect(Array.from((await simulateDisplayView(options, { width: 10, height: 8 })).image.samples)).toEqual(Array.from(cold.image.samples));
   }, testTimeout(60_000));
 
   it("refuses views and capture options it cannot reproduce", async () => {

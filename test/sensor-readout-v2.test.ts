@@ -17,7 +17,8 @@ import {
   type SensorFixedPatternNoiseProfile,
   type SensorReadoutConversionProfile
 } from "../src/index.js";
-import { samplePoissonStreamForValidation, sampleStandardNormalStreamForValidation } from "../src/sensor/raw-readout.js";
+import { createPoissonSampler, samplePoisson, samplePoissonStreamForValidation, sampleStandardNormalStreamForValidation } from "../src/sensor/raw-readout.js";
+import { createDeterministicUniformStream, fmix32 } from "../src/sensor/stochastic-seed.js";
 import { resolveSensorReadoutRegime } from "../src/index.js";
 
 const evidence = [{ sourceOrigin: "photivra", sourceReference: "test:sensor-readout-v2", reuseStatus: "photivra-owned" }] as const;
@@ -107,6 +108,30 @@ describe("Poisson sampler at very large means", () => {
     const mean = draws.reduce((a, b) => a + b, 0) / draws.length;
     expect(Math.abs(mean - 1e6)).toBeLessThan(5 * Math.sqrt(1e6 / 20_000));
     expect(samplePoissonStreamForValidation(1e6, 5, 3)).toEqual(draws.slice(0, 3));
+  });
+});
+
+describe("prepared Poisson sampler and the uniform stream", () => {
+  it("draws exactly what samplePoisson draws for the same mean and stream, on every branch", () => {
+    for (const mean of [0, 1e-3, 0.7, 5, 29.999, 30, 31.5, 250, 4000, 1e6, 2e9]) {
+      const a = createDeterministicUniformStream(77), b = createDeterministicUniformStream(77), sampler = createPoissonSampler(mean);
+      for (let i = 0; i < 4000; i++) expect(sampler(b)).toBe(samplePoisson(mean, a));
+      expect(b.next()).toBe(a.next());
+    }
+    expect(() => createPoissonSampler(-1)).toThrow();
+    expect(() => createPoissonSampler(Number.NaN)).toThrow();
+  });
+  it("keeps the xorshift32 stream's values", () => {
+    // The stream as first written: the state in a closure variable, reduced with >>> 0.
+    const reference = (seed: number): (() => number) => {
+      let state = fmix32((seed ^ 0x9e3779b9) >>> 0);
+      if (state === 0) state = 0x6d2b79f5;
+      return () => { state ^= state << 13; state ^= state >>> 17; state ^= state << 5; state >>>= 0; return (state + 0.5) / 0x1_0000_0000; };
+    };
+    for (const seed of [0, 1, 0x9e3779b9, 0xffffffff, 123456789]) {
+      const stream = createDeterministicUniformStream(seed), next = reference(seed);
+      for (let i = 0; i < 10_000; i++) expect(stream.next()).toBe(next());
+    }
   });
 });
 

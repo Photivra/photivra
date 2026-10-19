@@ -239,7 +239,11 @@ variance than AHD's own output.
 
 The bias is a smooth function of the channel means, so it is computed on a logarithmic grid of
 states (8 steps per octave over 12 octaves below white), 2048 draws per state seeded by the state
-alone, and interpolated trilinearly between the 8 states around the pixel's means. A first version
+alone, and interpolated trilinearly between the 8 states around the pixel's means. A state depends
+only on its grid indices, the noise seed, the draws and the readout and development inputs (the
+normalized value per electron and the read and ADC variance of each channel, the homogeneity matrix,
+the white-balance gains, the highlight clip, the colour matrix and the tone curve), so each one is
+computed once per view and kept for later calls with the same inputs (see "Cost"). A first version
 drew 64 neighbourhoods per display pixel instead: unbiased, but its sampling noise exceeded the display
 pixel's own noise wherever many real pixels are averaged (up to 4× the reference's noise at 96 pixels
 wide), because the display noise falls with the number of averaged pixels and the correction's did not.
@@ -369,62 +373,115 @@ What changed during validation (each found by this matrix and checked again on i
 then one timed `simulateDisplayView` of the whole view and one timed 2.5 whole-frame view (a `simulateCapture` at
 pitch = sensor width ÷ view width) of the same scene, lens, exposure and options. f/8, ISO 100, default
 `samplesPerAxis` (16). Speed is the engine defaults; Quality is `lens.diffraction: "circular-aperture"`, the four-spot
-anti-aliasing filter and AHD. Built `dist`, Node 24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, nothing else running.
-One run on one machine: not a performance claim.
+anti-aliasing filter and AHD. "Before" is the display view as first merged (#368), "after" the
+[exact speed-ups](#exact-speed-ups); the two builds ran interleaved, row by row, on the same host (built `dist`,
+Node 24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, nothing else running). The whole-frame column is the after build's.
+One run per cell on one machine: not a performance claim. Rows within about ±10 % are within this host's run-to-run
+spread (Speed did not change: six alternating runs of the phone at 384 wide took a median 12.7 s before and 12.8 s
+after).
 
-| Chart | Sensor | Options | View | Display view | Whole-frame view (2.5) | Ratio |
-| --- | --- | --- | --- | --- | --- | --- |
-| Siemens star | 24 MP full frame, 6 µm | Speed | 96 × 64 | 1.7 s | 1.0 s | 1.8× |
-| Siemens star | 24 MP full frame, 6 µm | Speed | 192 × 128 | 4.5 s | 2.6 s | 1.7× |
-| Siemens star | 24 MP full frame, 6 µm | Speed | 384 × 256 | 9.2 s | 10.6 s | 0.87× |
-| Siemens star | 24 MP full frame, 6 µm | Speed | 800 × 533 | 23.3 s | 38.1 s | 0.61× |
-| Siemens star | 24 MP full frame, 6 µm | Quality | 96 × 64 | 15.7 s | 3.2 s | 5.0× |
-| Siemens star | 24 MP full frame, 6 µm | Quality | 192 × 128 | 27.8 s | 6.4 s | 4.3× |
-| Siemens star | 24 MP full frame, 6 µm | Quality | 384 × 256 | 59.5 s | 23.1 s | 2.6× |
-| Siemens star | 24 MP full frame, 6 µm | Quality | 800 × 533 | 143.6 s | 97.3 s | 1.5× |
-| Siemens star | 12 MP phone, 1.4 µm | Speed | 96 × 72 | 2.2 s | 1.0 s | 2.2× |
-| Siemens star | 12 MP phone, 1.4 µm | Speed | 192 × 144 | 5.3 s | 3.3 s | 1.6× |
-| Siemens star | 12 MP phone, 1.4 µm | Speed | 384 × 288 | 11.5 s | 12.5 s | 0.92× |
-| Siemens star | 12 MP phone, 1.4 µm | Speed | 800 × 600 | 30.9 s | 51.2 s | 0.60× |
-| Siemens star | 12 MP phone, 1.4 µm | Quality | 96 × 72 | 200.6 s | 2.6 s | 77× |
-| Siemens star | 12 MP phone, 1.4 µm | Quality | 192 × 144 | 265.2 s | 6.6 s | 40× |
-| Siemens star | 12 MP phone, 1.4 µm | Quality | 384 × 288 | 400.4 s | 25.8 s | 16× |
-| Siemens star | 12 MP phone, 1.4 µm | Quality | 800 × 600 | 758.0 s | 119.8 s | 6.3× |
-| Siemens star | 100 MP medium format, 3.76 µm | Speed | 96 × 72 | 2.2 s | 1.0 s | 2.3× |
-| Siemens star | 100 MP medium format, 3.76 µm | Speed | 192 × 144 | 6.4 s | 3.1 s | 2.1× |
-| Siemens star | 100 MP medium format, 3.76 µm | Speed | 384 × 288 | 13.6 s | 10.9 s | 1.3× |
-| Siemens star | 100 MP medium format, 3.76 µm | Speed | 800 × 600 | 29.7 s | 45.9 s | 0.65× |
-| Siemens star | 100 MP medium format, 3.76 µm | Quality | 96 × 72 | 59.1 s | 4.0 s | 15× |
-| Siemens star | 100 MP medium format, 3.76 µm | Quality | 192 × 144 | 127.1 s | 8.0 s | 16× |
-| Siemens star | 100 MP medium format, 3.76 µm | Quality | 384 × 288 | 205.6 s | 27.8 s | 7.4× |
-| Siemens star | 100 MP medium format, 3.76 µm | Quality | 800 × 600 | 404.3 s | 116.1 s | 3.5× |
-| Dead leaves | 24 MP full frame | Speed | 384 × 256 | 17.7 s | 11.3 s | 1.6× |
-| Dead leaves | 24 MP full frame | Quality | 384 × 256 | 93.9 s | 25.0 s | 3.8× |
-| Dead leaves | 12 MP phone | Speed | 384 × 288 | 19.2 s | 12.0 s | 1.6× |
-| Dead leaves | 12 MP phone | Quality | 384 × 288 | 423.0 s | 28.6 s | 15× |
-| Dead leaves | 100 MP medium format | Speed | 384 × 288 | 28.6 s | 12.0 s | 2.4× |
-| Dead leaves | 100 MP medium format | Quality | 384 × 288 | 284.2 s | 28.5 s | 10× |
+| Chart | Sensor | Options | View | Display view before | Display view after | Speed-up | Whole-frame view (2.5) | Ratio after |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 96 × 64 | 1.9 s | 2.4 s | 0.8× | 1.0 s | 2.3× |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 192 × 128 | 4.9 s | 5.1 s | 1.0× | 3.3 s | 1.5× |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 384 × 256 | 10.3 s | 10.6 s | 1.0× | 11.5 s | 0.92× |
+| Siemens star | 24 MP full frame, 6 µm | Speed | 800 × 533 | 25.0 s | 26.6 s | 0.9× | 40.9 s | 0.65× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 96 × 64 | 15.5 s | 5.2 s | 3.0× | 3.3 s | 1.6× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 192 × 128 | 28.3 s | 10.8 s | 2.6× | 7.0 s | 1.5× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 384 × 256 | 65.0 s | 30.9 s | 2.1× | 24.6 s | 1.3× |
+| Siemens star | 24 MP full frame, 6 µm | Quality | 800 × 533 | 162.4 s | 84.3 s | 1.9× | 110.4 s | 0.76× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 96 × 72 | 2.0 s | 2.2 s | 0.9× | 0.9 s | 2.4× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 192 × 144 | 5.5 s | 6.3 s | 0.9× | 3.5 s | 1.8× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 384 × 288 | 12.4 s | 11.7 s | 1.1× | 12.7 s | 0.92× |
+| Siemens star | 12 MP phone, 1.4 µm | Speed | 800 × 600 | 32.9 s | 32.1 s | 1.0× | 54.1 s | 0.59× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 96 × 72 | 221.8 s | 49.7 s | 4.5× | 2.5 s | 20× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 192 × 144 | 300.9 s | 63.0 s | 4.8× | 7.8 s | 8.1× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 384 × 288 | 450.3 s | 106.1 s | 4.2× | 27.7 s | 3.8× |
+| Siemens star | 12 MP phone, 1.4 µm | Quality | 800 × 600 | 836.6 s | 272.4 s | 3.1× | 126.1 s | 2.2× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 96 × 72 | 2.5 s | 2.7 s | 0.9× | 1.2 s | 2.3× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 192 × 144 | 7.7 s | 8.0 s | 1.0× | 3.4 s | 2.4× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 384 × 288 | 15.7 s | 15.8 s | 1.0× | 13.3 s | 1.2× |
+| Siemens star | 100 MP medium format, 3.76 µm | Speed | 800 × 600 | 35.4 s | 32.6 s | 1.1× | 49.7 s | 0.66× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 96 × 72 | 64.9 s | 18.2 s | 3.6× | 4.9 s | 3.7× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 192 × 144 | 145.3 s | 29.3 s | 5.0× | 8.1 s | 3.6× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 384 × 288 | 207.6 s | 49.7 s | 4.2× | 27.5 s | 1.8× |
+| Siemens star | 100 MP medium format, 3.76 µm | Quality | 800 × 600 | 423.8 s | 125.8 s | 3.4× | 119.9 s | 1.0× |
+| Dead leaves | 24 MP full frame | Speed | 384 × 256 | 19.2 s | 19.1 s | 1.0× | 11.3 s | 1.7× |
+| Dead leaves | 24 MP full frame | Quality | 384 × 256 | 95.9 s | 54.3 s | 1.8× | 28.1 s | 1.9× |
+| Dead leaves | 12 MP phone | Speed | 384 × 288 | 19.8 s | 18.7 s | 1.1× | 11.5 s | 1.6× |
+| Dead leaves | 12 MP phone | Quality | 384 × 288 | 407.8 s | 124.3 s | 3.3× | 29.8 s | 4.2× |
+| Dead leaves | 100 MP medium format | Speed | 384 × 288 | 27.7 s | 28.9 s | 1.0× | 12.3 s | 2.3× |
+| Dead leaves | 100 MP medium format | Quality | 384 × 288 | 282.3 s | 68.2 s | 4.1× | 26.7 s | 2.6× |
 
-**Speed** costs 0.6–2.4× the whole-frame view at every size and sensor: 0.87–1.3× for the star and 1.6–2.4× for dead
+**Speed** costs 0.6–2.4× the whole-frame view at every size and sensor: 0.9–1.2× for the star and 1.6–2.3× for dead
 leaves at 384 pixels wide. The cost follows the detailed display pixels × K², not the 12–100 million real pixels.
 
-**Quality** is much dearer on small pixels, for two reasons that the accuracy requirements impose (one run each, 12 MP
-phone star at 96 × 72, one option at a time: diffraction 50 s, anti-aliasing 3.7 s, AHD 316 s):
+**Quality** costs more on small pixels, for two reasons that the accuracy requirements impose (12 MP phone star at
+96 × 72, one option at a time, before → after: diffraction 55.6 → 8.2 s, AHD 312.5 → 100.1 s):
 
 - *Diffraction at the real pitch.* The Airy pattern's first dark ring at f/8 and 550 nm has a radius of
-  1.22·λ·N ≈ 5.4 µm: under one site at 6 µm but almost four at 1.4 µm, so every site's expectation sums many more
-  kernel taps. At the whole-frame view's giant pitch the kernel is far below one pixel.
+  1.22·λ·N ≈ 5.4 µm: under one site at 6 µm but almost four at 1.4 µm, so a site's expectation sums 32 × 32 kernel
+  taps at 1.4 µm (10 × 10 at 6 µm). At the whole-frame view's giant pitch the kernel is far below one pixel.
 - *AHD at low signal.* At ISO 100 a 1.4 µm pixel already has a linear noise of 0.014–0.018, above the 0.01 threshold,
   so every sampled pixel takes the correction. Each grid state the image touches costs 2048 drawn neighbourhoods
-  through the AHD steps, about 0.11 s. The star touches 2 779 states (the eight corners around every pixel's channel
-  means on the logarithmic grid). With the correction off, a uniform 18 %
-  grey at ISO 100 on that sensor moves by −0.11 code in red (+0.05 in blue); at ISO 1600 by −1.07 code. Those are the
-  biases the correction removes.
+  through the AHD steps: about 0.11 s before, about 0.035 s after. The star touches 2 779 states at 96 × 72 without
+  diffraction and 1 155 with the Quality options at 384 × 288 (the eight corners around every pixel's channel means
+  on the logarithmic grid). With the correction off, a uniform 18 % grey at ISO 100 on that sensor moves by
+  −0.11 code in red (+0.05 in blue); at ISO 1600 by −1.07 code. Those are the biases the correction removes.
 
-The whole-frame view has neither cost because its giant pixels make one tap and almost no noise per pixel. Both can
-be made cheaper without approximation: correction states can be shared across calls with the same sensor and
-development, and the per-pixel lattice convolution can use a separable or transform method. Neither is in this
-change.
+**Where the phone's 106 s at 384 × 288 go** (CPU profile of the after build, 108 s under the profiler): the AHD
+correction states 40 s (1 155 states × about 35 ms: the 248 000 Poisson and normal draws of each state and its 2048 AHD
+evaluations), the per-sample statistics 42 s (14.3 million samples: the site reads, the clips, the two candidates'
+moments and the noise terms), the diffraction sums 13 s, the per-sample correction interpolation 2.4 s and the rest
+about 10 s. The 60 s aimed for was not reached: the draws of a state, the order of each kernel sum and the
+per-sample arithmetic are what the exact result is made of, and the remaining ways to go below them are approximations
+(fewer draws per state, a reassociated or transformed convolution) or parallel work in workers, which were not part of
+this change. A second view in the same JavaScript realm with the same sensor, exposure and development reuses the
+correction states: the same 384 × 288 view again took 72.8 s instead of 102.7 s, a 192 × 144 view after it 29.6 s
+instead of 63.0 s; a different scene needs mostly different states (dead leaves after the star: 123.9 s, as cold).
+
+The whole-frame view has neither cost because its giant pixels make one tap and almost no noise per pixel.
+
+### Exact speed-ups
+
+Quality was made cheaper without changing a byte of any display view: the samples, the expected values, the noise and
+every diagnostic, including `sceneLookups`, are the same as before for every request and seed. Each change computes the
+same values with the same operations in the same order; none reassociates a floating-point sum.
+
+- **AHD correction states are shared.** A grid state depends only on its indices and the inputs listed in
+  [AHD at low signal](#ahd-at-low-signal), so it is computed once and kept, for the rest of the view and for later
+  calls with the same inputs (another view size, region or scene of the same sensor, exposure and development): up to
+  65 536 states for each of the 4 most recently used input sets, about 50 bytes per state (13 MB at most). A state is also cheaper to
+  compute: ln n! for the Poisson sampler comes from a table of the same partial sums, the sampler's per-mean constants
+  are computed once per state, the xorshift stream keeps its state in a `Uint32Array` (a uint32 in a closure variable
+  was boxed on every step; this speeds every seeded draw in the engine), the AHD steps run on flat arrays without
+  temporary objects and skip the four corner candidates their homogeneity step never reads, and the 16 patch sites the
+  steps never read skip the normal transform (their uniforms are still drawn, so the stream is where it was).
+- **Diffraction sums are shared, not rearranged.** A site's expected electrons are a sum of kernel taps in a fixed
+  order; a separable, summed-area or transform evaluation would reassociate it and change the last bits, so the sum
+  itself is kept. With chart materials (every preset): each lattice point is looked up once per display row (a band
+  that grows to the right with the windows) instead of once per display pixel; a site whose whole kernel support reads
+  one material, found from summed-area tables of material changes, takes that material's value, precomputed once with
+  the same sum; other sites run the sum from the band; and site values are kept across the windows of neighbouring
+  display pixels (a ring of site rows). The scene lookup count is still the count of the per-pixel lazy cache,
+  reconstructed from the sites each display pixel reads. Radiance scenes (caller functions) keep the per-pixel path.
+- **One-material samples are replayed.** A sampled pixel whose demosaic sites all read one material has the statistics
+  of every other such sample of that material and CFA phase, so the terms it adds to the display pixel's sums are
+  recorded once and added again in the same order (with the display pixel's own footprint weights).
+- **Zero terms are skipped.** The covariance and third-cumulant sums of each AHD candidate skip the sites where its
+  weights are zero (adding ±0 to a sum that starts at +0 changes nothing).
+
+**Proof of byte identity.** The display views of all 155 validation cases at their seeds (the requests of
+`validate-display-view.mjs`, Speed and Quality, three sensors) were hashed before and after (SHA-256 of the samples, of
+the expected values and noise, and of the whole result with the timings removed): all identical, with the later cases
+reusing the earlier cases' correction states in the same process. A test locks six more requests that exercise each
+path (uniform and mixed diffraction sites, the AHD correction, spectral materials with mirror borders, a radiance
+scene, AHD with a tone curve, Speed) to hashes recorded before the change, and another checks that shared states give
+the same bytes as fresh ones. The display view's bytes depend on the runtime's `Math.pow`: Node 22 (V8 12) and Node 24
+(V8 13) differ by one ulp in about 10 % of x^(1/2.4) values, so four of those six requests already gave different bytes
+on the two before the change; the test records both sets from the code before the change and holds each runtime to its
+own (byte identity before and after was also checked on Node 22.13.0). The capture hash locks and the facade fingerprints of 15 default-path results are
+unchanged.
 
 ## Limits and refusals
 

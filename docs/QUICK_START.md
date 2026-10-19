@@ -1208,19 +1208,22 @@ Validated against real full-resolution captures resized in linear light: three s
 
 **Cost.** It follows the detailed display pixels × `samplesPerAxis`², not the real pixel count. Measured against the
 whole-frame view of the same request (Siemens star, f/8, ISO 100, one run, Node 24.21.0 on a 4-vCPU 2.80 GHz Xeon;
-every row in [DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#cost)):
+every row, and the times before the exact speed-ups, in [DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#cost)):
 
 | Sensor | Options | 96 wide | 384 wide | 800 wide |
 | --- | --- | --- | --- | --- |
-| 24 MP full frame, 6 µm | Speed (defaults) | 1.7 s (1.8×) | 9.2 s (0.87×) | 23.3 s (0.61×) |
-| 12 MP phone, 1.4 µm | Speed | 2.2 s (2.2×) | 11.5 s (0.92×) | 30.9 s (0.60×) |
-| 100 MP medium format, 3.76 µm | Speed | 2.2 s (2.3×) | 13.6 s (1.3×) | 29.7 s (0.65×) |
-| 24 MP full frame | Quality (diffraction, four-spot filter, AHD) | 15.7 s (5.0×) | 59.5 s (2.6×) | 144 s (1.5×) |
-| 12 MP phone | Quality | 201 s (77×) | 400 s (16×) | 758 s (6.3×) |
-| 100 MP medium format | Quality | 59.1 s (15×) | 206 s (7.4×) | 404 s (3.5×) |
+| 24 MP full frame, 6 µm | Speed (defaults) | 2.4 s (2.3×) | 10.6 s (0.92×) | 26.6 s (0.65×) |
+| 12 MP phone, 1.4 µm | Speed | 2.2 s (2.4×) | 11.7 s (0.92×) | 32.1 s (0.59×) |
+| 100 MP medium format, 3.76 µm | Speed | 2.7 s (2.3×) | 15.8 s (1.2×) | 32.6 s (0.66×) |
+| 24 MP full frame | Quality (diffraction, four-spot filter, AHD) | 5.2 s (1.6×) | 30.9 s (1.3×) | 84.3 s (0.76×) |
+| 12 MP phone | Quality | 49.7 s (20×) | 106 s (3.8×) | 272 s (2.2×) |
+| 100 MP medium format | Quality | 18.2 s (3.7×) | 49.7 s (1.8×) | 126 s (1.0×) |
 
-Quality is dear on small pixels. The diffraction kernel spans several real sites, and at 1.4 µm even ISO 100 is
-noisy enough for the AHD correction to run on every sampled pixel.
+Quality costs more on small pixels. The diffraction kernel spans several real sites, and at 1.4 µm even ISO 100 is
+noisy enough for the AHD correction to run on every sampled pixel; its correction states are kept for later views of
+the same sensor, exposure and development in the same JavaScript realm (a second 384-wide phone view of the same
+request took 73 s instead of 103 s). The results are byte-identical to those of the display view as first merged,
+which took 222 s, 450 s and 837 s on the phone.
 
 **Options.** `view.width` and `view.height` (1 to the capture's output size), `view.samplesPerAxis` (1–32),
 `view.format` (`"srgb-8"` default or `"srgb-16"`) and `view.region` (a rectangle in display pixels, byte-identical to
