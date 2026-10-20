@@ -149,7 +149,7 @@ python3.13 -m venv /tmp/scancode-venv
 node scripts/check-scancode-policy.mjs /tmp/scancode.json
 ```
 
-The scan and the other required checks run on pull requests, which must be up to date with `main` before they merge; a push to `main` runs only the `main smoke` job (build, hash-lock tests and the packed-consumer acceptance).
+The scan and the other required checks run on pull requests, which must be up to date with `main` before they merge; a push to `main` runs only the `main smoke` job (build, hash-lock tests and the packed-consumer acceptance). On a pull request the coverage gate runs as four parallel `coverage shard (k/4)` jobs; the required `verify (lts/*)` job merges their reports (`vitest --merge-reports --coverage`) and enforces the thresholds in `vitest.config.ts` on the whole suite. Locally, `npm run coverage` runs the whole suite and enforces them directly.
 
 Write the report outside the repository, or the next scan will include it. `-n "$(nproc)"` runs one scan process per CPU, as CI does.
 
