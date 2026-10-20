@@ -9,8 +9,11 @@
  *   node scripts/validate-display-view.mjs [--workers 4] [--set A] [--options speed|quality] [--out results.jsonl]
  *   node scripts/validate-display-view.mjs --report results.jsonl
  *
- * Informational only: no CI gate. A full run (155 cases, the largest references are about a million real sites)
- * took about two hours on 4 cores.
+ * The reference block is rendered at seven noise seeds (REFERENCE_SEEDS) and every reference-side metric is the mean
+ * over them; the view is rendered once, at the request's default seed.
+ *
+ * Informational only: no CI gate. A full run (155 cases, seven references each, the largest about a million real sites)
+ * takes several hours on 4 cores.
  */
 import "./require-fresh-dist.mjs";
 import console from "node:console";
@@ -21,6 +24,8 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { NATIVE_RAW_LIMITS, simulateCapture, simulateIdealReference } from "../dist/index.js";
 import { simulateDisplayViewWithInternals } from "../dist/facade/simulate-display-view.js";
 
+/** Reference noise seeds (`sensor.noiseSeed`): every reference metric is averaged over these realizations. */
+const REFERENCE_SEEDS = [1, 2, 3, 4, 5, 6, 7];
 const SENSORS = {
   ff: { label: "full frame 24 MP, 6 µm", width: 6000, height: 4000, pitch: 6 },
   phone: { label: "phone 12 MP, 1.4 µm", width: 4000, height: 3000, pitch: 1.4 },
@@ -97,36 +102,48 @@ async function runCase(c) {
   const { result, internals } = await simulateDisplayViewWithInternals(opts, { width: vw, height: vh, region: b, format: "srgb-16" });
   const tView = performance.now() - t0;
   const rx0 = Math.floor(b.x * sx), ry0 = Math.floor(b.y * sy), rx1 = Math.min(s.width, Math.ceil((b.x + b.width) * sx)), ry1 = Math.min(s.height, Math.ceil((b.y + b.height) * sy));
-  const t1 = performance.now();
-  const ref = await simulateCapture({ ...opts, output: { ...opts.output, format: "srgb-16", region: { x: rx0, y: ry0, width: rx1 - rx0, height: ry1 - ry0 } } });
-  const tRef = performance.now() - t1, rw = rx1 - rx0, n = b.width * b.height, refLin = new Float64Array(n * 3), viewLin = new Float64Array(n * 3);
-  for (let j = 0; j < b.height; j++) for (let i = 0; i < b.width; i++) {
-    const X0 = (b.x + i) * sx, X1 = (b.x + i + 1) * sx, Y0 = (b.y + j) * sy, Y1 = (b.y + j + 1) * sy, o = (j * b.width + i) * 3;
-    for (let y = Math.floor(Y0); y < Math.ceil(Y1); y++) {
-      const wy = Math.min(Y1, y + 1) - Math.max(Y0, y);
-      for (let x = Math.floor(X0); x < Math.ceil(X1); x++) {
-        const w = wy * (Math.min(X1, x + 1) - Math.max(X0, x)) / (sx * sy), p = ((y - ry0) * rw + (x - rx0)) * 3;
-        for (let k = 0; k < 3; k++) refLin[o + k] += w * decode(ref.image.samples[p + k], 65535);
+  const rw = rx1 - rx0, n = b.width * b.height, viewLin = new Float64Array(n * 3);
+  for (let i = 0; i < 3 * n; i++) viewLin[i] = decode(result.image.samples[i], 65535);
+  // The reference block at each of REFERENCE_SEEDS (sensor.noiseSeed; seed 1 is the request's own default, as for the view).
+  const t1 = performance.now(), refs = [];
+  for (const seed of REFERENCE_SEEDS) {
+    const sensor = seed === 1 ? opts.sensor : { ...opts.sensor, noiseSeed: seed };
+    const ref = await simulateCapture({ ...opts, sensor, output: { ...opts.output, format: "srgb-16", region: { x: rx0, y: ry0, width: rw, height: ry1 - ry0 } } });
+    const refLin = new Float64Array(n * 3);
+    for (let j = 0; j < b.height; j++) for (let i = 0; i < b.width; i++) {
+      const X0 = (b.x + i) * sx, X1 = (b.x + i + 1) * sx, Y0 = (b.y + j) * sy, Y1 = (b.y + j + 1) * sy, o = (j * b.width + i) * 3;
+      for (let y = Math.floor(Y0); y < Math.ceil(Y1); y++) {
+        const wy = Math.min(Y1, y + 1) - Math.max(Y0, y);
+        for (let x = Math.floor(X0); x < Math.ceil(X1); x++) {
+          const w = wy * (Math.min(X1, x + 1) - Math.max(X0, x)) / (sx * sy), p = ((y - ry0) * rw + (x - rx0)) * 3;
+          for (let k = 0; k < 3; k++) refLin[o + k] += w * decode(ref.image.samples[p + k], 65535);
+        }
       }
     }
-    for (let k = 0; k < 3; k++) viewLin[o + k] = decode(result.image.samples[o + k], 65535);
+    refs.push(refLin);
   }
-  const to8 = (lin) => Float64Array.from(lin, code8), ref8 = to8(refLin), view8 = to8(viewLin), exp8 = to8(internals.expected);
+  const tRef = performance.now() - t1, m = refs.length;
+  const to8 = (lin) => Float64Array.from(lin, code8), view8 = to8(viewLin), exp8 = to8(internals.expected), refs8 = refs.map(to8);
   const out = { id: c.id, set: c.set, sensor: c.sensor, options: c.options, preset: c.scene.preset, reflectance: c.scene.reflectance, fNumber: c.fNumber, iso: c.iso, viewWidth: vw,
-    block: b, s: sx, tView, tRef, refSites: (rx1 - rx0) * (ry1 - ry0), viewSamples: result.diagnostics.sampleCount };
-  const mlin = (a, k) => mean(channel(a, k));
-  out.meanErrLin8 = [0, 1, 2].map((k) => code8(mlin(viewLin, k)) - code8(mlin(refLin, k)));
-  // Standard error of the mean difference from the noise alone (the view's predicted standard deviation for both blocks; the
-  // blocks' own spread would include the chart's structure).
-  out.se8 = [0, 1, 2].map((k) => { const m = mlin(refLin, k), se = Math.sqrt(2 * mean(channel(internals.noiseStd, k).map((v) => v * v)) / n); return code8(m + se) - code8(m); });
-  let sq = 0, mx = 0;
-  for (let i = 0; i < 3 * n; i++) { const d = exp8[i] - ref8[i]; sq += d * d; mx = Math.max(mx, Math.abs(d)); }
-  out.rmsExp8 = Math.sqrt(sq / (3 * n)); out.maxExp8 = mx;
-  out.stdRefLin = [0, 1, 2].map((k) => std(channel(refLin, k))); out.stdViewLin = [0, 1, 2].map((k) => std(channel(viewLin, k)));
+    block: b, s: sx, tView, tRef, refSites: (rx1 - rx0) * (ry1 - ry0), viewSamples: result.diagnostics.sampleCount, referenceSeeds: REFERENCE_SEEDS };
+  // Every reference-side metric is the mean of its values over the reference seeds (standard deviations: the root of the
+  // mean variance), so one noise realization of the reference does not decide a case (docs/DISPLAY_VIEW.md, "Validation").
+  const mlin = (a, k) => mean(channel(a, k)), avg = (f) => mean(refs.map((r, i) => f(r, refs8[i])));
+  out.meanErrLin8 = [0, 1, 2].map((k) => code8(mlin(viewLin, k)) - code8(avg((r) => mlin(r, k))));
+  // Standard error of the mean difference from the noise alone (the view's predicted standard deviation for the view block
+  // and for the mean of m reference blocks; the blocks' own spread would include the chart's structure).
+  out.se8 = [0, 1, 2].map((k) => { const mr = avg((r) => mlin(r, k)), se = Math.sqrt((1 + 1 / m) * mean(channel(internals.noiseStd, k).map((v) => v * v)) / n); return code8(mr + se) - code8(mr); });
+  out.rmsExp8 = avg((r, r8) => { let sq = 0; for (let i = 0; i < 3 * n; i++) { const d = exp8[i] - r8[i]; sq += d * d; } return Math.sqrt(sq / (3 * n)); });
+  out.maxExp8 = avg((r, r8) => { let mx = 0; for (let i = 0; i < 3 * n; i++) mx = Math.max(mx, Math.abs(exp8[i] - r8[i])); return mx; });
+  out.stdRefLin = [0, 1, 2].map((k) => Math.sqrt(avg((r) => std(channel(r, k)) ** 2))); out.stdViewLin = [0, 1, 2].map((k) => std(channel(viewLin, k)));
   out.predStdLin = [0, 1, 2].map((k) => Math.sqrt(mean(channel(internals.noiseStd, k).map((v) => v * v))));
-  if (b.width >= 8 && b.height >= 8) out.ssim = ssim(view8, ref8, b.width, b.height);
-  out.falseColourRef = falseColour(ref8, n); out.falseColourView = falseColour(view8, n);
-  if (c.scene.preset === "slanted-edge" && b.width >= 24) { out.mtf50Ref = mtf50(refLin, b.width, b.height); out.mtf50View = mtf50(viewLin, b.width, b.height); }
+  if (b.width >= 8 && b.height >= 8) out.ssim = avg((r, r8) => ssim(view8, r8, b.width, b.height));
+  out.falseColourRefSeeds = refs8.map((r8) => falseColour(r8, n));
+  out.falseColourRef = mean(out.falseColourRefSeeds); out.falseColourView = falseColour(view8, n);
+  if (c.scene.preset === "slanted-edge" && b.width >= 24) {
+    out.mtf50RefSeeds = refs.map((r) => mtf50(r, b.width, b.height));
+    out.mtf50Ref = mean(out.mtf50RefSeeds); out.mtf50View = mtf50(viewLin, b.width, b.height);
+  }
   return out;
 }
 

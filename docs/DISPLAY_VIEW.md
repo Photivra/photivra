@@ -270,6 +270,15 @@ block of display pixels (`output.region`, byte-identical to the whole render), a
 and area-averaged in linear light with the exact fractional weights: approach (a) on the block. The
 display view renders the same block with `view.region` (16-bit). One process per case, built `dist`.
 
+**Seven reference seeds.** The reference block is rendered at seven noise seeds (`sensor.noiseSeed` 1 to 7) and every
+reference-side metric below is the mean of its seven values (standard deviations: the root of the mean variance); the
+view is rendered once, at the request's default seed (1). One realization of the reference varies too much for the
+limits: on the 100 MP sensor at 800 pixels wide its slanted-edge MTF50 ranged 0.521–0.554 cycles per display pixel over
+the seven seeds (standard deviation 2.1 % of the mean), so the difference between two single realizations varies by
+about 3 %, the size of the MTF50 limit. A single seed decided case 102 of the October 19 record (−4.4 %), whose seed-1
+reference was the sharpest of the seven; against the seven-seed mean it is −0.9 %. The limits did not change. The
+standard error of a mean difference is then that of the view plus that of the seven-seed mean, √((1 + 1/7)·σ²/n).
+
 **Matrix.** Five charts (slanted edge, 36-cycle Siemens star, bar groups at 100–800 LW/PH, dead leaves,
 an 11-step grey wedge) and uniform grey patches; three sensors (full frame 6000 × 4000 at 6 µm,
 24 MP; phone 4000 × 3000 at 1.4 µm, 12 MP; medium format 11 648 × 8 736 at 3.76 µm, 100 MP); the
@@ -308,53 +317,81 @@ same exposure); display widths 96, 192, 384 and 800; Speed (the engine defaults)
 
 ## Validation results
 
-155 cases on the final code (`node scripts/validate-display-view.mjs`; every row, and the raw lines, in
+155 cases on `main` at `ea6dbe7` (`node scripts/validate-display-view.mjs`, seven reference seeds; the display views of
+`05d24cb` are byte-identical; every row, and the raw lines, in
 [the validation record](validation/display-view-2026-10-19/README.md)). Summary by options, ISO and block type:
 
 | Options | ISO | Blocks | Cases | Largest mean error (codes) | Noise, predicted ÷ reference | MTF50 change | Lowest SSIM (blocks ≥ 16) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Speed | ISO 100 | charts | 41 | 0.24 | — | −2.6 to +0.8 % | 0.9874 |
-| Speed | ISO 100 | uniform patches | 9 | 0.14 | 0.90–1.12 | — | — |
-| Speed | ISO 1600 | charts | 2 | 0.37 | — | +0.9 to +0.9 % | 0.9667 |
-| Speed | ISO 1600 | uniform patches | 1 | 0.28 | 1.00–1.08 | — | — |
-| Speed | ISO 6400 | charts | 9 | 1.14 | — | −9.9 to +4.0 % | 0.8716 |
-| Speed | ISO 6400 | uniform patches | 18 | 3.51 | 0.85–1.14 | — | — |
-| Quality | ISO 100 | charts | 39 | 0.28 | — | −2.4 to +2.9 % | 0.9912 |
-| Quality | ISO 100 | uniform patches | 8 | 0.25 | 0.84–1.12 | — | — |
-| Quality | ISO 1600 | charts | 2 | 0.54 | — | +1.0 to +1.0 % | 0.9634 |
-| Quality | ISO 1600 | uniform patches | 1 | 1.09 | 0.96–1.01 | — | — |
-| Quality | ISO 6400 | charts | 9 | 1.02 | — | −2.5 to +22.2 % | 0.8644 |
-| Quality | ISO 6400 | uniform patches | 16 | 1.72 | 0.84–1.19 | — | — |
+| Speed | ISO 100 | charts | 41 | 0.24 | — | −2.7 to +2.2 % | 0.9873 |
+| Speed | ISO 100 | uniform patches | 9 | 0.10 | 0.94–1.03 | — | — |
+| Speed | ISO 1600 | charts | 2 | 0.16 | — | −1.4 to −1.4 % | 0.9668 |
+| Speed | ISO 1600 | uniform patches | 1 | 0.51 | 0.99–1.01 | — | — |
+| Speed | ISO 6400 | charts | 9 | 0.75 | — | −2.9 to +3.4 % | 0.8703 |
+| Speed | ISO 6400 | uniform patches | 18 | 1.03 | 0.93–1.06 | — | — |
+| Quality | ISO 100 | charts | 39 | 0.30 | — | −1.0 to +1.2 % | 0.9904 |
+| Quality | ISO 100 | uniform patches | 8 | 0.22 | 0.89–1.08 | — | — |
+| Quality | ISO 1600 | charts | 2 | 0.27 | — | −0.2 to −0.2 % | 0.9631 |
+| Quality | ISO 1600 | uniform patches | 1 | 0.37 | 0.97–1.05 | — | — |
+| Quality | ISO 6400 | charts | 9 | 0.65 | — | −1.7 to +10.6 % | 0.8598 |
+| Quality | ISO 6400 | uniform patches | 16 | 1.30 | 0.90–1.16 | — | — |
 
 Against the limits:
 
 - **Mean error per channel: every channel of every case passes** (|error| ≤ max(0.5 code, 3 standard errors of the
-  noise)). At ISO 100 the largest is 0.28 code (Monte Carlo error at a Siemens star's centre). The largest absolute
-  values are where each display pixel averages a few very noisy pixels: a 1.4 µm sensor at ISO 6400 shown 800 pixels
-  wide, +3.5 ± 1.7 codes in red (2.1 standard errors). Five of the 465 channel tests exceed 2 standard errors (all
-  on the 1.4 µm sensor at ISO 1600–6400, with both signs), fewer than chance alone would give, so the data show no
-  bias at that level.
-- **Expected value at ISO 100:** with the reference's own noise taken out (the predicted noise, which the uniform
-  patches confirm), the estimator's RMS error is at most 0.52 code on edges, bars, dead leaves and grey steps and 1.9
-  codes in the busiest pixels (star centres, many edges per pixel).
-- **Noise:** the predicted standard deviation is 0.85–1.14 of the reference's for Speed and 0.84–1.19 for Quality
-  (8 × 8 blocks at 96 pixels wide have a ±25 % limit). Two Quality values fall just below 0.85: blue on the 24 MP
-  sensor at 384 pixels wide, 0.84 and 0.85. AHD's choice between its candidates correlates neighbouring pixels (it sums
-  homogeneity over 3 × 3), and the view models that choice's variance per pixel only, so Quality blue (and to a lesser
-  degree red) noise is 5–15 % below the resized AHD capture's at mid scales.
-- **Sharpness:** MTF50 of the slanted edge at ISO 100 changes by −2.6 % to +2.9 % (limit 3 %), over three sensors,
-  f/2.8–f/16 and 192–800 pixels wide. At ISO 6400 MTF50 measured on a noisy reference block is dominated by the
-  reference's noise (the change ranges from −10 % to +22 % between two noise realizations of the same blur) and is not
-  a fidelity measure.
-- **SSIM** of structured blocks at ISO 100 is 0.9874 or higher. It misses the 0.99 limit only at star centres
-  (0.987–0.990), where the Monte Carlo error is largest; a larger `view.samplesPerAxis` reduces it (with stratified
-  samples the variance falls at least as 1/K²) at a detail-pixel cost proportional to K² (not measured in this matrix). At high ISO SSIM compares two independent noise realizations.
-- **False colour** of neutral charts agrees within 0.1–0.3 code except at star centres, where per-channel Monte Carlo
-  error adds 0.4–1.4 codes of apparent false colour (for example 9.69 → 10.09 on the 24 MP sensor, Speed).
+  noise)). At ISO 100 the largest is 0.30 code (Monte Carlo error at a Siemens star's centre). One of the 465 channel
+  tests is above 0.5 code and 2 standard errors, fewer than chance alone would give.
+- **Expected value at ISO 100:** with the reference's own noise taken out (estimated from each block's standard error,
+  √(RMS² − n·SE²/(1 + 1/7)) averaged over the channels, which is crude on high-contrast blocks), the estimator's RMS
+  error is at most 0.81 code on edges, bars, dead leaves and grey steps and 1.9 codes in the busiest pixels (star
+  centres, many edges per pixel).
+- **Noise: one Quality case misses the limit, a documented miss of the known limit below.** The predicted standard
+  deviation is 0.93–1.06 of the reference's for Speed and 0.89–1.16 for Quality (8 × 8 blocks at 96 pixels wide have a
+  ±25 % limit). The miss is case 138: the 1.4 µm sensor with the Quality options at 800 pixels wide on an 18 % grey
+  patch at ISO 6400, predicted ÷ reference R 1.164, G 1.133, B 1.030 against the 0.85–1.15 limit. The limit is
+  unchanged; the miss is recorded under #379 with case 92 and is accepted for 2.6.0 by the owner's decision of
+  October 20, 2026.
+- **Sharpness:** MTF50 of the slanted edge at ISO 100 changes by −2.7 % to +2.2 % for Speed and −1.0 % to +1.2 % for
+  Quality (limit 3 %), over three sensors, f/2.8–f/16 and 192–800 pixels wide. The reference's own MTF50 varies by up to
+  2.2 % (one standard deviation) between noise seeds. At ISO 6400 MTF50 measured on a noisy block is dominated by the
+  noise and is not a fidelity measure.
+- **SSIM** of structured blocks at ISO 100 is 0.9873 or higher. It misses the 0.99 limit only at star centres
+  (0.987–0.998), where the Monte Carlo error is largest; a larger `view.samplesPerAxis` reduces it (with stratified
+  samples the variance falls at least as 1/K²) at a detail-pixel cost proportional to K² (not measured in this matrix).
+  At high ISO SSIM compares independent noise realizations.
+- **False colour** of neutral charts at ISO 100 agrees within 0.15 code except on the 1.4 µm sensor with the Quality
+  options, within the 0.5-code limit: the slanted edge at 800 pixels wide, +0.48 (case 92, 4.20 → 4.68; the known limit
+  below), and bar groups at 384 wide, +0.41 (case 17, 2.90 → 3.31); and star centres, where per-channel Monte Carlo
+  error adds up to 1.4 codes of apparent false colour.
 - **Aperture:** with the engine defaults (no diffraction) the f-number changes only the exposure, which the matrix
   compensates with the shutter, so Speed results are the same at f/2.8, f/8 and f/16; with diffraction (Quality) the
-  slanted-edge MTF50 falls from 0.533 to 0.523 cycles per display pixel between f/2.8 and f/16 on the 24 MP sensor,
-  and the view follows within 1.5 %.
+  slanted-edge MTF50 falls from 0.528 to 0.518 cycles per display pixel between f/2.8 and f/16 on the 24 MP sensor,
+  and the view follows within 0.2 %.
+
+### Known limit: Quality noise at small footprints
+
+With the Quality options (AHD) the view's noise has too much colour where a display pixel covers few sensor pixels.
+The noise term Σ_c B_c·σ_c²·a_c·a_cᵀ treats output camera channel c as driven only by CFA sites of channel c, with
+B_c from the bilinear kernels. AHD forms red and blue from directional green plus interpolated colour differences, so
+they read green sites as well, and the output channels share noise. Over a large footprint those green weights sum to
+zero and the error vanishes; over a small one they do not. AHD's noise-driven choice between its candidates, which is
+correlated over 3 × 3 pixels, changes the covariance as well, so no closed form over the two linear candidates matches
+the capture (with one candidate everywhere, 0.89 / 0.89 / 1.07 of the reference's standard deviation; with an
+independent choice per pixel, 0.45 / 0.83 / 0.89).
+
+Measured on the 1.4 µm sensor at 800 pixels wide (5 × 5 real pixels per display pixel): on a uniform 18 % grey patch
+at ISO 100 the predicted noise is 1.08 / 1.08 / 0.95 of the reference's (pooled over 12 noise seeds: R − G +9 %,
+B − G +15 %, and a green–blue correlation of −0.06 where the capture has +0.16), and at ISO 6400 (case 138) R 1.164,
+G 1.133, B 1.030, outside the 0.85–1.15 noise limit. On the slanted edge (case 92) R − G is +9 % and B − G +18 %, and the false colour
+exceeds the reference's by +0.48 code (+0.49 ± 0.05 over seven view and reference seeds; with the reference's own noise
+added to the view's expected image instead of the view's draw, +0.04): the expected value is right and the drawn
+noise is not. Speed (bilinear) is exact. On the 6 µm and 3.76 µm sensors, and on the 1.4 µm sensor at 384 pixels wide
+or less, the predicted noise is within 0.89–1.08. A redesign of the Quality noise model, from the autocovariance of
+the real AHD output, is planned for 2.7.0 (#379).
+
+Known-limit misses in the validation, recorded under #379 and accepted for 2.6.0 by the owner (October 20, 2026), with
+the limits unchanged: case 138 (noise ratio, above) and case 92 (false colour +0.48 code, within its 0.5-code limit with
+seven reference seeds but at the limit across seeds).
 
 What changed during validation (each found by this matrix and checked again on it):
 
