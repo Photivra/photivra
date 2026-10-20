@@ -110,7 +110,9 @@ jobs:
         # No npm install runs in this job, so node_modules, dist and coverage
         # do not exist; they are ignored anyway, as is .git. One scan process
         # per CPU (4 on the standard runner for public repositories): the same
-        # files and the same per-file timeout as with 2.
+        # files and the same per-file timeout. Measured in October 2026: 317 s
+        # with 4 processes against 337 s with 2 (1036 files; no file over 17 s
+        # of CPU time), so the runner's CPUs, not the process count, set the time.
         run: >-
           "$RUNNER_TEMP/scancode/bin/scancode"
           --license --copyright -n "$(nproc)" --strip-root --timeout 300
