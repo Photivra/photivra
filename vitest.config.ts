@@ -11,6 +11,13 @@ const coverageRun = process.argv.some(
   (argument) => argument === "--coverage" || argument.startsWith("--coverage.") || argument.startsWith("--coverage=")
 );
 const timeoutScale = coverageRun ? 4 : 1;
+/*
+ * A sharded coverage run (`--shard=k/n`, the four CI coverage parts) covers only part of the
+ * suite, so it keeps raw coverage in its blob report and checks no threshold; the merge of all
+ * parts (`vitest --merge-reports --coverage`, the required `verify (lts/*)` check) enforces the
+ * thresholds below on the whole suite. Every other coverage run enforces them directly.
+ */
+const shardRun = process.argv.some((argument) => argument === "--shard" || argument.startsWith("--shard="));
 
 export default defineConfig({
   test: {
@@ -27,7 +34,7 @@ export default defineConfig({
         "src/schema/scene.ts"
       ],
       reporter: ["text", "json-summary"],
-      thresholds: {
+      thresholds: shardRun ? undefined : {
         lines: 90,
         functions: 90,
         statements: 90,
