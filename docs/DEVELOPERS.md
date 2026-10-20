@@ -149,6 +149,6 @@ python3.13 -m venv /tmp/scancode-venv
 node scripts/check-scancode-policy.mjs /tmp/scancode.json
 ```
 
-Write the report outside the repository, or the next scan will include it.
+Write the report outside the repository, or the next scan will include it. `-n "$(nproc)"` runs one scan process per CPU, as CI does.
 
 To add an allowlist entry, add one object with `path`, the exact `license` (or `holder`) string from the failure message, and a `reason` that says why the material is allowed. Record any third-party material in [THIRD_PARTY.md](../THIRD_PARTY.md). A new or widened entry needs the owner's review in the pull request before merge. Never add a directory-wide or wildcard entry.
