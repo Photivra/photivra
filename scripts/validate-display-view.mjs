@@ -22,7 +22,7 @@ import { performance } from "node:perf_hooks";
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { NATIVE_RAW_LIMITS, simulateCapture, simulateIdealReference } from "../dist/index.js";
-import { simulateDisplayViewWithInternals } from "../dist/facade/simulate-capture.js";
+import { simulateDisplayViewWithInternals } from "../dist/facade/simulate-display-view.js";
 
 /** Reference noise seeds (`sensor.noiseSeed`): every reference metric is averaged over these realizations. */
 const REFERENCE_SEEDS = [1, 2, 3, 4, 5, 6, 7];

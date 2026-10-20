@@ -89,13 +89,18 @@ export function equalWithinUlps(a: number, b: number, maximumUlps: number): bool
 // determinism does not depend on them.
 
 /** Bit access to a double: the high 32-bit word is at index HIGH of the view (detected once, so either byte order works). */
-const BITS = new Float64Array(1), WORDS = new Uint32Array(BITS.buffer);
-const HIGH = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1 ? 1 : 0, LOW = 1 - HIGH;
+// The tables and constants below are built by expressions marked pure (/* @__PURE__ */), so a bundler drops them from a
+// bundle that uses none of the functions that read them (a capture-only bundle keeps only portableHypot and equalWithinUlps).
+const BITS = /* @__PURE__ */ new Float64Array(1), WORDS = /* @__PURE__ */ ((): Uint32Array => new Uint32Array(BITS.buffer))();
+const HIGH = /* @__PURE__ */ ((): number => (new Uint8Array(new Uint16Array([1]).buffer)[0] === 1 ? 1 : 0))(), LOW = 1 - HIGH;
 /** 2^k for every integer k in [−1074, 1023] at POW2[k + 1074], built by exact halving and doubling. */
-const POW2 = new Float64Array(2098);
-POW2[1074] = 1;
-for (let k = 1; k <= 1023; k++) POW2[1074 + k] = POW2[1073 + k]! * 2;
-for (let k = 1; k <= 1074; k++) POW2[1074 - k] = POW2[1075 - k]! / 2;
+const POW2 = /* @__PURE__ */ ((): Float64Array => {
+  const table = new Float64Array(2098);
+  table[1074] = 1;
+  for (let k = 1; k <= 1023; k++) table[1074 + k] = table[1073 + k]! * 2;
+  for (let k = 1; k <= 1074; k++) table[1074 - k] = table[1075 - k]! / 2;
+  return table;
+})();
 /** v·2^k for an integer k in [−1100, 1100]: one exact multiplication (a single rounding only when the result is subnormal). */
 function scaleByPowerOfTwo(v: number, k: number): number {
   if (k > 1023) return v * POW2[2097]! * POW2[1074 + k - 1023]!;
@@ -113,9 +118,9 @@ const LOG2E_HI = 1.4426950408889634, LOG2E_LO = 2.0355273740931033e-17;
 const SQRT2 = 1.4142135623730951, TWO_POW_54 = 18014398509481984, MIN_NORMAL = 2.2250738585072014e-308;
 /** Veltkamp halves of a constant (the same values the split gives at each use). */
 function splitHigh(a: number): number { const c = SPLITTER * a; return c - (c - a); }
-const LN2_HI_H = splitHigh(LN2_HI), LN2_HI_L = LN2_HI - LN2_HI_H, LOG2E_HI_H = splitHigh(LOG2E_HI), LOG2E_HI_L = LOG2E_HI - LOG2E_HI_H;
+const LN2_HI_H = /* @__PURE__ */ splitHigh(LN2_HI), LN2_HI_L = LN2_HI - LN2_HI_H, LOG2E_HI_H = /* @__PURE__ */ splitHigh(LOG2E_HI), LOG2E_HI_L = LOG2E_HI - LOG2E_HI_H;
 /** The low part of the last double-double result (its high part is the return value). */
-const LOW_PART = new Float64Array(1);
+const LOW_PART = /* @__PURE__ */ new Float64Array(1);
 
 /**
  * log2 m for m in [√½, √2] by the atanh series to s²³ (no table): builds LOG2_TABLE once. Returns the high part, the low
@@ -150,8 +155,12 @@ function log2SeriesDoubleDouble(x: number): number {
   return hi;
 }
 /** log2(k/128) for k = 90 … 182 (the table's range of k = round(128·m), m in [√½, √2]) as double-doubles. */
-const LOG2_TABLE_HI = new Float64Array(183), LOG2_TABLE_LO = new Float64Array(183);
-for (let k = 90; k <= 182; k++) { LOG2_TABLE_HI[k] = log2SeriesDoubleDouble(k / 128); LOG2_TABLE_LO[k] = LOW_PART[0]!; }
+const LOG2_TABLE_LO = /* @__PURE__ */ new Float64Array(183);
+const LOG2_TABLE_HI = /* @__PURE__ */ ((): Float64Array => {
+  const table = new Float64Array(183);
+  for (let k = 90; k <= 182; k++) { table[k] = log2SeriesDoubleDouble(k / 128); LOG2_TABLE_LO[k] = LOW_PART[0]!; }
+  return table;
+})();
 /**
  * log2 x as a double-double for finite x > 0: returns the high part, the low part in LOW_PART[0]. x = m·2^e with m in
  * [√½, √2]; m = F·(1 + f/F) with F = k/128, k = round(128·m), so log2 m = log2 F (table) + 2·atanh(s)·log2 e with
@@ -208,14 +217,18 @@ export function portableLog2(x: number): number {
   return h + LOW_PART[0]!;
 }
 /** ln(k/128) for k = 90 … 182 as double-doubles (log2(k/128)·ln 2, TwoProduct with LN2_HI plus the small products). */
-const LN_TABLE_HI = new Float64Array(183), LN_TABLE_LO = new Float64Array(183);
-for (let k = 90; k <= 182; k++) {
-  const h = LOG2_TABLE_HI[k]!, l = LOG2_TABLE_LO[k]!, p = h * LN2_HI, c = SPLITTER * h, ah = c - (c - h), al = h - ah;
-  const pe = ((ah * LN2_HI_H - p) + ah * LN2_HI_L + al * LN2_HI_H) + al * LN2_HI_L, lo = pe + (h * LN2_LO + l * LN2_HI), hi = p + lo;
-  LN_TABLE_HI[k] = hi; LN_TABLE_LO[k] = lo - (hi - p);
-}
+const LN_TABLE_LO = /* @__PURE__ */ new Float64Array(183);
+const LN_TABLE_HI = /* @__PURE__ */ ((): Float64Array => {
+  const table = new Float64Array(183);
+  for (let k = 90; k <= 182; k++) {
+    const h = LOG2_TABLE_HI[k]!, l = LOG2_TABLE_LO[k]!, p = h * LN2_HI, c = SPLITTER * h, ah = c - (c - h), al = h - ah;
+    const pe = ((ah * LN2_HI_H - p) + ah * LN2_HI_L + al * LN2_HI_H) + al * LN2_HI_L, lo = pe + (h * LN2_LO + l * LN2_HI), hi = p + lo;
+    table[k] = hi; LN_TABLE_LO[k] = lo - (hi - p);
+  }
+  return table;
+})();
 /** ln 2 = LN2_E_HI + LN2_E_LO with the low 32 bits of LN2_E_HI zero, so e·LN2_E_HI is exact for every exponent e here. */
-const LN2_E_HI = ((): number => { BITS[0] = LN2_HI; WORDS[LOW] = 0; return BITS[0]!; })(), LN2_E_LO = (LN2_HI - LN2_E_HI) + LN2_LO;
+const LN2_E_HI = /* @__PURE__ */ ((): number => { BITS[0] = LN2_HI; WORDS[LOW] = 0; return BITS[0]!; })(), LN2_E_LO = (LN2_HI - LN2_E_HI) + LN2_LO;
 /**
  * Natural logarithm, bit-identical in every JavaScript engine (within 1 ulp). 0 → −∞; negative or NaN → NaN; +∞ → +∞.
  * x = m·2^e, m in [√½, √2]; ln x = e·ln 2 + ln F (table, F = k/128, k = round(128·m)) + 2·atanh(s), s = (m − F)/(m + F),

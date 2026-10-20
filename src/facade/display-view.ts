@@ -3,8 +3,8 @@
 /**
  * Display view (`simulateDisplayView`): the image that the real full-resolution capture of a `simulateCapture`
  * request would give after it is resized to a small display size by area averaging in linear light, computed
- * without rendering the full-resolution capture. Internal; the public entry point and its option parsing live in
- * `simulate-capture.ts`. The design and its error analysis are in docs/DISPLAY_VIEW.md.
+ * without rendering the full-resolution capture. Internal; the public entry point and the renderer that sets it up live in
+ * `simulate-display-view.ts`, the option parsing in `simulate-capture.ts`. The design and its error analysis are in docs/DISPLAY_VIEW.md.
  *
  * Definition (the reference this module estimates): let L_j be the linear-light value of output pixel j of the
  * real capture (its sRGB samples decoded with the sRGB EOTF). Display pixel P covers the rectangle F_P of
