@@ -143,12 +143,12 @@ Run the same check locally (Linux x86_64 with libmagic; the first scan builds Sc
 ```sh
 python3.13 -m venv /tmp/scancode-venv
 /tmp/scancode-venv/bin/python -m pip install --no-deps --require-hashes -r .github/scancode-requirements.txt
-/tmp/scancode-venv/bin/scancode --license --copyright -n 2 --strip-root --timeout 300 \
+/tmp/scancode-venv/bin/scancode --license --copyright -n "$(nproc)" --strip-root --timeout 300 \
   --ignore ".git" --ignore "node_modules" --ignore "dist" --ignore "coverage" \
   --json /tmp/scancode.json .
 node scripts/check-scancode-policy.mjs /tmp/scancode.json
 ```
 
-Write the report outside the repository, or the next scan will include it.
+Write the report outside the repository, or the next scan will include it. `-n "$(nproc)"` runs one scan process per CPU, as CI does.
 
 To add an allowlist entry, add one object with `path`, the exact `license` (or `holder`) string from the failure message, and a `reason` that says why the material is allowed. Record any third-party material in [THIRD_PARTY.md](../THIRD_PARTY.md). A new or widened entry needs the owner's review in the pull request before merge. Never add a directory-wide or wildcard entry.

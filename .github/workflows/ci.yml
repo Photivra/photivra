@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # A newer push to a pull request cancels that pull request's older run, which
+  # would never be merged. Each push to main has its own group (its commit), so
+  # main runs are never cancelled or queued behind each other.
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   verify:
     name: verify (${{ matrix.node-version }})
@@ -101,10 +108,14 @@ jobs:
           "$RUNNER_TEMP/scancode/bin/scancode" --version
       - name: Scan licences and copyrights
         # No npm install runs in this job, so node_modules, dist and coverage
-        # do not exist; they are ignored anyway, as is .git.
+        # do not exist; they are ignored anyway, as is .git. One scan process
+        # per CPU (4 on the standard runner for public repositories): the same
+        # files and the same per-file timeout. Measured in October 2026: 317 s
+        # with 4 processes against 337 s with 2 (1036 files; no file over 17 s
+        # of CPU time), so the runner's CPUs, not the process count, set the time.
         run: >-
           "$RUNNER_TEMP/scancode/bin/scancode"
-          --license --copyright -n 2 --strip-root --timeout 300
+          --license --copyright -n "$(nproc)" --strip-root --timeout 300
           --ignore ".git" --ignore "node_modules" --ignore "dist" --ignore "coverage"
           --json "$RUNNER_TEMP/scancode.json" .
       - name: Use Node.js
