@@ -345,10 +345,12 @@ Against the limits:
   √(RMS² − n·SE²/(1 + 1/7)) averaged over the channels, which is crude on high-contrast blocks), the estimator's RMS
   error is at most 0.81 code on edges, bars, dead leaves and grey steps and 1.9 codes in the busiest pixels (star
   centres, many edges per pixel).
-- **Noise: one Quality case misses the limit.** The predicted standard deviation is 0.93–1.06 of the reference's for
-  Speed and 0.89–1.16 for Quality (8 × 8 blocks at 96 pixels wide have a ±25 % limit). The miss is the 1.4 µm sensor
-  with the Quality options at 800 pixels wide on an 18 % grey patch at ISO 6400: 1.16 in red (limit 1.15; green 1.13,
-  blue 1.03). It is the known limit below.
+- **Noise: one Quality case misses the limit, a documented miss of the known limit below.** The predicted standard
+  deviation is 0.93–1.06 of the reference's for Speed and 0.89–1.16 for Quality (8 × 8 blocks at 96 pixels wide have a
+  ±25 % limit). The miss is case 138: the 1.4 µm sensor with the Quality options at 800 pixels wide on an 18 % grey
+  patch at ISO 6400, predicted ÷ reference R 1.164, G 1.133, B 1.030 against the 0.85–1.15 limit. The limit is
+  unchanged; the miss is recorded under #379 with case 92 and is accepted for 2.6.0 by the owner's decision of
+  October 20, 2026.
 - **Sharpness:** MTF50 of the slanted edge at ISO 100 changes by −2.7 % to +2.2 % for Speed and −1.0 % to +1.2 % for
   Quality (limit 3 %), over three sensors, f/2.8–f/16 and 192–800 pixels wide. The reference's own MTF50 varies by up to
   2.2 % (one standard deviation) between noise seeds. At ISO 6400 MTF50 measured on a noisy block is dominated by the
@@ -379,13 +381,17 @@ independent choice per pixel, 0.45 / 0.83 / 0.89).
 
 Measured on the 1.4 µm sensor at 800 pixels wide (5 × 5 real pixels per display pixel): on a uniform 18 % grey patch
 at ISO 100 the predicted noise is 1.08 / 1.08 / 0.95 of the reference's (pooled over 12 noise seeds: R − G +9 %,
-B − G +15 %, and a green–blue correlation of −0.06 where the capture has +0.16), and 1.16 / 1.13 / 1.03 at ISO 6400,
-the one case outside the noise limit. On the slanted edge (case 92) R − G is +9 % and B − G +18 %, and the false colour
+B − G +15 %, and a green–blue correlation of −0.06 where the capture has +0.16), and at ISO 6400 (case 138) R 1.164,
+G 1.133, B 1.030, outside the 0.85–1.15 noise limit. On the slanted edge (case 92) R − G is +9 % and B − G +18 %, and the false colour
 exceeds the reference's by +0.48 code (+0.49 ± 0.05 over seven view and reference seeds; with the reference's own noise
 added to the view's expected image instead of the view's draw, +0.04): the expected value is right and the drawn
 noise is not. Speed (bilinear) is exact. On the 6 µm and 3.76 µm sensors, and on the 1.4 µm sensor at 384 pixels wide
 or less, the predicted noise is within 0.89–1.08. A redesign of the Quality noise model, from the autocovariance of
 the real AHD output, is planned for 2.7.0 (#379).
+
+Known-limit misses in the validation, recorded under #379 and accepted for 2.6.0 by the owner (October 20, 2026), with
+the limits unchanged: case 138 (noise ratio, above) and case 92 (false colour +0.48 code, within its 0.5-code limit with
+seven reference seeds but at the limit across seeds).
 
 What changed during validation (each found by this matrix and checked again on it):
 

@@ -20,10 +20,13 @@ SSIM; false colour; slanted-edge MTF50 in cycles per display pixel; the display 
 `dist`, Node 24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, one process per case, four at a time; the run took 3 h 27 min
 (display views 693 s and references 48 990 s in total).
 
-**Status: one case misses an acceptance limit** (see [Validation results](../../DISPLAY_VIEW.md#validation-results)):
+**Status: one case misses an acceptance limit, a documented known-limit miss** (see
+[Validation results](../../DISPLAY_VIEW.md#validation-results)); every other case passes every limit:
 
 - case 138, 12 MP phone, Quality, uniform 18 % grey, f/8, ISO 6400, 800 wide (16 × 16): predicted noise ÷ reference
-  1.16 in red (limit 1.15; green 1.13, blue 1.03). It is the known limit of the Quality noise model below.
+  R 1.164, G 1.133, B 1.030 against the 0.85–1.15 limit. It is the known limit of the Quality noise model below,
+  recorded with case 92 under #379 and accepted for 2.6.0 by the owner's decision of October 20, 2026; the limit is
+  unchanged.
 
 **Known limit (Quality, #379).** Where a display pixel covers few sensor pixels, the Quality view's noise has too much
 colour: AHD forms red and blue from green plus interpolated colour differences, so they read green sites as well, which
