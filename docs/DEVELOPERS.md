@@ -143,7 +143,7 @@ Run the same check locally (Linux x86_64 with libmagic; the first scan builds Sc
 ```sh
 python3.13 -m venv /tmp/scancode-venv
 /tmp/scancode-venv/bin/python -m pip install --no-deps --require-hashes -r .github/scancode-requirements.txt
-/tmp/scancode-venv/bin/scancode --license --copyright -n 2 --strip-root --timeout 300 \
+/tmp/scancode-venv/bin/scancode --license --copyright -n "$(nproc)" --strip-root --timeout 300 \
   --ignore ".git" --ignore "node_modules" --ignore "dist" --ignore "coverage" \
   --json /tmp/scancode.json .
 node scripts/check-scancode-policy.mjs /tmp/scancode.json
