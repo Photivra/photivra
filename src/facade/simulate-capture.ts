@@ -859,7 +859,7 @@ export interface IdealReferenceResult {
   assumptions: readonly SimulateCaptureAssumption[];
 }
 
-/** Default stratified samples per axis of a display view (`view.samplesPerAxis`): 8 × 8 real pixels per display pixel. */
+/** Default stratified samples per axis of a display view (`view.samplesPerAxis`): 16 × 16 sampled real pixels per display pixel with detail, 4 × 4 where it is uniform. */
 export const SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS = 16;
 /** The display size and sampling of {@link simulateDisplayView}. */
 export interface SimulateDisplayViewOptions {

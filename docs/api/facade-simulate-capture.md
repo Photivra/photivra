@@ -103,7 +103,7 @@ SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const
 
 ## SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS
 
-Default stratified samples per axis of a display view (`view.samplesPerAxis`): 8 × 8 real pixels per display pixel.
+Default stratified samples per axis of a display view (`view.samplesPerAxis`): 16 × 16 sampled real pixels per display pixel with detail, 4 × 4 where it is uniform.
 
 ```ts
 SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS = 16
