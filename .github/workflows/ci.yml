@@ -16,8 +16,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Pull requests run the full required set below. The "protected main" ruleset requires
+  # every one of these checks on a branch that is up to date with main, so a merged tree is
+  # always a tree they passed; a push to main runs only the `main smoke` job at the end.
   verify:
     name: verify (${{ matrix.node-version }})
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     # Measured in October 2026: the primary lts/* leg, which also runs the
     # coverage gate, takes 12m56s-13m06s on push to main (about 9 minutes on
@@ -88,6 +92,7 @@ jobs:
     # reviewed allowlist (scripts/check-scancode-policy.mjs). See
     # docs/DEVELOPERS.md, "Licence and copyright scan".
     name: licence scan
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -136,6 +141,7 @@ jobs:
     # failure is a portability finding to investigate. GitHub-hosted macOS
     # minutes are free for this public repository.
     name: hash locks (macos-latest)
+    if: github.event_name == 'pull_request'
     runs-on: macos-latest
     timeout-minutes: 15
     continue-on-error: true
@@ -162,3 +168,39 @@ jobs:
           test/canonical-json-identity.test.ts
           test/jpeg-reference-byte-parity.test.ts
           test/poc-projection-reuse.test.ts
+
+  main-smoke:
+    # A push to main re-runs nothing the pull request already proved on the same tree. It
+    # builds the merged commit and runs a quick subset: the bit-identity hash-lock tests and
+    # the packed-consumer acceptance (the built tarball and its documented examples).
+    name: main smoke
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "lts/*"
+      - name: Verify Node.js support policy
+        run: |
+          node --test .github/test-node-lts-policy.mjs
+          node .github/node-lts-policy.mjs
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Build
+        run: npm run build
+      - name: Hash-lock tests
+        run: >-
+          npx vitest run
+          test/native-environment-bit-identity.test.ts
+          test/stabilization-evaluation-identity.test.ts
+          test/canonical-json-identity.test.ts
+          test/jpeg-reference-byte-parity.test.ts
+          test/poc-projection-reuse.test.ts
+      - name: Packed consumer acceptance
+        run: npm run release:consumer-check
