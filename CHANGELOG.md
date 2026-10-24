@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.7.0 — unreleased (prepared October 24, 2026)
+## 2.7.0 — published October 24, 2026
 
 A minor release that makes the display view much faster at device-pixel sizes and adds two APIs for it.
 - **API for regions:** `prepareDisplayView` resolves a request once for many regions.
