@@ -1212,6 +1212,9 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`PreparedDisplayView`](api/facade-simulate-display-view.md#prepareddisplayview) | Type |
+| [`PreparedDisplayViewRenderOptions`](api/facade-simulate-display-view.md#prepareddisplayviewrenderoptions) | Type |
+| [`prepareDisplayView`](api/facade-simulate-display-view.md#preparedisplayview) | Runtime |
 | [`simulateDisplayView`](api/facade-simulate-display-view.md#simulatedisplayview) | Runtime |
 
 ## facade/subject-framing.ts

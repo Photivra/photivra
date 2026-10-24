@@ -609,7 +609,7 @@ function integerIn(value: unknown, name: string, minimum: number, maximum: numbe
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < minimum || value > maximum) fail(name + " must be an integer from " + minimum + " to " + maximum + ".");
   return value as number;
 }
-function allowKeys(value: unknown, name: string, keys: readonly string[]): Record<string, unknown> {
+export function allowKeys(value: unknown, name: string, keys: readonly string[]): Record<string, unknown> {
   if (value === undefined) return {};
   requireInputObject(value, name);
   for (const key of Object.keys(value as object)) if (!keys.includes(key)) fail("Unknown " + name + " field: " + key + ".");
@@ -959,7 +959,8 @@ export interface DisplayViewRunContext {
   kelvinWhiteBalanceInput: Parameters<typeof resolveColorTemperatureWhiteBalance>[0] | undefined;
 }
 export interface ParsedDisplayView { width: number; height: number; samplesPerAxis: number; bitDepth: 8 | 16; format: "srgb-8" | "srgb-16"; region?: { x: number; y: number; width: number; height: number } }
-function parseDisplayViewOption(value: unknown, frameWidth: number, frameHeight: number): ParsedDisplayView {
+/** Internal: validates a display view against the capture's output size and fills its defaults. */
+export function parseDisplayViewOption(value: unknown, frameWidth: number, frameHeight: number): ParsedDisplayView {
   if (value === undefined) fail("simulateDisplayView needs a view, for example { width: 384, height: 256 }.");
   const v = allowKeys(value, "view", ["width", "height", "samplesPerAxis", "format", "region"]);
   const width = integerIn(v.width, "view.width", 1, frameWidth), height = integerIn(v.height, "view.height", 1, frameHeight);
@@ -975,10 +976,15 @@ function parseDisplayViewOption(value: unknown, frameWidth: number, frameHeight:
   return { width, height, samplesPerAxis, bitDepth: format === "srgb-8" ? 8 : 16, format: format as "srgb-8" | "srgb-16", ...(region ? { region } : {}) };
 }
 
-/** Internal: the request path shared by {@link simulateCapture}, {@link simulateIdealReference} and the display view, whose renderer is passed in. */
+/** Internal: passed as the view of a "display-view" run to resolve the request without a view (`prepareDisplayView`, #387). */
+export const DISPLAY_VIEW_WITHOUT_VIEW: unique symbol = Symbol("display view without view");
+/**
+ * Internal: the request path shared by {@link simulateCapture}, {@link simulateIdealReference} and the display view, whose renderer is
+ * passed in; for a display view the renderer's value is returned (a result, or a prepared view with DISPLAY_VIEW_WITHOUT_VIEW).
+ */
 export async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ideal-reference" | "display-view", viewOption?: unknown,
-  renderView?: (context: DisplayViewRunContext) => Promise<DisplayViewResult>):
-  Promise<SimulateCaptureResult | IdealReferenceResult | DisplayViewResult> {
+  renderView?: (context: DisplayViewRunContext) => Promise<unknown>):
+  Promise<unknown> {
   const started = Date.now(), idealReference = run === "ideal-reference", displayView = run === "display-view";
   requireInputObject(options, "simulateCapture options");
   const top = allowKeys(options, "simulateCapture options", ["camera", "lens", "exposure", "scene", "subjectDistanceM", "chartSize", "illuminant",
@@ -1173,7 +1179,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   const boxAperture = sensorOptions.pixelAperture !== undefined && sensorOptions.pixelAperture !== "point";
   // Display view: its own parameters, and the capture options it reproduces, checked before any scene work.
-  const parsedView = displayView ? parseDisplayViewOption(viewOption, width, height) : undefined;
+  const parsedView = displayView && viewOption !== DISPLAY_VIEW_WITHOUT_VIEW ? parseDisplayViewOption(viewOption, width, height) : undefined;
   if (displayView) {
     const unsupported = (option: string, reason: string): never => fail("simulateDisplayView does not support " + option + ": " + reason);
     if (pupil) unsupported("lens.pupilSampling", "defocus moves each query off the site lattice the expected-signal tables use.");

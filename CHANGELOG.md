@@ -2,6 +2,23 @@
 
 ## 2.7.0 — unreleased
 
+### Added
+
+- **Prepared display view: many regions of one view from one setup (#387).**
+  - **The problem:** each `simulateDisplayView` call repeated the request's setup, so a caller rendering one view in many regions (progressive display on several workers, centre first) paid it once per region. The setup is request validation; the camera, lens, scene, chart and illuminant; the channel responses through the environment chain; the diffraction kernels, readout moments, demosaic tables and colour matrix.
+  - **The new API:** `prepareDisplayView(options)` resolves the request once and returns a handle. Its `render(view, { signal })` returns what `simulateDisplayView(options, view)` returns, byte for byte: samples, view, exposure, scene, diagnostics and assumptions. Only `diagnostics.timingsMs` differ, and they cover the render only.
+  - **Behaviour:** renders may run concurrently and share only read-only setup. Each render has its own expected-signal caches, lookup count and assumptions, and its own abort signal.
+  - **Measured** on the app's 24 MP request, one thread, 8 × 8 regions of the 2028 × 1352 view, four in a row:
+
+    | Request | Separate calls | Prepared |
+    | --- | --- | --- |
+    | Chart preset, defaults | 0.26–0.41 s each | 0.25 s once, then 6–7 ms per region |
+    | Caller scene, defaults | 0.24–0.43 s each | 0.21 s once, then 17–42 ms per region |
+    | Chart preset, with diffraction, four-spot filter and AHD | 0.73–0.79 s each | 0.69 s once, then 34–66 ms per region |
+    | Caller scene, with the same options | 1.27–1.52 s each | 0.73 s once, then 0.68–0.75 s per region (its own diffraction work) |
+
+  - **Exports:** `prepareDisplayView`, `PreparedDisplayView` and `PreparedDisplayViewRenderOptions`; root exports grow from 1,721 to 1,724. A test renders whole views and regions through a prepared view, concurrently too, for Speed, Quality and a caller scene, and compares them with separate calls. See the quick start, "Display view".
+
 ### Changed
 
 - **Display view without diffraction: site values are kept across neighbouring display pixels (#392).**
