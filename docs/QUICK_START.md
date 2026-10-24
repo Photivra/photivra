@@ -1240,11 +1240,11 @@ the request once and render each region from it; each region then costs only its
 ```ts
 import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
 
-declare const request: SimulateCaptureOptions;
+const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, output: { width: 600, height: 400 } };
 const prepared = await prepareDisplayView(request);   // request errors are raised here
-const tile = await prepared.render({ width: 2028, height: 1352, region: { x: 960, y: 640, width: 96, height: 96 } },
+const tile = await prepared.render({ width: 300, height: 200, region: { x: 120, y: 80, width: 32, height: 32 } },
   { signal: AbortSignal.timeout(60_000) });            // cancels this render only
-console.log(tile.diagnostics.timingsMs.view);
+console.log(tile.image.width, tile.diagnostics.timingsMs.view);
 ```
 
 `render(view)` returns what `simulateDisplayView(request, view)` returns, byte for byte (only `diagnostics.timingsMs`
