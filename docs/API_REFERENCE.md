@@ -1162,6 +1162,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`CALLER_MATERIAL_SCENE_MAX_MATERIALS`](api/facade-scene-radiance.md#caller_material_scene_max_materials) | Runtime |
+| [`CallerMaterialScene`](api/facade-scene-radiance.md#callermaterialscene) | Type |
 | [`CallerRadianceScene`](api/facade-scene-radiance.md#callerradiancescene) | Type |
 | [`CallerReflectanceScene`](api/facade-scene-radiance.md#callerreflectancescene) | Type |
 | [`CaptureIlluminant`](api/facade-scene-radiance.md#captureilluminant) | Type |
@@ -1172,6 +1174,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`PlanarSceneRadianceProvider`](api/facade-scene-radiance.md#planarsceneradianceprovider) | Type |
 | [`resolveCaptureIlluminant`](api/facade-scene-radiance.md#resolvecaptureilluminant) | Runtime |
 | [`ResolvedCaptureIlluminant`](api/facade-scene-radiance.md#resolvedcaptureilluminant) | Type |
+| [`SceneMaterialPoint`](api/facade-scene-radiance.md#scenematerialpoint) | Type |
 | [`ScenePlanePoint`](api/facade-scene-radiance.md#sceneplanepoint) | Type |
 
 ## facade/simulate-capture.ts

@@ -264,7 +264,7 @@ export interface SimulateCaptureOptions {
     compensationStops?: number;
   };
   /** Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card) or a caller reflectance/radiance function. */
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;
+  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
   /**

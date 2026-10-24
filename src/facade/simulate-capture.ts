@@ -99,7 +99,7 @@ import { parseSensorReadoutConversionProfile, resolveSensorReadoutRegime } from 
 import { resolveChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   resolveChartSizeOption, type ChartSizeOption,
-  PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
+  PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerMaterialScene, type CallerRadianceScene, type CallerReflectanceScene, type ResolvedCallerScene,
   type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
 /** Version of how the facade builds requests. It changes whenever the same input would build a different request. */
@@ -217,7 +217,7 @@ export interface SimulateCaptureOptions {
     compensationStops?: number;
   };
   /** Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card) or a caller reflectance/radiance function. */
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;
+  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
   /**
@@ -914,7 +914,7 @@ export interface DisplayViewRunContext {
   axisChannelResponse: (caller: string) => { electronsPerRadiance: Record<Channel, Map<number, number>>; wavelengths: number[]; relativePerElectron: Record<Channel, number>; };
   boxSamples: number;
   buildProvider: (sceneIlluminant: ResolvedCaptureIlluminant, scale: number) => PlanarSceneRadianceProvider;
-  callerScene: CallerReflectanceScene | CallerRadianceScene | undefined;
+  callerScene: ResolvedCallerScene | undefined;
   chart: ResolvedChartScene | undefined;
   chartReport: { widthM: number; heightM: number; surroundReflectance: number; frameWidthFraction: number; frameHeightFraction: number; magnification: number; imageWidthMm: number; imageHeightMm: number; imageWidthPixels: number; imageHeightPixels: number; } | undefined;
   chartSize: { widthM: number; heightM: number; surroundReflectance: number; defaulted: ("heightM" | "surroundReflectance")[]; } | undefined;
@@ -940,7 +940,7 @@ export interface DisplayViewRunContext {
   regimeByChannel: Record<"red" | "green" | "blue", { readoutProfile: ReadoutProfile; regimeId: string; }>;
   resolvedIso: number;
   sceneOption: unknown;
-  scenePreset: "composite" | "uniform" | "patches" | "slanted-edge" | "siemens-star" | "step-wedge" | "grey-ramp" | "checkerboard" | "point-grid" | "dead-leaves" | "bar-groups" | "hyperbolic-wedge" | "zone-plate" | "slanted-squares" | "line-grid" | "fiducial" | "reflectance-function" | "radiance-function";
+  scenePreset: "composite" | "uniform" | "patches" | "slanted-edge" | "siemens-star" | "step-wedge" | "grey-ramp" | "checkerboard" | "point-grid" | "dead-leaves" | "bar-groups" | "hyperbolic-wedge" | "zone-plate" | "slanted-squares" | "line-grid" | "fiducial" | "reflectance-function" | "radiance-function" | "material-function";
   shutterSeconds: number;
   started: number;
   subjectDistanceM: number;
@@ -1297,7 +1297,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const illuminanceLux = positive(pick(top, "illuminanceLux", "illuminanceLux", SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX,
     "π·10·N²/(0.65·t·S·0.18) lux at f/8, 1/125 s, ISO 100 (CIPA DC-004 standard output sensitivity H = 10/S and camera equation H = 0.65·L·t/N²): an 18 % grey card then gets the reference exposure for the default settings. It does not follow the caller's exposure settings."), "illuminanceLux");
   const irradianceScale = calculateIlluminantIrradianceScale(illuminant.shape, illuminanceLux);
-  let chart: ResolvedChartScene | undefined, callerScene: CallerReflectanceScene | CallerRadianceScene | undefined;
+  let chart: ResolvedChartScene | undefined, callerScene: ResolvedCallerScene | undefined;
   const sceneRecord = sceneOption as Record<string, unknown>;
   if ("kind" in sceneRecord) {
     callerScene = requireCallerScene(sceneOption);
@@ -1316,11 +1316,15 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     illuminantRecord?.kind === "daylight" ? { basisDatasetId: illuminantRecord.basis?.datasetId, spectrum: spectrumDigestForm(illuminant.spectrum, illuminant.shape) } : undefined;
   const materialInputs = chart ? chartMaterialInputs(chart) : [];
   const sceneSpectra = chart ? chart.materials.flatMap((m, index) => m.kind !== "spectrum" ? [] : [{ material: index, spectrum: spectrumDigestForm(materialInputs[index], m.spectrum) }]) : [];
+  // 2.7: a material scene's materials enter the digest as data (neutral reflectances, and caller spectra as above).
+  const sceneMaterials = callerScene?.kind === "material-function" ? callerScene.materials.map((m, index) => (m.kind === "neutral" ? m.reflectance :
+    spectrumDigestForm(callerScene.materialInputs[index], m.spectrum))) : undefined;
   const sceneDescription = { facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, scene: chart ? { preset: chart.preset, parameters: chart.parameters } :
     { kind: callerScene!.kind, sceneId: callerScene!.sceneId }, illuminant: illuminant.id, illuminanceLux, subjectDistanceM, framedWidthM: 2 * metresPerFrameUnit, aspect,
     ...(chartSize ? { chartSize: { widthM: chartSize.widthM, heightM: chartSize.heightM, surroundReflectance: chartSize.surroundReflectance } } : {}),
-    ...(illuminantSpectrum === undefined ? {} : { illuminantSpectrum }), ...(sceneSpectra.length === 0 ? {} : { sceneSpectra }) };
-  if (callerScene) assume("scene.digest", "model", "caller-function-not-hashed", "The source digest covers the caller's sceneId and the framing, not the body of the caller's evaluate function.");
+    ...(illuminantSpectrum === undefined ? {} : { illuminantSpectrum }), ...(sceneSpectra.length === 0 ? {} : { sceneSpectra }), ...(sceneMaterials ? { sceneMaterials } : {}) };
+  if (callerScene?.kind === "material-function") assume("scene.digest", "model", "caller-function-not-hashed", "The source digest covers the caller's sceneId, its materials and the framing, not the body of the caller's materialAt function.");
+  else if (callerScene) assume("scene.digest", "model", "caller-function-not-hashed", "The source digest covers the caller's sceneId and the framing, not the body of the caller's evaluate function.");
   const sourceSha256 = await sha256Hex(JSON.stringify(sceneDescription, (_key, value: unknown) => (typeof value === "object" && value !== null && "evaluate" in value ? "caller-spectrum" : value)));
   checkAbort();
   const buildProvider = (sceneIlluminant: ResolvedCaptureIlluminant, scale: number): PlanarSceneRadianceProvider => buildPlanarSceneRadianceProvider({ scene: chart ?? callerScene!,
@@ -1771,7 +1775,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       const values = new Map(wavelengths.map((nm) => [nm, radiance(nm)]));
       return CHANNELS.map((c) => { let e = 0; for (const [nm, a] of electronsPerRadiance[c]) e += a * values.get(nm)!; return e * relativePerElectron[c]; }) as [number, number, number];
     };
-    const materialSignals = provider.chartMaterialAt ? Array.from({ length: chart!.materials.length + (chartSize ? 1 : 0) }, (_, m) => signalOf((nm) => provider.materialRadiance!(m, nm))) : undefined;
+    const materialCount = chart ? chart.materials.length : callerScene?.kind === "material-function" ? callerScene.materials.length : 0;
+    const materialSignals = provider.chartMaterialAt ? Array.from({ length: materialCount + (chartSize ? 1 : 0) }, (_, m) => signalOf((nm) => provider.materialRadiance!(m, nm))) : undefined;
     // 4. Pixels: the native sites of the output (or region) pixels, each centre-sampled or box-integrated like the capture.
     const x0 = (region ? region.x : 0) + margin, y0 = (region ? region.y : 0) + margin, n = boxSamples, unit = 2 / width;
     const referenceIntent = intentOf(whiteBalanceState), referenceGains = referenceIntent ? [referenceIntent.channelGains.red, referenceIntent.channelGains.green, referenceIntent.channelGains.blue] : null;

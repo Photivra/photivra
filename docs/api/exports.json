@@ -1418,6 +1418,16 @@
       "kind": "type"
     },
     {
+      "name": "CALLER_MATERIAL_SCENE_MAX_MATERIALS",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CallerMaterialScene",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
       "name": "CallerRadianceScene",
       "source": "src/facade/scene-radiance.ts",
       "kind": "type"
@@ -6820,6 +6830,11 @@
     {
       "name": "SceneIlluminationUncertainty",
       "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneMaterialPoint",
+      "source": "src/facade/scene-radiance.ts",
       "kind": "type"
     },
     {

@@ -19,6 +19,22 @@
 
   - **Exports:** `prepareDisplayView`, `PreparedDisplayView` and `PreparedDisplayViewRenderOptions`; root exports grow from 1,721 to 1,724. A test renders whole views and regions through a prepared view, concurrently too, for Speed, Quality and a caller scene, and compares them with separate calls. See the quick start, "Display view".
 
+- **Caller material scenes (#386).**
+  - **The new scene form:** `{ kind: "material-function", sceneId, materials, materialAt }` is a third caller scene form. It is for piecewise-constant scenes such as a chart with a printed label. `materials` lists reflectances as chart patches take them: neutral numbers or reflectance spectra covering 380–780 nm, at most `CALLER_MATERIAL_SCENE_MAX_MATERIALS` (65,536). `materialAt` receives the plane point without a wavelength (`SceneMaterialPoint`: `xM`, `yM`, `u`, `v`, and `chartU`, `chartV` on a fixed-size chart) and returns a material index. An index outside the list is an `InvalidConfigurationError`.
+  - **Captures and ideal references:** the radiance at a point is the material's, in the chart's expression order, so they are byte-identical to the same scene as a reflectance function. Tested in Speed and with diffraction and AHD.
+  - **Display view:** it takes the chart presets' material path, with each material tabulated once per spectral node and one lookup per lattice point. A material scene that reproduces a preset gives the preset's bytes, expected values and lookup count. Against the reflectance-function form, the same quantities are summed in another order:
+    - expected values agree within 1e-12 relative (tested);
+    - on whole views of the app's chart with its maker label (24 MP frame, Speed), 0 of 523,776 samples differ at 512 × 341 and 0 of 2,281,248 at 1068 × 712, with the largest |Δ| in the expected linear values 3.7 × 10⁻¹⁵.
+  - **Scene digest:** the materials enter `scene.sourceSha256`. The `materialAt` body does not, as for the other caller functions.
+  - **Measured** on the 2028 × 1352 view's centre strip, one thread:
+
+    | App's chart with its maker label | Reflectance function | Material scene | Chart preset (no label) |
+    | --- | --- | --- | --- |
+    | Defaults | 3.2 s | 1.15 s | 1.1 s |
+    | Diffraction, four-spot filter, AHD | 111 s | 3.0 s | 2.6 s |
+
+  - **Exports:** `CallerMaterialScene`, `SceneMaterialPoint` and `CALLER_MATERIAL_SCENE_MAX_MATERIALS`; root exports grow from 1,724 to 1,727. See the quick start, "Piecewise-constant scenes (2.7)".
+
 ### Changed
 
 - **Display view without diffraction: site values are kept across neighbouring display pixels (#392).**
