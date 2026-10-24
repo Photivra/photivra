@@ -2,6 +2,31 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## CALLER_MATERIAL_SCENE_MAX_MATERIALS
+
+Most materials a {@link CallerMaterialScene} may list.
+
+```ts
+CALLER_MATERIAL_SCENE_MAX_MATERIALS = 65_536
+```
+
+## CallerMaterialScene
+
+2.7 (#386): a piecewise-constant caller scene, lit by the facade illuminant like a reflectance function. `materials` are
+reflectances as a chart's patches take them (a neutral number in [0, 1] or a reflectance spectrum covering 380–780 nm, at
+most {@link CALLER_MATERIAL_SCENE_MAX_MATERIALS}); `materialAt` returns the index of the material at a plane point (an
+integer from 0 to materials.length − 1). The radiance at a point is that material's, exactly as for a reflectance function
+returning its reflectance, but renderers can tabulate each material once: the display view then takes the chart path.
+
+```ts
+export interface CallerMaterialScene {
+  kind: "material-function";
+  sceneId: string;
+  materials: readonly ChartReflectance[];
+  materialAt(point: Readonly<SceneMaterialPoint>): number;
+}
+```
+
 ## CallerRadianceScene
 
 Caller absolute spectral radiance in W·m⁻²·sr⁻¹·nm⁻¹; the facade illuminant is not used.
@@ -65,7 +90,7 @@ provider `providerProfileId`.
 
 ```ts
 export function createPlanarSceneRadianceProvider(input: {
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;
+  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   illuminant: CaptureIlluminant;
   illuminanceLux: number;
   distanceM: number;
@@ -138,6 +163,14 @@ export interface ResolvedCaptureIlluminant {
   /** Original spectrum, for colorimetric white-balance calculations. */
   spectrum: ColorimetricSpectrum;
 }
+```
+
+## SceneMaterialPoint
+
+2.7: a scene-plane point without a wavelength, passed to a material scene's `materialAt`.
+
+```ts
+export type SceneMaterialPoint = Omit<ScenePlanePoint, "wavelengthNanometers">;
 ```
 
 ## ScenePlanePoint

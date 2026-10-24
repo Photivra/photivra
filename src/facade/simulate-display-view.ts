@@ -80,8 +80,10 @@ async function renderDisplayViewResult(context: DisplayViewRunContext, viewInter
       return Float64Array.from(k.kernels);
     }) };
   }
-  const scene: DisplayViewScene = chart && provider.chartMaterialAt ? { kind: "materials", materialAt: provider.chartMaterialAt,
-    materials: [...viewChart!.materials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: Float64Array.from(wavelengths, (nm) => viewProvider.materialRadiance!(index, nm)) })),
+  // Chart presets and (2.7) caller material scenes take the material path: each material tabulated once per node.
+  const sceneMaterials = viewChart ? viewChart.materials : callerScene?.kind === "material-function" ? callerScene.materials : undefined;
+  const scene: DisplayViewScene = sceneMaterials && provider.chartMaterialAt ? { kind: "materials", materialAt: provider.chartMaterialAt,
+    materials: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: Float64Array.from(wavelengths, (nm) => viewProvider.materialRadiance!(index, nm)) })),
       ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])],
     whiteRadiance: Float64Array.from(wavelengths, (nm) => viewIrradianceScale * viewIlluminant.shape.evaluate(nm) / Math.PI) } :
     { kind: "radiance", radianceAt: viewProvider.radianceAt };

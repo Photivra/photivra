@@ -306,7 +306,8 @@ function finiteIn(value: unknown, name: string, minimum: number, maximum: number
 }
 /** Wavelength range every chart spectrum must cover (the facade's sensor quadrature range). */
 export const CHART_SPECTRAL_RANGE_NANOMETERS = Object.freeze({ minimum: 380, maximum: 780 });
-function material(value: unknown, name: string): ResolvedChartScene["materials"][number] {
+/** Internal: validates a chart reflectance input (a neutral number or a reflectance spectrum covering 380–780 nm) as a material. */
+export function resolveChartMaterial(value: unknown, name: string): ResolvedChartScene["materials"][number] {
   if (typeof value === "number") return { kind: "neutral", reflectance: reflectance(value, name) };
   let spectrum: PreparedColorimetricSpectrum;
   try { spectrum = prepareColorimetricSpectrum(value as ColorimetricSpectrum, name); } catch (error) {
@@ -397,7 +398,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
   };
   switch (preset as ChartScenePresetId) {
     case "uniform": {
-      const raw = get("reflectance"), m = material(raw, "reflectance");
+      const raw = get("reflectance"), m = resolveChartMaterial(raw, "reflectance");
       return done({ reflectance: typeof raw === "number" ? raw : "caller-spectrum" }, [m], () => 0, [typeof raw === "number" ? undefined : raw]);
     }
     case "slanted-edge": {
@@ -479,7 +480,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         for (const key of Object.keys(p)) if (key !== "patchId" && key !== "reflectance") throw new InvalidConfigurationError("Unknown patch field: " + key + ".");
         if (typeof p.patchId !== "string" || p.patchId.trim() === "" || ids.has(p.patchId)) throw new InvalidConfigurationError("Each patch needs a unique non-empty patchId.");
         ids.add(p.patchId);
-        materials.push(material(p.reflectance, "patches[" + index + "].reflectance"));
+        materials.push(resolveChartMaterial(p.reflectance, "patches[" + index + "].reflectance"));
         inputs.push(typeof p.reflectance === "number" ? undefined : p.reflectance);
       }
       const columnsRaw = record.columns === undefined ? Math.ceil(Math.sqrt(list.length)) : record.columns;

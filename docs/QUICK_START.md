@@ -454,6 +454,34 @@ const vignette = await simulateCapture({
 console.log(vignette.request.whiteBalanceState?.source);
 ```
 
+**Piecewise-constant scenes (2.7).** A scene made of a few uniform reflectances, such as a chart with a printed label,
+can be passed as `{ kind: "material-function", sceneId, materials, materialAt }`. `materials` lists reflectances as a
+chart's patches take them: a neutral number in [0, 1], or a reflectance spectrum covering 380–780 nm. `materialAt`
+receives the plane point without a wavelength and returns the index of its material.
+
+The radiance at each point is the same as a reflectance function returning that material's reflectance. Captures and
+ideal references are therefore byte-identical to the reflectance-function form. The display view, though, tabulates
+each material once and takes the chart presets' path.
+
+```ts
+import { resolveChartScene, simulateDisplayView } from "@photivra/engine";
+
+const chart = resolveChartScene({ scene: { preset: "siemens-star" }, aspect: 2 / 3 });
+const label = chart.materials.length;   // one extra material: a printed label in the lower left
+const view = await simulateDisplayView({
+  scene: { kind: "material-function", sceneId: "star-with-label",
+    materials: [...chart.materials.map((m) => (m.kind === "neutral" ? m.reflectance : 0.5)), 0.05],
+    materialAt: (p) => (p.u < -0.6 && p.v < -0.5 ? label : chart.materialAt(p.u, p.v)) },
+  output: { width: 600, height: 400 }
+}, { width: 300, height: 200 });
+console.log(view.diagnostics.sceneLookups);
+```
+
+The display view's expected values match the reflectance-function form to rounding, because they are the same
+quantities summed in another order. Measured on the app's chart with a maker label (a 24 MP frame, the 2028 × 1352 view's
+centre strip, one thread), the material form took 1.15 s instead of 3.2 s with the defaults, and 3.0 s instead of 111 s
+with diffraction, the four-spot filter and AHD.
+
 ## White balance
 
 | Value | Meaning |

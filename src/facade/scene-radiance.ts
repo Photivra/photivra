@@ -28,7 +28,7 @@ import { createCieIlluminantASpectrum, createCieDaylightSpectrum, createPlanckia
 import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
 import type { SensorApertureRay } from "../optics/sensor-aperture-rays.js";
-import { resolveChartScene, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
+import { resolveChartMaterial, resolveChartScene, type ChartReflectance, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 
 /** CIE maximum luminous efficacy for photopic vision, lm/W. */
 export const PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W = 683;
@@ -162,6 +162,33 @@ export interface ScenePlanePoint {
 export interface CallerReflectanceScene { kind: "reflectance-function"; sceneId: string; evaluate(point: Readonly<ScenePlanePoint>): number }
 /** Caller absolute spectral radiance in W·m⁻²·sr⁻¹·nm⁻¹; the facade illuminant is not used. */
 export interface CallerRadianceScene { kind: "radiance-function"; sceneId: string; evaluate(point: Readonly<ScenePlanePoint>): number }
+/** 2.7: a scene-plane point without a wavelength, passed to a material scene's `materialAt`. */
+export type SceneMaterialPoint = Omit<ScenePlanePoint, "wavelengthNanometers">;
+/**
+ * 2.7 (#386): a piecewise-constant caller scene, lit by the facade illuminant like a reflectance function. `materials` are
+ * reflectances as a chart's patches take them (a neutral number in [0, 1] or a reflectance spectrum covering 380–780 nm, at
+ * most {@link CALLER_MATERIAL_SCENE_MAX_MATERIALS}); `materialAt` returns the index of the material at a plane point (an
+ * integer from 0 to materials.length − 1). The radiance at a point is that material's, exactly as for a reflectance function
+ * returning its reflectance, but renderers can tabulate each material once: the display view then takes the chart path.
+ */
+export interface CallerMaterialScene {
+  kind: "material-function";
+  sceneId: string;
+  materials: readonly ChartReflectance[];
+  materialAt(point: Readonly<SceneMaterialPoint>): number;
+}
+/** Most materials a {@link CallerMaterialScene} may list. */
+export const CALLER_MATERIAL_SCENE_MAX_MATERIALS = 65_536;
+/** Internal: a validated material scene with its materials prepared (and the caller inputs, for the scene digest). */
+export interface ResolvedCallerMaterialScene {
+  kind: "material-function";
+  sceneId: string;
+  materials: ResolvedChartScene["materials"];
+  materialInputs: readonly unknown[];
+  materialAt(point: Readonly<SceneMaterialPoint>): number;
+}
+/** Internal: a validated caller scene. */
+export type ResolvedCallerScene = CallerReflectanceScene | CallerRadianceScene | ResolvedCallerMaterialScene;
 
 export interface PlanarSceneGeometry {
   distanceM: number;
@@ -218,7 +245,7 @@ export function tabulatedSpectrum(spectrum: Readonly<PreparedColorimetricSpectru
  * from {@link calculateIlluminantIrradianceScale}; caller radiance scenes ignore the illuminant.
  */
 export function buildPlanarSceneRadianceProvider(input: {
-  scene: ResolvedChartScene | CallerReflectanceScene | CallerRadianceScene;
+  scene: ResolvedChartScene | ResolvedCallerScene;
   sceneId: string;
   providerProfileId: string;
   illuminant: ResolvedCaptureIlluminant;
@@ -231,9 +258,24 @@ export function buildPlanarSceneRadianceProvider(input: {
   const scale = geometry.metresPerFrameUnit, distance = geometry.distanceM, sceneId = input.sceneId, providerProfileId = input.providerProfileId;
   const evidence = input.evidence, limitations = input.limitations;
   const caller = "kind" in scene ? scene : undefined, chart = caller ? undefined : scene as ResolvedChartScene;
+  const materialScene = caller?.kind === "material-function" ? caller : undefined, materials = chart ? chart.materials : materialScene?.materials;
   const placed = geometry.chart, half = placed ? placed.widthM / 2 : 0, chartAspect = placed ? placed.heightM / placed.widthM : 0;
   const shapeAt = tabulatedSpectrum(illuminant.shape);
+  /** A material scene's material at a frame point: the caller's index, or `materials.length` for a fixed-size chart's surround. */
+  function callerMaterialAt(u: number, v: number): number {
+    const xM = u * scale, yM = v * scale;
+    let point: SceneMaterialPoint;
+    if (placed) {
+      const cu = xM / half, cv = yM / half;
+      if (!(Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect)) return materialScene!.materials.length;
+      point = Object.freeze({ xM, yM, u, v, chartU: cu, chartV: cv });
+    } else point = Object.freeze({ xM, yM, u, v });
+    const index = materialScene!.materialAt(point);
+    if (!Number.isInteger(index) || index < 0 || index >= materialScene!.materials.length) throw new InvalidConfigurationError("Scene materialAt must return an index into its materials.");
+    return index;
+  }
   function radianceAt(u: number, v: number, nm: number): number {
+    if (materialScene) return materialRadianceOf(callerMaterialAt(u, v), nm);
     if (placed) {
       // Fixed-size chart (2.3): chart-local frame units from the plane point in metres.
       const xM = u * scale, yM = v * scale, cu = xM / half, cv = yM / half;
@@ -245,7 +287,7 @@ export function buildPlanarSceneRadianceProvider(input: {
     return callerValue(Object.freeze({ xM: u * scale, yM: v * scale, u, v, wavelengthNanometers: nm }), nm);
   }
   function callerValue(point: Readonly<ScenePlanePoint>, nm: number): number {
-    const value = caller!.evaluate(point);
+    const value = (caller as CallerReflectanceScene | CallerRadianceScene).evaluate(point);
     if (caller!.kind === "reflectance-function") {
       if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) throw new InvalidConfigurationError("Scene reflectance function must return a value in [0, 1].");
       return value * irradianceScale * shapeAt(nm) / Math.PI;
@@ -258,25 +300,27 @@ export function buildPlanarSceneRadianceProvider(input: {
       wavelengthBasis: request.wavelengthBasis as SceneRadianceEvaluationResult["wavelengthBasis"], quantity: "outgoing-spectral-radiance", unit: "W/m^2/sr/nm",
       spectralRadianceWattsPerSquareMeterSteradianNanometer: radiance, scientificStatus: "approximation", uncertainty: UNCERTAINTY, evidence, limitations };
   }
+  /** Spectral radiance of material `material` (`materials.length`: a fixed-size chart's surround), in the chart's expression order. */
+  function materialRadianceOf(material: number, nm: number): number {
+    const m = materials![material];
+    let value: number;
+    if (m === undefined) value = placed ? placed.surroundReflectance : NaN;
+    else if (m.kind === "neutral") value = m.reflectance;
+    else {
+      value = m.spectrum.evaluate(nm);
+      if (!(value >= 0 && value <= 1)) throw new InvalidConfigurationError("Chart reflectance spectrum left [0, 1].");
+    }
+    if (!(value >= 0)) throw new InvalidConfigurationError("Unknown chart material.");
+    return value * irradianceScale * shapeAt(nm) / Math.PI;
+  }
   const chartAccess = chart ? {
     chartMaterialAt(u: number, v: number): number {
       if (!placed) return chart.materialAt(u, v);
       const cu = u * scale / half, cv = v * scale / half;
       return Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect ? chart.materialAt(cu, cv) : chart.materials.length;
     },
-    materialRadiance(material: number, nm: number): number {
-      const m = chart.materials[material];
-      let value: number;
-      if (m === undefined) value = placed ? placed.surroundReflectance : NaN;
-      else if (m.kind === "neutral") value = m.reflectance;
-      else {
-        value = m.spectrum.evaluate(nm);
-        if (!(value >= 0 && value <= 1)) throw new InvalidConfigurationError("Chart reflectance spectrum left [0, 1].");
-      }
-      if (!(value >= 0)) throw new InvalidConfigurationError("Unknown chart material.");
-      return value * irradianceScale * shapeAt(nm) / Math.PI;
-    }
-  } : {};
+    materialRadiance: materialRadianceOf
+  } : materialScene ? { chartMaterialAt: callerMaterialAt, materialRadiance: materialRadianceOf } : {};
   return {
     sceneId, providerProfileId, radianceAt, ...chartAccess,
     evaluateRadiance(request): SceneRadianceEvaluationResult {
@@ -332,7 +376,7 @@ export function resolveChartSizeOption(value: unknown, frameAspect: number): { w
  * provider `providerProfileId`.
  */
 export function createPlanarSceneRadianceProvider(input: {
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene;
+  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   illuminant: CaptureIlluminant;
   illuminanceLux: number;
   distanceM: number;
@@ -369,10 +413,20 @@ export function createPlanarSceneRadianceProvider(input: {
   return { ...provider, chart };
 }
 
-/** Validates a caller scene function record. */
-export function requireCallerScene(value: unknown): CallerReflectanceScene | CallerRadianceScene {
+/** Validates a caller scene record (a function scene as given; a material scene with its materials prepared). */
+export function requireCallerScene(value: unknown): ResolvedCallerScene {
   requireInputObject(value, "scene");
   const record = value as Record<string, unknown>;
+  if (record.kind === "material-function") {
+    for (const key of Object.keys(record)) if (key !== "kind" && key !== "sceneId" && key !== "materials" && key !== "materialAt") throw new InvalidConfigurationError("Unknown scene field: " + key + ".");
+    if (typeof record.materialAt !== "function" || typeof record.sceneId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(record.sceneId) ||
+      !Array.isArray(record.materials) || record.materials.length < 1 || record.materials.length > CALLER_MATERIAL_SCENE_MAX_MATERIALS)
+      throw new InvalidConfigurationError("A material scene needs a public sceneId, 1 to " + CALLER_MATERIAL_SCENE_MAX_MATERIALS + " materials and a materialAt function.");
+    const inputs = [...record.materials as unknown[]];
+    return Object.freeze({ kind: "material-function" as const, sceneId: record.sceneId, materialAt: record.materialAt as ResolvedCallerMaterialScene["materialAt"],
+      materials: Object.freeze(inputs.map((m, index) => resolveChartMaterial(m, "scene.materials[" + index + "]"))),
+      materialInputs: Object.freeze(inputs.map((m) => (typeof m === "number" ? undefined : m))) });
+  }
   for (const key of Object.keys(record)) if (key !== "kind" && key !== "sceneId" && key !== "evaluate") throw new InvalidConfigurationError("Unknown scene field: " + key + ".");
   if ((record.kind !== "reflectance-function" && record.kind !== "radiance-function") || typeof record.evaluate !== "function" ||
     typeof record.sceneId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(record.sceneId)) throw new InvalidConfigurationError("A caller scene needs kind, a public sceneId and an evaluate function.");
