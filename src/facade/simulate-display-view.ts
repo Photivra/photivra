@@ -19,7 +19,9 @@ import { resolvePortableCaptureIlluminant, calculateIlluminantIrradianceScale } 
 import { ahdCandidateKernels, createDisplayViewExpectedSignal, renderDisplayView, type DisplayViewChannelReadout, type DisplayViewExpectedSignal, type DisplayViewRenderResult,
   type DisplayViewScene } from "./display-view.js";
 import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, sceneIlluminantWhiteBalance, CAMERA_TO_XYZ, CHANNELS, DARK_CURRENT_ELECTRONS_PER_SECOND, FACADE_EVIDENCE,
-  SIMULATE_CAPTURE_FACADE_VERSION, type DisplayViewResult, type DisplayViewRunContext, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
+  SIMULATE_CAPTURE_FACADE_VERSION, DISPLAY_VIEW_WITHOUT_VIEW, allowKeys, parseDisplayViewOption, type DisplayViewResult, type DisplayViewRunContext, type ParsedDisplayView,
+  type SimulateCaptureAssumption, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
+import { createHostYield } from "./host-yield.js";
 
 /**
  * The display view of a capture request: the image the real full-resolution capture (`simulateCapture(options)`) would
@@ -32,6 +34,47 @@ import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, 
  */
 export async function simulateDisplayView(options: SimulateCaptureOptions, view: SimulateDisplayViewOptions): Promise<DisplayViewResult> {
   return await runCapture(options, "display-view", view, (context) => renderDisplayViewResult(context)) as DisplayViewResult;
+}
+/** Options of one {@link PreparedDisplayView} render. */
+export interface PreparedDisplayViewRenderOptions {
+  /** Aborting cancels this render only; the promise rejects with a domain error. The request's own `signal` applies to preparing only. */
+  signal?: AbortSignal;
+}
+/**
+ * 2.7: a display-view request resolved once (`prepareDisplayView`). `render(view)` gives the same result as
+ * `simulateDisplayView(options, view)` for the prepared options, byte for byte (samples, view, exposure, scene, diagnostics
+ * and assumptions; only `diagnostics.timingsMs` differ, and they cover the render only), without repeating the request's
+ * setup: use it to render one view in many regions, for example on each worker of a progressive display.
+ */
+export interface PreparedDisplayView {
+  /** Renders a view of the prepared request. Renders may run concurrently; they share no state except read-only setup. */
+  render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult>;
+}
+/**
+ * 2.7 (#387): resolves a {@link simulateDisplayView} request once, without a view, and returns a handle whose `render(view)`
+ * renders its views. The setup it does once (request validation, the camera, lens, scene, chart and illuminant, the channel
+ * responses through the environment chain, the diffraction kernels, readout moments, demosaic tables and colour matrix) costs
+ * about 0.3–1.3 s per call on a 24 MP request; a region costs only its own pixels. Errors in the request are raised here;
+ * errors in the view by `render`.
+ * @see docs/QUICK_START.md, "Display view".
+ */
+export async function prepareDisplayView(options: SimulateCaptureOptions): Promise<PreparedDisplayView> {
+  let frameWidth = 0, frameHeight = 0;
+  const renderPrepared = await runCapture(options, "display-view", DISPLAY_VIEW_WITHOUT_VIEW, (context) => {
+    frameWidth = context.width; frameHeight = context.height;
+    return Promise.resolve(prepareView(context));
+  }) as RenderPreparedView;
+  return Object.freeze({
+    async render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult> {
+      const started = Date.now(), viewStarted = clockMs();
+      const signal = renderOptions === undefined ? undefined : allowKeys(renderOptions, "render options", ["signal"]).signal as AbortSignal | undefined;
+      if (signal !== undefined && (typeof signal !== "object" || signal === null || typeof signal.aborted !== "boolean")) fail("signal must be an AbortSignal.");
+      const checkAbort = (): void => { if (signal?.aborted) fail("simulateCapture aborted."); };
+      checkAbort();
+      const parsed = parseDisplayViewOption(view, frameWidth, frameHeight);
+      return await renderPrepared(parsed, { started, viewStarted, checkAbort, yieldControl: createHostYield().yieldControl });
+    }
+  });
 }
 /**
  * Internal (not exported from the package): the display view plus its noise-free expected linear values and noise standard
@@ -47,12 +90,27 @@ export async function simulateDisplayViewWithInternals(options: SimulateCaptureO
 /** AHD low-signal correction (display view): draws per flat-neighbourhood state, and the pixel noise (linear light) above which it applies. */
 const DISPLAY_VIEW_AHD_CORRECTION_DRAWS = 2048, DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD = 0.01;
 
+type ViewInternals = { value?: DisplayViewRenderResult; signal?: DisplayViewExpectedSignal };
+/** What one render of a prepared view needs from its call: its start times, cancellation and yielding. */
+interface ViewRun { started: number; viewStarted: number; checkAbort: () => void; yieldControl: () => Promise<void> }
+type RenderPreparedView = (view: ParsedDisplayView, run: ViewRun, viewInternals?: ViewInternals) => Promise<DisplayViewResult>;
+
 /** Renders the display view of a resolved request (the last step of `runCapture` for "display-view"). */
-async function renderDisplayViewResult(context: DisplayViewRunContext, viewInternals?: { value?: DisplayViewRenderResult; signal?: DisplayViewExpectedSignal }): Promise<DisplayViewResult> {
-  const { ahd, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl } = context;
+async function renderDisplayViewResult(context: DisplayViewRunContext, viewInternals?: ViewInternals): Promise<DisplayViewResult> {
+  const viewStarted = clockMs();
+  return await prepareView(context)(context.parsedView!, { started: context.started, viewStarted, checkAbort: context.checkAbort, yieldControl: context.yieldControl }, viewInternals);
+}
+
+/**
+ * Internal (#387): the part of a display view that depends only on the request, done once (the portable illuminant, chart and
+ * white balance, the channel responses, query offsets, diffraction kernels, readout moments, demosaic tables and colour
+ * matrix). The returned function renders one view from it; it keeps no state between renders (each has its own expected-
+ * signal caches, lookup count and assumptions), so its results are those of separate calls.
+ */
+function prepareView(context: DisplayViewRunContext): RenderPreparedView {
+  const { ahd, antiAliasing, aspect, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, margin, mode, nativeHeight, nativeWidth, sourceSha256 } = context;
   const kelvinInput = context.kelvinWhiteBalanceInput;
   const portableKelvinWhiteBalance = kelvinInput ? (): ResolvedWhiteBalanceState => resolvePortableColorTemperatureWhiteBalance(kelvinInput) : undefined;
-  const viewStarted = clockMs(), v = parsedView!;
   // The engine's illuminant formulas (Planckian, CIE A, daylight locus) evaluated with the portable power and e^x − 1, so
   // the view's radiances, irradiance scale and scene-illuminant white balance have the same bits in every JavaScript
   // engine; they differ from the capture's own by at most a few ulps (docs/DISPLAY_VIEW.md, "Same bytes in every engine").
@@ -101,8 +159,8 @@ async function renderDisplayViewResult(context: DisplayViewRunContext, viewInter
     const length = Math.hypot(rx, ry, projectionDistance), t = subjectDistanceM / (projectionDistance / length);
     out[0] = rx / length * t / metresPerFrameUnit; out[1] = ry / length * t / metresPerFrameUnit;
   };
-  const signal = createDisplayViewExpectedSignal({ nativeWidth, nativeHeight, outputWidth: width, wavelengthsNm: wavelengths, electronsPerRadiance: perNode, offsets,
-    ...(kernels ? { kernels } : { queryPoint }), scene, channelAt: channelIndex });
+  const signalInput: Parameters<typeof createDisplayViewExpectedSignal>[0] = { nativeWidth, nativeHeight, outputWidth: width, wavelengthsNm: wavelengths, electronsPerRadiance: perNode, offsets,
+    ...(kernels ? { kernels } : { queryPoint }), scene, channelAt: channelIndex };
   // Readout moments per channel: normalized value k·e with variance k²·(e + σ_read²) plus the ADC quantization (1/12 code², times d² before a digital gain d).
   const readout = CHANNELS.map((channel): DisplayViewChannelReadout => {
     const { readoutProfile, regimeId } = regimeByChannel[channel];
@@ -119,56 +177,61 @@ async function renderDisplayViewResult(context: DisplayViewRunContext, viewInter
   const colour = prepareSensorColorDevelopment(CAMERA_TO_XYZ as unknown as Parameters<typeof prepareSensorColorDevelopment>[0], viewGains, highlightMode);
   const toSrgb = resolveCaptureColorModel().xyzToCameraRgb, m = colour.cameraToXyz;
   const matrix = [0, 1, 2].map((r) => [0, 1, 2].map((c) => toSrgb[r]![0]! * m[0]![c]! + toSrgb[r]![1]! * m[1]![c]! + toSrgb[r]![2]! * m[2]![c]!));
-  const viewRegion = v.region ?? { x: 0, y: 0, width: v.width, height: v.height };
   // Reach of a footprint's pixels into the scene, in sites: the demosaic (1), the largest query offset and the kernel radius.
   const reachSites = (ahd ? 3 : 1) + Math.ceil(Math.max(0, ...offsets.map((o) => Math.max(Math.abs(o.x), Math.abs(o.y))))) + (kernels ? kernels.radius : 0);
-  const rendered = await renderDisplayView({ frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
-    region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
-    ...(ahd ? { candidates: [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))),
-      ahdCorrection: { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), drawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS,
-        thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD * DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } } : {}),
-    gains: colour.appliedGains as [number, number, number], clipLevel: Math.min(...colour.appliedGains), matrix, toneCurve: toneCurve as "identity" | "positive-reinhard-per-channel",
-    yieldControl, checkAbort });
-  if (viewInternals) { viewInternals.value = rendered; viewInternals.signal = signal; }
-  const viewMs = clockMs() - viewStarted, scaleX = width / v.width, scaleY = height / v.height;
-  assume("view.definition", "model", { resampling: "area-average-linear-light", width: v.width, height: v.height, frameWidth: width, frameHeight: height, scaleX, scaleY },
-    "The image the full-resolution capture of this request would give after resizing to " + v.width + " × " + v.height + ": each display pixel is the area-weighted mean, in linear light (sRGB samples decoded with the sRGB EOTF), " +
-    "of the real output pixels its rectangle covers (" + scaleX + " × " + scaleY + " real pixels), then sRGB-encoded and rounded. The real capture's own samples are rounded to the view's bit depth before averaging.");
-  const uniformSamplesPerAxis = Math.max(1, Math.round(v.samplesPerAxis / 4));
-  assume("view.estimation", "model", { method: "stratified-monte-carlo-over-real-pixels", samplesPerAxis: v.samplesPerAxis, uniformSamplesPerAxis,
-    detailPixels: rendered.detailPixelCount, uniformPixels: rendered.uniformPixelCount },
-    "Each display pixel's expected value is the mean over K × K strata of its rectangle, one seeded uniformly jittered real pixel in each, so it is unbiased; the error is zero where the rectangle is uniform " +
-    "and falls as K^-3/2 at an edge. K = " + v.samplesPerAxis + " where a fixed pilot grid over the rectangle (widened by the demosaic, filter and kernel reach) or a neighbouring pixel's grid finds more than one scene value, " +
-    "K = " + uniformSamplesPerAxis + " elsewhere. For each sampled pixel the expected electrons of the real sites its demosaic reads are exact at the real pitch (the scene sampled at those sites through the pixel aperture, " +
-    "anti-aliasing filter and diffraction kernels, with the capture's own query arithmetic, so the colour mosaic and its aliasing are the real sensor's), and the per-site clip at white, the highlight clip, the tone curve " +
-    "and the clip to [0, 1] act on the pixel's own noise distribution, approximated as normal.");
-  assume("view.noise", "model", { method: "variance-of-the-area-mean", distribution: "normal" },
-    "Noise of the mean of the real pixels: the covariance of the weighted sum of independent site noises (shot, dark, read and ADC), with the demosaic correlation (B_c = Σ β², in closed form from the rectangle) and the " +
-    "expected slopes of the clips and the tone curve (Stein's lemma); the variance the linearization misses and the real pixels' output rounding are added per pixel. One correlated normal draw per display pixel, seeded " +
-    "by sensor.noiseSeed: the same statistics as the resized capture, not the same realization.");
-  assume("view.demosaic", "model", ahd ? { capture: "ahd", view: "ahd-candidates-with-low-signal-correction", correctedPixels: rendered.ahdCorrectedPixelCount,
-    correctionDrawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS, correctionThresholdLinearStd: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } : { capture: "bilinear", view: "bilinear" },
-    ahd ? "AHD is non-linear only in its choice between two linear candidates (green along the rows or the columns, red and blue from colour differences). The view propagates both candidates' exact linear statistics " +
-      "and averages them. Where a sampled pixel's noise exceeds " + DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD + " (linear light), the choice reacts to the noise and shifts the colour, so the pixel adds the mean " +
-      "difference between the engine's AHD steps and the two candidates on " + DISPLAY_VIEW_AHD_CORRECTION_DRAWS + " drawn noisy flat neighbourhoods (Poisson electrons plus read and ADC noise) with its channel means, " +
-      "computed once per state of a logarithmic grid (8 steps per octave of the channel means) and interpolated trilinearly, a control variate with no per-pixel sampling noise; " +
-      "the flat-neighbourhood state is an approximation at edges (docs/DISPLAY_VIEW.md, validation)." :
-      "The bilinear demosaic's linear kernels, exactly.");
-  assume("view.source", "model", { rendering: "srgb", format: v.format, ignoredCaptureOutput: ["format", "colorEncoding", "bitDepth", "gamutMapping", "jpegQuantizationStep", "dng", "metadata", "maximumPixels"].filter((k) => outputOptions[k] !== undefined) },
-    "The view shows the capture's sRGB rendering (its tone curve, white balance and highlight mode); the capture's file-format options do not apply to it.");
-  return Object.freeze({ kind: "display-view" as const, label: "Display view: the full-resolution capture resized to " + v.width + " × " + v.height + " (estimated); not a capture.",
-    facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
-    image: { width: viewRegion.width, height: viewRegion.height, format: v.format, samples: rendered.samples },
-    view: { width: v.width, height: v.height, frameWidth: width, frameHeight: height, scaleX, scaleY, samplesPerAxis: v.samplesPerAxis, ...(v.region ? { region: { ...v.region } } : {}) },
-    exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds) },
-    scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
-      illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
-      framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },
-    diagnostics: { sampleCount: rendered.sampleCount, siteEvaluations: rendered.siteCount, sceneLookups: signal.lookups, detailPixelCount: rendered.detailPixelCount,
-      uniformPixelCount: rendered.uniformPixelCount, ahdCorrectedPixelCount: rendered.ahdCorrectedPixelCount, timingsMs: { view: viewMs, total: Date.now() - started } },
-    provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion, evidence: [...FACADE_EVIDENCE, ...preset.evidence],
-      composedContracts: ["calculateEnvironmentSensorPhotoSignal", "resolveSensorReadoutRegime", "calculateSiteEffectiveSaturationCode", ...(diffraction ? ["createDiffractionLimitedPsfProfile", "resolveLensPsfConvolutionKernels"] : []),
-        ...(antiAliasing ? ["resolveAntiAliasingSpatialKernel"] : []), "prepareSensorColorDevelopment", "display view estimator"],
-      limitations: ["Estimated display view of the full-resolution capture: its expected value is a stratified Monte Carlo estimate and its noise is drawn from the variance of the area mean, so it has the resized capture's statistics, not its exact pixels; not a capture and not a measurement."] },
-    assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a))) });
+  return async (v, { started, viewStarted, checkAbort, yieldControl }, viewInternals) => {
+    const assumptions: SimulateCaptureAssumption[] = [...context.assumptions];
+    const assume = (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string): void => { assumptions.push({ id, kind, value, explanation }); };
+    const signal = createDisplayViewExpectedSignal(signalInput);
+    const viewRegion = v.region ?? { x: 0, y: 0, width: v.width, height: v.height };
+    const rendered = await renderDisplayView({ frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
+      region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
+      ...(ahd ? { candidates: [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))),
+        ahdCorrection: { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), drawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS,
+          thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD * DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } } : {}),
+      gains: colour.appliedGains as [number, number, number], clipLevel: Math.min(...colour.appliedGains), matrix, toneCurve: toneCurve as "identity" | "positive-reinhard-per-channel",
+      yieldControl, checkAbort });
+    if (viewInternals) { viewInternals.value = rendered; viewInternals.signal = signal; }
+    const viewMs = clockMs() - viewStarted, scaleX = width / v.width, scaleY = height / v.height;
+    assume("view.definition", "model", { resampling: "area-average-linear-light", width: v.width, height: v.height, frameWidth: width, frameHeight: height, scaleX, scaleY },
+      "The image the full-resolution capture of this request would give after resizing to " + v.width + " × " + v.height + ": each display pixel is the area-weighted mean, in linear light (sRGB samples decoded with the sRGB EOTF), " +
+      "of the real output pixels its rectangle covers (" + scaleX + " × " + scaleY + " real pixels), then sRGB-encoded and rounded. The real capture's own samples are rounded to the view's bit depth before averaging.");
+    const uniformSamplesPerAxis = Math.max(1, Math.round(v.samplesPerAxis / 4));
+    assume("view.estimation", "model", { method: "stratified-monte-carlo-over-real-pixels", samplesPerAxis: v.samplesPerAxis, uniformSamplesPerAxis,
+      detailPixels: rendered.detailPixelCount, uniformPixels: rendered.uniformPixelCount },
+      "Each display pixel's expected value is the mean over K × K strata of its rectangle, one seeded uniformly jittered real pixel in each, so it is unbiased; the error is zero where the rectangle is uniform " +
+      "and falls as K^-3/2 at an edge. K = " + v.samplesPerAxis + " where a fixed pilot grid over the rectangle (widened by the demosaic, filter and kernel reach) or a neighbouring pixel's grid finds more than one scene value, " +
+      "K = " + uniformSamplesPerAxis + " elsewhere. For each sampled pixel the expected electrons of the real sites its demosaic reads are exact at the real pitch (the scene sampled at those sites through the pixel aperture, " +
+      "anti-aliasing filter and diffraction kernels, with the capture's own query arithmetic, so the colour mosaic and its aliasing are the real sensor's), and the per-site clip at white, the highlight clip, the tone curve " +
+      "and the clip to [0, 1] act on the pixel's own noise distribution, approximated as normal.");
+    assume("view.noise", "model", { method: "variance-of-the-area-mean", distribution: "normal" },
+      "Noise of the mean of the real pixels: the covariance of the weighted sum of independent site noises (shot, dark, read and ADC), with the demosaic correlation (B_c = Σ β², in closed form from the rectangle) and the " +
+      "expected slopes of the clips and the tone curve (Stein's lemma); the variance the linearization misses and the real pixels' output rounding are added per pixel. One correlated normal draw per display pixel, seeded " +
+      "by sensor.noiseSeed: the same statistics as the resized capture, not the same realization.");
+    assume("view.demosaic", "model", ahd ? { capture: "ahd", view: "ahd-candidates-with-low-signal-correction", correctedPixels: rendered.ahdCorrectedPixelCount,
+      correctionDrawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS, correctionThresholdLinearStd: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } : { capture: "bilinear", view: "bilinear" },
+      ahd ? "AHD is non-linear only in its choice between two linear candidates (green along the rows or the columns, red and blue from colour differences). The view propagates both candidates' exact linear statistics " +
+        "and averages them. Where a sampled pixel's noise exceeds " + DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD + " (linear light), the choice reacts to the noise and shifts the colour, so the pixel adds the mean " +
+        "difference between the engine's AHD steps and the two candidates on " + DISPLAY_VIEW_AHD_CORRECTION_DRAWS + " drawn noisy flat neighbourhoods (Poisson electrons plus read and ADC noise) with its channel means, " +
+        "computed once per state of a logarithmic grid (8 steps per octave of the channel means) and interpolated trilinearly, a control variate with no per-pixel sampling noise; " +
+        "the flat-neighbourhood state is an approximation at edges (docs/DISPLAY_VIEW.md, validation)." :
+        "The bilinear demosaic's linear kernels, exactly.");
+    assume("view.source", "model", { rendering: "srgb", format: v.format, ignoredCaptureOutput: ["format", "colorEncoding", "bitDepth", "gamutMapping", "jpegQuantizationStep", "dng", "metadata", "maximumPixels"].filter((k) => outputOptions[k] !== undefined) },
+      "The view shows the capture's sRGB rendering (its tone curve, white balance and highlight mode); the capture's file-format options do not apply to it.");
+    return Object.freeze({ kind: "display-view" as const, label: "Display view: the full-resolution capture resized to " + v.width + " × " + v.height + " (estimated); not a capture.",
+      facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
+      image: { width: viewRegion.width, height: viewRegion.height, format: v.format, samples: rendered.samples },
+      view: { width: v.width, height: v.height, frameWidth: width, frameHeight: height, scaleX, scaleY, samplesPerAxis: v.samplesPerAxis, ...(v.region ? { region: { ...v.region } } : {}) },
+      exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds) },
+      scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
+        illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
+        framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },
+      diagnostics: { sampleCount: rendered.sampleCount, siteEvaluations: rendered.siteCount, sceneLookups: signal.lookups, detailPixelCount: rendered.detailPixelCount,
+        uniformPixelCount: rendered.uniformPixelCount, ahdCorrectedPixelCount: rendered.ahdCorrectedPixelCount, timingsMs: { view: viewMs, total: Date.now() - started } },
+      provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion, evidence: [...FACADE_EVIDENCE, ...preset.evidence],
+        composedContracts: ["calculateEnvironmentSensorPhotoSignal", "resolveSensorReadoutRegime", "calculateSiteEffectiveSaturationCode", ...(diffraction ? ["createDiffractionLimitedPsfProfile", "resolveLensPsfConvolutionKernels"] : []),
+          ...(antiAliasing ? ["resolveAntiAliasingSpatialKernel"] : []), "prepareSensorColorDevelopment", "display view estimator"],
+        limitations: ["Estimated display view of the full-resolution capture: its expected value is a stratified Monte Carlo estimate and its noise is drawn from the variance of the area mean, so it has the resized capture's statistics, not its exact pixels; not a capture and not a measurement."] },
+      assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a))) });
+  };
 }
