@@ -1232,6 +1232,26 @@ the same pixels of the whole view, for tiling across workers). The capture's fil
 be one `simulateCapture` accepts (a frame wider or taller than 4094 pixels needs `output.maximumPixels`, although the
 view allocates nothing at full resolution).
 
+**Many regions of one view (2.7).** Each `simulateDisplayView` call repeats the request's setup: the camera, lens,
+scene and illuminant, the channel responses, the diffraction kernels and the colour tables. That is about 0.25 s with
+the engine defaults and 0.7 s with the Quality options on a 24 MP request. To render one view in many regions, prepare
+the request once and render each region from it; each region then costs only its own pixels:
+
+```ts
+import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
+
+declare const request: SimulateCaptureOptions;
+const prepared = await prepareDisplayView(request);   // request errors are raised here
+const tile = await prepared.render({ width: 2028, height: 1352, region: { x: 960, y: 640, width: 96, height: 96 } },
+  { signal: AbortSignal.timeout(60_000) });            // cancels this render only
+console.log(tile.diagnostics.timingsMs.view);
+```
+
+`render(view)` returns what `simulateDisplayView(request, view)` returns, byte for byte (only `diagnostics.timingsMs`
+differ, and they cover the render only). Renders may run concurrently and share only read-only setup. The request's own
+`signal` applies to preparing; give each render its own. Keep one prepared view per request in each worker: measured on
+a 24 MP request, an 8 × 8 region took 6–40 ms through a prepared view instead of 0.24–0.41 s as its own call (Speed).
+
 **Not supported** (refused with an `InvalidConfigurationError`): `lens.pupilSampling`, `lens.projection`,
 `lens.distortion`, `lens.vignetting`, `lens.psf`, camera rotation, `output.whiteBalance: "auto"`, the luminance tone
 curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `onProgress` is not called;

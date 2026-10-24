@@ -5373,6 +5373,16 @@
       "kind": "type"
     },
     {
+      "name": "PreparedDisplayView",
+      "source": "src/facade/simulate-display-view.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PreparedDisplayViewRenderOptions",
+      "source": "src/facade/simulate-display-view.ts",
+      "kind": "type"
+    },
+    {
       "name": "PreparedGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
       "kind": "type"
@@ -5381,6 +5391,11 @@
       "name": "PreparedImageFormationContext",
       "source": "src/composition/image-formation-plan.ts",
       "kind": "type"
+    },
+    {
+      "name": "prepareDisplayView",
+      "source": "src/facade/simulate-display-view.ts",
+      "kind": "runtime"
     },
     {
       "name": "PreparedRgbGamutMapping",
