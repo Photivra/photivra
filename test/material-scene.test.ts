@@ -67,7 +67,7 @@ describe("caller material scenes (#386)", () => {
   it("refuses malformed material scenes and indices", async () => {
     const ok: CallerMaterialScene = { kind: "material-function", sceneId: "m", materials: [0.2, 0.5], materialAt: () => 0 };
     for (const bad of [{ ...ok, materials: [] }, { ...ok, materials: [1.5] }, { ...ok, materials: "x" }, { ...ok, materialAt: undefined }, { ...ok, sceneId: "bad id" },
-      { ...ok, evaluate: () => 0 }, { ...ok, materials: Array.from({ length: 65_537 }, () => 0.5) }])
+      { ...ok, evaluate: (): number => 0 }, { ...ok, materials: Array.from({ length: 65_537 }, () => 0.5) }])
       await expect(simulateCapture(base(bad as never))).rejects.toThrow(InvalidConfigurationError);
     for (const index of [2, -1, 0.5, Number.NaN]) {
       await expect(simulateCapture(base({ ...ok, materialAt: () => index }))).rejects.toThrow(InvalidConfigurationError);
