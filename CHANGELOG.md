@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.7.0 — unreleased
+
+### Changed
+
+- **Scene illuminant evaluated once per wavelength (#385).**
+  - **What changed:** the planar scene provider (chart and caller scenes, in captures and display views) and the batched chart radiance used to evaluate the illuminant's spectrum on every scene lookup. That is Planck's law, CIE A or the daylight locus: two transcendental evaluations per call. They now keep it in a table per distinct wavelength, filled with the same call.
+  - **Results are unchanged:** a prepared spectrum is a pure function of the wavelength, so the table returns the same double and the product keeps its order, `value × irradianceScale × shape / π`. Display views, captures, hash locks and fingerprints are byte-identical. The table lives in each provider (one per call), up to 4,096 wavelengths.
+  - **Measured** on a 24 MP full frame (6000 × 4000 at 6 µm), f/8, a composite chart with a 2 × 2 box, on the 2028 × 1352 view's 8-row centre strip. One thread, 4-vCPU Linux container, Node 24.21.0, two runs each, same sample hashes before and after:
+
+    | Request | Before | After |
+    | --- | --- | --- |
+    | Caller `reflectance-function` scene, defaults | 15.0 / 15.2 s | 8.8 / 8.5 s (1.75×) |
+    | Same, with diffraction, four-spot filter and AHD | 185 / 174 s | 113 / 116 s (1.56×) |
+    | Chart preset, defaults | 2.2 / 2.5 s | 2.2 / 2.0 s |
+    | Chart preset, with diffraction, four-spot filter and AHD | 7.9 / 8.9 s | 7.4 / 7.6 s |
+    | 128 × 128 capture region, caller scene / chart | 4.9 / 3.2 s | 4.7 / 3.0 s |
+
 ## 2.6.0 — unreleased (prepared October 19–20, 2026)
 
 A minor release that adds the display view and the close-up light factor and makes Quality renders faster. `simulateDisplayView` gives the image the real full-resolution capture would give after resizing to a display size, without rendering it at full resolution; region renders with diffraction convolve only the region, identical diffraction kernels are reused and built faster, the engine's own chart scenes skip re-parsing their fixed records, and the framing results report how much light the lens loses up close. Applications that only capture do not bundle the display view. Every capture and ideal-reference request that 2.5.0 accepted gives byte-identical results (the engine version recorded in captures aside), except that region renders with diffraction state the narrower convolution in their `output.region` assumption; their samples, RAW codes and files are unchanged. `calculateChartFraming` and `calculateSubjectDistanceForFraming` results gain two fields. Root exports grow from 1,717 to 1,721 symbols; none is removed. The display view with the Quality options has one known limit, listed below.

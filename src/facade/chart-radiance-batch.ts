@@ -21,7 +21,7 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 import { resolveChartScene, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
-import { buildPlanarSceneRadianceProvider, calculateIlluminantIrradianceScale, resolveCaptureIlluminant, type CaptureIlluminant,
+import { buildPlanarSceneRadianceProvider, calculateIlluminantIrradianceScale, resolveCaptureIlluminant, tabulatedSpectrum, type CaptureIlluminant,
   type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
 export const CHART_RADIANCE_BATCH_SCHEMA_VERSION = "0.1.0" as const;
@@ -105,11 +105,12 @@ export function calculateChartRadianceBatchPlan(input: ChartRadianceBatchInput):
     irradianceScale, geometry: { distanceM: 1, metresPerFrameUnit: 1 }, evidence: [], limitations: [] });
   const channelWeights = weights === undefined ? null : (weights as number[][]).map(row => Object.freeze([...row]));
   const nm = Object.freeze([...(wavelengths as number[])]);
+  const shapeAt = tabulatedSpectrum(illuminant.shape);
   const materialRadiance = (material: number, wavelength: number): number => {
     const m = chart.materials[material]!;
     const reflectance = m.kind === "neutral" ? m.reflectance : m.spectrum.evaluate(wavelength);
     if (m.kind === "spectrum" && !(reflectance >= 0 && reflectance <= 1)) throw new InvalidConfigurationError("Chart reflectance spectrum left [0, 1].");
-    return reflectance * irradianceScale * illuminant.shape.evaluate(wavelength) / Math.PI;
+    return reflectance * irradianceScale * shapeAt(wavelength) / Math.PI;
   };
   return Object.freeze({ chart, illuminant, irradianceScale, queryCount, columns: channelWeights === null ? 1 : channelWeights.length,
     mode: channelWeights === null ? "radiance" as const : "spectral-integral" as const, wavelengthsNanometers: nm, channelWeights, materialRadiance,
