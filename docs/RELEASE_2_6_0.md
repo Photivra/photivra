@@ -1,6 +1,6 @@
 # 2.6.0 release candidate
 
-> **Release request.** Prepared October 19, 2026, and redone on October 20 to include the display view, its speed-ups, its portability fix, its regenerated validation and its known limit, and the fix that keeps it out of bundles that only capture. Publishing is a separate step: the owner tags `v2.6.0` on the `main` commit that merges this record, and npm publishing runs from the tag.
+> **Published October 20, 2026.** The owner tagged `v2.6.0` on `26296ef` and published the GitHub release; npm publishing ran from the tag (recorded with the 2.7.0 release preparation, October 24, 2026).
 
 ## At a glance
 
@@ -221,7 +221,19 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 - [x] The 2.6.0 changes merged with their changelog entries (#354, #355, #363, #364, #368, #371, #375, #376, #377, #378, #381).
 - [x] Display-view validation regenerated on the final code with seven reference seeds (#377); one documented known-limit miss (case 138, #379).
 - [x] Version surfaces aligned at 2.6.0 (`npm run release:prepare -- 2.6.0`, #367); API reference regenerated (1,721 root symbols; 4 added, none removed).
-- [ ] Owner's review of this record.
-- [ ] Green CI on this pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.6.0`.**
-- [ ] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on this pull request, then on `main` after merge.
+- [x] **The owner's explicit approval to tag `v2.6.0`.**
+- [x] After publication: npm version, dist-tag and integrity recorded below; GitHub release notes published; publication dates updated in `CHANGELOG.md` and `SECURITY.md` and this record (October 24, 2026). Provenance was not re-verified then. `README.md` already describes the 2.7.0 candidate.
+
+## Publication
+
+Recorded on October 24, 2026, from GitHub and the npm registry. The provenance and the tarball contents were not re-verified at that time.
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.6.0` → `26296efead527a5f6c71058d15a3e49b0bb9aa96` (#382) |
+| GitHub release | [@photivra/engine 2.6.0](https://github.com/Photivra/photivra/releases/tag/v2.6.0), published 02:31:35 UTC |
+| Publish workflow | [Publish npm run 23](https://github.com/Photivra/photivra/actions/runs/39359393612), passed (last updated 02:39:59 UTC) |
+| npm | `@photivra/engine@2.6.0`, dist-tag `latest`, registry time 02:42:35 UTC |
+| Integrity | `sha512-UeD6orBQGVYfIe+JgTDFcHkkszPgPYyqS8ZvEso2fAzcpzq2RzzSFOlGwzsGU5cFLFNGI0zx12ckWqkPGgaT3A==` (shasum `cfb921b2277946332be262095c61e4c55be15e89`, 846 files) |

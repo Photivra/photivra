@@ -1,6 +1,15 @@
 # Changelog
 
-## 2.7.0 — unreleased
+## 2.7.0 — unreleased (prepared October 24, 2026)
+
+A minor release that makes the display view much faster at device-pixel sizes and adds two APIs for it.
+- **API for regions:** `prepareDisplayView` resolves a request once for many regions.
+- **API for charts:** caller material scenes let a piecewise-constant scene, such as a chart with a printed label, take the chart path.
+- **Faster, same output:** three speed-ups change no byte of any result: the scene illuminant evaluated once per wavelength, a sample's terms reused per real pixel, and site values kept across display pixels.
+- **Compatibility:** every request that 2.6.0 accepted gives byte-identical results (the engine version recorded in results aside). Root exports grow from 1,721 to 1,727; none is removed.
+- **Known limit:** the Quality noise limit of 2.6.0 remains, and its fix moves to 2.8.0.
+
+Measured on the app's All-in-one chart with its maker label (24 MP frame, the 2028 × 1352 view's centre strip, one thread, Speed), using the material scene: 1.15 s instead of 15 s on 2.6.0. With the Quality options it takes 3.0 s instead of 180 s.
 
 ### Added
 
@@ -78,7 +87,11 @@
     | Chart preset, with diffraction, four-spot filter and AHD | 7.9 / 8.9 s | 7.4 / 7.6 s |
     | 128 × 128 capture region, caller scene / chart | 4.9 / 3.2 s | 4.7 / 3.0 s |
 
-## 2.6.0 — unreleased (prepared October 19–20, 2026)
+### Known limit
+
+- **Display view, Quality (AHD): too much colour in the noise where a display pixel covers few sensor pixels (#379).** This is unchanged from 2.6.0 (see its entry below). By the owner's decision of October 24, 2026 ("Ship speed now, #379 in 2.8.0"), the redesign of the Quality noise model moves to 2.8.0. Speed (bilinear) is exact.
+
+## 2.6.0 — published October 20, 2026
 
 A minor release that adds the display view and the close-up light factor and makes Quality renders faster. `simulateDisplayView` gives the image the real full-resolution capture would give after resizing to a display size, without rendering it at full resolution; region renders with diffraction convolve only the region, identical diffraction kernels are reused and built faster, the engine's own chart scenes skip re-parsing their fixed records, and the framing results report how much light the lens loses up close. Applications that only capture do not bundle the display view. Every capture and ideal-reference request that 2.5.0 accepted gives byte-identical results (the engine version recorded in captures aside), except that region renders with diffraction state the narrower convolution in their `output.region` assumption; their samples, RAW codes and files are unchanged. `calculateChartFraming` and `calculateSubjectDistanceForFraming` results gain two fields. Root exports grow from 1,717 to 1,721 symbols; none is removed. The display view with the Quality options has one known limit, listed below.
 
