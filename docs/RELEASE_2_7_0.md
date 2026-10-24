@@ -1,6 +1,6 @@
 # 2.7.0 release candidate
 
-> **Release request.** Prepared October 24, 2026. Publishing is a separate step: the owner tags `v2.7.0` on the `main` commit that merges this record, and npm publishing runs from the tag.
+> **Published October 24, 2026.** The owner tagged `v2.7.0` on `fabad7e` (#406) after `main` CI on that commit had passed, and published the GitHub release. npm publishing ran from the tag.
 
 ## At a glance
 
@@ -179,7 +179,18 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 - [x] The 2.7.0 changes merged with their changelog entries (#401, #402, #403, #404, #405).
 - [x] Version surfaces aligned at 2.7.0 (`npm run release:prepare -- 2.7.0`). API reference regenerated: 1,727 root symbols, 6 added, none removed.
 - [x] Fingerprint against `v2.6.0`: 18 results identical apart from the engine version.
-- [ ] Owner's review of this record.
-- [ ] Green CI on this pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.7.0`.**
-- [ ] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on this pull request (#406), then on `main` after merge (`main smoke` and `native performance` on `fabad7e` passed before the tag).
+- [x] **The owner's explicit approval to tag `v2.7.0`.** The owner tagged it and published the release.
+- [x] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.7.0` → `fabad7e36bedc0c2f3466069efec88711511fdaf` (#406), after `main` CI on that commit passed |
+| GitHub release | [@photivra/engine 2.7.0](https://github.com/Photivra/photivra/releases/tag/v2.7.0), published 20:32:42 UTC |
+| Publish workflow | [Publish npm run 24](https://github.com/Photivra/photivra/actions/runs/40130257138): its verify and publish jobs passed (completed 20:47:28 UTC) |
+| npm | `@photivra/engine@2.7.0`, dist-tag `latest`, registry time 20:49:34 UTC |
+| Integrity | `sha512-BwN4fbDQLB5ccYfQukkwN4d2MiqNJHMPuhjDGoIeYEN2EaFng3PsGgWfKIcEOHor3w1L58hF26dZx5lR8nASBw==` (shasum `cf966e76fd9650d5437879528402671562477e3b`, 846 files), the same as the publish log |
+| Provenance | Signed provenance statement from GitHub Actions for the tag, published to the Sigstore transparency log ([log index 3443308606](https://search.sigstore.dev/?logIndex=3443308606)); the registry lists an attestation for 2.7.0 |
