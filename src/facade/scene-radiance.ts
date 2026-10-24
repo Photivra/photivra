@@ -193,6 +193,26 @@ export interface PlanarSceneRadianceProvider {
 
 const UNCERTAINTY = Object.freeze({ kind: "not-quantified" as const, limitation: "Analytic planar Lambertian scene; no measured scene, BRDF or illumination." });
 
+/** Most distinct wavelengths {@link tabulatedSpectrum} keeps; later ones are evaluated on every call. */
+const TABULATED_SPECTRUM_MAX_ENTRIES = 4096;
+
+/**
+ * Internal (#385): `spectrum.evaluate` remembered per distinct wavelength. A prepared spectrum is a pure function of the
+ * wavelength, so the table returns the same double the call would; renderers ask for the same few spectral nodes millions
+ * of times, and the illuminant's formula (two transcendental evaluations) was about 30 % of a caller-scene display view.
+ */
+export function tabulatedSpectrum(spectrum: Readonly<PreparedColorimetricSpectrum>): (wavelengthNanometers: number) => number {
+  const table = new Map<number, number>();
+  return (nm) => {
+    let value = table.get(nm);
+    if (value === undefined) {
+      value = spectrum.evaluate(nm);
+      if (table.size < TABULATED_SPECTRUM_MAX_ENTRIES) table.set(nm, value);
+    }
+    return value;
+  };
+}
+
 /**
  * Wraps a chart or caller scene as a provider for the native environment RAW task. `irradianceScale` is
  * from {@link calculateIlluminantIrradianceScale}; caller radiance scenes ignore the illuminant.
@@ -212,22 +232,23 @@ export function buildPlanarSceneRadianceProvider(input: {
   const evidence = input.evidence, limitations = input.limitations;
   const caller = "kind" in scene ? scene : undefined, chart = caller ? undefined : scene as ResolvedChartScene;
   const placed = geometry.chart, half = placed ? placed.widthM / 2 : 0, chartAspect = placed ? placed.heightM / placed.widthM : 0;
+  const shapeAt = tabulatedSpectrum(illuminant.shape);
   function radianceAt(u: number, v: number, nm: number): number {
     if (placed) {
       // Fixed-size chart (2.3): chart-local frame units from the plane point in metres.
       const xM = u * scale, yM = v * scale, cu = xM / half, cv = yM / half;
-      if (!(Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect)) return placed.surroundReflectance * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
-      if (chart) return chart.reflectanceAt(cu, cv, nm) * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
+      if (!(Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect)) return placed.surroundReflectance * irradianceScale * shapeAt(nm) / Math.PI;
+      if (chart) return chart.reflectanceAt(cu, cv, nm) * irradianceScale * shapeAt(nm) / Math.PI;
       return callerValue(Object.freeze({ xM, yM, u, v, wavelengthNanometers: nm, chartU: cu, chartV: cv }), nm);
     }
-    if (chart) return chart.reflectanceAt(u, v, nm) * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
+    if (chart) return chart.reflectanceAt(u, v, nm) * irradianceScale * shapeAt(nm) / Math.PI;
     return callerValue(Object.freeze({ xM: u * scale, yM: v * scale, u, v, wavelengthNanometers: nm }), nm);
   }
   function callerValue(point: Readonly<ScenePlanePoint>, nm: number): number {
     const value = caller!.evaluate(point);
     if (caller!.kind === "reflectance-function") {
       if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) throw new InvalidConfigurationError("Scene reflectance function must return a value in [0, 1].");
-      return value * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
+      return value * irradianceScale * shapeAt(nm) / Math.PI;
     }
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0) throw new InvalidConfigurationError("Scene radiance function must return a finite non-negative radiance.");
     return value;
@@ -253,7 +274,7 @@ export function buildPlanarSceneRadianceProvider(input: {
         if (!(value >= 0 && value <= 1)) throw new InvalidConfigurationError("Chart reflectance spectrum left [0, 1].");
       }
       if (!(value >= 0)) throw new InvalidConfigurationError("Unknown chart material.");
-      return value * irradianceScale * illuminant.shape.evaluate(nm) / Math.PI;
+      return value * irradianceScale * shapeAt(nm) / Math.PI;
     }
   } : {};
   return {
