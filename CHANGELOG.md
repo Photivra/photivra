@@ -4,6 +4,18 @@
 
 ### Changed
 
+- **Display view without diffraction: site values are kept across neighbouring display pixels (#392).**
+  - **What changed:** each display pixel opens a cache window of its footprint plus the demosaic reach. Neighbouring windows overlap, so the same native sites were evaluated about 3.7 times (measured at 2028 wide on a 24 MP frame). Without diffraction the view now keeps site values in a ring of native rows, a power of two at least twice the window's height, as the filled chart path already did with diffraction.
+  - **Exactness:** a site's value does not depend on the window, and a ring hit adds to `sceneLookups` the lookups the site's evaluation would have made. So samples, expected values, noise and every diagnostic are unchanged. The hash locks and the same 120 views as above hash identically.
+  - **Measured** on the same strip, Speed (one thread):
+
+    | Request | Before (after the memo above) | After |
+    | --- | --- | --- |
+    | Caller `reflectance-function` scene | 12.5 / 13.4 s | 3.0 / 3.0 s (4.3×) |
+    | Chart preset | 1.2 / 1.3 s | 1.0 / 1.0 s |
+
+    With the illuminant table, the memo and this change together, the caller-scene strip takes 3.1–3.6 s instead of 14.0–15.2 s on 2.6.0, and the chart preset 1.0 s instead of 2.1–2.5 s.
+
 - **Display view: a sample's terms are reused for later samples of the same real pixel (#392).**
   - **What changed:** at device-pixel view sizes a display pixel covers a few real pixels, and its 256 samples land on each of them many times. A sample's recorded terms depend only on its real pixel, not on the display pixel or the sample: the site variances, candidate slopes, residuals, expected values, the AHD choice terms and the correction. The view now keeps them per real pixel of the display pixel's footprint and replays them for later samples, as the one-material memo already did.
   - **Exactness:** the replay adds the same values to the same sums in the same order. It is used only where every site of the sample lies in the window's site cache, where reading the sites again cost no work and no scene lookup. So samples, expected values, noise and diagnostics, `sceneLookups` and `siteEvaluations` included, are unchanged:

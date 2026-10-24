@@ -370,8 +370,25 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     ring[q] = v; ringMaterial[q] = lastMaterial;
     return v;
   }
-  /** A site not in the window's site cache: from the ring, a filled window without the ring, the lazy window caches, or uncached. */
+  // Without diffraction (#392): site values persist across windows the same way, in their own ring (a site's value does not
+  // depend on the window). A ring hit counts the lookups directSite would have made, so `lookups` is unchanged.
+  let directRows = 0, directOn = false, directRing = new Float64Array(0), directRowId = new Int32Array(0);
+  const directLookups = offsets.length * (scene.kind === "materials" ? 1 : nodes);
+  function directRead(x: number, y: number): number {
+    const slot = y & (directRows - 1), q = slot * W + x;
+    if (directRowId[slot] === y) { const v = directRing[q]!; if (v === v) { lookups += directLookups; return v; } }
+    else { directRowId[slot] = y; directRing.fill(NaN, slot * W, (slot + 1) * W); }
+    const v = directSite(x, y);
+    directRing[q] = v;
+    return v;
+  }
+  /** A site not in the window's site cache: from a ring, a filled window without the ring, the lazy window caches, or uncached. */
   function siteMiss(x: number, y: number, i: number, j: number, cached: boolean): number {
+    if (directOn) {
+      const v = directRead(x, y);
+      if (cached) siteCache[j * sw + i] = v;
+      return v;
+    }
     if (ringOn) {
       if (!cached) { outsideRead(i, j); return ringRead(x, y, i, j); }
       const v = ringRead(x, y, i, j);
@@ -441,7 +458,16 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
       if (sw * sh > CACHE_LIMIT) { sw = 0; sh = 0; }
       if (siteCache.length < sw * sh) siteCache = new Float64Array(sw * sh);
       siteCache.fill(NaN, 0, sw * sh);
-      if (!input.kernels) return;
+      if (!input.kernels) {
+        // A ring of at least twice the window's rows keeps the rows of the previous display row's windows.
+        if (sh > 0 && directRows < 2 * sh) {
+          let rows = 1;
+          while (rows < 2 * sh) rows *= 2;
+          if (rows * W <= CACHE_LIMIT) { directRows = rows; directRing = new Float64Array(rows * W).fill(NaN); directRowId = new Int32Array(rows).fill(-1); }
+        }
+        directOn = sh > 0 && directRows >= 2 * sh;
+        return;
+      }
       for (const group of groups) {
         group.cx0 = x0 + group.minIx - R; group.cy0 = y0 + group.minIy - R;
         group.cpw = sw === 0 ? 0 : sw + group.cw - 1; group.cph = sh === 0 ? 0 : sh + group.ch - 1;
