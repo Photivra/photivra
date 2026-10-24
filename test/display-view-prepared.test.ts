@@ -9,7 +9,8 @@ import { scaledTimeout as testTimeout } from "./helpers/test-timeout.js";
 
 /** The result without its timings, as plain data. */
 function comparable(result: DisplayViewResult): unknown {
-  const { timingsMs: _timings, ...diagnostics } = result.diagnostics;
+  const diagnostics: Partial<DisplayViewResult["diagnostics"]> = { ...result.diagnostics };
+  delete diagnostics.timingsMs;
   return { ...result, image: { ...result.image, samples: Array.from(result.image.samples) }, diagnostics };
 }
 
