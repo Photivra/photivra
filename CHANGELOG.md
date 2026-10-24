@@ -4,6 +4,22 @@
 
 ### Changed
 
+- **Display view: a sample's terms are reused for later samples of the same real pixel (#392).**
+  - **What changed:** at device-pixel view sizes a display pixel covers a few real pixels, and its 256 samples land on each of them many times. A sample's recorded terms depend only on its real pixel, not on the display pixel or the sample: the site variances, candidate slopes, residuals, expected values, the AHD choice terms and the correction. The view now keeps them per real pixel of the display pixel's footprint and replays them for later samples, as the one-material memo already did.
+  - **Exactness:** the replay adds the same values to the same sums in the same order. It is used only where every site of the sample lies in the window's site cache, where reading the sites again cost no work and no scene lookup. So samples, expected values, noise and diagnostics, `sceneLookups` and `siteEvaluations` included, are unchanged:
+    - the six hash locks, and two new locks for views barely smaller than the frame, recorded on 2.6.0 before the change;
+    - 120 further views hashed identically before and after (6, 3.76 and 1.4 µm; five charts and a caller scene; Speed and Quality; 20–90 % of the frame width; ISO 100 and 3200).
+  - **Measured** on the same strip as above (one thread, before and after on the same build otherwise):
+
+    | Request | Before | After |
+    | --- | --- | --- |
+    | Chart preset, defaults | 2.1 / 2.2 s | 1.2 / 1.3 s (1.8×) |
+    | Chart preset, with diffraction, four-spot filter and AHD | 7.7 / 7.6 s | 3.0 / 2.9 s (2.6×) |
+    | Caller `reflectance-function` scene, defaults | 14.0 / 14.6 s | 12.5 / 13.4 s (1.1×) |
+    | Same, with diffraction, four-spot filter and AHD | 185 s | 174 s (1.06×) |
+
+    Caller scenes gain little because their time goes on evaluating each site the first time; reusing site values across neighbouring display pixels is the next step of #392.
+
 - **Scene illuminant evaluated once per wavelength (#385).**
   - **What changed:** the planar scene provider (chart and caller scenes, in captures and display views) and the batched chart radiance used to evaluate the illuminant's spectrum on every scene lookup. That is Planck's law, CIE A or the daylight locus: two transcendental evaluations per call. They now keep it in a table per distinct wavelength, filled with the same call.
   - **Results are unchanged:** a prepared spectrum is a pure function of the wavelength, so the table returns the same double and the product keeps its order, `value × irradianceScale × shape / π`. Display views, captures, hash locks and fingerprints are byte-identical. The table lives in each provider (one per call), up to 4,096 wavelengths.

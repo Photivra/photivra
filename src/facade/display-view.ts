@@ -99,6 +99,11 @@ export interface DisplayViewExpectedSignal {
   readonly uniformMaterial: number;
   /** Whether `uniformMaterial` is tracked in the current window (otherwise it is not meaningful). */
   readonly tracksMaterial: boolean;
+  /**
+   * Whether the current window caches its sites: a second `site` call for a site inside the window then returns the stored
+   * value without any work or lookup (#392).
+   */
+  readonly cachesSites: boolean;
 }
 
 const OFFSET_TOLERANCE = 1e-9;
@@ -428,6 +433,7 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     get lookups(): number { return lookups + (filled ? windowLookups() : 0); },
     get uniformMaterial(): number { return lastMaterial; },
     get tracksMaterial(): boolean { return ringOn; },
+    get cachesSites(): boolean { return sw > 0; },
     window(x0: number, y0: number, x1: number, y1: number): void {
       if (filled) lookups += windowLookups();
       filled = false; ringOn = false; outsideSites = [];
@@ -768,6 +774,8 @@ function correctionStates(key: string): CorrectionStates {
  * AHD choice terms; 33 a 1 when the AHD correction applies and [34, 37) its values.
  */
 const MEMO_SIZE = 37;
+/** Most real pixels a display pixel's footprint may have for the per-real-pixel memo (#392); larger footprints rarely repeat a real pixel. */
+const PIXEL_MEMO_LIMIT = 1 << 16;
 /** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
 
@@ -954,6 +962,13 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   let siteCount = 0, sampleCount = 0, detail = 0, uniform = 0, lastYield = Date.now();
   /** Recorded terms of samples whose sites all read one chart material, by material·4 + CFA phase (layout: MEMO_SIZE). */
   const sampleMemo = new Map<number, Float64Array>();
+  // Per-real-pixel memo (#392): a sample's recorded terms depend only on its real pixel (its sites' expected electrons and its
+  // CFA phase), not on the display pixel or the sample, so a later sample of the same real pixel in the same display pixel
+  // replays them (the same values added to the same sums in the same order, as the one-material memo does). Slots cover the
+  // display pixel's footprint and are valid while their stamp equals the display pixel's generation. A replayed sample still
+  // counts its sites; it is used only where every site lies in the window's site cache, where reading it again would have
+  // cost no work and no scene lookup.
+  let pixelStamp = new Int32Array(0), pixelRecords = new Float64Array(0), pixelGeneration = 0;
   // Pilot: the scene at a deterministic grid over each display pixel's footprint widened by the reach; a pixel is uniform when
   // every point returns the same value. Pixels next to a detailed pixel count as detailed too, so an edge that only clips a
   // footprint's corner (too thin for the grid) still gets the full samples. The grid is fixed, so the sample count is not
@@ -994,16 +1009,27 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       setup.signal.window(Math.floor(vx * sx) + margin - windowReach, Math.floor(vy * sy) + margin - windowReach, Math.ceil((vx + 1) * sx) + margin + windowReach,
         Math.ceil((vy + 1) * sy) + margin + windowReach);
       const jitter = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID)), tracking = setup.signal.tracksMaterial;
+      const mx0 = Math.floor(vx * sx) + margin, my0 = Math.floor(vy * sy) + margin;
+      const mw = Math.min(frameWidth - 1, Math.ceil((vx + 1) * sx)) + margin - mx0 + 1, mh = Math.min(frameHeight - 1, Math.ceil((vy + 1) * sy)) + margin - my0 + 1;
+      const pixelMemo = setup.signal.cachesSites && mw * mh <= PIXEL_MEMO_LIMIT;
+      if (pixelMemo) {
+        if (pixelStamp.length < mw * mh) { pixelStamp = new Int32Array(mw * mh); pixelRecords = new Float64Array(mw * mh * MEMO_SIZE); pixelGeneration = 0; }
+        pixelGeneration++;
+      }
       let s0 = 0, s1 = 0, s2 = 0, c00 = 0, c01 = 0, c02 = 0, c11 = 0, c12 = 0, c22 = 0, r0 = 0, r1 = 0, r2 = 0, pixelVariance = 0, corrected = false;
       for (let b = 0; b < K; b++) for (let a = 0; a < K; a++) {
         const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
         const x = Math.min(frameWidth - 1, Math.floor(fx)) + margin, y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
         const phase = (y & 1) * 2 + (x & 1), list = phaseList[phase]!;
         let material = -2;
+        const px = x - mx0, py = y - my0;
+        const pk = pixelMemo && px >= 0 && py >= 0 && px < mw && py < mh && x >= reach && y >= reach && x + reach < nativeWidth && y + reach < nativeHeight ? py * mw + px : -1;
+        let memo: Float64Array | undefined, mo = 0;
+        if (pk >= 0 && pixelStamp[pk] === pixelGeneration) { memo = pixelRecords; mo = pk * MEMO_SIZE; siteCount += list.length; }
         // The expected electrons of the sites the demosaic reads (sites outside the raster, at mirror borders, are read
         // reflect-101); where the signal tracks it, whether they all read one chart material, with the statistics below only
         // when the sample is not replayed; otherwise the statistics at once.
-        for (let li = 0; li < list.length; li++) {
+        if (!memo) for (let li = 0; li < list.length; li++) {
           const slot = list[li]!;
           siteCount++;
           let sxs = x + (slot % side) - reach, sys = y + ((slot / side) | 0) - reach;
@@ -1022,22 +1048,26 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         if (!tracking) material = -1;
         // A sample whose sites all read one chart material only has the statistics of every other such sample of that material
         // and CFA phase: replay its recorded terms (the same values added to the same sums in the same order).
-        const memoKey = material >= 0 ? material * 4 + phase : -1, memo = memoKey >= 0 ? sampleMemo.get(memoKey) : undefined;
+        const memoKey = !memo && material >= 0 ? material * 4 + phase : -1;
+        if (memoKey >= 0) {
+          memo = sampleMemo.get(memoKey);
+          if (memo && pk >= 0) { pixelRecords.set(memo, pk * MEMO_SIZE); pixelStamp[pk] = pixelGeneration; }
+        }
         const cs = candidateSlots[phase]!, cw = candidateWeights[phase]!, count = cs.length, share = 1 / count;
         if (memo) {
           for (let d = 0; d < count; d++) {
             for (let c = 0; c < 3; c++) {
-              const o = 3 + (d * 3 + c) * 3, a0 = memo[o]!, a1 = memo[o + 1]!, a2 = memo[o + 2]!, wgt = share * B[c]! * memo[c]!;
+              const o = mo + 3 + (d * 3 + c) * 3, a0 = memo[o]!, a1 = memo[o + 1]!, a2 = memo[o + 2]!, wgt = share * B[c]! * memo[mo + c]!;
               c00 += wgt * a0 * a0; c01 += wgt * a0 * a1; c02 += wgt * a0 * a2; c11 += wgt * a1 * a1; c12 += wgt * a1 * a2; c22 += wgt * a2 * a2;
             }
-            r0 += memo[21 + d * 3]!; r1 += memo[22 + d * 3]!; r2 += memo[23 + d * 3]!;
+            r0 += memo[mo + 21 + d * 3]!; r1 += memo[mo + 22 + d * 3]!; r2 += memo[mo + 23 + d * 3]!;
           }
-          s0 += memo[27]!; s1 += memo[28]!; s2 += memo[29]!;
-          if (count === 2) { r0 += memo[30]!; r1 += memo[31]!; r2 += memo[32]!; }
-          if (memo[33] === 1) { s0 += memo[34]!; s1 += memo[35]!; s2 += memo[36]!; corrected = true; }
+          s0 += memo[mo + 27]!; s1 += memo[mo + 28]!; s2 += memo[mo + 29]!;
+          if (count === 2) { r0 += memo[mo + 30]!; r1 += memo[mo + 31]!; r2 += memo[mo + 32]!; }
+          if (memo[mo + 33] === 1) { s0 += memo[mo + 34]!; s1 += memo[mo + 35]!; s2 += memo[mo + 36]!; corrected = true; }
           continue;
         }
-        const record = memoKey >= 0 ? new Float64Array(MEMO_SIZE) : undefined;
+        const record = memoKey >= 0 ? new Float64Array(MEMO_SIZE) : pk >= 0 ? pixelRecords.subarray(pk * MEMO_SIZE, (pk + 1) * MEMO_SIZE).fill(0) : undefined;
         if (tracking) for (let li = 0; li < list.length; li++) { const slot = list[li]!; siteStatistics(slot, siteChannel[slot]!, siteElectrons[slot]!); }
         // Site variance of each channel through the bilinear kernels (for B_c), then the demosaic's own pixel statistics: the
         // mean and covariance of its camera channels, averaged over its candidates (AHD picks one per pixel).
@@ -1139,7 +1169,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           s0 += fix[0]!; s1 += fix[1]!; s2 += fix[2]!; corrected = true;
           if (record) { record[33] = 1; record[34] = fix[0]!; record[35] = fix[1]!; record[36] = fix[2]!; }
         }
-        if (record) sampleMemo.set(memoKey, record);
+        if (record && memoKey >= 0) { sampleMemo.set(memoKey, record); if (pk >= 0) pixelRecords.set(record, pk * MEMO_SIZE); }
+        if (pk >= 0) pixelStamp[pk] = pixelGeneration;
         pixelVariance = 0;
       }
       sampleCount += Q;
