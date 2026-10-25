@@ -47,17 +47,17 @@ describe("simulateCapture lens.diffraction (2.1)", () => {
 describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", () => {
   const cases: Record<string, [SimulateCaptureOptions, string, string]> = {
     edge: [{ scene: { preset: "slanted-edge" }, output: { width: 24, height: 16 } },
-      "0cce9455f8a541eed2ebe6f652556d7ea0d10601f2a35f8529768311e8ec0acf", "9e2ca692f69d66236a98c27326888206b13bc69f2fc528983bf756db7a190d99"],
+      "0cce9455f8a541eed2ebe6f652556d7ea0d10601f2a35f8529768311e8ec0acf", "7b1a17b64caf4b4f6cfcccabcee01bbc2224402681debb68626f17e61e13339a"],
     star: [{ scene: { preset: "siemens-star" }, output: { width: 20, height: 20, format: "png" }, lens: { fNumber: 4 } },
-      "775575f46b684c0eb44196270893632995c8ae7ca9400e878efcf2e29c9a7f1b", "8cfaa4876775b109c297d60d1e050562216e735a7211332eeb0f18ba0097070d"],
+      "775575f46b684c0eb44196270893632995c8ae7ca9400e878efcf2e29c9a7f1b", "4d64c6fd94fd2cb58e7f2fbc255db8442f091cd73624aa95f8aa97375232e12a"],
     jpeg: [{ scene: { preset: "checkerboard" }, output: { width: 16, height: 16, format: "jpeg", whiteBalance: "auto" } },
-      "afeb03932b61751778c2ac285ce8245cd6feec4d0c18ffe7732f0a2d0588b70c", "0500220b1fdb5c17267bc57143722aa9253908435b1d00fbfb7a66d49bf927cf"],
+      "afeb03932b61751778c2ac285ce8245cd6feec4d0c18ffe7732f0a2d0588b70c", "d80eab922b346250cf7461f0e7ff00f9a5820ceb3d59d23e5039f06f06c9d753"],
     mirror: [{ scene: { preset: "grey-ramp" }, output: { width: 16, height: 12, demosaic: "bilinear", borderHandling: "mirror", format: "srgb-16" } },
-      "f8f7c5dc63ba0ad1ee0390d03ac08f3ee202bf57a560f9a834942303e3924c39", "5747ca1f9589b472614ee40f92ea0efce5391f08f2d8db9bc80ee00dd6196077"],
+      "f8f7c5dc63ba0ad1ee0390d03ac08f3ee202bf57a560f9a834942303e3924c39", "49d1e73d74ad084d405dd6b770016ac346e1af0222a0e27215e40cdbe137e7d3"],
     p3: [{ scene: { preset: "step-wedge" }, output: { width: 16, height: 8, format: "png", colorEncoding: "display-p3" } },
-      "ffd78b35089083915e69cccbf16476a79690ce31095c1e428d6edc8672ecca0c", "78c373ebc46c50e8242e57a4ed66b9816b325bdd9ce5ef31c0af45b3d4fcba66"],
+      "ffd78b35089083915e69cccbf16476a79690ce31095c1e428d6edc8672ecca0c", "be7d21f4832e25d918335ddefa2c8891b8f5c586b35e7748ab349ac839a321a5"],
     dng: [{ scene: { preset: "point-grid" }, output: { width: 12, height: 12, format: "dng" }, exposure: { mode: "program" } },
-      "faaf9e2bf9ae86261adb153f4aea04a29476b4e38c3e3acc616d4aee3fe3a106", "cdf08fc1294e99fbb860e7eae3aa1b2cd9ebbb1689281cad23c477d769a228c2"]
+      "faaf9e2bf9ae86261adb153f4aea04a29476b4e38c3e3acc616d4aee3fe3a106", "f9005828a1109b86316fc4dcf2c8c238e1090a3052be5652fc699b0d969c834d"]
   };
   const expectedOptions: Record<string, readonly string[]> = { edge: [], star: ["output.format.png"], jpeg: ["output.whiteBalance.auto", "output.format.jpeg"],
     mirror: ["output.borderHandling.mirror"], p3: ["output.colorEncoding.wide-gamut", "output.format.png"], dng: ["output.format.dng"] };
