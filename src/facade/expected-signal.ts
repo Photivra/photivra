@@ -80,22 +80,18 @@ const BAND_LIMIT = 1 << 22;
  */
 const LATTICE_RING_ROWS = 128, LATTICE_RING_MAXIMUM_BAND_ROWS = 64, LATTICE_RING_MARGIN = 64;
 
-/**
- * Expected photo electrons per site: μ_c(i, j) = Σ_o w_o Σ_λ A_c(λ) Σ_t K_λ(t)·L(p_o(i, j) − t, λ), where p_o is the
- * query point of offset o and K the diffraction kernel (a single unit tap without diffraction). This is the sum the
- * facade's environment chain forms for a still, rectilinear, distortion-free planar scene, where the
- * radiance-to-irradiance factor is the same at every site (docs/DISPLAY_VIEW.md, "Expected signal").
- *
- * With diffraction, offsets that share a fractional shift read one lattice, and their kernels are combined in advance:
- * C_c(d) = Σ_members w·Σ_λ A_c(λ)·K_λ(t)·L(λ) over the taps t that reach lattice offset d. A neutral material's radiance
- * is its reflectance times the white radiance, so all neutral materials share one combined kernel per channel.
- */
-export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignalInput): DisplayViewExpectedSignal {
-  const W = input.nativeWidth, H = input.nativeHeight, g = 2 / input.outputWidth, nodes = input.wavelengthsNm.length;
-  const R = input.kernels ? input.kernels.radius : 0, size = 2 * R + 1;
-  if (input.kernels && input.kernels.perNode.length !== nodes) throw new InvalidConfigurationError("Display view kernels must match the spectral nodes.");
-  if (!input.kernels && !input.queryPoint) throw new InvalidConfigurationError("Display view needs the environment query points without diffraction.");
-  const A = input.electronsPerRadiance, scene = input.scene, offsets = input.offsets, channelAt = input.channelAt;
+/** The tables of `createDisplayViewExpectedSignal` that depend only on its input (see there), cached per input object. */
+interface PreparedSignal {
+  reflectance: Float64Array; spectralIndex: Int32Array; spectral: Float64Array[]; groups: Group[]; neutralDirect: number[]; spectralDirect: number[][]; uniformSite: Float64Array[];
+  /** The filled path's lattice material rings, per group (created on first use). */
+  rings: ({ width: number; material: Int16Array | Int32Array; rowId: Int32Array } | undefined)[];
+}
+const PREPARED = new WeakMap<DisplayViewExpectedSignalInput, PreparedSignal>();
+interface Group { fx: number; fy: number; members: { ix: number; iy: number; weight: number }[]; minIx: number; maxIx: number; minIy: number; maxIy: number;
+  cw: number; ch: number; neutral: Float64Array[]; spectral: Float64Array[][]; perNode: Float64Array[][]; cache: Int32Array | Float64Array; cx0: number; cy0: number; cpw: number; cph: number }
+function prepareSignal(input: DisplayViewExpectedSignalInput): PreparedSignal {
+  const nodes = input.wavelengthsNm.length, R = input.kernels ? input.kernels.radius : 0, size = 2 * R + 1;
+  const A = input.electronsPerRadiance, scene = input.scene, offsets = input.offsets;
   const kernelAt = (node: number, t: number): number => (input.kernels ? input.kernels.perNode[node]![t]! : 1);
   // Materials: neutral ones by reflectance, spectral ones by index.
   let reflectance = new Float64Array(0), spectralIndex = new Int32Array(0);
@@ -106,8 +102,6 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   }
   // Offsets grouped by fractional shift: offsets that differ by whole sites share one lattice.
   const frac = (v: number): number => { const f = v - Math.floor(v); return f > 1 - OFFSET_TOLERANCE || f < OFFSET_TOLERANCE ? 0 : f; };
-  interface Group { fx: number; fy: number; members: { ix: number; iy: number; weight: number }[]; minIx: number; maxIx: number; minIy: number; maxIy: number;
-    cw: number; ch: number; neutral: Float64Array[]; spectral: Float64Array[][]; perNode: Float64Array[][]; cache: Int32Array | Float64Array; cx0: number; cy0: number; cpw: number; cph: number }
   const groups: Group[] = [];
   for (const o of offsets) {
     const fx = frac(o.x), fy = frac(o.y), ix = Math.round(o.x - fx), iy = Math.round(o.y - fy);
@@ -142,6 +136,44 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   // Neutral tap-0 signal per channel and spectral per material, for the direct (no-kernel) path.
   const neutralDirect = scene.kind === "materials" ? [0, 1, 2].map((c) => { let s = 0; for (let n = 0; n < nodes; n++) s += A[c]![n]! * scene.whiteRadiance[n]!; return s; }) : [];
   const spectralDirect = [0, 1, 2].map((c) => spectral.map((radiance) => { let s = 0; for (let n = 0; n < nodes; n++) s += A[c]![n]! * radiance[n]!; return s; }));
+  const uniformSite = scene.kind === "materials" && input.kernels ? [0, 1, 2].map((c) => Float64Array.from(scene.materials, (_, m) => {
+    const si = spectralIndex[m]!;
+    let sum = 0;
+    for (const group of groups) {
+      const nk = group.neutral[c]!, sk = si < 0 ? nk : group.spectral[c]![si]!;
+      for (let t = 0; t < group.cw * group.ch; t++) sum += si < 0 ? reflectance[m]! * nk[t]! : sk[t]!;
+    }
+    return sum;
+  })) : [];
+  const prepared = { reflectance, spectralIndex, spectral, groups, neutralDirect, spectralDirect, uniformSite, rings: groups.map(() => undefined) };
+  PREPARED.set(input, prepared);
+  return prepared;
+}
+
+/**
+ * Expected photo electrons per site: μ_c(i, j) = Σ_o w_o Σ_λ A_c(λ) Σ_t K_λ(t)·L(p_o(i, j) − t, λ), where p_o is the
+ * query point of offset o and K the diffraction kernel (a single unit tap without diffraction). This is the sum the
+ * facade's environment chain forms for a still, rectilinear, distortion-free planar scene, where the
+ * radiance-to-irradiance factor is the same at every site (docs/DISPLAY_VIEW.md, "Expected signal").
+ *
+ * With diffraction, offsets that share a fractional shift read one lattice, and their kernels are combined in advance:
+ * C_c(d) = Σ_members w·Σ_λ A_c(λ)·K_λ(t)·L(λ) over the taps t that reach lattice offset d. A neutral material's radiance
+ * is its reflectance times the white radiance, so all neutral materials share one combined kernel per channel.
+ *
+ * `spanColumns`: how many native columns the render's windows move across beyond one window's width (a filled band is never
+ * built wider). Only a speed hint: a window past it rebuilds its band, with the same values.
+ */
+export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignalInput, spanColumns = Infinity): DisplayViewExpectedSignal {
+  const W = input.nativeWidth, H = input.nativeHeight, g = 2 / input.outputWidth, nodes = input.wavelengthsNm.length;
+  const R = input.kernels ? input.kernels.radius : 0;
+  if (input.kernels && input.kernels.perNode.length !== nodes) throw new InvalidConfigurationError("Display view kernels must match the spectral nodes.");
+  if (!input.kernels && !input.queryPoint) throw new InvalidConfigurationError("Display view needs the environment query points without diffraction.");
+  const A = input.electronsPerRadiance, scene = input.scene, offsets = input.offsets, channelAt = input.channelAt;
+  // The request's tables (materials, lattice groups, combined kernels, per-material sums) are the same for every render of a
+  // prepared view, which passes the same input object: computed once per input. Each render gets its own groups' window caches.
+  const prepared = PREPARED.get(input) ?? prepareSignal(input);
+  const { reflectance, spectralIndex, spectral, neutralDirect, spectralDirect, uniformSite } = prepared;
+  const groups: Group[] = prepared.groups.map((group) => ({ ...group, cache: new Int32Array(0), cx0: 0, cy0: 0, cpw: 0, cph: 0 }));
   let lookups = 0;
   const point = new Float64Array(2);
   const materialSignalDirect = (m: number, c: number): number => {
@@ -214,15 +246,6 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   // kernelSite, so it is bit-identical. The scene lookup count stays the count kernelSite's lazy window cache makes (each
   // cache point a computed site reads counts once per window, points outside the cache once per read): the rectangles of
   // the sites computed in a window are counted when the window closes (windowLookups).
-  const uniformSite = scene.kind === "materials" && input.kernels ? [0, 1, 2].map((c) => Float64Array.from(scene.materials, (_, m) => {
-    const si = spectralIndex[m]!;
-    let sum = 0;
-    for (const group of groups) {
-      const nk = group.neutral[c]!, sk = si < 0 ? nk : group.spectral[c]![si]!;
-      for (let t = 0; t < group.cw * group.ch; t++) sum += si < 0 ? reflectance[m]! * nk[t]! : sk[t]!;
-    }
-    return sum;
-  })) : [];
   const allNeutral = spectral.length === 0;
   /**
    * A group's band: lattice rows [y0, y0 + rows), columns [x0, x0 + filled) looked up, row stride `capacity`. `material`,
@@ -233,9 +256,10 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   const bands: Band[] = groups.map(() => ({ x0: 0, y0: 0, rows: 0, capacity: 0, filled: 0, material: new Int32Array(0), reflectance: new Float64Array(0),
     changeLeft: new Int32Array(0), changeUp: new Int32Array(0), v: new Float64Array(0) }));
   // Lattice rows of material indices per group, kept across windows (filled windows only): rows LATTICE_RING_ROWS apart share a
-  // slot; columns from −LATTICE_RING_MARGIN. Int16 when every index fits (about 3 MB for four groups of a 6000-site row).
+  // slot; columns from −LATTICE_RING_MARGIN. Int16 when every index fits (about 3 MB for four groups of a 6000-site row). A
+  // lattice point's material depends only on the input, so the rings are kept with its prepared tables, across renders.
   const ringWide = scene.kind === "materials" && scene.materials.length <= 32767;
-  const rings: ({ width: number; material: Int16Array | Int32Array; rowId: Int32Array } | undefined)[] = groups.map(() => undefined);
+  const rings = prepared.rings;
   function latticeRing(g: number): { width: number; material: Int16Array | Int32Array; rowId: Int32Array } {
     let ring = rings[g];
     if (!ring) {
@@ -251,7 +275,7 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
       // A band with the ring is built twice as tall, so the next display rows' windows (a few lattice rows lower) reuse its
       // filled columns; a lattice point's material and the change counts inside a rectangle do not depend on the band's origin.
       if (rows <= LATTICE_RING_MAXIMUM_BAND_ROWS) rows *= 2;
-      const capacity = Math.max(x1 - x0, Math.min(Math.floor(BAND_LIMIT / rows), W + 2 * (x1 - x0)));
+      const capacity = Math.max(x1 - x0, Math.min(Math.floor(BAND_LIMIT / rows), W + 2 * (x1 - x0), spanColumns + x1 - x0));
       const size = rows * capacity, tables = (rows + 1) * (capacity + 1);
       band.x0 = x0; band.y0 = y0; band.rows = rows; band.capacity = capacity; band.filled = 0;
       if (band.material.length < size) { band.material = new Int32Array(size); band.reflectance = new Float64Array(allNeutral ? size : 0); }
