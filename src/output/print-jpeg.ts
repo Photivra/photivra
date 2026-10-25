@@ -172,7 +172,23 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
           }
         };
         const blocksX=Math.ceil(plan.outputWidth/8),sums=new Float64Array(blocksX*192);
-        for(let by=0;by<plan.outputHeight;by+=8){
+        // At 1:1 every output pixel is one source pixel with weight exactly 1, so its sum is exactly lut[code] and its
+        // sample is a function of the code alone: the same bytes from a 256-entry table, without the accumulation.
+        const identity=scaleX===1&&scaleY===1;
+        const direct=identity?Uint8Array.from(lut,(value)=>Math.min(255,Math.max(0,Math.round(encodeSrgbComponent(value)*255)))):undefined;
+        if(direct)for(let by=0;by<plan.outputHeight;by+=8){
+          check();
+          const height=Math.min(8,plan.outputHeight-by);await ensureRows(plan.crop.y+by,height);check();
+          for(let bx=0;bx<plan.outputWidth;bx+=8){
+            const width=Math.min(8,plan.outputWidth-bx),samples:number[]=[];
+            for(let y=0;y<8;y++){
+              const row=(plan.crop.y+by+Math.min(y,height-1)-cacheTop)*rowBytes+bx*3;
+              for(let x=0;x<8;x++){const index=row+Math.min(x,width-1)*3;samples.push(direct[cache[index]!]!,direct[cache[index+1]!]!,direct[cache[index+2]!]!);}
+            }
+            check();encoder.writeRgbBlock(samples);if(++blocks%32===0){await yieldControl(abort.signal);check();}
+          }
+        }
+        else for(let by=0;by<plan.outputHeight;by+=8){
           check();sums.fill(0);
           const height=Math.min(8,plan.outputHeight-by),top=plan.crop.y+by*scaleY,bottom=by+height===plan.outputHeight?cropBottom:plan.crop.y+(by+height)*scaleY;
           // Accumulation order per output pixel is unchanged from the per-block reader: 32-row bands from

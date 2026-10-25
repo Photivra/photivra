@@ -4,6 +4,11 @@
 
 ### Faster, same output
 
+- **JPEG writing about 3× faster, the same bytes.** A 24 MP baseline JPEG took 15.2 s to write and now takes 5.0 s (Node, one thread); every file is byte-identical.
+  - **1:1 Print JPEG:** where the output size equals the crop, each output pixel is one source pixel with weight exactly 1, so its sample is a function of its 8-bit code alone; `createPrintJpegTask` now takes it from a 256-entry table instead of the area-average accumulation.
+  - **DCT:** the encoder computes the eight v coefficients of a column in one pass over the block. Each coefficient still adds the same IEEE products in the same order and is scaled in the same order, so the coefficients are identical.
+  - **Checked:** identical SHA-256 of the files against 2.8.0 for 6000 × 4000, 1001 × 757, 9 × 7, 256 × 32 and 1543 × 1 images (smooth and noise); all JPEG hash locks pass.
+
 - **Captures of chart and material scenes: a short start again (fixes a 2.8.0 slowdown before the first RAW tile).**
   - **Cause:** the tabulated path's four verification sites ran the full chain through the diffraction convolution windowed to the whole render, so its first band convolved the full width before any tile: 24 s for a Quality preview of the 5.6 mm phone sensor at 768 pixels and f/32, against 0.55 s on 2.7.0.
   - **What changed:**

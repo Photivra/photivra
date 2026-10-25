@@ -165,7 +165,7 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
   const cosine=JPEG_DCT_COSINES;
   const previous=[0,0,0];
   const planes=[new Float64Array(64),new Float64Array(64),new Float64Array(64)];
-  const rowProducts=new Float64Array(64), transformed=new Float64Array(64);
+  const transformed=new Float64Array(64);
   const blueScale=2*(1-.114), redScale=2*(1-.299);
   return {
     writeRgbBlock(samples:readonly number[]):void {
@@ -183,13 +183,22 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
       const block=planes[channel]!;
       for (let u=0;u<8;u++) {
         const uOffset=u*8;
-        for (let y=0;y<8;y++) for (let x=0;x<8;x++) rowProducts[y*8+x]=block[y*8+x]!*cosine[uOffset+x]!;
         const uFactor=u===0 ? Math.SQRT1_2 : 1;
-        for (let v=0;v<8;v++) {
-          const vOffset=v*8;
-          let sum=0; for (let y=0;y<8;y++) { const cv=cosine[vOffset+y]!; for (let x=0;x<8;x++) sum+=rowProducts[y*8+x]!*cv; }
-          transformed[vOffset+u]=roundJpegCoefficient(sum*.25*uFactor*(v===0 ? Math.SQRT1_2 : 1)/q);
+        // The eight v sums in one pass over (y, x): each sum still adds the same products f(x,y)·C(u,x)·C(v,y) in the same
+        // order (y, then x), and each row product is the same IEEE product, formed once per (x, y) instead of stored.
+        let s0=0, s1=0, s2=0, s3=0, s4=0, s5=0, s6=0, s7=0;
+        for (let y=0;y<8;y++) {
+          const c0=cosine[y]!, c1=cosine[8+y]!, c2=cosine[16+y]!, c3=cosine[24+y]!, c4=cosine[32+y]!, c5=cosine[40+y]!, c6=cosine[48+y]!, c7=cosine[56+y]!;
+          for (let x=0;x<8;x++) {
+            const r=block[y*8+x]!*cosine[uOffset+x]!;
+            s0+=r*c0; s1+=r*c1; s2+=r*c2; s3+=r*c3; s4+=r*c4; s5+=r*c5; s6+=r*c6; s7+=r*c7;
+          }
         }
+        // Scaled as before, left to right: sum·0.25·(u factor)·(v factor)/q.
+        transformed[u]=roundJpegCoefficient(s0*.25*uFactor*Math.SQRT1_2/q); transformed[8+u]=roundJpegCoefficient(s1*.25*uFactor*1/q);
+        transformed[16+u]=roundJpegCoefficient(s2*.25*uFactor*1/q); transformed[24+u]=roundJpegCoefficient(s3*.25*uFactor*1/q);
+        transformed[32+u]=roundJpegCoefficient(s4*.25*uFactor*1/q); transformed[40+u]=roundJpegCoefficient(s5*.25*uFactor*1/q);
+        transformed[48+u]=roundJpegCoefficient(s6*.25*uFactor*1/q); transformed[56+u]=roundJpegCoefficient(s7*.25*uFactor*1/q);
       }
       const difference=transformed[0]!-previous[channel]!, size=amplitude(difference,11); emit(size,4); coefficient(difference,size); previous[channel]=transformed[0]!;
       let zeroes=0;
