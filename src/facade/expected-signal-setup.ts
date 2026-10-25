@@ -7,7 +7,8 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
+import type { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
+import { siteDiffractionKernel } from "../optics/site-diffraction-kernel.js";
 import { resolveProjectionDistanceMm } from "../motion/camera-rotation.js";
 import type { DisplayViewExpectedSignalInput, DisplayViewScene } from "./display-view.js";
 
@@ -54,10 +55,7 @@ export function buildExpectedSignalInput(input: ExpectedSignalSetupInput): { off
     const radius = diffraction.radius;
     kernels = { radius, perNode: wavelengths.map((wavelengthNm) => {
       if (!diffraction.profileWavelengths.includes(wavelengthNm)) throw new InvalidConfigurationError(input.caller + ": a spectral node has no diffraction kernel.");
-      const k = resolveLensPsfConvolutionKernels({ schemaVersion: "0.1.0", psf: diffraction.psf, spectralWeights: [{ wavelengthNm, weight: 1 }],
-        grid: { width: 1, height: 1, sitePitchMicrometers: { x: pitch, y: pitch }, opticalAxisSite: { x: 0.5, y: 0.5 } }, patchWidth: 1, patchHeight: 1, kernelRadius: radius }).value;
-      if (!k.exactSiteSampling || k.kernelRadius !== radius) throw new InvalidConfigurationError(input.caller + ": diffraction kernels must sample the site pitch exactly.");
-      return Float64Array.from(k.kernels);
+      return siteDiffractionKernel(diffraction.psf, wavelengthNm, pitch, radius, input.caller + ": diffraction kernels must sample the site pitch exactly.");
     }) };
   }
   // Chart presets and (2.7) caller material scenes take the material path: each material tabulated once per node.
