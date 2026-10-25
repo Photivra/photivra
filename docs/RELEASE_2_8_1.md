@@ -1,6 +1,6 @@
 # 2.8.1 release candidate
 
-> **Prepared October 25, 2026; not published.** Publishing runs only from the owner's `v2.8.1` tag, after `main` CI on the tagged commit has passed.
+> **Published October 25, 2026.** The owner tagged `v2.8.1` on `93b5ca1` (#421) after `main` CI on that commit had passed, and published the GitHub release. npm publishing ran from the tag.
 
 ## At a glance
 
@@ -73,7 +73,18 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 - [x] The 2.8.1 changes merged with their changelog entries (#415, #416).
 - [x] Version surfaces aligned at 2.8.1 (`npm run release:prepare -- 2.8.1`). Root exports unchanged at 1,727.
 - [x] Fingerprint against `v2.8.0`: all 24 results identical, with only the engine version normalized.
-- [ ] Owner's review of this record.
-- [ ] Green CI on this pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.8.1`.**
-- [ ] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on this pull request (#421), then on `main` after merge (CI run 973 and native performance on `93b5ca1` passed before the tag).
+- [x] **The owner's explicit approval to tag `v2.8.1`.** The owner tagged it and published the release.
+- [x] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.8.1` → `93b5ca1223b4e9c3df7ac6a38c3dd2b03c5a711e` (#421), after `main` CI on that commit passed ([CI run 973](https://github.com/Photivra/photivra/actions/runs/40209424181)) |
+| GitHub release | [@photivra/engine 2.8.1](https://github.com/Photivra/photivra/releases/tag/v2.8.1), published 16:22:17 UTC |
+| Publish workflow | [Publish npm run 26](https://github.com/Photivra/photivra/actions/runs/40211350182): its verify and publish jobs passed (completed 16:29:31 UTC) |
+| npm | `@photivra/engine@2.8.1`, dist-tag `latest`, registry time 16:31:36 UTC |
+| Integrity | `sha512-m5Kw8Y49sDRW45nfycfQjV/qOxIhEByt8sZZFv1Ql+WtgfnvDniWQ8wcoGfVqGnd6le4DvLsbUMeRgg46AKilA==` (shasum `3548f01418079a9f7fea67b4701efe8dfe72faf3`, 858 files), the same as the publish log and as a local pack of `93b5ca1` |
+| Provenance | Signed provenance statement from GitHub Actions for the tag, published to the Sigstore transparency log ([log index 3463185553](https://search.sigstore.dev/?logIndex=3463185553)); the registry lists an attestation for 2.8.1 |
