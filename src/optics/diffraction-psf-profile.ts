@@ -27,21 +27,21 @@
  * its many-blade (circular) limit. The sum of all cells is exactly 1 (Parseval), so the energy captured by
  * the finite kernel is Σ K over its window and the truncated energy is 1 − Σ K.
  *
- * **Cells much larger than the pattern (2.5).** The frequency-domain node counts grow with β = p·f_c (the cell
- * side over the cut-off period), so the work grows as β². From β ≥ `AIRY_REAL_SPACE_MINIMUM_BETA` (192) the cells
- * are integrated in real space instead, with the same model and no frequency integral: the Airy encircled energy is
+ * **Cells much larger than the pattern (2.5; threshold lowered to β = 32 after 2.8.1).** The frequency-domain node counts grow with β = p·f_c (the
+ * cell side over the cut-off period), so the work grows as β². From β ≥ `AIRY_REAL_SPACE_MINIMUM_BETA` (32) the cells are
+ * integrated in real space instead, with the same model and no frequency integral: the Airy encircled energy is
  * EE(r) = 1 − J₀(x)² − J₁(x)², x = π·r·f_c (it follows from J₀′ = −J₁ and J₁′ = J₀ − J₁/x, DLMF §10.6(i), free), so
  * the energy of the rectangle [0, X] × [0, Y] is (1/2π)∫ EE(r_edge(θ)) dθ over its quadrant, a one-dimensional
- * integral in θ. Every cell is a signed sum of such rectangles. x ≥ π·β/2 ≥ 301 there, where J₀ and J₁ come from
- * the Hankel asymptotic expansion (DLMF §10.17(i), eq. 10.17.3, free) with eight terms in each of P and Q; the
- * remainder is below the first neglected term (DLMF §10.17(iii)), under 1e-17. The θ integral uses 16-point
- * Gauss–Legendre panels on which the phase 2x changes by at most 2 radians, so the work grows only as β. The tests
- * check the two methods against each other where both are practical (β from 192 to 400), the real-space cells
- * against the asymptotic leakage 8√2/(π³·β) of the centre cell, and convergence under doubled panel counts.
- * The β threshold lies above every β a `simulateCapture` pitch up to 100 µm can reach (at most 100/(0.3805·1.4) ≈ 188),
- * so those captures keep the frequency-domain values unchanged. It cannot move much lower with this method: the innermost
- * boundary Z = ½ needs x = π·β/2 ≥ 300 for the expansion, so β ≥ 191; below that J₀ and J₁ would need another method, and
- * its cells would differ from the frequency-domain cells in the last bits, changing captures that exist today.
+ * integral in θ. Every cell is a signed sum of such rectangles. J₀² + J₁² comes from the Hankel asymptotic expansion
+ * (DLMF §10.17(i), eq. 10.17.3, free) from x = 300, with eight terms in each of P and Q (remainder under 1e-17,
+ * DLMF §10.17(iii)), and below it from Miller's backward recurrence normalized by J₀ + 2ΣJ₂ₖ = 1 (DLMF §3.6(iii),
+ * 10.12.4, free). The θ integral uses 16-point Gauss–Legendre panels on which the phase 2x changes by at most
+ * 2 radians, so the work grows only as β. The tests check the two methods against each other from β = 32 to 400, the
+ * real-space cells against the asymptotic leakage 8√2/(π³·β) of the centre cell, and convergence under doubled panel
+ * counts. The threshold was 192 in 2.5; it moved to 32 because from there the real-space cells agree with the frequency-domain cells
+ * within about 1e-12 and cost a few to a few hundred times less (a 750 µm whole-frame cell at f/8 took 3.4 s for 20
+ * wavelengths). Every β a native pitch up to 10 µm reaches (at most 10/(0.38·1.4) ≈ 19) stays in the frequency domain,
+ * so captures at sensor pitch are unchanged; larger cells (binned and whole-frame views) change in the last bits only.
  *
  * **Reuse (2.6).** The cells depend only on (β, R) (and the test-only node scale), so `calculateAiryCellEnergies` keeps the
  * 256 most recently used results and returns copies: tiles of one frame rendered in the same worker, and captures that
@@ -76,7 +76,7 @@ export const DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS = Object.freeze({ maximumWav
  * Internal: β = p·f_c (cell side over the cut-off period) from which `calculateAiryCellEnergies` integrates the cells in
  * real space (2.5). Above every β of a `simulateCapture` pitch up to 100 µm, whose captures keep the frequency-domain values.
  */
-export const AIRY_REAL_SPACE_MINIMUM_BETA = 192;
+export const AIRY_REAL_SPACE_MINIMUM_BETA = 32;
 /** Radius of the first dark ring of the Airy pattern in units of λ·N_w: j₁,₁/π, j₁,₁ = 3.8317059702 (first zero of J₁). */
 const AIRY_FIRST_ZERO_PER_LAMBDA_N = 3.8317059702075125 / Math.PI;
 
@@ -123,7 +123,7 @@ export interface DiffractionLimitedPsfProfile {
   /** Largest truncated energy over the wavelengths. */
   maximumTruncatedEnergyFraction: number;
   /**
-   * How the cells were integrated. 2.5: wavelengths with β = p·f_c ≥ 192 (cells far larger than the pattern) use the real-space
+   * How the cells were integrated. 2.5: wavelengths with β = p·f_c ≥ `AIRY_REAL_SPACE_MINIMUM_BETA` (192 in 2.5–2.8.1, then 32) use the real-space
    * encircled-energy method; `realSpaceWavelengthsNm` lists them, and `method` is `"frequency-domain-and-real-space"` when both ran.
    * `maximumRadialNodes` counts frequency-domain radial nodes (0 when only the real-space method ran); `maximumAngularNodes` the
    * angular nodes of either method (for the real-space method, all θ nodes of one wavelength).
@@ -218,12 +218,15 @@ const HANKEL = ((): { a0: Float64Array; a1: Float64Array } => {
 const HANKEL_MINIMUM_ARGUMENT = 300;
 
 /**
- * J₀(x)² + J₁(x)² for x ≥ 300 from the Hankel expansion J_ν(x) = √(2/(πx))·(P_ν cos ω_ν − Q_ν sin ω_ν), ω_ν = x − νπ/2 − π/4,
+ * J₀(x)² + J₁(x)² for x > 0. From x ≥ 300 by the Hankel expansion J_ν(x) = √(2/(πx))·(P_ν cos ω_ν − Q_ν sin ω_ν), ω_ν = x − νπ/2 − π/4,
  * P_ν = Σ(−1)^k a_2k(ν)/x^2k, Q_ν = Σ(−1)^k a_2k+1(ν)/x^2k+1 (DLMF 10.17.3), eight terms each. With ω₁ = ω₀ − π/2,
- * J₁ = √(2/(πx))·(P₁ sin ω₀ + Q₁ cos ω₀). Internal.
+ * J₁ = √(2/(πx))·(P₁ sin ω₀ + Q₁ cos ω₀). Below 300 by Miller's backward recurrence J_{n−1} = (2n/x)·J_n − J_{n+1} (DLMF 10.6.1;
+ * the algorithm, DLMF §3.6(iii)), started at an order above x where J_n is negligible, normalized by J₀ + 2·Σ J_2k = 1
+ * (DLMF 10.12.4). Internal.
  */
 export function besselSquareSum(x: number): number {
-  if (!(x >= HANKEL_MINIMUM_ARGUMENT)) throw new InvalidConfigurationError("The Hankel expansion of J0 and J1 needs an argument of at least 300.");
+  if (!(x > 0) || !Number.isFinite(x)) throw new InvalidConfigurationError("J0 and J1 need a positive finite argument.");
+  if (x < HANKEL_MINIMUM_ARGUMENT) return besselSquareSumByRecurrence(x);
   const { a0, a1 } = HANKEL, inverse = 1 / x;
   let p0 = 0, q0 = 0, p1 = 0, q1 = 0, power = 1;
   for (let k = 0; k < 16; k++) {
@@ -234,6 +237,25 @@ export function besselSquareSum(x: number): number {
   const omega = x - Math.PI / 4, c = Math.cos(omega), s = Math.sin(omega);
   const j0 = p0 * c - q0 * s, j1 = p1 * s + q1 * c;
   return 2 / (Math.PI * x) * (j0 * j0 + j1 * j1);
+}
+/**
+ * Miller's backward recurrence for 0 < x < 300 (see `besselSquareSum`). The start order x + 10·∛x + 40 (even) lies far enough in the
+ * region where J_n(x) falls faster than exponentially that the start values' error is below double precision at J₀ and J₁; the
+ * values are rescaled when they grow large, and normalized before squaring.
+ */
+function besselSquareSumByRecurrence(x: number): number {
+  const start = 2 * Math.ceil((x + 10 * Math.cbrt(x) + 40) / 2);
+  let next = 0, current = 1e-100, sum = 0, j1 = 0;
+  for (let n = start; n >= 1; n--) {
+    const previous = (2 * n / x) * current - next;
+    next = current; current = previous;
+    if (n - 1 === 1) j1 = current;
+    if (n - 1 > 0 && (n - 1) % 2 === 0) sum += 2 * current;
+    if (Math.abs(current) > 1e100) { current *= 1e-100; next *= 1e-100; sum *= 1e-100; j1 *= 1e-100; }
+  }
+  sum += current;
+  const j0 = current / sum, j1n = j1 / sum;
+  return j0 * j0 + j1n * j1n;
 }
 
 /**
