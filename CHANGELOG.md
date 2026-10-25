@@ -2,6 +2,22 @@
 
 ## 2.8.0 — unreleased
 
+### Faster, same output
+
+- **Captures of chart and material scenes: 3.6–8.3× faster RAW stage, no byte changed (#394, step 1).**
+  - **Engine-built tiles without a private copy:** the native environment no longer `structuredClone`s the site records that `simulateCapture` builds for each tile. They are fresh engine records, never shown to supplied code or changed afterwards, so they are planned as engine-owned data directly. Shared records keep their identity, which also makes the template comparisons cheaper. Tiles from callers are still copied.
+  - **Key taps:** for a chart preset or a caller material scene, the engine-built evaluator's result for a query is a pure function of the material at the queried plane point and the wavelength (with object-space diffraction, of the convolved lattice site and the wavelength). A verified lean template now plans its sites' taps as those keys instead of frozen requests, and takes each radiance from the key: chart materials from a table filled once per material and spectral node, lattice sites from the convolved band. Without a PSF a tap's key is the same at every spectral node, so it is found once per spatial node. The evaluator is not called for such taps; the evaluation count is still added, and the abort check still runs.
+  - **Verified per template:** a template takes key taps only when its own site's key radiances equal every radiance of its full execution, tap by tap (`Object.is`). Key taps never apply with pupil rays, a lens field mapping, a caller reflectance or radiance function, or a batched provider. A tap that would need the full irradiance function (a non-finite or negative value, or a field throughput outside the fast path) sends its site through the full path before anything is counted. A caller `materialAt` that throws during key planning sends its site to the full path, which throws the same error.
+  - **Tests:** a new test compares lean and full captures (samples, diagnostics counts, assumptions) for chart presets and caller material scenes in Speed and Quality, with a fixed-size chart, rotation, two temporal samples, a rolling shutter, vignetting and a region, and checks that key taps ran; and that lens field mappings and caller function scenes stay on request taps. All hash locks and facade fingerprints are unchanged.
+  - **Measured** on a 512 × 512 centre region of a 24 MP frame (6 µm, 50 mm f/8, 2 × 2 pixel averaging), one thread, main before and this change after, one run each; samples identical:
+
+    | Scene | Speed | Quality options (diffraction, four-spot filter, AHD) |
+    | --- | --- | --- |
+    | Siemens star preset | 31.7 → 6.5 s (4.9×) | 135.2 → 37.5 s (3.6×) |
+    | Siemens star as a caller material scene | 58.6 → 7.1 s (8.3×) | 252.9 → 40.4 s (6.3×) |
+
+    The material scene gains more because it now also takes the engine-built evaluator's shorter result parsing that chart presets had since 2.6.
+
 ### Changed
 
 - **Display view: the exact area mean where a footprint holds at most 25 real pixels (#393).** This is a deliberate reference change.

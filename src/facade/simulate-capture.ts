@@ -30,7 +30,7 @@
  * @see docs/QUICK_START.md
  */
 
-import { markInternalSceneRadianceEvaluator } from "../core/internal-radiance-evaluator.js";
+import { markInternalNativeTileReader, markInternalSceneRadianceEvaluator, registerInternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireInputObject } from "../core/record-validation.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
@@ -100,7 +100,7 @@ import { resolveChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type Chart
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   resolveChartSizeOption, type ChartSizeOption,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerMaterialScene, type CallerRadianceScene, type CallerReflectanceScene, type ResolvedCallerScene,
-  type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
+  planarProviderMaterialOfDirection, type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
 /** Version of how the facade builds requests. It changes whenever the same input would build a different request. */
 export const SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const;
@@ -1335,7 +1335,14 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // 2.6: a chart preset's evaluator is engine-built end to end (its results: the schema's exact keys, constant fields,
   // the request's identifiers, deep-frozen FACADE_EVIDENCE, UNCERTAINTY and limitations, and an engine-computed
   // radiance), so the native task may skip re-parsing the fixed parts. Caller scenes keep the full validation.
-  if (chart) markInternalSceneRadianceEvaluator(provider.evaluateRadiance);
+  // #394: a caller material scene's evaluator is engine-built in the same way (its radiance comes from the validated materials;
+  // only materialAt, validated on every call, is the caller's).
+  const materialEvaluator = chart !== undefined || callerScene?.kind === "material-function";
+  if (materialEvaluator) markInternalSceneRadianceEvaluator(provider.evaluateRadiance);
+  // #394: its results are materialRadiance(material at the queried point, wavelength), so the lean executor may tabulate them.
+  const materialOfDirection = planarProviderMaterialOfDirection(provider);
+  if (materialEvaluator && materialOfDirection && provider.materialRadiance) registerInternalRadianceAccess(provider.evaluateRadiance,
+    { keyOfDirection: materialOfDirection, radianceOfKey: provider.materialRadiance, tabulated: true });
   assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the engine's analytic CIE 1931 ȳ fit.");
 
   // Metering (CIPA DC-004 standard output sensitivity and camera equation) and exposure-mode resolution
@@ -1852,7 +1859,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     return (): void => { completed++; onProgress?.({ stage, completedTileCount: completed, totalTileCount: total }); };
   };
   const rawTick = progress("raw", regionNative ? regionNative.height * Math.ceil(regionNative.width / tileWidth) : plan.tileCount);
-  const rawCallbacks = { readTile: async (request: Parameters<typeof readTile>[0]): Promise<NativeEnvironmentRawTile> => { const tile = await readTile(request); rawTick(); return tile; },
+  // #394: siteInput builds fresh site records per call and never changes them, so the native task plans them without a copy.
+  const rawCallbacks = { readTile: markInternalNativeTileReader(async (request: Parameters<typeof readTile>[0]): Promise<NativeEnvironmentRawTile> => { const tile = await readTile(request); rawTick(); return tile; }),
     evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl };
   const rawTask: NativeEnvironmentRawTask = regionNative ? createNativeEnvironmentRawRegionTask(environmentRaw, regionNative, rawCallbacks) :
     createNativeEnvironmentRawTask(environmentRaw, rawCallbacks);
@@ -1892,7 +1900,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     // A second lean RAW pass with the measured intent. It gives the same RAW as re-running the sensor stage on a
     // retained optical stage, and is faster: retaining the optical stage takes the first pass off the lean executor.
     const wbTask = createNativeEnvironmentRawTask(finalRawInput, {
-      readTile: async (request) => { const tile = await readTile(request); wbTick(); return tile; },
+      readTile: markInternalNativeTileReader(async (request: Parameters<typeof readTile>[0]): Promise<NativeEnvironmentRawTile> => { const tile = await readTile(request); wbTick(); return tile; }),
       evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
     await runTask(wbTask);
     rawOutput = wbTask.takeOutput();

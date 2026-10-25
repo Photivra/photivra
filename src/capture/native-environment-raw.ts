@@ -4,7 +4,7 @@
  * Native RAW capture from a scene-radiance provider: source radiance → optics → EQE (external quantum
  * efficiency) → packed RAW codes for the full native sensor, within fixed work limits.
  */
-import {isInternalSceneRadianceEvaluator} from "../core/internal-radiance-evaluator.js";
+import {internalRadianceAccess,isInternalNativeTileReader,isInternalSceneRadianceEvaluator} from "../core/internal-radiance-evaluator.js";
 import { calculateNativeRawPlan, createNativeRawTaskWithCadence, nativeRawMaximumProviderEvaluations, type NativeRawInput, type NativeRawOutput,
   type NativeRawPlan, type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "./native-raw.js";
 import { createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
@@ -152,7 +152,9 @@ function adoptSharedState(environment: SiteEnvironment, reference: SharedStateRe
  */
 function tileQueries(plans:readonly SitePlan[]):NativeEnvironmentRadianceQuery[] {
   const queries:NativeEnvironmentRadianceQuery[]=[];
-  const add=(tap:{request:SceneRadianceEvaluationRequest;apertureRays?:readonly SensorApertureRay[]}):void=>{
+  const add=(planned:{request?:SceneRadianceEvaluationRequest;apertureRays?:readonly SensorApertureRay[]}):void=>{
+    // A batch never has material taps (#394), so every planned tap carries its request.
+    const tap=planned as {request:SceneRadianceEvaluationRequest;apertureRays?:readonly SensorApertureRay[]};
     if(tap.apertureRays===undefined){queries.push({request:tap.request});return;}
     // The executor later receives these same objects (apertureRadianceQuery), so they are built once.
     for(const ray of tap.apertureRays)queries.push(prebuildApertureRadianceQuery(tap.request,ray));
@@ -211,7 +213,7 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
   // 2.6: an engine-built evaluator (simulateCapture chart scenes) lets the lean path skip re-parsing the fixed parts of
   // its results; read once, so the checked function is the one bound. Never with a batch, whose results are the caller's.
   const evaluateFunction=provider.evaluateRadiance,internalEvaluator=provider.evaluateRadianceBatch===undefined&&isInternalSceneRadianceEvaluator(evaluateFunction);
-  const read=provider.readTile.bind(provider),evaluate=evaluateFunction.bind(provider),aperture=provider.evaluateApertureRadiance?.bind(provider),yieldControl=provider.yieldControl.bind(provider);
+  const internalSites=isInternalNativeTileReader(provider.readTile),read=provider.readTile.bind(provider),evaluate=evaluateFunction.bind(provider),aperture=provider.evaluateApertureRadiance?.bind(provider),yieldControl=provider.yieldControl.bind(provider);
   const observe=provider.observePhotoTile?.bind(provider),batch=provider.evaluateRadianceBatch?.bind(provider);
   let evaluations=0,shared:string|undefined,reference:SharedStateReference|undefined;
   const recorder=retention?createNativeEnvironmentOpticalStageRecorder(plan,sceneBinding,retention):undefined;
@@ -221,7 +223,8 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
     nativeHeight:plan.exposure.geometry.nativeRaster.pixelHeight,repeatWidth:layout.kind==="periodic-mosaic"?layout.repeatWidthSites:0,
     repeatHeight:layout.kind==="periodic-mosaic"?layout.repeatHeightSites:0,
     identityBinding:relationship.sitesPerNativeSampleX===1&&relationship.sitesPerNativeSampleY===1&&relationship.anchor==="shared-native-top-left"};
-  const lean=createNativeEnvironmentLeanExecutor(leanFrame);
+  // #394: an engine-built evaluator's key lookup lets verified templates skip its calls (never with a batch).
+  const lean=createNativeEnvironmentLeanExecutor(leanFrame,internalEvaluator?internalRadianceAccess(evaluateFunction):undefined);
   let nativeWindow:Parameters<typeof createNativeEnvironmentSensorLean>[2];
   try{nativeWindow=prepareCaptureExposureWindowSampler({...plan.exposureWindow!,nativeRaster:plan.exposure.geometry.nativeRaster});}catch{nativeWindow=undefined;}
   const sensorLean=createNativeEnvironmentSensorLean(leanFrame,plan.frame,nativeWindow);
@@ -232,8 +235,9 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
       const tile=requireAllowlistedRecord(supplied,["captureId","frameId","x","y","width","height","sites"],"Invalid physical source tile.");
       for(const key of Object.keys(request) as (keyof NativeRawTileRequest)[])if(tile[key]!==request[key])throw new InvalidConfigurationError("Physical source tile identity mismatch.");
       if(!Array.isArray(tile.sites)||tile.sites.length!==request.width||Array.from({length:request.width},(_,i)=>i in (tile.sites as unknown[])).includes(false))throw new InvalidConfigurationError("Physical source tile needs exact native coverage.");
-      // Private copy: planning takes each site environment as engine-owned plan data without copying it again.
-      const sites=structuredClone(tile.sites) as SimulateEnvironmentSensorRawFrameInput["sites"];
+      // Private copy: planning takes each site environment as engine-owned plan data without copying it again. Sites from an
+      // engine-built reader (#394: fresh records per call, never shown to supplied code or changed) are already the engine's own.
+      const sites=(internalSites?tile.sites:structuredClone(tile.sites)) as SimulateEnvironmentSensorRawFrameInput["sites"];
       // Yield to the host between sites on the shared time budget. Cancellation is honoured right after it.
       const pause=async():Promise<void>=>{
         if(!gate.due())return;
@@ -308,7 +312,8 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         if(isLeanEnvironmentPlan(p)){
           // The full plan (deterministic, no callbacks) is built only when the lean path needs it.
           const fullPlan=():ReturnType<typeof planEnvironmentRawSite>=>planEnvironmentRawSite(sites[j]!,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,"photo-only");
-          photoSignal=lean.execute(p,evaluateCounted,apertureCounted,fullPlan,internalEvaluator&&!batched);
+          photoSignal=lean.execute(p,evaluateCounted,apertureCounted,fullPlan,internalEvaluator&&!batched,
+            (n)=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations+=n;});
           // An unverified template: plan this site in full now and execute it in full.
           if(photoSignal===undefined)p=fullPlan();
         }
