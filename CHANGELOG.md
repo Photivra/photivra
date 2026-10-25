@@ -16,6 +16,12 @@ A minor release: one new function for writing a whole-frame DNG from region part
 
 ### Faster, same output
 
+- **Display view parts: request tables kept across renders of a prepared view; bands sized to the part.**
+  - **Kept tables:** a prepared view's renders share its expected-signal tables (lattice groups, combined kernels, each material's uniform sum) and its lattice material rings, instead of rebuilding them per render. They depend only on the request, and a ring entry only on its lattice point, so concurrent renders may share them.
+  - **Band width:** a filled band is built as wide as the part's windows span, not the sensor's full width.
+  - **Same values:** a hash of 24 of the Photivra app's Quality and Speed parts (samples, diagnostics and assumptions) is unchanged; concurrent renders of a Quality chart view equal separate calls.
+  - **Measured:** a 1 × 1 render of the app's Quality view took 37 ms, of which 21 ms was tables and 10 ms the full-width band. The app's 48 × 48 Quality parts take 94–112 µs per display pixel instead of 115–130 µs (Node, one thread). In the app's Chromium preview (four workers), Quality becomes fully sharp in 65 s instead of 85 s, and in 71 s instead of 97 s after an f-number change; Speed is unchanged.
+
 - **Display view refinement of chart scenes: taller lattice bands and a cheaper `sceneLookups` count.**
   - **Taller bands:** a filled window's band of lattice materials and change counts is built twice as tall (when it uses the lattice ring), so the next display rows' windows reuse its columns instead of rebuilding a full-width band per display row. A lattice point's material, and the number of material changes inside a rectangle, do not depend on the band's origin, so every value is the same.
   - **`sceneLookups` count:** the lookups a window's lazy cache would have made are counted from a bit mask per window row (a union of dilations is the dilation of the union) instead of marking and box-filtering the whole window per lattice group. Same count: checked against the previous method on every window of the measured band; the diagnostics are part of the display-view hash locks.

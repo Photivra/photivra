@@ -32,8 +32,9 @@ describe("prepared display view (#387)", () => {
     for (const view of views) expect(comparable(await prepared.render(view))).toEqual(comparable(await simulateDisplayView(options, view)));
   }, testTimeout(120_000));
 
-  it("renders concurrently without sharing state", async () => {
-    const [, options] = REQUESTS[0]!, prepared = await prepareDisplayView(options);
+  // The Quality chart takes the filled path, whose tables and lattice rings the renders of one prepared view share (2.9).
+  it.each(REQUESTS.slice(0, 2))("%s: renders concurrently with the results of separate calls", async (_, options) => {
+    const prepared = await prepareDisplayView(options);
     const regions = [0, 1, 2, 3].map((i) => ({ width: 48, height: 32, region: { x: (i % 2) * 24, y: Math.floor(i / 2) * 16, width: 24, height: 16 } }));
     const together = await Promise.all(regions.map((view) => prepared.render(view)));
     for (let i = 0; i < regions.length; i++) expect(comparable(together[i]!)).toEqual(comparable(await simulateDisplayView(options, regions[i]!)));
