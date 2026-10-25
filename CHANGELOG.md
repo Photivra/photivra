@@ -11,6 +11,11 @@
 
 ### Faster, same output
 
+- **Captures with AHD demosaic: development about 3× cheaper around the demosaic (#420).**
+  - **What changed:** after the AHD demosaic, each output pixel looked up its native site through the full raster-point transform (validation and two new objects per pixel) and scanned a 7 × 7 square of saturation flags. The loop now steps along each output row from two transformed points, as the bilinear path already does, and finds saturated sites from a row-dilated mask: one column of 7 reads instead of 49, and none when no site is saturated. The demosaic itself is unchanged (capture AHD stays exact, #399).
+  - **Same bytes:** samples, RAW and the highlight counts are identical (SHA-256) on a 24 MP Siemens star frame and on 2048² regions of Siemens star and dead leaves at seven exposures, from no clipped pixel through 144,548 and 3.6 million to all of them. A new test checks the saturated-pixel count against a 7 × 7 brute-force count from the RAW on frames where none, some or all pixels clip; reducing the reach by one site fails it.
+  - **Measured** in Node, one thread, the 2.8.0 record's request (24 MP full frame, 6 µm, 50 mm f/8, 2 × 2 box, ISO 100) with `output.demosaic: "ahd"`, before and after interleaved: development of a 2048² Siemens star region 3.39–3.57 s → 2.32–2.35 s at 1/125 s (three runs); the whole frame 33.6 s → 28.5 s, development 18.0 s → 12.4 s with the demosaic at 10.1–10.3 s (one run).
+
 - **Display view refinement of chart scenes: taller lattice bands and a cheaper `sceneLookups` count.**
   - **Taller bands:** a filled window's band of lattice materials and change counts is built twice as tall (when it uses the lattice ring), so the next display rows' windows reuse its columns instead of rebuilding a full-width band per display row. A lattice point's material, and the number of material changes inside a rectangle, do not depend on the band's origin, so every value is the same.
   - **`sceneLookups` count:** the lookups a window's lazy cache would have made are counted from a bit mask per window row (a union of dilations is the dilation of the union) instead of marking and box-filtering the whole window per lattice group. Same count: checked against the previous method on every window of the measured band; the diagnostics are part of the display-view hash locks.
