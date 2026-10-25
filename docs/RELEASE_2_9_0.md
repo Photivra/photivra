@@ -1,0 +1,113 @@
+# 2.9.0 release candidate
+
+> **Prepared October 25, 2026; not published.** Publishing runs only from the owner's `v2.9.0` tag, after `main` CI on the tagged commit has passed.
+
+## At a glance
+
+- **What is proposed:** publish `@photivra/engine@2.9.0`, with `ENGINE_API_VERSION = "2.9.0"`. `POC_SIMULATION_API_VERSION` stays `1.0.0`.
+- **Why a minor version:** one new root function and its type (`serializeSimulatedCaptureDngFromParts`, `SimulateCaptureDngPart`). Nothing is removed or changed in meaning.
+- **Same results:** all 24 fingerprinted results equal 2.8.1's, with only the engine version normalized. That covers bytes, metadata, assumptions and provider evaluation counts. The one value change is in diffraction cells with β ≥ 32 (binned and whole-frame display views), which differ from 2.8.1 in the last bits (below 5.5e-13). No capture hash lock changed.
+
+## Scope
+
+| Change | Pull request |
+| --- | --- |
+| Diffraction: real-space Airy cells from β = 32 (was 192); J₀² + J₁² by Miller's recurrence below x = 300 | #424 |
+| Display view: lattice materials kept across refinement windows; caller scene points no longer frozen | #425 |
+| A whole-frame DNG from region parts: `serializeSimulatedCaptureDngFromParts` (#391) | #426 |
+| Display view: taller lattice bands, cheaper `sceneLookups` count | #427 |
+
+Out of scope: the Quality display-view noise limit (#379) is unchanged from 2.8.1.
+
+## What changed, with evidence
+
+### Real-space diffraction cells from β = 32 (#424)
+
+**Why:** the frequency-domain cell integration costs grow as β² (β = cell side × cut-off frequency). The app's Quality preset puts whole-frame and binned views at β ≈ 60–190, where it took seconds for each new f-number.
+
+**Change:** the real-space encircled-energy integration of 2.5 now runs from β = 32. Below x = 300 it evaluates J₀² + J₁² by Miller's backward recurrence, normalized by J₀ + 2ΣJ₂ₖ = 1 (DLMF §3.6(iii) and 10.12.4, free to use). From x = 300 it uses the Hankel expansion, as before.
+
+**Values:**
+- At β = 32–191, real-space cells agree with frequency-domain cells within 5.5e-13.
+- J₀² + J₁² matches Bessel's integral within 1e-11 relative at x = 0.5–12,346.
+- Native pitches up to 10 µm (β < 19) keep the frequency-domain cells, so captures at sensor pitch are unchanged.
+
+**Measured** (Node, one thread, fresh process):
+- The app's 48-pixel Quality quick frame: 3.99 s → 0.62 s.
+- Nine f-stops of the 50 mm lens: 14.0 s → 4.4 s in all.
+
+### Display view: lattice materials kept, points not frozen (#425)
+
+**Change:**
+- Each lattice group keeps up to 128 rows of looked-up material indices across a render's filled windows. Indices are Int16 where they fit, about 3 MB for four groups of a 6000-site row.
+- Caller `materialAt` and `evaluate` callbacks now receive a plain point object instead of a frozen one. The point was never documented as frozen, and the engine does not read it after the call.
+
+**Values:** all display-view hash locks pass.
+
+**Measured** (Node, one thread, the app's 24 MP request):
+- Quality coarse frame: 42.9 s → 30.2 s.
+- One Quality refinement band: 10.1 s → 6.3 s.
+
+### A whole-frame DNG from region parts (#426, issue #391)
+
+**Change:** `serializeSimulatedCaptureDngFromParts(options, parts)` joins the native sites of region parts and writes the DNG exactly as `simulateCapture` would:
+- parts must cover the native raster and agree where they overlap;
+- a part from another request is refused;
+- parts take a fixed white balance and no `output.dng`;
+- auto white balance and the capture time are measured over the joined frame.
+
+**Values:** tests compare the joined DNG with the whole-frame DNG byte for byte. They cover bilinear and AHD, diffraction with four-spot and box apertures, auto white balance with a capture time, a reflectance-function scene and the environment path. The app's 24 MP request gave the same bytes in both presets.
+
+**Measured** in the Photivra app (Chromium, four workers, 24 MP):
+- Speed DNG: 79.1 s → 23.8 s.
+- Quality DNG: 158.0 s → 46.2 s.
+
+### Display view: taller lattice bands, cheaper `sceneLookups` (#427)
+
+**Change:**
+- A filled window's lattice band is built twice as tall, so the next display rows reuse it. Materials and change counts inside a rectangle do not depend on the band's origin.
+- The `sceneLookups` diagnostic is counted from a bit mask per window row (a union of dilations is the dilation of the union).
+
+**Values:** same result hash (samples and diagnostics) on the app's 24 MP band. While developing, the count was checked against the old method on all 64,896 windows. The display-view hash locks, which include the diagnostics, pass.
+
+**Measured** (Node, one thread): one Quality refinement band, 6.1 s → 4.1 s.
+
+### The app's preview, all four changes together
+
+Chromium headless, production build, 4-vCPU container, four workers, 24 MP full frame; seconds from the change:
+
+| Step | 2.8.1: quick frame / sharp | 2.9.0: quick frame / sharp |
+| --- | --- | --- |
+| Cold load (Speed) | 0.76 / 40.1 | 0.70 / 31.9 |
+| f/8 → f/11 (Speed) | 0.42 / 29.7 | 0.48 / 25.2 |
+| Switch to Quality | 4.04 / 170.3 | 0.69 / 84.8 |
+| f/11 → f/16 (Quality) | 2.21 / 205.7 | 0.63 / 97.2 |
+
+## Compatibility
+
+- Root exports: 1,729 (two added, none removed).
+- No option, default, schema or result field changes.
+- `quadrature.method` reports the real-space method for wavelengths whose cells have β ≥ 32.
+- Caller scene callbacks receive unfrozen point objects.
+
+## Rights and licensing
+
+No third-party code, data or dependencies are added. Miller's recurrence and the Bessel identities are cited from the NIST Digital Library of Mathematical Functions (free to use).
+
+## Privacy and security
+
+No network, persistence or telemetry is added. The new caches hold only numbers computed from requests: lattice material rows (bounded by `LATTICE_RING_ROWS`) and the existing band limit.
+
+## Release gates
+
+The authoritative result is GitHub CI on the exact commit that is tagged: the `main` commit that merges this record. Tag it only when its CI is green. Local results on this candidate are recorded in its pull request.
+
+## Remaining release checklist
+
+- [x] The 2.9.0 changes merged with their changelog entries (#424, #425, #426, #427).
+- [x] Version surfaces aligned at 2.9.0 (`npm run release:prepare -- 2.9.0`). Root exports 1,729.
+- [x] Fingerprint against `v2.8.1`: all 24 results identical, with only the engine version normalized.
+- [ ] Owner's review of this record.
+- [ ] Green CI on this pull request, then on `main` after merge.
+- [ ] **The owner's explicit approval to tag `v2.9.0`.**
+- [ ] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
