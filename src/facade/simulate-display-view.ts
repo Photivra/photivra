@@ -11,13 +11,12 @@ import { ENGINE_API_VERSION } from "../core/version.js";
 import { resolvePortableColorTemperatureWhiteBalance, type ResolvedWhiteBalanceState } from "../color/white-balance.js";
 import { resolveCaptureColorModel } from "../color/capture-color.js";
 import { prepareSensorColorDevelopment } from "../color/sensor-color-development.js";
-import { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
-import { resolveProjectionDistanceMm } from "../motion/camera-rotation.js";
+import { buildExpectedSignalInput } from "./expected-signal-setup.js";
 import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolvePortableChartScene, type ChartScene } from "./chart-scenes.js";
 import { resolvePortableCaptureIlluminant, calculateIlluminantIrradianceScale } from "./scene-radiance.js";
 import { ahdCandidateKernels, createDisplayViewExpectedSignal, renderDisplayView, type DisplayViewChannelReadout, type DisplayViewExpectedSignal, type DisplayViewRenderResult,
-  type DisplayViewScene, EXACT_AREA_MEAN_MAX_PIXELS } from "./display-view.js";
+  EXACT_AREA_MEAN_MAX_PIXELS } from "./display-view.js";
 import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, sceneIlluminantWhiteBalance, CAMERA_TO_XYZ, CHANNELS, DARK_CURRENT_ELECTRONS_PER_SECOND, FACADE_EVIDENCE,
   SIMULATE_CAPTURE_FACADE_VERSION, DISPLAY_VIEW_WITHOUT_VIEW, allowKeys, parseDisplayViewOption, type DisplayViewResult, type DisplayViewRunContext, type ParsedDisplayView,
   type SimulateCaptureAssumption, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
@@ -122,45 +121,16 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
   if (chart && viewChart!.materials.length !== chart.materials.length) fail("simulateDisplayView: the chart's materials could not be resolved portably.");
   const { electronsPerRadiance, wavelengths, relativePerElectron } = axisChannelResponse("simulateDisplayView");
   const perNode = CHANNELS.map((c) => Float64Array.from(wavelengths, (nm) => electronsPerRadiance[c].get(nm) ?? 0)) as [Float64Array, Float64Array, Float64Array];
-  // Query offsets of each site: pixel-aperture nodes minus anti-aliasing split offsets (sites, +x right, +y down), as the environment forms them.
-  const spots = antiAliasing ? antiAliasing.components : [{ offsetMicrometers: { x: 0, y: 0 }, normalizedWeight: 1 }];
-  const offsets = apertureNodeOffsets(boxSamples).flatMap((node) => spots.map((c) => ({ x: node.x - c.offsetMicrometers.x / pitch, y: node.y - c.offsetMicrometers.y / pitch,
-    weight: c.normalizedWeight / (boxSamples * boxSamples) })));
-  // Diffraction: the same per-node site kernels as the object-space convolution (createDiffractedPlanarProvider).
-  let kernels: { radius: number; perNode: Float64Array[] } | undefined;
-  if (diffraction) {
-    const radius = diffraction.kernelRadiusSamples;
-    kernels = { radius, perNode: wavelengths.map((wavelengthNm) => {
-      if (!diffraction!.profile.axes.wavelengthNm.includes(wavelengthNm)) fail("simulateDisplayView: a spectral node has no diffraction kernel.");
-      const k = resolveLensPsfConvolutionKernels({ schemaVersion: "0.1.0", psf: diffractionPsf!.configuration.psf, spectralWeights: [{ wavelengthNm, weight: 1 }],
-        grid: { width: 1, height: 1, sitePitchMicrometers: { x: pitch, y: pitch }, opticalAxisSite: { x: 0.5, y: 0.5 } }, patchWidth: 1, patchHeight: 1, kernelRadius: radius }).value;
-      if (!k.exactSiteSampling || k.kernelRadius !== radius) fail("simulateDisplayView: diffraction kernels must sample the site pitch exactly.");
-      return Float64Array.from(k.kernels);
-    }) };
-  }
-  // Chart presets and (2.7) caller material scenes take the material path: each material tabulated once per node.
+  // The tabulated expected signal's input (#394: shared with the capture's tabulated RAW path).
   const sceneMaterials = viewChart ? viewChart.materials : callerScene?.kind === "material-function" ? callerScene.materials : undefined;
-  const scene: DisplayViewScene = sceneMaterials && provider.chartMaterialAt ? { kind: "materials", materialAt: provider.chartMaterialAt,
-    materials: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: Float64Array.from(wavelengths, (nm) => viewProvider.materialRadiance!(index, nm)) })),
-      ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])],
-    whiteRadiance: Float64Array.from(wavelengths, (nm) => viewIrradianceScale * viewIlluminant.shape.evaluate(nm) / Math.PI) } :
-    { kind: "radiance", radianceAt: viewProvider.radianceAt };
-  const channelIndex = (x: number, y: number): number => ((y & 1) === 0 ? ((x & 1) === 0 ? 0 : 1) : ((x & 1) === 0 ? 1 : 2));
-  // Without diffraction the environment's own query arithmetic (native-environment-lean.ts `geometry`, then the rectilinear
-  // still-camera ray and the planar provider's plane point), so boundary points resolve as in the capture.
-  const projectionDistance = resolveProjectionDistanceMm(focalLengthMm, focusDistanceM).projectionDistanceMm, siteWidthMm = pitch / 1000;
-  const nodePhases = apertureNodeOffsets(boxSamples).flatMap((_, index) => spots.map((c) => ({ xPhase: (index % boxSamples + 0.5) / boxSamples, yPhase: (Math.floor(index / boxSamples) + 0.5) / boxSamples,
-    aaX: c.offsetMicrometers.x / 1000, aaY: c.offsetMicrometers.y / 1000 })));
-  const queryPoint = (x: number, y: number, o: number, out: Float64Array): void => {
-    const node = nodePhases[o]!;
-    const centerX = -imagingArea.widthMm / 2 + (pitch / 2 + x * pitch + 0) / 1000, centerY = -imagingArea.heightMm / 2 + (pitch / 2 + y * pitch + 0) / 1000;
-    const sourceX = (centerX - siteWidthMm / 2 + node.xPhase * siteWidthMm) - node.aaX, sourceY = (centerY - siteWidthMm / 2 + node.yPhase * siteWidthMm) - node.aaY;
-    const rx = projectionDistance * (sourceX / projectionDistance), ry = projectionDistance * (-sourceY / projectionDistance);
-    const length = Math.hypot(rx, ry, projectionDistance), t = subjectDistanceM / (projectionDistance / length);
-    out[0] = rx / length * t / metresPerFrameUnit; out[1] = ry / length * t / metresPerFrameUnit;
-  };
-  const signalInput: Parameters<typeof createDisplayViewExpectedSignal>[0] = { nativeWidth, nativeHeight, outputWidth: width, wavelengthsNm: wavelengths, electronsPerRadiance: perNode, offsets,
-    ...(kernels ? { kernels } : { queryPoint }), scene, channelAt: channelIndex };
+  const { offsets, signalInput } = buildExpectedSignalInput({ nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples,
+    antiAliasing, pitch, diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm } : undefined,
+    materials: sceneMaterials && provider.chartMaterialAt ? { materialAt: provider.chartMaterialAt,
+      list: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: (nm: number): number => viewProvider.materialRadiance!(index, nm) })),
+        ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])],
+      whiteRadiance: (nm: number): number => viewIrradianceScale * viewIlluminant.shape.evaluate(nm) / Math.PI } : undefined,
+    radianceAt: viewProvider.radianceAt, imagingArea, focalLengthMm, focusDistanceM, subjectDistanceM, metresPerFrameUnit, caller: "simulateDisplayView" });
+  const kernels = signalInput.kernels;
   // Readout moments per channel: normalized value k·e with variance k²·(e + σ_read²) plus the ADC quantization (1/12 code², times d² before a digital gain d).
   const readout = CHANNELS.map((channel): DisplayViewChannelReadout => {
     const { readoutProfile, regimeId } = regimeByChannel[channel];

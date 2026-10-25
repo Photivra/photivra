@@ -4,6 +4,34 @@
 
 ### Faster, same output
 
+- **Captures of chart and material scenes: tabulated expected electrons, 10–13× faster again; the same bytes on every frame tested (#394, step 2).**
+  - **What changes:** a capture of a chart preset or a caller material scene, with a still, rectilinear, distortion-free camera (no rotation, lens projection or distortion, vignetting, pupil sampling or caller PSF), no longer runs each native site through the environment chain. It takes each site's expected photo electrons from the display view's tabulated expected signal: the same sum over the pixel-aperture nodes, anti-aliasing spots, diffraction taps and spectral nodes, formed in another order. The sensor stage is the native one, with each site's own seeds: dark charge, both Poisson draws, read noise and the ADC.
+  - **Same result, by verification:** one site of each CFA phase still runs the full chain. Its readout must be reproduced bit for bit, and its tabulated electrons must agree with the chain's within 1e-9 relative; otherwise the capture takes the environment path. Electrons that differ in the last bit could, rarely, draw a different integer at a site; on every frame tested none did.
+  - **Measured equality:** 0 differing RAW codes and 0 differing samples:
+    - 1,052,676 native sites of a 24 MP frame in Speed, for dead leaves and for a material scene;
+    - 272,484 sites with the Quality options;
+    - every frame of the 2.0.0 hash locks.
+
+    The verification sites agreed within 2 × 10⁻¹⁵ relative.
+  - **Visible changes:**
+    - a `raw.expectedSignal` assumption names the method and the verification;
+    - `diagnostics.providerEvaluationCount` counts the verification sites' evaluator calls and the table's scene lookups (120 instead of 720 for a 6 × 6 frame);
+    - auto white balance keeps the RAW instead of rendering it again, because its codes do not depend on the white-balance intent.
+
+    The 2.0.0 hash lock's byte digests are unchanged; its assumption and diagnostics digests were re-recorded.
+  - **Measured** on a 512 × 512 centre region of a 24 MP frame (6 µm, 50 mm f/8, 2 × 2 pixel averaging), one thread, one run each, against main with step 1:
+
+    | Scene | Speed | Quality options |
+    | --- | --- | --- |
+    | Siemens star preset | 6.5 → 0.6 s | 37.5 → 2.8 s |
+    | Siemens star as a caller material scene | 7.1 → 0.7 s | 40.4 → 3.0 s |
+
+    The whole 24 MP frame on one thread now takes 28.2 s as sRGB (RAW 24.2 s, development 3.9 s), 36.5 s as a JPEG (encoding 11.2 s) and 75.7 s as a Quality PNG.
+  - **Code:**
+    - the expected signal moved to `src/facade/expected-signal.ts`, so capture-only bundles still leave out the display view;
+    - the input setup is shared with the display view in `src/facade/expected-signal-setup.ts`, and the display view's hash locks are unchanged;
+    - the RAW task is in `src/capture/native-environment-tabulated.ts`.
+
 - **Captures of chart and material scenes: 3.6–8.3× faster RAW stage, no byte changed (#394, step 1).**
   - **Engine-built tiles without a private copy:** the native environment no longer `structuredClone`s the site records that `simulateCapture` builds for each tile. They are fresh engine records, never shown to supplied code or changed afterwards, so they are planned as engine-owned data directly. Shared records keep their identity, which also makes the template comparisons cheaper. Tiles from callers are still copied.
   - **Key taps:** for a chart preset or a caller material scene, the engine-built evaluator's result for a query is a pure function of the material at the queried plane point and the wavelength (with object-space diffraction, of the convolved lattice site and the wavelength). A verified lean template now plans its sites' taps as those keys instead of frozen requests, and takes each radiance from the key: chart materials from a table filled once per material and spectral node, lattice sites from the convolved band. Without a PSF a tap's key is the same at every spectral node, so it is found once per spatial node. The evaluator is not called for such taps; the evaluation count is still added, and the abort check still runs.

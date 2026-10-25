@@ -52,6 +52,9 @@ import { createColorTemperatureWhiteBalanceIntent, resolveColorTemperatureWhiteB
 import { createCaptureWhiteBalanceIntent, type CaptureWhiteBalanceIntent } from "../capture/simulated-capture.js";
 import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "../capture/sensor-raw-producer.js";
 import { calculateNativeRawPlan, nativeRawMaximumProviderEvaluations, NATIVE_RAW_LIMITS, type NativeRawInput, type NativeRawOutput, type NativeRawPlan } from "../capture/native-raw.js";
+import { renderTabulatedNativeRaw, TABULATED_RELATIVE_TOLERANCE } from "../capture/native-environment-tabulated.js";
+import { createDisplayViewExpectedSignal } from "./expected-signal.js";
+import { buildExpectedSignalInput } from "./expected-signal-setup.js";
 import { createNativeEnvironmentRawTask, createNativeEnvironmentRawRegionTask, type NativeEnvironmentRawInput,
   type NativeEnvironmentRawTask, type NativeEnvironmentRawTile } from "../capture/native-environment-raw.js";
 import { createNativeRawDevelopmentTask, type NativeRawDevelopmentInput, type RawHighlightDiagnostics } from "../capture/native-raw-development.js";
@@ -100,7 +103,7 @@ import { resolveChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type Chart
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   resolveChartSizeOption, type ChartSizeOption,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerMaterialScene, type CallerRadianceScene, type CallerReflectanceScene, type ResolvedCallerScene,
-  planarProviderMaterialOfDirection, type PlanarSceneRadianceProvider, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
+  planarProviderMaterialOfDirection, type PlanarSceneRadianceProvider, type ResolvedCallerMaterialScene, type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
 /** Version of how the facade builds requests. It changes whenever the same input would build a different request. */
 export const SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const;
@@ -1862,10 +1865,40 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // #394: siteInput builds fresh site records per call and never changes them, so the native task plans them without a copy.
   const rawCallbacks = { readTile: markInternalNativeTileReader(async (request: Parameters<typeof readTile>[0]): Promise<NativeEnvironmentRawTile> => { const tile = await readTile(request); rawTick(); return tile; }),
     evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl };
-  const rawTask: NativeEnvironmentRawTask = regionNative ? createNativeEnvironmentRawRegionTask(environmentRaw, regionNative, rawCallbacks) :
-    createNativeEnvironmentRawTask(environmentRaw, rawCallbacks);
-  await runTask(rawTask);
-  let rawOutput = rawTask.takeOutput();
+  // #394 step 2: an engine-built planar scene (chart preset or caller material scene; still, rectilinear, no distortion, vignetting,
+  // pupil rays or caller PSF) takes its expected electrons from the tabulated signal, verified per CFA phase against the chain.
+  const tabulatedScene = chart !== undefined || callerScene?.kind === "material-function";
+  let tabulated: Awaited<ReturnType<typeof renderTabulatedNativeRaw>>;
+  if (tabulatedScene && !pupil && !lensFieldMapping && !vignetting && !lensPsf && !rotating && (!diffraction || diffractionObjectSpace) && provider.chartMaterialAt && provider.materialRadiance) {
+    const { electronsPerRadiance, wavelengths } = axisChannelResponse("simulateCapture");
+    const perNode = CHANNELS.map((c) => Float64Array.from(wavelengths, (nm) => electronsPerRadiance[c].get(nm) ?? 0)) as [Float64Array, Float64Array, Float64Array];
+    const sceneMaterials = chart ? chart.materials : (callerScene as ResolvedCallerMaterialScene).materials, materialRadiance = provider.materialRadiance;
+    const { signalInput } = buildExpectedSignalInput({ nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples, antiAliasing, pitch,
+      diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm } : undefined,
+      materials: { materialAt: provider.chartMaterialAt, whiteRadiance: (nm: number): number => irradianceScale * illuminant.shape.evaluate(nm) / Math.PI,
+        list: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: (nm: number): number => materialRadiance(index, nm) })),
+          ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])] },
+      radianceAt: provider.radianceAt, imagingArea, focalLengthMm, focusDistanceM, subjectDistanceM, metresPerFrameUnit, caller: "simulateCapture" });
+    tabulated = await renderTabulatedNativeRaw({ input: environmentRaw, region: regionNative, siteInput, evaluateRadiance: rawProvider.evaluateRadiance,
+      electrons: createDisplayViewExpectedSignal(signalInput), onTile: rawTick, tileWidth, yieldControl: () => yieldControl(), checkAbort });
+  }
+  let rawOutput: { raw: NativeRawOutput; providerEvaluationCount: number };
+  if (tabulated) {
+    rawOutput = { raw: tabulated.raw, providerEvaluationCount: tabulated.providerEvaluationCount };
+    // The verification's relative difference itself is not reported: it is a last-bits quantity, and captures use the JavaScript
+    // engine's own Math functions, so it differs between engines while the results are the same.
+    assume("raw.expectedSignal", "model", { method: "tabulated-expected-electrons", verificationSites: 4, tolerance: TABULATED_RELATIVE_TOLERANCE },
+    "Each native site's expected photo electrons are the tabulated sum over the pixel-aperture nodes, anti-aliasing spots, diffraction taps and spectral nodes (the display view's expected signal), " +
+      "the same quantity the environment chain computes for this still, rectilinear, distortion-free planar scene, formed in another order, so it can differ in the last bits. The sensor stage (dark charge, Poisson draws, " +
+      "read noise, ADC) is the native one with each site's own seeds. One site of each CFA phase ran the full chain: its readout was reproduced bit for bit and its electrons agreed within the tolerance. " +
+      "diagnostics.providerEvaluationCount counts those sites' evaluator calls and the table's scene lookups.");
+  }
+  else {
+    const rawTask: NativeEnvironmentRawTask = regionNative ? createNativeEnvironmentRawRegionTask(environmentRaw, regionNative, rawCallbacks) :
+      createNativeEnvironmentRawTask(environmentRaw, rawCallbacks);
+    await runTask(rawTask);
+    rawOutput = rawTask.takeOutput();
+  }
   // Region (2.3): the region's sites, re-described by a plan of the region raster (active area = the region), for development.
   let developmentPlan = plan;
   if (region && regionNative) {
@@ -1897,6 +1930,12 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       sampleSet: { imageStateId: "facade-pre-wb-raw", inputDomain: "relative-pre-wb-camera-linear-rgb", samples } });
     finalRawInput = { raw: buildRawInput(intentOf(whiteBalanceState)), sceneBinding, maximumProviderEvaluations: environmentRaw.maximumProviderEvaluations };
     const wbTick = progress("white-balance", plan.tileCount);
+    if (tabulated) {
+      // #394: the RAW codes do not depend on the white-balance intent (it is development metadata), so the tabulated RAW is
+      // kept with the plan of the measured intent instead of being rendered again.
+      rawOutput = { ...rawOutput, raw: { ...rawOutput.raw, plan: calculateNativeRawPlan(finalRawInput.raw) } };
+      for (let k = 0; k < plan.tileCount; k++) wbTick();
+    } else {
     // A second lean RAW pass with the measured intent. It gives the same RAW as re-running the sensor stage on a
     // retained optical stage, and is faster: retaining the optical stage takes the first pass off the lean executor.
     const wbTask = createNativeEnvironmentRawTask(finalRawInput, {
@@ -1904,6 +1943,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       evaluateRadiance: rawProvider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
     await runTask(wbTask);
     rawOutput = wbTask.takeOutput();
+    }
   }
   const wbMs = Date.now() - wbStarted, devStarted = Date.now();
   const colorProfile: ExportSensorColorProfile = { schemaVersion: "0.1.0", profileId: IDS.spectral, profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, colorSamplingProfileId: IDS.cfa,

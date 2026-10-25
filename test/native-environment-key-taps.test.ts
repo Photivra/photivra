@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { simulateCapture, type SimulateCaptureOptions } from "../src/index.js";
 import { nativeEnvironmentLeanStatistics, setNativeEnvironmentLeanExecutionEnabled } from "../src/capture/native-environment-lean.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
+import { setTabulatedNativeRawEnabled } from "../src/capture/native-environment-tabulated.js";
 
 /*
  * #394: for engine chart scenes the lean executor reads each tap's radiance by the key the engine-built evaluator would read
@@ -33,6 +34,9 @@ async function same(options: SimulateCaptureOptions): Promise<number> {
 
 const small = { width: 40, height: 28 };
 describe("lean key taps for engine chart scenes (#394)", () => {
+  // The environment path itself is under test (#394: chart captures otherwise take the tabulated RAW path).
+  beforeAll(() => setTabulatedNativeRawEnabled(false));
+  afterAll(() => setTabulatedNativeRawEnabled(true));
   it("gives the full path's bytes for chart presets in Speed and Quality, and uses key taps", async () => {
     for (const options of [
       { scene: { preset: "siemens-star" }, output: small },

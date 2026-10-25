@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { InvalidConfigurationError, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, calculateNativeRawPlan, resolveGenericEquipmentTierCatalog, simulateCapture,
   type SimulateCaptureResult } from "../src/index.js";
+import { setTabulatedNativeRawEnabled } from "../src/capture/native-environment-tabulated.js";
 
 /** Mean black-subtracted, white-normalized RAW level of one CFA channel over the active area. */
 function rawLevel(r: SimulateCaptureResult, channel: "red" | "green" | "blue"): number {
@@ -54,7 +55,11 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
     // The returned request is the exact one executed.
     expect(calculateNativeRawPlan(r.request.environmentRaw.raw)).toEqual(r.plan);
     expect(r.request.siteInput(7).environment.temporalIntegrationId).toBe("facade-frame:native:7");
-    expect(r.diagnostics.providerEvaluationCount).toBe(36 * 20); // 6 × 6 native sites × 20 spectral subintervals
+    // #394: the tabulated RAW path ran 4 verification sites through the chain (20 spectral subintervals each); the rest of the
+    // count is its table's scene lookups, far fewer than the chain's 6 × 6 native sites × 20 subintervals.
+    expect(r.assumptions.find((a) => a.id === "raw.expectedSignal")!.value).toMatchObject({ method: "tabulated-expected-electrons", verificationSites: 4 });
+    expect(r.diagnostics.providerEvaluationCount).toBeGreaterThan(4 * 20);
+    expect(r.diagnostics.providerEvaluationCount).toBeLessThan(36 * 20);
   });
 
   it("is deterministic and only the explicit options change the result", async () => {
@@ -148,6 +153,8 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
     // cancel message was not handled until the capture finished. This fake scheduler.yield resolves on microtasks only.
     const g = globalThis as { scheduler?: unknown }, had = "scheduler" in g, previous = g.scheduler;
     g.scheduler = { yield: (): Promise<void> => Promise.resolve() };
+    // The environment task's tile loop is under test (#394: the tabulated RAW path has its own abort test).
+    setTabulatedNativeRawEnabled(false);
     try {
       const controller = new AbortController();
       let tiles = 0, tilesAtQueue = -1, tilesAtAbort = -1;
@@ -162,6 +169,7 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
       expect(tilesAtAbort - tilesAtQueue).toBeLessThanOrEqual(4);
       expect(tiles - tilesAtAbort).toBeLessThanOrEqual(4);
     } finally {
+      setTabulatedNativeRawEnabled(true);
       if (had) g.scheduler = previous; else delete g.scheduler;
     }
   });

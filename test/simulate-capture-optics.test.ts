@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { ENGINE_API_VERSION, InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, simulateCapture,
   type SimulateCaptureOptions } from "../src/index.js";
 import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
+import { setTabulatedNativeRawEnabled } from "../src/capture/native-environment-tabulated.js";
 
 const scene = { preset: "slanted-edge" } as const;
 
@@ -39,22 +40,24 @@ describe("simulateCapture lens.diffraction (2.1)", () => {
 /*
  * Hash lock: the 2.1 optics and demosaic options are opt-in, so captures that do not use them are byte-identical
  * to 2.0.0. Digests of the RAW codes and every output byte, and of the assumptions, composed contracts and
- * diagnostics (timings zeroed), recorded from the 2.0.0 source (commit 0e4c63e).
+ * diagnostics (timings zeroed), recorded from the 2.0.0 source (commit 0e4c63e). Since #394 these chart captures take the
+ * tabulated RAW path: the byte digests are still 2.0.0's; the second digests were re-recorded for its `raw.expectedSignal`
+ * assumption and its `providerEvaluationCount` (verification calls plus scene lookups).
  */
 describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", () => {
   const cases: Record<string, [SimulateCaptureOptions, string, string]> = {
     edge: [{ scene: { preset: "slanted-edge" }, output: { width: 24, height: 16 } },
-      "0cce9455f8a541eed2ebe6f652556d7ea0d10601f2a35f8529768311e8ec0acf", "422bcaf90482a44f41d61a77bae181a76fef232beb8dc04462bf2b6411a6acf7"],
+      "0cce9455f8a541eed2ebe6f652556d7ea0d10601f2a35f8529768311e8ec0acf", "7b1a17b64caf4b4f6cfcccabcee01bbc2224402681debb68626f17e61e13339a"],
     star: [{ scene: { preset: "siemens-star" }, output: { width: 20, height: 20, format: "png" }, lens: { fNumber: 4 } },
-      "775575f46b684c0eb44196270893632995c8ae7ca9400e878efcf2e29c9a7f1b", "d16b3b90999bdf5574605fd9f1c5dc883383fc700efd418b1403e696a98ef5e9"],
+      "775575f46b684c0eb44196270893632995c8ae7ca9400e878efcf2e29c9a7f1b", "4d64c6fd94fd2cb58e7f2fbc255db8442f091cd73624aa95f8aa97375232e12a"],
     jpeg: [{ scene: { preset: "checkerboard" }, output: { width: 16, height: 16, format: "jpeg", whiteBalance: "auto" } },
-      "afeb03932b61751778c2ac285ce8245cd6feec4d0c18ffe7732f0a2d0588b70c", "aaf9a9015f62ed38988396350f068ab215970a02b0f9721e41c375129e449084"],
+      "afeb03932b61751778c2ac285ce8245cd6feec4d0c18ffe7732f0a2d0588b70c", "d80eab922b346250cf7461f0e7ff00f9a5820ceb3d59d23e5039f06f06c9d753"],
     mirror: [{ scene: { preset: "grey-ramp" }, output: { width: 16, height: 12, demosaic: "bilinear", borderHandling: "mirror", format: "srgb-16" } },
-      "f8f7c5dc63ba0ad1ee0390d03ac08f3ee202bf57a560f9a834942303e3924c39", "677a22ecf6dfe9e715abdb8008577760a204411396416303afbb65214a30be48"],
+      "f8f7c5dc63ba0ad1ee0390d03ac08f3ee202bf57a560f9a834942303e3924c39", "49d1e73d74ad084d405dd6b770016ac346e1af0222a0e27215e40cdbe137e7d3"],
     p3: [{ scene: { preset: "step-wedge" }, output: { width: 16, height: 8, format: "png", colorEncoding: "display-p3" } },
-      "ffd78b35089083915e69cccbf16476a79690ce31095c1e428d6edc8672ecca0c", "11882d84e2f5e8b3d61f88db01f867368e5eb93e65fb5b8e82413075cc084880"],
+      "ffd78b35089083915e69cccbf16476a79690ce31095c1e428d6edc8672ecca0c", "be7d21f4832e25d918335ddefa2c8891b8f5c586b35e7748ab349ac839a321a5"],
     dng: [{ scene: { preset: "point-grid" }, output: { width: 12, height: 12, format: "dng" }, exposure: { mode: "program" } },
-      "faaf9e2bf9ae86261adb153f4aea04a29476b4e38c3e3acc616d4aee3fe3a106", "ef701613a0b0790895c4652840af0ab5fe64aa5623b65fa02409dae8cbc33392"]
+      "faaf9e2bf9ae86261adb153f4aea04a29476b4e38c3e3acc616d4aee3fe3a106", "f9005828a1109b86316fc4dcf2c8c238e1090a3052be5652fc699b0d969c834d"]
   };
   const expectedOptions: Record<string, readonly string[]> = { edge: [], star: ["output.format.png"], jpeg: ["output.whiteBalance.auto", "output.format.jpeg"],
     mirror: ["output.borderHandling.mirror"], p3: ["output.colorEncoding.wide-gamut", "output.format.png"], dng: ["output.format.dng"] };
@@ -78,6 +81,9 @@ describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", (
 });
 
 describe("lens.diffraction object-space convolution equals the per-tap environment PSF quadrature", () => {
+  // The environment path itself is under test (#394: chart captures otherwise take the tabulated RAW path).
+  beforeAll(() => setTabulatedNativeRawEnabled(false));
+  afterAll(() => setTabulatedNativeRawEnabled(true));
   /*
    * Presets whose material boundaries do not pass exactly through the site lattice. Where a boundary does (the
    * checkerboard's u = ±0.5 column at this frame size, the Siemens star's diagonals, the grey-ramp steps), a tap
