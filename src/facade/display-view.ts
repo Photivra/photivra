@@ -553,7 +553,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   }
   let siteCount = 0, sampleCount = 0, detail = 0, uniform = 0, lastYield = Date.now();
   /** Recorded terms of samples whose sites all read one chart material, by material·4 + CFA phase (layout: MEMO_SIZE). */
-  const sampleMemo = new Map<number, Float64Array>();
+  const sampleMemo = new Map<number, Float64Array>(), recordScratch = new Float64Array(MEMO_SIZE);
   // Per-real-pixel memo (#392): a sample's recorded terms depend only on its real pixel (its sites' expected electrons and its
   // CFA phase), not on the display pixel or the sample, so a later sample of the same real pixel in the same display pixel
   // replays them (the same values added to the same sums in the same order, as the one-material memo does). Slots cover the
@@ -674,7 +674,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           if (memo[mo + 33] === 1) { s0 += wE * memo[mo + 34]!; s1 += wE * memo[mo + 35]!; s2 += wE * memo[mo + 36]!; corrected = true; }
           continue;
         }
-        const record = memoKey >= 0 ? new Float64Array(MEMO_SIZE) : pk >= 0 ? records.subarray(pk * MEMO_SIZE, (pk + 1) * MEMO_SIZE).fill(0) : undefined;
+        // The terms are written where they are kept: the real pixel's memo slot, or (for the first sample of a one-material key)
+        // a scratch buffer that is then copied; no typed-array view per sample.
+        const rt = memoKey >= 0 ? recordScratch.fill(0) : pk >= 0 ? records.fill(0, pk * MEMO_SIZE, (pk + 1) * MEMO_SIZE) : undefined, ro = memoKey < 0 && pk >= 0 ? pk * MEMO_SIZE : 0;
         if (tracking) for (let li = 0; li < list.length; li++) { const slot = list[li]!; siteStatistics(slot, siteChannel[slot]!, siteElectrons[slot]!); }
         // Site variance of each channel through the bilinear kernels (for B_c), then the demosaic's own pixel statistics: the
         // mean and covariance of its camera channels, averaged over its candidates (AHD picks one per pixel).
@@ -742,16 +744,16 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             const wgt = wE * share * B[c]! * csv[c]!;
             c00 += wgt * a0 * a0; c01 += wgt * a0 * a1; c02 += wgt * a0 * a2; c11 += wgt * a1 * a1; c12 += wgt * a1 * a2; c22 += wgt * a2 * a2;
             an[c] = a0; an[3 + c] = a1; an[6 + c] = a2;
-            if (record) { const o = 3 + (d * 3 + c) * 3; record[o] = a0; record[o + 1] = a1; record[o + 2] = a2; }
+            if (rt) { const o = 3 + (d * 3 + c) * 3; rt[ro + o] = a0; rt[ro + o + 1] = a1; rt[ro + o + 2] = a2; }
           }
           for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const cij = C[i * 3 + j]!; l0 += an[i]! * an[j]! * cij; l1 += an[3 + i]! * an[3 + j]! * cij; l2 += an[6 + i]! * an[6 + j]! * cij; }
           const t0 = share * Math.max(0, hv[0]! - l0), t1 = share * Math.max(0, hv[1]! - l1), t2 = share * Math.max(0, hv[2]! - l2);
           r0 += wR * t0; r1 += wR * t1; r2 += wR * t2;
-          if (record) { record[21 + d * 3] = t0; record[22 + d * 3] = t1; record[23 + d * 3] = t2; }
+          if (rt) { rt[ro + 21 + d * 3] = t0; rt[ro + 22 + d * 3] = t1; rt[ro + 23 + d * 3] = t2; }
           pixelVariance = Math.max(pixelVariance, hv[0]!, hv[1]!, hv[2]!);
         }
         s0 += wE * e0; s1 += wE * e1; s2 += wE * e2;
-        if (record) { record[0] = csv[0]!; record[1] = csv[1]!; record[2] = csv[2]!; record[27] = e0; record[28] = e1; record[29] = e2; }
+        if (rt) { rt[ro + 0] = csv[0]!; rt[ro + 1] = csv[1]!; rt[ro + 2] = csv[2]!; rt[ro + 27] = e0; rt[ro + 28] = e1; rt[ro + 29] = e2; }
         if (count === 2) {
           // AHD's per-pixel choice between the candidates adds independent variance: with a noise-driven choice each pixel
           // deviates from the candidates' average by ±½(H − V), variance ¼·Var(H − V) (linear in the sites, at the last
@@ -764,7 +766,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             x0 += a * a * v; x1 += b * b * v; x2 += c * c * v;
           }
           r0 += wR * (x0 / 4); r1 += wR * (x1 / 4); r2 += wR * (x2 / 4);
-          if (record) { record[30] = x0 / 4; record[31] = x1 / 4; record[32] = x2 / 4; }
+          if (rt) { rt[ro + 30] = x0 / 4; rt[ro + 31] = x1 / 4; rt[ro + 32] = x2 / 4; }
         }
         // AHD at low signal: its homogeneity choice reacts to the noise, which the linear candidates cannot express. A sample
         // whose pixel noise exceeds the threshold adds the correction of a flat neighbourhood with its channel means, from the
@@ -774,9 +776,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         if (ahdCorrection && pixelVariance > ahdCorrection.thresholdVariance) {
           const fix = flatCorrection(cmAverage[0]!, cmAverage[1]!, cmAverage[2]!);
           s0 += wE * fix[0]!; s1 += wE * fix[1]!; s2 += wE * fix[2]!; corrected = true;
-          if (record) { record[33] = 1; record[34] = fix[0]!; record[35] = fix[1]!; record[36] = fix[2]!; }
+          if (rt) { rt[ro + 33] = 1; rt[ro + 34] = fix[0]!; rt[ro + 35] = fix[1]!; rt[ro + 36] = fix[2]!; }
         }
-        if (record && memoKey >= 0) { sampleMemo.set(memoKey, record); if (pk >= 0) records.set(record, pk * MEMO_SIZE); }
+        if (rt && memoKey >= 0) { sampleMemo.set(memoKey, rt.slice()); if (pk >= 0) records.set(rt, pk * MEMO_SIZE); }
         if (pk >= 0) stamps[pk] = stamp;
         pixelVariance = 0;
       }
@@ -804,7 +806,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       samples[o + 2] = Math.round(encodeSrgbComponentPortable(n2 < 0 ? 0 : n2 > 1 ? 1 : n2) * maximum);
       expected[o] = mean0; expected[o + 1] = mean1; expected[o + 2] = mean2;
       noiseStd[o] = Math.sqrt(Math.max(0, v00)); noiseStd[o + 1] = Math.sqrt(Math.max(0, v11)); noiseStd[o + 2] = Math.sqrt(Math.max(0, v22));
-      if (Date.now() - lastYield >= 8) { await setup.yieldControl(); setup.checkAbort(); lastYield = Date.now(); }
+      // The clock is read every 16 display pixels and at the end of each row (yield timing never changes the output).
+      if (((rx & 15) === 15 || rx === region.width - 1) && Date.now() - lastYield >= 8) { await setup.yieldControl(); setup.checkAbort(); lastYield = Date.now(); }
     }
   }
   return { samples, expected, noiseStd, sampleCount, siteCount, detailPixelCount: detail, uniformPixelCount: uniform, ahdCorrectedPixelCount: correctedPixels,
