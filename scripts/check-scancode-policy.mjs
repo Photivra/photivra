@@ -38,7 +38,8 @@ const OWN_KEYS = [
   "Apache-2.0 OR MIT", "BSD-2-Clause", "BSD-3-Clause", "BlueOak-1.0.0", "CC-BY-4.0", "CC-BY-ND-3.0",
   "CC-BY-SA-3.0", "CC-BY-SA-4.0", "CC0-1.0", "CDDL-1.0", "GPL-1.0-or-later", "ISC", "JSON",
   "LGPL-2.1-only", "LicenseRef-scancode-other-copyleft", "LicenseRef-scancode-proprietary-license",
-  "LicenseRef-scancode-public-domain", "LicenseRef-scancode-unknown-license-reference", "MIT", "MPL-2.0", "PSF-2.0"
+  "LicenseRef-scancode-public-domain", "LicenseRef-scancode-unknown-license-reference", "MIT", "MPL-2.0", "PSF-2.0",
+  "LicenseRef-scancode-generic-cla"
 ];
 
 /** File plus licence expression (SPDX form as ScanCode reports it). */
@@ -57,6 +58,13 @@ const LICENSE_ALLOWLIST = [
   // Developer Certificate of Origin.
   { path: "DCO", license: "LicenseRef-scancode-dco-1.1", reason: "verbatim Developer Certificate of Origin 1.1 used for sign-off" },
   { path: "CONTRIBUTING.md", license: "LicenseRef-scancode-free-unknown", reason: "clue on the DCO sign-off paragraph; no licence text" },
+
+  // Contributor licence agreement policy (CONTRIBUTING.md, "Licensing of contributions"): the policy names the
+  // agreement and "other licence terms"; the CLA text itself is not in the repository yet.
+  { path: "CONTRIBUTING.md", license: "LicenseRef-scancode-generic-cla", reason: "names the contributor licence agreement rule; no agreement text" },
+  { path: "CONTRIBUTING.md", license: "LicenseRef-scancode-unknown", reason: "clue on \"other licence terms as well as Apache-2.0\" in the policy; no licence text" },
+  { path: "AGENTS.md", license: "LicenseRef-scancode-generic-cla", reason: "names the contributor licence agreement rule; no agreement text" },
+  { path: "README.md", license: "LicenseRef-scancode-generic-cla", reason: "names the contributor licence agreement rule; no agreement text" },
 
   // Licence names mentioned in documentation and comments.
   { path: "README.md", license: "LicenseRef-scancode-unknown-license-reference", reason: "\"See LICENSE\" link to the project's Apache-2.0 licence" },
