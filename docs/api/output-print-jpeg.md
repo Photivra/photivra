@@ -2,6 +2,31 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## composePrintJpegStrips
+
+Joins the strips of a 1:1 Print JPEG (`createPrintJpegStrip`), covering the image top to bottom in order, into its file:
+the same bytes `createPrintJpegTask` writes for the plan and the same source pixels. No source is read, so the output's
+`providerReads` is 0.
+
+```ts
+export function composePrintJpegStrips(input:PrintJpegInput,strips:readonly PrintJpegStrip[]):PrintJpegOutput;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## createPrintJpegStrip
+
+Codes rows of a 1:1 Print JPEG (output size equal to the crop) apart from the rows before them, so a large file's strips
+can be written on separate workers. `strip.y` is a multiple of 8 and `strip.height` a multiple of 8 unless the strip ends at
+the image's bottom; `strip.samples` are those crop rows' 8-bit sRGB RGB, crop-wide. `composePrintJpegStrips` joins strips that
+cover the image, in order, into the bytes `createPrintJpegTask` writes for the same plan and source pixels.
+
+```ts
+export function createPrintJpegStrip(input:PrintJpegInput,strip:PrintJpegStripInput):PrintJpegStrip;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
 ## createPrintJpegTask
 
 Creates the export task. Filtering weights each source pixel by its exact area overlap, after decoding the declared 8-bit SDR source.
@@ -121,6 +146,22 @@ export interface PrintJpegSource {
   width:number;height:number;
   encoding:"encoded-srgb-8-rgb";
 }
+```
+
+## PrintJpegStrip
+
+A strip of a 1:1 Print JPEG's coded blocks (`createPrintJpegStrip`), for `composePrintJpegStrips`.
+
+```ts
+export interface PrintJpegStrip {readonly y:number;readonly height:number;readonly width:number;readonly quantizationStep:number;readonly bits:JpegStripBits}
+```
+
+## PrintJpegStripInput
+
+Rows of a 1:1 Print JPEG for `createPrintJpegStrip`: crop rows `y` to `y + height` (relative to the crop), crop-wide RGB.
+
+```ts
+export interface PrintJpegStripInput {y:number;height:number;samples:Uint8Array}
 ```
 
 ## PrintJpegTask

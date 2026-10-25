@@ -1706,8 +1706,9 @@ export { PRINT_CONTRAST_REFERENCE_MODEL_VERSION, PRINT_CONTRAST_REFERENCE_UPSTRE
   calculatePrintContrastReference, parsePrintContrastReferenceInput } from "./output/print-contrast-reference.js";
 export type { PrintContrastReferenceInput, PrintContrastReference } from "./output/print-contrast-reference.js";
 export { NATIVE_RAW_SCHEMA_VERSION, NATIVE_RAW_LIMITS, calculateNativeRawPlan, createNativeRawTask } from "./capture/native-raw.js";
-export { PRINT_JPEG_SCHEMA_VERSION, PRINT_JPEG_LIMITS, parsePrintJpegInput, createPrintJpegTask } from "./output/print-jpeg.js";
-export type { PrintJpegSource, PrintJpegInput, PrintJpegTileRequest, PrintJpegTile, PrintJpegProvider, PrintJpegOutput, PrintJpegTask } from "./output/print-jpeg.js";
+export { PRINT_JPEG_SCHEMA_VERSION, PRINT_JPEG_LIMITS, parsePrintJpegInput, createPrintJpegTask, createPrintJpegStrip, composePrintJpegStrips } from "./output/print-jpeg.js";
+export type { PrintJpegSource, PrintJpegInput, PrintJpegTileRequest, PrintJpegTile, PrintJpegProvider, PrintJpegOutput, PrintJpegTask, PrintJpegStripInput, PrintJpegStrip } from "./output/print-jpeg.js";
+export type { JpegStripBits } from "./capture/export-jpeg.js";
 export { SRGB_ICC_PROFILE_VERSION, createSrgbIccProfile } from "./color/srgb-icc.js";
 export { createNativeEnvironmentRawTask, createNativeEnvironmentSensorStageTask, calculateNativeRawRowBands, createNativeEnvironmentRawPartitionTask,
   composeNativeEnvironmentRawPartitions } from "./capture/native-environment-raw.js";

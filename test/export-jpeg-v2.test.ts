@@ -32,7 +32,7 @@ describe("baseline JPEG encoder version 2", () => {
     // Spiky block at q = 3: the Cb (u=0, v=4) coefficient is mathematically -19.5. Runtime Math.cos on V8 gives
     // -19.499999999999996 (rounded to -19 in version 1); the correctly rounded table gives -19.500000000000004 (-20).
     const block = Array.from({ length: 192 }, (_, i) => [38, 44, 47, 63, 65, 107, 109, 177, 183].includes(i) ? 255 : 21);
-    const encode = (factory: typeof createExportJpegEncoder): Uint8Array => {
+    const encode = (factory: (options: Parameters<typeof createExportJpegEncoder>[0]) => Pick<ReturnType<typeof createExportJpegEncoder>, "writeRgbBlock" | "finish">): Uint8Array => {
       const e = factory({ width: 8, height: 8, quantizationStep: 3, maximumOutputBytes: 4096, exif: new Uint8Array(), xmp: new Uint8Array() });
       e.writeRgbBlock(block); return e.finish();
     };

@@ -9,6 +9,12 @@ A minor release: one new function for writing a whole-frame DNG from region part
 
 ### Added
 
+- **A Print JPEG written in strips: `createPrintJpegStrip` and `composePrintJpegStrips`.** At 1:1, a Print JPEG's rows can be coded on separate workers and joined into the file `createPrintJpegTask` writes for the same plan and pixels, with the same bytes. Only each strip's first block depends on the strip before it, through its DC differences; the join codes that block and copies the rest of the strip's bits.
+  - **Same bytes:** tests compare the joined file with the task's file for several splits, crops, quantization steps and a density. The Photivra app's 24 MP JPEG from strips equals the engine's whole-frame JPEG in Speed and Quality.
+  - **Measured:** 24 MP, Node, one thread: the whole task 8.1 s; four strips 1.9 s each; the join 1.1 s for a 64 MB file. In the app (Chromium, four workers), writing the JPEG takes about 3 s instead of 9–12 s. A full-size Speed JPEG export takes 19.7–21.0 s instead of 32–35 s, and Quality 39.9–40.2 s instead of 53–59 s.
+  - The whole-image JPEG writer and the strips share one block coder, and the existing byte-identity tests pass.
+  - New root exports: `createPrintJpegStrip`, `composePrintJpegStrips`, and the types `PrintJpegStripInput`, `PrintJpegStrip` and `JpegStripBits`.
+
 - **A whole-frame DNG from region parts (#391): `serializeSimulatedCaptureDngFromParts(options, parts)`.** A large DNG's RAW can now render in parallel: render region parts of the request (any format), pass each part's `raw` and `region`, and the function joins their native sites and writes the DNG exactly as `simulateCapture` writes it, with the same bytes. Parts must cover the native raster and agree where they overlap; a part from another request is refused. Parts take a fixed white balance and no `output.dng`; auto white balance and the capture time apply to the DNG options and are measured over the joined frame.
   - **Same bytes:** tests compare the joined DNG with the whole-frame DNG for bilinear and AHD, diffraction with the four-spot filter and the 2 × 2 box, auto white balance with a capture time, a reflectance-function scene and the environment path; on the Photivra app's 24 MP request both presets gave the same bytes.
   - **Measured** (24 MP, 24 parts of about 1024 pixels, Node, one thread): parts 58.1 s of CPU against 50.6 s for one whole render (Quality options 119.3 s against 113.6 s), join 2.6 s. On four workers the wall time is roughly a quarter of the whole render's.
