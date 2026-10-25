@@ -45,7 +45,7 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { isInternalSceneRadianceEvaluator, markInternalSceneRadianceEvaluator, registerInternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
 import { calculateIrradianceConvolution } from "../optics/irradiance-convolution.js";
-import { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
+import { siteDiffractionKernel } from "../optics/site-diffraction-kernel.js";
 import type { ResolveLensSampledPsfInput } from "../optics/lens-psf-profile.js";
 import type { PlanarSceneRadianceProvider } from "./scene-radiance.js";
 
@@ -105,14 +105,8 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
   const ly0 = Math.max(0, win.y), ly1 = Math.min(LH, win.y + win.height + 2 * M);
   if (!(lx0 < lx1 && ly0 < ly1)) throw new InvalidConfigurationError("Diffraction window must overlap the native raster.");
   const NW = lx1 - lx0;
-  // One kernel per wavelength, on the site grid, from the engine's own tap-to-site mapping (field point 0, 0).
-  const kernels = wavelengthsNm.map((wavelengthNm) => {
-    const k = resolveLensPsfConvolutionKernels({ schemaVersion: "0.1.0", psf: input.psf, spectralWeights: [{ wavelengthNm, weight: 1 }],
-      grid: { width: 1, height: 1, sitePitchMicrometers: { x: pitch, y: pitch }, opticalAxisSite: { x: 0.5, y: 0.5 } }, patchWidth: 1, patchHeight: 1,
-      kernelRadius: R }).value;
-    if (!k.exactSiteSampling || k.kernelRadius !== R) throw new InvalidConfigurationError("Diffraction kernels must sample the site pitch exactly.");
-    return k.kernels;
-  });
+  // One kernel per wavelength, on the site grid, from the engine's own tap-to-site mapping (field point 0, 0); kept across calls.
+  const kernels = wavelengthsNm.map((wavelengthNm) => siteDiffractionKernel(input.psf, wavelengthNm, pitch, R, "Diffraction kernels must sample the site pitch exactly."));
   const gridWidth = NW + 2 * R;
   const now = (): number => globalThis.performance?.now() ?? Date.now();
   const bands = new Map<number, Float64Array[][]>();

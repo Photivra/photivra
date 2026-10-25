@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { simulateCapture, type SimulateCaptureOptions, type SimulateCaptureResult } from "../src/index.js";
 import { setTabulatedNativeRawEnabled } from "../src/capture/native-environment-tabulated.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
@@ -46,6 +46,21 @@ describe("tabulated native RAW for engine-built planar scenes (#394 step 2)", ()
       expect(Array.from(tabulated.image.samples)).toEqual(Array.from(chain.image.samples));
       expect(tabulated.diagnostics.providerEvaluationCount).toBeLessThan(chain.diagnostics.providerEvaluationCount);
     }
+  }, scaledTimeout(300_000));
+
+  it("gives the same capture with warm caches, after another request, as from a fresh start", async () => {
+    // The channel responses and site diffraction kernels are kept across calls; neither may change a result.
+    const quality = { scene: { preset: "zone-plate" }, lens: { fNumber: 16, diffraction: "circular-aperture" }, sensor: { antiAliasing: { kind: "four-spot" } },
+      output: { width: 48, height: 32, demosaic: "ahd", region: { x: 8, y: 4, width: 24, height: 16 } } } as SimulateCaptureOptions;
+    const other = { ...quality, exposure: { mode: "manual", iso: 400, shutterSeconds: 1 / 500 }, lens: { fNumber: 5.6, diffraction: "circular-aperture" } } as SimulateCaptureOptions;
+    vi.resetModules();
+    const fresh = await (await import("../src/index.js")).simulateCapture(quality);
+    const engine = await import("../src/index.js");
+    await engine.simulateCapture(other);
+    const warm = await engine.simulateCapture(quality);
+    expect(method(warm)).toBe("tabulated-expected-electrons");
+    expect(Array.from(warm.raw.codes)).toEqual(Array.from(fresh.raw.codes));
+    expect(Array.from(warm.image.samples)).toEqual(Array.from(fresh.image.samples));
   }, scaledTimeout(300_000));
 
   it("keeps the environment path where the tabulated signal does not apply", async () => {

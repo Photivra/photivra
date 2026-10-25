@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.8.1 — published October 25, 2026
+
+A patch release: the same results as 2.8.0, faster. It fixes a 2.8.0 slowdown before a chart or material capture's first RAW tile and writes JPEGs about 3× faster.
+- **Captures:** a 768-pixel Quality capture takes 5.6 s instead of 23.4 s on 2.8.0 (796 s on 2.7.0), and the slowest first tile measured takes 2.2 s instead of 24 s (Node, one thread).
+- **JPEG:** a 24 MP JPEG is written in 5.0 s instead of 15.2 s, with byte-identical files.
+- **No API change:** root exports are unchanged; results are the bytes of 2.8.0.
+
+### Faster, same output
+
+- **JPEG writing about 3× faster, the same bytes.** A 24 MP baseline JPEG took 15.2 s to write and now takes 5.0 s (Node, one thread); every file is byte-identical.
+  - **1:1 Print JPEG:** where the output size equals the crop, each output pixel is one source pixel with weight exactly 1, so its sample is a function of its 8-bit code alone; `createPrintJpegTask` now takes it from a 256-entry table instead of the area-average accumulation.
+  - **DCT:** the encoder computes the eight v coefficients of a column in one pass over the block. Each coefficient still adds the same IEEE products in the same order and is scaled in the same order, so the coefficients are identical.
+  - **Checked:** identical SHA-256 of the files against 2.8.0 for 6000 × 4000, 1001 × 757, 9 × 7, 256 × 32 and 1543 × 1 images (smooth and noise); all JPEG hash locks pass.
+
+- **Captures of chart and material scenes: a short start again (fixes a 2.8.0 slowdown before the first RAW tile).**
+  - **Cause:** the tabulated path's four verification sites ran the full chain through the diffraction convolution windowed to the whole render, so its first band convolved the full width before any tile: 24 s for a Quality preview of the 5.6 mm phone sensor at 768 pixels and f/32, against 0.55 s on 2.7.0.
+  - **What changed:**
+    - the verification uses a convolution windowed to its own 2 × 2 block, whose values are bit-identical to the whole render's (the window contract of 2.6);
+    - the whole-render convolution is built only when the environment path runs;
+    - the per-channel spectral responses are planned once per channel and kept across calls with the same sensor, exposure and optics;
+    - one wavelength's diffraction kernel is resolved once per PSF record, shared by the convolution and the tabulated signal.
+  - **Same values:** a capture with warm caches, after another request, equals the same capture from a fresh start (new test); all hash locks pass.
+  - **Measured** in Node, one thread, the app's requests tiled as the app renders them (24 MP full frame, f/8, unless noted), 2.8.0 → this change (2.7.0 for reference):
+
+    | Request | 2.7.0 | 2.8.0 | Now |
+    | --- | --- | --- | --- |
+    | 48-pixel quick frame, Speed / Quality | 1.3 / 8.3 s | 0.87 / 5.5 s | 0.70 / 4.6 s |
+    | 384-pixel capture, Speed / Quality | 43.9 / 193 s | 3.0 / 9.3 s | 1.1 / 2.4 s |
+    | 768-pixel capture, Speed / Quality | 185 / 796 s | 11.5 / 23.4 s | 3.3 / 5.6 s |
+    | 384-pixel Quality capture, 5.6 mm phone sensor, f/32 | 267 s | 25.4 s | 3.9 s |
+
+    The 768-pixel Quality preview of that phone sensor at f/32 reaches its first RAW tile in 2.2 s (0.89 s on a repeated call) instead of 24 s.
+
 ## 2.8.0 — published October 25, 2026
 
 A minor release that makes full-resolution captures of chart and material scenes about 50× faster (48–84× in the regions measured), and makes the display view exact at device-pixel sizes.
