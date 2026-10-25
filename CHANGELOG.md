@@ -1,6 +1,14 @@
 # Changelog
 
-## 2.8.0 — unreleased
+## 2.8.0 — unreleased (prepared October 25, 2026)
+
+A minor release that makes full-resolution captures of chart and material scenes about 50× faster (48–84× in the regions measured), and makes the display view exact at device-pixel sizes.
+- **Faster captures, same bytes:** for chart presets and caller material scenes with a still, rectilinear camera, the RAW stage takes tabulated expected electrons and skips the per-site record pipeline. On every request tested, the samples, RAW codes and files are the bytes of 2.7.0.
+- **Exact display view at device-pixel sizes:** a display pixel covering at most 25 real pixels is the exact area mean of the real pixels instead of a stratified estimate. Those views have new values (a deliberate reference change); the 155-case validation is the same as 2.6.0's or better.
+- **Visible changes:** chart and material captures report a `raw.expectedSignal` assumption and count far fewer `providerEvaluationCount` evaluations; auto white balance no longer renders the RAW twice. Root exports are unchanged (1,727).
+- **Known limit:** the Quality noise limit of 2.6.0 remains (#379), and its fix moves to 2.9.0.
+
+Measured on one thread (24 MP frame, 6 µm, 50 mm f/8, 2 × 2 pixel averaging), with identical samples: a 512 × 512 Siemens star region takes 0.6 s instead of 31.7 s on 2.7.0 (Quality options: 2.8 s instead of 135 s); the whole frame takes 28.2 s as sRGB and 36.5 s as a JPEG.
 
 ### Faster, same output
 
@@ -64,6 +72,10 @@
     Samples fell 3–9× and site evaluations 3–10×. The time fell less, because the 2.7 memos had already made repeated samples cheap: at device-pixel sizes the view now does about one real pixel's work per real pixel.
   - **Why 25:** measured on 8-row strips of a 24 MP view (Siemens star and dead leaves, f/2.8, one thread, one run each), the exact path took the stratified estimator's time within run-to-run spread up to 25 real pixels per display pixel and longer above: 1.1–1.2× at 36, 1.4–1.5× at 64, 1.5–2.4× at 144, because it evaluates every real pixel while the estimator takes a quarter of its samples per axis where the pilot finds no detail.
   - **Validation:** the 155-case validation was re-run on October 25 (`de77074`, [record](https://github.com/Photivra/photivra/blob/main/docs/validation/display-view-2026-10-25/README.md)): 145 cases are identical to the 2.6.0 record, and the 10 cases on the exact area mean (the phone at 800 wide) are the same or better (Siemens star: expected-value RMS 1.78 → 1.35 codes, SSIM 0.9931 → 0.9966). The known Quality noise miss of case 138 (#379) remains: 1.165 against the 1.15 limit.
+
+### Known limit
+
+- **Quality noise at small footprints (#379), unchanged from 2.6.0.** With `output.demosaic: "ahd"` the display view's noise has too much colour where a display pixel covers few sensor pixels; validation case 138 is outside its limit (1.165 against 1.15). The exact covariance through AHD's two linear candidates was measured and makes it worse (1.351), because AHD's direction choice reacts to the noise; the remaining fix is a Monte Carlo model of the real AHD output's noise covariance, moved to 2.9.0 by the owner's decision of October 25, 2026. Speed (bilinear) is exact, and the Photivra site offers Speed only.
 
 ## 2.7.0 — published October 24, 2026
 
