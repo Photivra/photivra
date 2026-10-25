@@ -208,8 +208,8 @@ describe("simulateDisplayView", () => {
 
   it("keeps its bytes, the same on every JavaScript engine: one set of hash locks", async () => {
     // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics (timings removed).
-    // Re-recorded for #393 (exact area mean): the cases whose footprints hold at most K² real pixels changed; the first two
-    // (coarser views, stratified estimator) keep their 2.6.0 hashes.
+    // Re-recorded for #393 (exact area mean): the cases whose footprints hold at most 25 real pixels changed; the first two
+    // and the last two (coarser views, stratified estimator) keep their 2.6.0 hashes.
     // Each case exercises one path: non-uniform and uniform diffraction sites, the AHD correction, spectral materials with
     // mirror borders, a radiance scene, AHD with a tone curve, and Speed. The display view's own arithmetic and its
     // illuminant use only correctly rounded operations and the engine's portable functions (src/core/portable-math.ts), so
@@ -230,8 +230,8 @@ describe("simulateDisplayView", () => {
         sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, "992eec6e7a1d8d3ec4817baf703156c46f9dda4a8dd340624dac8d1b8f439b77"],
       [{ scene: { preset: "dead-leaves" }, lens: { fNumber: 11, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 4 },
         output: { width: 300, height: 200, demosaic: "ahd", toneCurve: "positive-reinhard-per-channel" } }, { width: 30, height: 20, region: { x: 5, y: 4, width: 9, height: 7 }, format: "srgb-16" },
-      "63f83618ec4444a961af785ae452062931ac9ef56baa17799f87697b8f4572c5"],
-      [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 300, height: 200 } }, { width: 30, height: 20 }, "79f01d2851639a6f484feadd9c874b9f3398ea625259f0525a98b49738c5f35b"]
+      "0c459f1395213976a4c29d2441161749757141e6dada2a6e49997fa9f4954f68"],
+      [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 300, height: 200 } }, { width: 30, height: 20 }, "c3c2809d9aab37e7c8269a97804d14d930fd7bf06f29eedb02f1141dcded03e8"]
     ];
     for (const [options, view, expected] of cases) {
       const { result, internals } = await simulateDisplayViewWithInternals(options, view);

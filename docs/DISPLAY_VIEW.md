@@ -533,8 +533,8 @@ are now locked to one set of hashes for every runtime.
 
 ### Exact area mean
 
-From 2.8.0 (#393), a display pixel whose rectangle holds at most K² real pixels (`view.samplesPerAxis`², 256 by
-default, so views at least 1/16 of the frame's width) is not sampled: every real pixel it touches is evaluated once and
+From 2.8.0 (#393), a display pixel whose rectangle holds at most 25 real pixels (and at most `view.samplesPerAxis`²,
+so views at least 1/5 of the frame's width) is not sampled: every real pixel it touches is evaluated once and
 weighted by its exact overlap, w_j / A, so its expected value is the definition D_P = Σ_j (w_j/A)·E[L_j] with no
 sampling error. The linear noise keeps the closed-form term and the independent residual becomes Σ_j (w_j/A)²·r_j. A
 real pixel's terms are recorded once and shared by the display pixels that touch it (a ring of native rows), so at
@@ -543,7 +543,11 @@ and their bytes; the `view.estimation` assumption names the method used. This is
 byte-identical speed-up: the views that take the exact path have new hashes, and a test checks that a half-size and a
 2/3-size view equal the overlap-weighted means of the frame-size view's per-pixel expected values. On the app's 8-row
 strips of a 24 MP frame at 2028 × 1352 (one thread, one run) Speed went from 0.97–1.04 s to 0.77–0.85 s against 2.7.0.
-The validation cases are re-run on this reference before the release.
+The limit of 25 real pixels is where the exact path stops paying: on 8-row strips of a 24 MP view (Siemens star and dead
+leaves, f/2.8, one thread, one run each) it took the stratified estimator's time within run-to-run spread up to 25 real
+pixels per display pixel and longer above (1.1–1.2× at 36, 1.4–1.5× at 64, 1.5–2.4× at 144), because it evaluates every
+real pixel while the estimator takes a quarter of its samples per axis where the pilot finds no detail. The validation
+cases are re-run on this reference before the release.
 
 ## Same bytes in every engine
 

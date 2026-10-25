@@ -17,7 +17,7 @@ import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolvePortableChartScene, type ChartScene } from "./chart-scenes.js";
 import { resolvePortableCaptureIlluminant, calculateIlluminantIrradianceScale } from "./scene-radiance.js";
 import { ahdCandidateKernels, createDisplayViewExpectedSignal, renderDisplayView, type DisplayViewChannelReadout, type DisplayViewExpectedSignal, type DisplayViewRenderResult,
-  type DisplayViewScene } from "./display-view.js";
+  type DisplayViewScene, EXACT_AREA_MEAN_MAX_PIXELS } from "./display-view.js";
 import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, sceneIlluminantWhiteBalance, CAMERA_TO_XYZ, CHANNELS, DARK_CURRENT_ELECTRONS_PER_SECOND, FACADE_EVIDENCE,
   SIMULATE_CAPTURE_FACADE_VERSION, DISPLAY_VIEW_WITHOUT_VIEW, allowKeys, parseDisplayViewOption, type DisplayViewResult, type DisplayViewRunContext, type ParsedDisplayView,
   type SimulateCaptureAssumption, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
@@ -200,12 +200,12 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
     const siteSentence = "the expected electrons of the real sites its demosaic reads are exact at the real pitch (the scene sampled at those sites through the pixel aperture, " +
       "anti-aliasing filter and diffraction kernels, with the capture's own query arithmetic, so the colour mosaic and its aliasing are the real sensor's), and the per-site clip at white, the highlight clip, the tone curve " +
       "and the clip to [0, 1] act on the pixel's own noise distribution, approximated as normal.";
-    // 2.8 (#393): where a footprint holds at most K² real pixels, every real pixel of it is evaluated once with its exact weight.
+    // 2.8 (#393): where a footprint holds at most 25 real pixels (and at most K²), every real pixel of it is evaluated once with its exact weight.
     if (rendered.estimation === "exact-area-mean") {
       assume("view.estimation", "model", { method: "exact-area-mean-over-real-pixels", samplesPerAxis: v.samplesPerAxis, realPixelsPerDisplayPixel: scaleX * scaleY,
         evaluatedRealPixels: rendered.sampleCount },
         "Each display pixel's expected value is the exact area mean of the real pixels its rectangle covers: every real pixel it touches is evaluated once and weighted by its overlap with the rectangle " +
-        "(w_j / A, summing to 1), so there is no sampling error. This applies because each rectangle holds at most K² = " + v.samplesPerAxis * v.samplesPerAxis + " real pixels (" + scaleX + " × " + scaleY + "); coarser views use a stratified estimate. " +
+        "(w_j / A, summing to 1), so there is no sampling error. This applies because each rectangle holds " + scaleX * scaleY + " real pixels (" + scaleX + " × " + scaleY + "), at most " + EXACT_AREA_MEAN_MAX_PIXELS + " and at most K² = " + v.samplesPerAxis * v.samplesPerAxis + "; coarser views use a stratified estimate, which costs less there. " +
         "For each real pixel " + siteSentence);
     } else {
       assume("view.estimation", "model", { method: "stratified-monte-carlo-over-real-pixels", samplesPerAxis: v.samplesPerAxis, uniformSamplesPerAxis,

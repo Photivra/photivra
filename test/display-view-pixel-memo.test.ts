@@ -3,7 +3,7 @@
  * #392: the per-real-pixel memo replays a sample's recorded terms when another sample of the same display pixel lands on the
  * same real pixel. Views barely smaller than the frame put most of a display pixel's samples on a few real pixels. Their
  * hashes were recorded before the memo on 2.6.0 (abb8b27), where the memo changed no byte; since #393 these views take the
- * exact area mean (each footprint at most K² real pixels), and the hashes were re-recorded with that deliberate reference change.
+ * exact area mean (each footprint at most 25 real pixels), and the hashes were re-recorded with that deliberate reference change.
  */
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";

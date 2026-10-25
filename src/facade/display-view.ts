@@ -807,6 +807,13 @@ function correctionStates(key: string): CorrectionStates {
 const MEMO_SIZE = 37;
 /** Most real pixels a display pixel's footprint may have for the per-real-pixel memo (#392); larger footprints rarely repeat a real pixel. */
 const PIXEL_MEMO_LIMIT = 1 << 16;
+/**
+ * Most real pixels a footprint may hold for the exact area mean (#393). Measured on 8-row strips of a 24 MP view (Siemens star
+ * and dead leaves, one thread): the exact path matched the stratified estimator's time within run-to-run spread up to 25 real
+ * pixels per display pixel and was slower above (1.2× at 36, 1.4–1.5× at 64, 1.5–2.4× at 144), because every real pixel is
+ * evaluated while the stratified estimator takes a quarter of its samples per axis where the pilot finds no detail.
+ */
+export const EXACT_AREA_MEAN_MAX_PIXELS = 25;
 /** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
 
@@ -815,10 +822,11 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const { frameWidth, frameHeight, margin, nativeWidth, nativeHeight, viewWidth, viewHeight, region, seed, reachSites } = setup;
   const sx = frameWidth / viewWidth, sy = frameHeight / viewHeight, area = sx * sy, g = 2 / frameWidth;
   const fullK = setup.samplesPerAxis, uniformK = Math.max(1, Math.round(fullK / 4));
-  // Exact area mean (#393): where a footprint holds at most K² real pixels, every real pixel it touches is evaluated once with
-  // its exact overlap weight a_j = w_j / A, so the expected value is D_P = Σ_j a_j·E[L_j] with no sampling error and fewer
-  // evaluations than K² samples; coarser views keep the stratified estimator, whose cost does not grow with the footprint.
-  const exactView = sx * sy <= fullK * fullK;
+  // Exact area mean (#393): where a footprint holds at most EXACT_AREA_MEAN_MAX_PIXELS real pixels and at most K², every real
+  // pixel it touches is evaluated once with its exact overlap weight a_j = w_j / A, so the expected value is D_P = Σ_j a_j·E[L_j]
+  // with no sampling error at no more cost than sampling; coarser views keep the stratified estimator, whose cost does not
+  // grow with the footprint.
+  const exactView = area <= Math.min(EXACT_AREA_MEAN_MAX_PIXELS, fullK * fullK);
   const columnOverlaps = exactView ? Array.from({ length: region.width }, (_, i) => overlaps((region.x + i) * sx, (region.x + i + 1) * sx, frameWidth)) : [];
   // On the exact path a real pixel's recorded terms are shared by the 2–4 display pixels whose footprints touch it: they are
   // kept for the region's native columns in a ring of native rows (a power of two, at least twice a footprint's height plus

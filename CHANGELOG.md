@@ -4,13 +4,13 @@
 
 ### Changed
 
-- **Display view: the exact area mean where a footprint holds at most K² real pixels (#393).** This is a deliberate reference change.
+- **Display view: the exact area mean where a footprint holds at most 25 real pixels (#393).** This is a deliberate reference change.
   - **Before:** each display pixel's expected value was a stratified estimate over K × K jittered real pixels.
-  - **Now:** where a display pixel's rectangle holds at most K² real pixels (`view.samplesPerAxis`², 256 by default, so views at least 1/16 of the frame's width), every real pixel it touches is evaluated once and weighted by its exact overlap, w_j / A. The expected value is then the definition itself, D_P = Σ_j (w_j/A)·E[L_j], with no sampling error.
+  - **Now:** where a display pixel's rectangle holds at most 25 real pixels (and at most `view.samplesPerAxis`²), so views at least 1/5 of the frame's width, every real pixel it touches is evaluated once and weighted by its exact overlap, w_j / A. The expected value is then the definition itself, D_P = Σ_j (w_j/A)·E[L_j], with no sampling error.
   - **Noise:** the linear part keeps the closed-form B_c. The independent residual becomes Σ_j (w_j/A)²·r_j, the same model written exactly.
   - **Shared terms:** a real pixel's recorded terms are shared by the display pixels that touch it, in a ring of native rows.
   - **Unchanged:** coarser views keep the stratified estimator and their bytes. The `view.estimation` assumption names the method, and the internal render result reports it.
-  - **Tests:** a new test checks, in Speed and with diffraction, the four-spot filter and AHD, that a half-size and a 2/3-size view of a 48 × 32 frame have exactly the overlap-weighted means of the frame-size view's per-pixel expected values (within 1e-12 relative). Four of the six display-view hash locks and both memo locks were re-recorded (their views take the exact path); the two coarse locks are unchanged.
+  - **Tests:** a new test checks, in Speed and with diffraction, the four-spot filter and AHD, that a half-size and a 2/3-size view of a 48 × 32 frame have exactly the overlap-weighted means of the frame-size view's per-pixel expected values (within 1e-12 relative). Two of the six display-view hash locks and both memo locks were re-recorded (their views take the exact path); the four coarser locks are unchanged.
   - **Measured** on the 2028 × 1352 view's 8-row strips of a 24 MP frame, the app's chart as a material scene, one thread, against 2.7.0:
 
     | Strip | Speed | Quality options |
@@ -18,6 +18,7 @@
     | Rows 660 / 300 / 1000 | 1.04 / 1.01 / 0.97 s → 0.84 / 0.85 / 0.77 s | 2.9 / 3.1 / 2.7 s → 2.3 / 2.8 / 2.3 s |
 
     Samples fell 3–9× and site evaluations 3–10×. The time fell less, because the 2.7 memos had already made repeated samples cheap: at device-pixel sizes the view now does about one real pixel's work per real pixel.
+  - **Why 25:** measured on 8-row strips of a 24 MP view (Siemens star and dead leaves, f/2.8, one thread, one run each), the exact path took the stratified estimator's time within run-to-run spread up to 25 real pixels per display pixel and longer above: 1.1–1.2× at 36, 1.4–1.5× at 64, 1.5–2.4× at 144, because it evaluates every real pixel while the estimator takes a quarter of its samples per axis where the pilot finds no detail.
   - **Validation:** the 155-case validation is re-run on this reference before release (owner: measure at the end of the speed phase).
 
 ## 2.7.0 — published October 24, 2026
