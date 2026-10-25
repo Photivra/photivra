@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Faster, values within rounding
+
+- **Diffraction kernels of large cells in real space from β = 32 (was 192).** The frequency-domain cell integration costs grow as β² (β = cell side × cut-off frequency); whole-frame and binned views of the app's Quality preset sit at β ≈ 60–190, where it took seconds per new f-number.
+  - **What changed:** the real-space encircled-energy integration of 2.5 now runs from β = 32. Below x = 300 it evaluates J₀² + J₁² by Miller's backward recurrence, normalized by J₀ + 2ΣJ₂ₖ = 1 (DLMF §3.6(iii), 10.12.4; free); from 300 by the Hankel expansion as before.
+  - **Values:** at β = 32–191 (radius 1–8) the real-space cells agree with the frequency-domain cells within 5.5e-13 (cell energies sum to 1) and change by under 1e-17 when the panel counts double; J₀² + J₁² matches Bessel's integral within 1e-11 relative at x = 0.5–12 346. Every native pitch up to 10 µm (β < 19) keeps the frequency-domain cells, so captures at sensor pitch are unchanged; binned and whole-frame views at β ≥ 32 change in the last bits. No capture hash lock changed. `quadrature.method` reports the real-space method for those wavelengths.
+  - **Measured** in Node, one thread, the app's 48-pixel Quality quick frame of a 24 MP full-frame sensor on a fresh process: 3.99 s → 0.62 s (the profile's cell integration was 3.4 s). Over the nine f-stops of the 50 mm lens, fresh each: 14.0 s → 4.4 s in all, slowest stop 3.65 s → 0.90 s. Per cell: radius 4, β = 160: 2.4 s → 12 ms; radius 8, β = 191: 19.5 s → 81 ms.
+
 ## 2.8.1 — published October 25, 2026
 
 A patch release: the same results as 2.8.0, faster. It fixes a 2.8.0 slowdown before a chart or material capture's first RAW tile and writes JPEGs about 3× faster.

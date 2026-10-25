@@ -145,20 +145,24 @@ describe("simulateCapture whole-frame views (2.5): pitches up to 1000 µm", () =
     expect(Array.from(diffracted.image.samples).every(Number.isFinite)).toBe(true);
     // The blur is a fraction of a pixel: the image changes by at most a few codes at the edge.
     expect(meanAbsoluteDifference(diffracted.image.samples, sharp.image.samples)).toBeLessThan(0.5);
-    // A unit-sum kernel keeps the energy of a uniform field; an explicit wider window and f/8 (β from 147 to 301: mixed quadrature) also work.
+    // A unit-sum kernel keeps the energy of a uniform field; an explicit wider window and f/8 (β from 147 to 301: real space throughout) also work.
     const uniform: Options = { scene: { preset: "uniform" }, sensor: { pixelPitchMicrometers: 917, spectralStepNanometers: 40 }, output: { width: 12, height: 8 } };
     const plain = await simulateCapture(uniform);
     const wide = await simulateCapture(withOptions(uniform, { lens: { diffraction: { aperture: "circular-aperture", kernelRadiusSamples: 2 } } }));
     const wideDiffraction = wide.request.diffraction!.profile;
     expect(wideDiffraction.kernelRadiusSamples).toBe(2);
-    expect(wideDiffraction.quadrature.method).toBe("frequency-domain-and-real-space");
-    expect(wideDiffraction.quadrature.realSpaceWavelengthsNm!.length).toBeGreaterThan(0);
+    expect(wideDiffraction.quadrature.method).toBe("real-space-encircled-energy-gauss-legendre");
+    expect(wideDiffraction.quadrature.realSpaceWavelengthsNm!.length).toBe(wideDiffraction.wavelengths.length);
     for (let phase = 0; phase < 4; phase++) expect(Math.abs(phaseStatistics(wide, phase).mean - phaseStatistics(plain, phase).mean)).toBeLessThan(0.5);
     expect(Array.from(wide.image.samples)).toEqual(Array.from(plain.image.samples));
-    // Within the 2.4.1 range (100 µm, widest f/1.4) every wavelength still uses the 2.1 frequency-domain cells.
-    const at100 = await simulateCapture({ scene: { preset: "uniform" }, lens: { prime: 50, fNumber: 1.4, diffraction: "circular-aperture" },
+    // A native pitch up to 10 µm (here at the widest f/1.4) keeps the 2.1 frequency-domain cells at every wavelength (β < 32); at 100 µm
+    // and f/5 the wavelengths straddle β = 32, so both methods run.
+    const at10 = await simulateCapture({ scene: { preset: "uniform" }, lens: { prime: 50, fNumber: 1.4, diffraction: "circular-aperture" },
+      sensor: { pixelPitchMicrometers: 10, spectralStepNanometers: 10 }, output: { width: 4, height: 4 } });
+    expect(at10.request.diffraction!.profile.quadrature.method).toBe("polar-frequency-domain-trapezoid-gauss-legendre");
+    const at100 = await simulateCapture({ scene: { preset: "uniform" }, lens: { prime: 50, fNumber: 5, diffraction: "circular-aperture" },
       sensor: { pixelPitchMicrometers: 100, spectralStepNanometers: 10 }, output: { width: 4, height: 4 } });
-    expect(at100.request.diffraction!.profile.quadrature.method).toBe("polar-frequency-domain-trapezoid-gauss-legendre");
+    expect(at100.request.diffraction!.profile.quadrature.method).toBe("frequency-domain-and-real-space");
   }, scaledTimeout(120_000));
 
   it("matches the same framing at 1/100 of the pitch with the prime scaled: point and box apertures, four-spot filter, AHD, motion and rolling shutter", async () => {

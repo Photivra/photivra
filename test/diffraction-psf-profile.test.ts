@@ -111,13 +111,14 @@ describe("createDiffractionLimitedPsfProfile", () => {
       for (let k = 0; k <= steps; k++) sum += (k === 0 || k === steps ? 0.5 : 1) * Math.cos(n * Math.PI * k / steps - x * Math.sin(Math.PI * k / steps));
       return sum / steps;
     };
-    for (const x of [300, 301.7, 777.7, 2500, 12345.6]) {
+    // From x = 300 the Hankel expansion, below it Miller's recurrence (where J0² + J1² ≥ 2/(πx)·(1 − O(1/x)) keeps the relative check meaningful).
+    for (const x of [0.5, 1, 3.7, 10, 50.3, 100, 250.5, 299.9, 300, 301.7, 777.7, 2500, 12345.6]) {
       const reference = bessel(0, x) ** 2 + bessel(1, x) ** 2;
-      expect(Math.abs(besselSquareSum(x) - reference) / reference).toBeLessThan(1e-11);
+      expect(Math.abs(besselSquareSum(x) - reference) / reference, `x ${x}`).toBeLessThan(1e-11);
     }
-    expect(() => besselSquareSum(299)).toThrow(InvalidConfigurationError);
+    for (const x of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) expect(() => besselSquareSum(x)).toThrow(InvalidConfigurationError);
     // Both methods where both are practical; the real-space cells converge to 1e-17 when the panel counts double.
-    for (const [beta, radius] of [[192, 3], [250, 1], [300, 2], [400, 1]] as const) {
+    for (const [beta, radius] of [[32, 8], [64, 4], [96, 2], [128, 1], [160, 4], [191, 2], [192, 3], [250, 1], [300, 2], [400, 1]] as const) {
       const frequency = calculateAiryCellEnergiesInFrequencyDomain(beta, radius).cells, real = calculateAiryCellEnergiesInRealSpace(beta, radius).cells;
       const doubled = calculateAiryCellEnergiesInRealSpace(beta, radius, 2).cells;
       for (let i = 0; i < real.length; i++) {
@@ -131,11 +132,11 @@ describe("createDiffractionLimitedPsfProfile", () => {
       const centre = calculateAiryCellEnergiesInRealSpace(beta, 1).cells[0]!, leak = 8 * Math.SQRT2 / Math.PI ** 3 / beta;
       expect(Math.abs((1 - centre) / leak - 1)).toBeLessThan(50 / beta);
     }
-    // The dispatcher switches at β = 192, above every β of a simulateCapture pitch up to 100 µm.
-    expect(AIRY_REAL_SPACE_MINIMUM_BETA).toBe(192);
-    expect(100 / (0.3805 * 1.4)).toBeLessThan(AIRY_REAL_SPACE_MINIMUM_BETA);
-    expect(calculateAiryCellEnergies(191.9, 1).realSpace).toBe(false);
-    expect(calculateAiryCellEnergies(192, 1)).toMatchObject({ realSpace: true, radialNodes: 0 });
+    // The dispatcher switches at β = 32, above every β of a native pitch up to 10 µm (the shortest wavelength at f/1.4).
+    expect(AIRY_REAL_SPACE_MINIMUM_BETA).toBe(32);
+    expect(10 / (0.38 * 1.4)).toBeLessThan(AIRY_REAL_SPACE_MINIMUM_BETA);
+    expect(calculateAiryCellEnergies(31.9, 1).realSpace).toBe(false);
+    expect(calculateAiryCellEnergies(32, 1)).toMatchObject({ realSpace: true, radialNodes: 0 });
     // A 917 µm cell at f/1.4: 21 wavelengths in well under a second, all in real space.
     const profile = createDiffractionLimitedPsfProfile({ ...base, apertureFNumber: 1.4, samplePitchMicrometers: 917, kernelRadiusSamples: 1,
       wavelengthsNm: Array.from({ length: 21 }, (_, i) => 380 + 20 * i) }).value;
@@ -183,19 +184,23 @@ describe("createDiffractionLimitedPsfProfile", () => {
   });
 });
 
-describe("Airy cell construction (2.6): memoized, with the 2.5.0 values", () => {
-  // SHA-256 of the cell bytes recorded on 2.5.0 (frequency domain below β = 192, real space from it).
-  const locks: [number, number, string][] = [
+describe("Airy cell construction (2.6): memoized, with the recorded values", () => {
+  // SHA-256 of the cell bytes recorded on 2.5.0 (frequency domain below β = 192, real space from it). From β = 32 the dispatcher takes the
+  // real-space cells (the fourth entry, recorded when the threshold moved; within 2e-13 of the frequency-domain cells); the
+  // frequency-domain function itself still gives the 2.5.0 bytes.
+  const locks: [number, number, string, string?][] = [
     [0.4, 3, "ba7fd98a848277ffa2157fad114101f3f0db92ab8d62fb0373eb30dd92e8b73f"],
     [12.5, 5, "958bf878d5802650bf06e3b4775040f4e92bfba30b7bce6d5109d46db06005ea"],
-    [60, 1, "f43d3b640a66a1800a1ccd2f340e3641f07322253b373ccdadb69630050a6e0b"],
-    [123.3, 1, "29e0dde5430f94c7914e8160d2738b499e68427d5d97a55160b6ad9e4157c16e"],
-    [191.9, 2, "e45e23b47e8be573a39d4f484bf6cc6836118fc2e6362ff721cf521866436bdb"],
+    [60, 1, "f43d3b640a66a1800a1ccd2f340e3641f07322253b373ccdadb69630050a6e0b", "22cd570511fb71f806667dd14500424af767fbf912f3864c637990bd52c5fb53"],
+    [123.3, 1, "29e0dde5430f94c7914e8160d2738b499e68427d5d97a55160b6ad9e4157c16e", "0dbd2bd91626948d20d8924c6e01705c3e8dd38539d2adb92b268a2ead6e44c9"],
+    [191.9, 2, "e45e23b47e8be573a39d4f484bf6cc6836118fc2e6362ff721cf521866436bdb", "13b1378c84ac2dcec94c40bcc0e7ed4aa70468c8ec5a8e54075f6c1b438cc590"],
     [250, 1, "5553c2cd9c85cd0ae2cbf7c843c15f7f916c25949de83cfe913403a24baf82d8"]];
   const sha = (cells: Float64Array): string => createHash("sha256").update(new Uint8Array(cells.buffer, cells.byteOffset, cells.byteLength)).digest("hex");
 
-  it("gives the 2.5.0 cell bytes, first built and then from the cache", () => {
-    for (const [beta, radius, lock] of locks) {
+  it("gives the recorded cell bytes, first built and then from the cache", () => {
+    for (const [beta, radius, recorded, dispatched] of locks) {
+      if (dispatched) expect(sha(calculateAiryCellEnergiesInFrequencyDomain(beta, radius).cells)).toBe(recorded);
+      const lock = dispatched ?? recorded;
       const direct = beta >= AIRY_REAL_SPACE_MINIMUM_BETA ? calculateAiryCellEnergiesInRealSpace(beta, radius).cells : calculateAiryCellEnergiesInFrequencyDomain(beta, radius).cells;
       expect(sha(direct)).toBe(lock);
       const first = calculateAiryCellEnergies(beta, radius), second = calculateAiryCellEnergies(beta, radius);
