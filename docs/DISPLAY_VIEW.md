@@ -531,6 +531,20 @@ both). The capture hash locks and the facade fingerprints of 15 default-path res
 has since moved to the engine's portable functions (next section), which changed its last bits once; the six requests
 are now locked to one set of hashes for every runtime.
 
+### Exact area mean
+
+From 2.8.0 (#393), a display pixel whose rectangle holds at most K² real pixels (`view.samplesPerAxis`², 256 by
+default, so views at least 1/16 of the frame's width) is not sampled: every real pixel it touches is evaluated once and
+weighted by its exact overlap, w_j / A, so its expected value is the definition D_P = Σ_j (w_j/A)·E[L_j] with no
+sampling error. The linear noise keeps the closed-form term and the independent residual becomes Σ_j (w_j/A)²·r_j. A
+real pixel's terms are recorded once and shared by the display pixels that touch it (a ring of native rows), so at
+device-pixel sizes the view does about one real pixel's work per real pixel. Coarser views keep the stratified estimator
+and their bytes; the `view.estimation` assumption names the method used. This is a deliberate reference change, not a
+byte-identical speed-up: the views that take the exact path have new hashes, and a test checks that a half-size and a
+2/3-size view equal the overlap-weighted means of the frame-size view's per-pixel expected values. On the app's 8-row
+strips of a 24 MP frame at 2028 × 1352 (one thread, one run) Speed went from 0.97–1.04 s to 0.77–0.85 s against 2.7.0.
+The validation cases are re-run on this reference before the release.
+
 ## Same bytes in every engine
 
 ECMAScript defines `+`, `−`, `×`, `÷` and `Math.sqrt` as correctly rounded binary64 operations, but leaves `Math.pow`
