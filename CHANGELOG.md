@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 2.9.0 — unreleased (prepared October 25, 2026)
+
+A minor release: new functions for writing a whole-frame DNG from region parts and a Print JPEG in strips, and a faster display view and Quality preview. Results are the same as 2.8.1, except display views and binned frames whose diffraction cells have β ≥ 32, which change in the last bits.
+- **New:** `serializeSimulatedCaptureDngFromParts` joins region parts' RAW into a DNG with the bytes of one whole-frame run. `createPrintJpegStrip` and `composePrintJpegStrips` write a 1:1 Print JPEG's rows on separate workers and join them into the bytes of `createPrintJpegTask`. In the Photivra app, on four browser workers:
+  - a 24 MP DNG takes 23.8 s instead of 79.1 s (Speed) and 46.2 s instead of 158.0 s (Quality);
+  - a 24 MP JPEG takes about 20 s instead of 32–35 s (Speed) and about 40 s instead of 53–59 s (Quality).
+- **Faster preview:** in the app's Quality preview (Chromium, four workers), the quick frame takes 0.7 s instead of 4.0 s, and the fully sharp preview 65 s instead of 170 s.
+- **Compatibility:** five new root exports (1,734); no option, default or result field changes. `createDisplayViewExpectedSignal`, which is internal, takes an optional span hint.
 
 ### Added
 
