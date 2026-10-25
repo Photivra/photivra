@@ -152,8 +152,9 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
   return async (v, { started, viewStarted, checkAbort, yieldControl }, viewInternals) => {
     const assumptions: SimulateCaptureAssumption[] = [...context.assumptions];
     const assume = (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string): void => { assumptions.push({ id, kind, value, explanation }); };
-    const signal = createDisplayViewExpectedSignal(signalInput);
     const viewRegion = v.region ?? { x: 0, y: 0, width: v.width, height: v.height };
+    // The native columns the region's windows span, beyond one window's width: a filled band need not be wider (a speed hint).
+    const signal = createDisplayViewExpectedSignal(signalInput, Math.ceil((viewRegion.width + 2) * nativeWidth / v.width));
     const rendered = await renderDisplayView({ frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
       region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
       ...(ahd ? { candidates: [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))),
