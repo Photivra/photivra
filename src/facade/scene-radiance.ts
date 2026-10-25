@@ -141,7 +141,10 @@ export function calculateIlluminantIrradianceScale(shape: PreparedColorimetricSp
   return illuminanceLux / (PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W * sum);
 }
 
-/** A point of the scene plane passed to caller scene functions. */
+/**
+ * A point of the scene plane passed to caller scene functions: a new object for every call, which the engine does not read
+ * after the call (not frozen: freezing cost about 40 % of a chart lookup).
+ */
 export interface ScenePlanePoint {
   /** Metres on the plane, from the optical axis: +x right, +y up (as seen from the camera). */
   xM: number;
@@ -281,8 +284,8 @@ export function buildPlanarSceneRadianceProvider(input: {
     if (placed) {
       const cu = xM / half, cv = yM / half;
       if (!(Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect)) return materialScene!.materials.length;
-      point = Object.freeze({ xM, yM, u, v, chartU: cu, chartV: cv });
-    } else point = Object.freeze({ xM, yM, u, v });
+      point = { xM, yM, u, v, chartU: cu, chartV: cv };
+    } else point = { xM, yM, u, v };
     const index = materialScene!.materialAt(point);
     if (!Number.isInteger(index) || index < 0 || index >= materialScene!.materials.length) throw new InvalidConfigurationError("Scene materialAt must return an index into its materials.");
     return index;
@@ -294,10 +297,10 @@ export function buildPlanarSceneRadianceProvider(input: {
       const xM = u * scale, yM = v * scale, cu = xM / half, cv = yM / half;
       if (!(Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect)) return placed.surroundReflectance * irradianceScale * shapeAt(nm) / Math.PI;
       if (chart) return chart.reflectanceAt(cu, cv, nm) * irradianceScale * shapeAt(nm) / Math.PI;
-      return callerValue(Object.freeze({ xM, yM, u, v, wavelengthNanometers: nm, chartU: cu, chartV: cv }), nm);
+      return callerValue({ xM, yM, u, v, wavelengthNanometers: nm, chartU: cu, chartV: cv }, nm);
     }
     if (chart) return chart.reflectanceAt(u, v, nm) * irradianceScale * shapeAt(nm) / Math.PI;
-    return callerValue(Object.freeze({ xM: u * scale, yM: v * scale, u, v, wavelengthNanometers: nm }), nm);
+    return callerValue({ xM: u * scale, yM: v * scale, u, v, wavelengthNanometers: nm }, nm);
   }
   function callerValue(point: Readonly<ScenePlanePoint>, nm: number): number {
     const value = (caller as CallerReflectanceScene | CallerRadianceScene).evaluate(point);

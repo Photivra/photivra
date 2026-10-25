@@ -175,7 +175,8 @@ export type SceneMaterialPoint = Omit<ScenePlanePoint, "wavelengthNanometers">;
 
 ## ScenePlanePoint
 
-A point of the scene plane passed to caller scene functions.
+A point of the scene plane passed to caller scene functions: a new object for every call, which the engine does not read
+after the call (not frozen: freezing cost about 40 % of a chart lookup).
 
 ```ts
 export interface ScenePlanePoint {
