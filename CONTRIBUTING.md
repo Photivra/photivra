@@ -1,6 +1,7 @@
 # Contributing
 
-Contributions are welcome. They must keep scientific integrity, source provenance, API consistency and the Apache-2.0 licensing boundary intact.
+Contributions are welcome. They must keep scientific integrity, source provenance, API consistency and the Apache-2.0 licensing boundary intact, and outside
+contributions follow [Licensing of contributions](#licensing-of-contributions).
 
 ## Development setup
 
@@ -82,6 +83,23 @@ Changes to sensor, capture, output or radiometry code should answer each questio
 - Is every evidence record legally usable in the way it is consumed?
 - Is every approximate representation still labelled as an approximation?
 - Could a radiometry change enable photon or noise claims without passing the readiness gate and without defensible calibration?
+
+## Licensing of contributions
+
+The engine has one copyright holder, William Shackelford (see `NOTICE`). Keeping it that way keeps open the
+option of offering the engine under other licence terms as well as Apache-2.0. That option is lost the moment a
+contribution by anyone else is merged without a grant covering it, so:
+
+- **A contribution from anyone other than the owner is merged only after that contributor has signed the
+  project's contributor licence agreement (CLA).** The CLA will let the contributor keep their copyright and
+  grant the owner the right to license the contribution under any terms, including the Apache-2.0 release and
+  any other licence the owner offers.
+- **The CLA text is not published yet.** Until it is (as `CLA.md`, after legal review), outside pull requests
+  are reviewed and discussed but not merged. Pull requests from the owner, and work by agents acting for the
+  owner under the owner's sign-off, are not affected.
+- **No CLA is needed** for issues, bug reports, reviews, discussion, or documentation fixes small enough to carry
+  no copyright (a typo, a broken link).
+- The CLA is in addition to the Developer Certificate of Origin below, not a replacement for it.
 
 ## Contributor certification
 
