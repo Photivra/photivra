@@ -4,12 +4,14 @@ import { describe, expect, it } from "vitest";
 import { SIMULATE_CAPTURE_COST_OPTIONS, SIMULATE_CAPTURE_FAST_OPTIONS, simulateCapture, simulateDisplayView, type SimulateCaptureFastOption,
   type SimulateCaptureOptions } from "../src/index.js";
 import { cpuExecution, webGpuExecution } from "../src/gpu/image-kernel-execution.js";
+import { simulateDisplayViewWithInternals } from "../src/facade/simulate-display-view.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
 
 /*
  * #395: one exact-or-fast convention across the engine. The top-level `fast` sets every listed option; an option's record
- * `fast` overrides it for that option; `diagnostics.fast` reports what was requested and what ran. No option has a fast
- * method yet, so every request here must give the exact result, byte for byte, and report `false` for each option it used.
+ * `fast` overrides it for that option; `diagnostics.fast` reports what was requested and what ran. An option without a fast
+ * method must give the exact result, byte for byte, and report `false`; one with a fast method (HAS_FAST) reports `true`
+ * exactly when its fast method was asked for, and gives the exact result otherwise.
  */
 type Options = Record<string, Record<string, unknown> | unknown>;
 const base: Options = { scene: { preset: "siemens-star" }, output: { width: 32, height: 24 } };
@@ -29,6 +31,10 @@ const FORMS: Record<SimulateCaptureFastOption, { shorthand: Options; record: (fa
   "output.demosaic.ahd": { shorthand: { output: { demosaic: "ahd" } }, record: (fast) => ({ output: { demosaic: { kind: "ahd", fast } } }) }
 };
 const samples = (r: { image: { samples: Uint8Array | Uint16Array } }): number[] => Array.from(r.image.samples);
+/** Options that have a fast method (#397: lens.diffraction's second-dark-ring window). */
+const HAS_FAST: ReadonlySet<SimulateCaptureFastOption> = new Set(["lens.diffraction"]);
+/** A request on which the fast diffraction window is smaller than the exact one (1.4 µm sites at f/8: radius 15 → 10). */
+const SMALL_SITES: Options = { sensor: { pixelPitchMicrometers: 1.4 } };
 
 describe("exact-or-fast flag convention (#395)", () => {
   it("lists every fast-capable option once, as a cost option, with a test case here", () => {
@@ -43,18 +49,47 @@ describe("exact-or-fast flag convention (#395)", () => {
     expect(result.diagnostics.fast).toEqual({ requested: false, applied: {}, assurance: "engine-reference" });
   });
 
-  it("accepts the top-level flag and each option's record flag, runs exact, and reports false for each option used", async () => {
+  it("accepts the top-level flag and each option's record flag, and reports and runs each option's fast method exactly when asked", async () => {
     for (const option of SIMULATE_CAPTURE_FAST_OPTIONS) {
-      const form = FORMS[option];
+      const form = FORMS[option], hasFast = HAS_FAST.has(option);
       const exact = await simulateCapture(request(form.shorthand));
       expect(exact.diagnostics.fast).toEqual({ requested: false, applied: { [option]: false }, assurance: "engine-reference" });
-      for (const [extra, requested] of [[{ ...form.shorthand, fast: true }, true], [form.record(true), true], [form.record(false), false],
-        [{ ...form.record(false), fast: true }, true], [{ ...form.record(true), fast: false }, true]] as [Options, boolean][]) {
-        const result = await simulateCapture(request(extra));
-        expect(samples(result), option).toEqual(samples(exact));
-        expect(result.diagnostics.fast, option).toEqual({ requested, applied: { [option]: false }, assurance: "engine-reference" });
+      // [extra options, requested, whether this option's fast method was asked for]
+      for (const [extra, requested, asked] of [[{ ...form.shorthand, fast: true }, true, true], [form.record(true), true, true], [form.record(false), false, false],
+        [{ ...form.record(false), fast: true }, true, false], [{ ...form.record(true), fast: false }, true, true]] as [Options, boolean, boolean][]) {
+        const result = await simulateCapture(request(extra)), applied = hasFast && asked;
+        if (!applied) expect(samples(result), option).toEqual(samples(exact));
+        expect(result.diagnostics.fast, option).toEqual({ requested, applied: { [option]: applied },
+          assurance: applied ? "approximation-with-a-priori-bound" : "engine-reference" });
+        expect(result.assumptions.some((a) => a.id === "fast." + option), option).toBe(applied);
       }
     }
+  }, scaledTimeout(300_000));
+
+  it("lens.diffraction fast: the second dark ring, a caller's window kept, and a bound that holds site by site", async () => {
+    const exact = await simulateDisplayViewWithInternals(request({ ...SMALL_SITES, lens: { diffraction: "circular-aperture" } }), { width: 32, height: 24 });
+    const fast = await simulateDisplayViewWithInternals(request({ ...SMALL_SITES, lens: { diffraction: "circular-aperture" }, fast: true }), { width: 32, height: 24 });
+    const model = (r: typeof exact) => r.result.assumptions.find((a) => a.id === "lens.diffraction")!.value as { kernelRadiusSamples: number };
+    const note = fast.result.assumptions.find((a) => a.id === "fast.lens.diffraction")!.value as { kernelRadiusSamples: number; exactKernelRadiusSamples: number;
+      bound: { kind: string; maximumFraction: number } };
+    // 1.4 µm at f/8, longest node 770 nm: the second dark ring needs 10 sites, the third 15.
+    expect([model(exact).kernelRadiusSamples, model(fast).kernelRadiusSamples]).toEqual([15, 10]);
+    expect([note.exactKernelRadiusSamples, note.kernelRadiusSamples, note.bound.kind]).toEqual([15, 10, "expected-signal-fraction-of-scene-contrast"]);
+    expect(note.bound.maximumFraction).toBeGreaterThan(0);
+    expect(note.bound.maximumFraction).toBeLessThan(0.05);
+    // Every native site's expected electrons stay within the bound times the scene contrast seen in the frame, per CFA colour.
+    const W = 32, H = 24, values: [number, number, number][] = [];
+    exact.signal.window(0, 0, W, H); fast.signal.window(0, 0, W, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) values.push([exact.signal.site(x, y), fast.signal.site(x, y), (y & 1) * 2 + (x & 1)]);
+    for (let k = 0; k < 4; k++) {
+      const own = values.filter((v) => v[2] === k), lo = Math.min(...own.map((v) => v[0])), hi = Math.max(...own.map((v) => v[0]));
+      for (const [e, f] of own) expect(Math.abs(f - e)).toBeLessThanOrEqual(note.bound.maximumFraction * (hi - lo) + 1e-9 * hi);
+    }
+    // An explicit kernelRadiusSamples is the caller's choice: kept, with the fast method not applied.
+    const chosen = await simulateCapture(request({ ...SMALL_SITES, lens: { diffraction: { kind: "circular-aperture", kernelRadiusSamples: 12 } }, fast: true }));
+    const chosenExact = await simulateCapture(request({ ...SMALL_SITES, lens: { diffraction: { kind: "circular-aperture", kernelRadiusSamples: 12 } } }));
+    expect(samples(chosen)).toEqual(samples(chosenExact));
+    expect(chosen.diagnostics.fast.applied["lens.diffraction"]).toBe(false);
   }, scaledTimeout(300_000));
 
   it("reports every fast-capable option a request uses, in list order", async () => {
@@ -62,7 +97,7 @@ describe("exact-or-fast flag convention (#395)", () => {
       output: { demosaic: { kind: "ahd" } }, fast: true });
     const result = await simulateCapture(all);
     expect(Object.keys(result.diagnostics.fast.applied)).toEqual([...SIMULATE_CAPTURE_FAST_OPTIONS]);
-    expect(Object.values(result.diagnostics.fast.applied).every((value) => value === false)).toBe(true);
+    for (const option of SIMULATE_CAPTURE_FAST_OPTIONS) expect(result.diagnostics.fast.applied[option], option).toBe(HAS_FAST.has(option));
   }, scaledTimeout(120_000));
 
   it("keeps lens.diffraction's aperture key as a deprecated alias of kind, and refuses both", async () => {
@@ -85,10 +120,13 @@ describe("exact-or-fast flag convention (#395)", () => {
   it("gives the display view the same report", async () => {
     const view = { width: 16, height: 12 };
     const exact = await simulateDisplayView(request(FORMS["lens.diffraction"].shorthand), view);
-    const fast = await simulateDisplayView(request({ ...FORMS["lens.diffraction"].record(true) }), view);
-    expect(samples(fast)).toEqual(samples(exact));
+    const fast = await simulateDisplayView(request({ ...FORMS["sensor.pixelAperture.box"].record(true) }), view);
+    const fastExact = await simulateDisplayView(request(FORMS["sensor.pixelAperture.box"].shorthand), view);
+    expect(samples(fast)).toEqual(samples(fastExact));
     expect(exact.diagnostics.fast).toEqual({ requested: false, applied: { "lens.diffraction": false }, assurance: "engine-reference" });
-    expect(fast.diagnostics.fast).toEqual({ requested: true, applied: { "lens.diffraction": false }, assurance: "engine-reference" });
+    expect(fast.diagnostics.fast).toEqual({ requested: true, applied: { "sensor.pixelAperture.box": false }, assurance: "engine-reference" });
+    const diffracted = await simulateDisplayView(request({ ...SMALL_SITES, ...FORMS["lens.diffraction"].record(true) }), view);
+    expect(diffracted.diagnostics.fast).toEqual({ requested: true, applied: { "lens.diffraction": true }, assurance: "approximation-with-a-priori-bound" });
   }, scaledTimeout(120_000));
 
   it("names every fast-capable option in docs/API_STYLE.md", () => {

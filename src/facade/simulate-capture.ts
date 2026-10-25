@@ -217,7 +217,8 @@ export interface SimulateCaptureOptions {
      * Opt-in (2.1) diffraction blur of an ideal, aberration-free, in-focus lens with a circular pupil at the
      * capture's resolved f-number: the engine builds the Airy kernels (`createDiffractionLimitedPsfProfile`)
      * on the site pitch. `kernelRadiusSamples` (0–32) sets the kernel window; default: the third dark ring at
-     * the longest spectral node, capped at 32 sites. Not combinable with `psf` or `pupilSampling`. Default off.
+     * the longest spectral node, capped at 32 sites; with `fast` (#397) and no `kernelRadiusSamples`, the second dark ring.
+     * Not combinable with `psf` or `pupilSampling`. Default off.
      */
     diffraction?: SimulateCaptureLensDiffraction;
   };
@@ -335,7 +336,9 @@ export interface SimulateCaptureOptions {
    * Exact or fast (#395). `false` or omitted: every option runs its exact method, the engine reference. `true`: each option
    * listed in {@link SIMULATE_CAPTURE_FAST_OPTIONS} runs its fast method where it has one, a measured, bounded approximation of
    * the exact one; an option without a fast method runs exact. An option's own record `fast` overrides this for that option
-   * only. `diagnostics.fast` reports what was requested and what ran. No option has a fast method yet, so every result is exact.
+   * only. `diagnostics.fast` reports what was requested and what ran. Fast methods: `lens.diffraction` (#397, the kernel window
+   * reaches the second dark ring instead of the third; see the assumption `fast.lens.diffraction` for its bound). The other
+   * listed options have none yet and run exact.
    */
   fast?: boolean;
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
@@ -608,6 +611,11 @@ export function apertureNodeOffsets(n: number): { x: number; y: number }[] {
 }
 /** Third dark ring of the Airy pattern in units of λ·N_w (j₁,₃/π, j₁,₃ = 10.1734681351): the default diffraction kernel reach. */
 const AIRY_THIRD_ZERO_PER_LAMBDA_N = 10.173468135062722 / Math.PI;
+/**
+ * Second dark ring of the Airy pattern in units of λ·N_w (j₁,₂/π, j₁,₂ = 7.0155866698, the second zero of J₁: NIST DLMF
+ * §10.21, Table 10.21.1, free): the kernel reach of `lens.diffraction`'s fast method (#397).
+ */
+const AIRY_SECOND_ZERO_PER_LAMBDA_N = 7.015586669815619 / Math.PI;
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
@@ -1338,9 +1346,9 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     ["sensor.antiAliasing", antiAliasing !== undefined, antiAliasingFast], ["sensor.pixelAperture.box", boxAperture, boxFast], ["output.demosaic.ahd", ahd, demosaicFast]];
   const fastApplied: Partial<Record<SimulateCaptureFastOption, boolean>> = {};
   for (const [option, used] of fastInUse) if (used) fastApplied[option] = false;
-  const fastReport: SimulateCaptureFastReport = Object.freeze({
-    requested: fastTop || [diffractionFast, antiAliasingFast, boxFast, demosaicFast].some((value) => value === true),
-    applied: Object.freeze(fastApplied), assurance: "engine-reference" as const });
+  const fastRequested = fastTop || [diffractionFast, antiAliasingFast, boxFast, demosaicFast].some((value) => value === true);
+  /** Whether an option asked for its fast method (its own record's flag, else the top-level one). */
+  const wantsFast = (own: boolean | undefined): boolean => own ?? fastTop;
   if (borderOption !== undefined && borderOption !== "margin" && borderOption !== "mirror") fail("output.borderHandling must be margin or mirror.");
   const builtInDemosaic = demosaicOption === undefined ? undefined : createBuiltInBayerDemosaicProfiles({ kernel: "bilinear",
     captureModeId: IDS.mode, colorSamplingProfile, channelRoles: { red: "red", green: "green", blue: "blue" } }).value;
@@ -1791,11 +1799,37 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     // The default reach is capped at the 32-site convolution limit; a capped window ends inside the third dark ring, and the
     // larger tail energy outside it is listed per wavelength like any other (2.2.1 states the cap in the explanation).
     const thirdRingSites = Math.max(1, Math.ceil(AIRY_THIRD_ZERO_PER_LAMBDA_N * lambdaN / pitch));
-    const kernelRadiusSamples = diffractionRadiusOption ?? Math.min(32, thirdRingSites);
-    diffraction = createDiffractionLimitedPsfProfile({ aperture: "circular", focalLengthMm, apertureFNumber: fNumber, focus: { kind: "finite", distanceM: focusDistanceM },
-      wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: aaReachMm === 0 ? { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 } :
-        { x: imagingArea.widthMm / 2 + aaReachMm, y: imagingArea.heightMm / 2 + aaReachMm },
-      profileId: "facade-diffraction-airy" }).value;
+    // #397 fast method: the window reaches the second dark ring instead of the third. It changes only the default window; a
+    // caller's kernelRadiusSamples is kept, and the fast method then does not apply.
+    const exactRadius = Math.min(32, thirdRingSites), secondRingSites = Math.max(1, Math.ceil(AIRY_SECOND_ZERO_PER_LAMBDA_N * lambdaN / pitch));
+    const fastWindow = diffractionRadiusOption === null && wantsFast(diffractionFast) && Math.min(32, secondRingSites) < exactRadius;
+    const kernelRadiusSamples = diffractionRadiusOption ?? (fastWindow ? Math.min(32, secondRingSites) : exactRadius);
+    const airyProfile = (radius: number, profileId: string): DiffractionLimitedPsfProfile => createDiffractionLimitedPsfProfile({ aperture: "circular", focalLengthMm,
+      apertureFNumber: fNumber, focus: { kind: "finite", distanceM: focusDistanceM }, wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples: radius,
+      fieldHalfExtentMm: aaReachMm === 0 ? { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 } : { x: imagingArea.widthMm / 2 + aaReachMm, y: imagingArea.heightMm / 2 + aaReachMm },
+      profileId }).value;
+    diffraction = airyProfile(kernelRadiusSamples, "facade-diffraction-airy");
+    if (fastWindow) {
+      // The bound (#397): both windows are unit-sum renormalizations of the same binned Airy cells, so at each spectral node
+      // ‖K_fast − K_exact‖₁ = 2·(T_fast − T_exact)/(1 − T_exact), with T the Airy energy outside the window. A site's expected
+      // signal is Σ_t K(t)·L(t); with both kernels summing to 1 its change is at most ½‖ΔK‖₁·(L_max − L_min) at every node, so
+      // |Δμ| ≤ B·(μ of the brightest material − μ of the darkest) with B the largest node's (T_fast − T_exact)/(1 − T_exact).
+      const exact = airyProfile(exactRadius, "facade-diffraction-airy-exact-window");
+      let bound = 0;
+      for (const w of diffraction.wavelengths) {
+        const reference = exact.wavelengths.find((e) => e.wavelengthNm === w.wavelengthNm);
+        if (!reference) fail("lens.diffraction: the exact window lacks a spectral node.");
+        bound = Math.max(bound, (w.truncatedEnergyFraction - reference.truncatedEnergyFraction) / (1 - reference.truncatedEnergyFraction));
+      }
+      fastApplied["lens.diffraction"] = true;
+      assume("fast.lens.diffraction", "model", { method: "second-dark-ring-window", kernelRadiusSamples, exactKernelRadiusSamples: exactRadius,
+        bound: { kind: "expected-signal-fraction-of-scene-contrast", maximumFraction: bound } },
+        "Fast method (#397): the diffraction kernel window reaches the second dark ring of the Airy pattern at the longest node (" + (2 * kernelRadiusSamples + 1) + " × " +
+        (2 * kernelRadiusSamples + 1) + " sites) instead of the third (" + (2 * exactRadius + 1) + " × " + (2 * exactRadius + 1) + "), renormalized to unit sum like the exact window. " +
+        "Uniform areas are unchanged; near detail the energy of the third ring moves into the core. A priori bound: each site's expected photo electrons differ from the exact window's " +
+        "by at most " + bound.toPrecision(3) + " of the difference between the brightest and darkest materials' expected electrons (½‖K_fast − K_exact‖₁ at the worst spectral node). " +
+        "Noise is drawn from each site's own expected electrons, so pixel values are a different realization with the same statistics.");
+    }
     diffractionPsf = { kind: "sampled-local", configuration: { psf: { profile: diffraction.profile, focalLengthMm, focus: { kind: "finite", distanceM: focusDistanceM },
       apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
     spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Diffraction-limited Airy PSF, the same at every field point." } } };
@@ -1805,7 +1839,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       execution: diffractionObjectSpace ? "object-space-convolution" : "environment-psf-quadrature" },
       "Scalar Fraunhofer diffraction of an ideal, aberration-free circular pupil (Airy pattern, createDiffractionLimitedPsfProfile) at the resolved f-number, in focus, with D = f/N and the thin-lens image distance (working f-number N·v/f). " +
       "One kernel per spectral node, binned into site-sized cells over a " + (2 * kernelRadiusSamples + 1) + " × " + (2 * kernelRadiusSamples + 1) + " window" +
-      (diffractionRadiusOption !== null ? "" : thirdRingSites > 32 ? " (capped at 32 sites; the third dark ring at the longest node needs " + thirdRingSites + ")" :
+      (diffractionRadiusOption !== null ? "" : fastWindow ? " (the fast method: reaching the second dark ring at the longest node; see fast.lens.diffraction)" :
+        thirdRingSites > 32 ? " (capped at 32 sites; the third dark ring at the longest node needs " + thirdRingSites + ")" :
         " (reaching the third dark ring at the longest node)") + "; the Airy tail energy outside it (listed per wavelength) is put back by unit-sum renormalization. " +
       (diffractionObjectSpace ? "Applied as an object-space convolution: the scene radiance on the site lattice is convolved once per spectral node (calculateIrradianceConvolution) and the provider answers each site query with it, so the site inputs declare no PSF; this equals the per-tap environment PSF quadrature for this still, distortion-free planar scene (request.diffraction.psf). " :
         "Applied through the environment PSF quadrature (one scene query per kernel tap), because camera rotation, a lens field mapping or vignetting moves the taps off the site lattice. ") +
@@ -1937,6 +1972,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
+  const fastReport: SimulateCaptureFastReport = Object.freeze({ requested: fastRequested, applied: Object.freeze({ ...fastApplied }),
+    assurance: Object.values(fastApplied).some((value) => value) ? "approximation-with-a-priori-bound" as const : "engine-reference" as const });
   if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {

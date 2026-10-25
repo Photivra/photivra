@@ -320,7 +320,8 @@ export interface SimulateCaptureOptions {
      * Opt-in (2.1) diffraction blur of an ideal, aberration-free, in-focus lens with a circular pupil at the
      * capture's resolved f-number: the engine builds the Airy kernels (`createDiffractionLimitedPsfProfile`)
      * on the site pitch. `kernelRadiusSamples` (0–32) sets the kernel window; default: the third dark ring at
-     * the longest spectral node, capped at 32 sites. Not combinable with `psf` or `pupilSampling`. Default off.
+     * the longest spectral node, capped at 32 sites; with `fast` (#397) and no `kernelRadiusSamples`, the second dark ring.
+     * Not combinable with `psf` or `pupilSampling`. Default off.
      */
     diffraction?: SimulateCaptureLensDiffraction;
   };
@@ -438,7 +439,9 @@ export interface SimulateCaptureOptions {
    * Exact or fast (#395). `false` or omitted: every option runs its exact method, the engine reference. `true`: each option
    * listed in {@link SIMULATE_CAPTURE_FAST_OPTIONS} runs its fast method where it has one, a measured, bounded approximation of
    * the exact one; an option without a fast method runs exact. An option's own record `fast` overrides this for that option
-   * only. `diagnostics.fast` reports what was requested and what ran. No option has a fast method yet, so every result is exact.
+   * only. `diagnostics.fast` reports what was requested and what ran. Fast methods: `lens.diffraction` (#397, the kernel window
+   * reaches the second dark ring instead of the third; see the assumption `fast.lens.diffraction` for its bound). The other
+   * listed options have none yet and run exact.
    */
   fast?: boolean;
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
