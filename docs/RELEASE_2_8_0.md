@@ -1,6 +1,6 @@
 # 2.8.0 release candidate
 
-> **Prepared October 25, 2026; not published.** Publishing runs only from the owner's `v2.8.0` tag, after `main` CI on the tagged commit has passed.
+> **Published October 25, 2026.** The owner tagged `v2.8.0` on `9089cab` (#413), the `main` commit after this record's `500a9ae` (#412), after `main` CI on that commit had passed, and published the GitHub release. npm publishing ran from the tag. The published package therefore also includes #413 (display view: a sample's terms written in place, about 7 % faster, the same values); its changelog lists #413 under "Unreleased", and the repository changelog now lists it under 2.8.0.
 
 ## At a glance
 
@@ -133,7 +133,18 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 - [x] Version surfaces aligned at 2.8.0 (`npm run release:prepare -- 2.8.0`). Root exports unchanged at 1,727.
 - [x] Fingerprint against `v2.7.0`: bytes identical in all 24 results; metadata as documented above.
 - [x] The 155-case display-view validation on `de77074` (#411).
-- [ ] Owner's review of this record.
-- [ ] Green CI on this pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.8.0`.**
-- [ ] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on this pull request (#412), then on `main` after merge. The tagged commit is `9089cab` (#413, merged after this record): `main` CI run 965 on it passed before the tag.
+- [x] **The owner's explicit approval to tag `v2.8.0`.** The owner tagged it and published the release.
+- [x] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.8.0` → `9089cab5cb2e9205ef3bc3dea55e5113e2b6a7bb` (#413), after `main` CI on that commit passed ([CI run 965](https://github.com/Photivra/photivra/actions/runs/40171081256)) |
+| GitHub release | [@photivra/engine 2.8.0](https://github.com/Photivra/photivra/releases/tag/v2.8.0), published 11:57:52 UTC |
+| Publish workflow | [Publish npm run 25](https://github.com/Photivra/photivra/actions/runs/40191055098): its verify and publish jobs passed (completed 12:13:18 UTC) |
+| npm | `@photivra/engine@2.8.0`, dist-tag `latest`, registry time 12:14:54 UTC |
+| Integrity | `sha512-7+Wqp1pBv5NMkSaS27x15phE9LcOGY57EcYywtlxxf+XHlwBTlR9mJVLVTigfTxQ5cJYZ39yaW8be4oZeckVXw==` (shasum `b81bdd56620d2194dea4fc5429c03c26019370b0`, 855 files), the same as the publish log |
+| Provenance | Signed provenance statement from GitHub Actions for the tag, published to the Sigstore transparency log ([log index 3460764630](https://search.sigstore.dev/?logIndex=3460764630)); the registry lists an attestation for 2.8.0 |
