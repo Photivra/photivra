@@ -74,6 +74,11 @@ const OFFSET_TOLERANCE = 1e-9;
 const CACHE_LIMIT = 1 << 22;
 /** Largest band of looked-up lattice materials per group, in lattice points (a band that would be larger restarts at the window). */
 const BAND_LIMIT = 1 << 22;
+/**
+ * Lattice-row ring (refinement windows): rows kept per group, the tallest band that uses it, and the columns kept beyond each
+ * raster edge (kernel radius, demosaic reach and query offsets; columns beyond it are looked up directly).
+ */
+const LATTICE_RING_ROWS = 128, LATTICE_RING_MAXIMUM_BAND_ROWS = 64, LATTICE_RING_MARGIN = 64;
 
 /**
  * Expected photo electrons per site: μ_c(i, j) = Σ_o w_o Σ_λ A_c(λ) Σ_t K_λ(t)·L(p_o(i, j) − t, λ), where p_o is the
@@ -227,6 +232,18 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   interface Band { x0: number; y0: number; rows: number; capacity: number; filled: number; material: Int32Array; reflectance: Float64Array; changeLeft: Int32Array; changeUp: Int32Array; v: Float64Array }
   const bands: Band[] = groups.map(() => ({ x0: 0, y0: 0, rows: 0, capacity: 0, filled: 0, material: new Int32Array(0), reflectance: new Float64Array(0),
     changeLeft: new Int32Array(0), changeUp: new Int32Array(0), v: new Float64Array(0) }));
+  // Lattice rows of material indices per group, kept across windows (filled windows only): rows LATTICE_RING_ROWS apart share a
+  // slot; columns from −LATTICE_RING_MARGIN. Int16 when every index fits (about 3 MB for four groups of a 6000-site row).
+  const ringWide = scene.kind === "materials" && scene.materials.length <= 32767;
+  const rings: ({ width: number; material: Int16Array | Int32Array; rowId: Int32Array } | undefined)[] = groups.map(() => undefined);
+  function latticeRing(g: number): { width: number; material: Int16Array | Int32Array; rowId: Int32Array } {
+    let ring = rings[g];
+    if (!ring) {
+      const width = W + 2 * LATTICE_RING_MARGIN, size = LATTICE_RING_ROWS * width;
+      ring = rings[g] = { width, material: ringWide ? new Int16Array(size) : new Int32Array(size), rowId: new Int32Array(LATTICE_RING_ROWS).fill(-2147483648) };
+    }
+    return ring;
+  }
   /** Makes the band of group g cover lattice columns [x0, x1) of rows [y0, y0 + rows), extending it to the right when it can. */
   function coverBand(g: number, x0: number, x1: number, y0: number, rows: number): void {
     const group = groups[g]!, band = bands[g]!, materials = scene as Extract<DisplayViewScene, { kind: "materials" }>;
@@ -242,10 +259,19 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
       for (let j = 0; j < rows; j++) band.v[j] = latticeV(group, y0 + j);
     }
     const stride = band.capacity, S1 = stride + 1, material = band.material, left = band.changeLeft, up = band.changeUp;
+    const ring = rows <= LATTICE_RING_MAXIMUM_BAND_ROWS ? latticeRing(g) : undefined;
     for (let i = band.filled; i < x1 - band.x0; i++) {
-      const u = latticeU(group, band.x0 + i);
+      const p = band.x0 + i, u = latticeU(group, p), column = p + LATTICE_RING_MARGIN;
       for (let j = 0; j < rows; j++) {
-        const m = materials.materialAt(u, band.v[j]!);
+        let m: number;
+        if (ring && column >= 0 && column < ring.width) {
+          // A lattice point's material is a function of the point alone, so one looked up for an earlier window (the rows a
+          // display row shares with the next) is the same material; the ring only spares the repeated lookup.
+          const q = y0 + j, slot = q & (LATTICE_RING_ROWS - 1), index = slot * ring.width + column;
+          if (ring.rowId[slot] !== q) { ring.rowId[slot] = q; ring.material.fill(-1, slot * ring.width, (slot + 1) * ring.width); }
+          m = ring.material[index]!;
+          if (m < 0) { m = materials.materialAt(u, band.v[j]!); ring.material[index] = m; }
+        } else m = materials.materialAt(u, band.v[j]!);
         if (spectralIndex[m] === undefined) throw new InvalidConfigurationError("Unknown chart material.");
         material[j * stride + i] = m;
         if (allNeutral) band.reflectance[j * stride + i] = reflectance[m]!;

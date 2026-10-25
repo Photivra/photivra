@@ -9,6 +9,14 @@
   - **Measured** (24 MP, 24 parts of about 1024 pixels, Node, one thread): parts 58.1 s of CPU against 50.6 s for one whole render (Quality options 119.3 s against 113.6 s), join 2.6 s. On four workers the wall time is roughly a quarter of the whole render's.
   - New root exports: `serializeSimulatedCaptureDngFromParts` and the type `SimulateCaptureDngPart`.
 
+### Faster, same output
+
+- **Display view of chart and caller material scenes: lattice materials kept across refinement windows; caller scene points no longer frozen.**
+  - **Lattice rows kept:** at device-pixel sizes each display pixel's window spans its footprint (about 3 real pixels) plus the demosaic reach and kernel radius, so successive display rows re-read most lattice points. Each lattice group now keeps up to 128 rows of looked-up material indices (Int16 where they fit, about 3 MB for four groups of a 6000-site row) across the filled windows of a render; a material is a function of its lattice point alone, so the values are the same.
+  - **Points not frozen:** caller `materialAt` and `evaluate` callbacks receive a new plain point object per call, which the engine does not read afterwards. `Object.freeze` on it took about 40 % of a chart lookup (268 → 160 ns in a micro-benchmark). The point was never documented as frozen; mutating it affects nothing.
+  - **Same values:** all display-view hash locks and tests pass.
+  - **Measured** in Node, one thread, the Photivra app's 24 MP request with its maker-label chart (with the app's own label-mask speed-ups): Quality 96 × 64 coarse frame at 4 × 4 samples 42.9 s → 30.2 s; one Quality refinement band (2028 × 32 of a 2028 × 1352 view) 10.1 s → 6.3 s.
+
 ### Faster, values within rounding
 
 - **Diffraction kernels of large cells in real space from β = 32 (was 192).** The frequency-domain cell integration costs grow as β² (β = cell side × cut-off frequency); whole-frame and binned views of the app's Quality preset sit at β ≈ 60–190, where it took seconds per new f-number.
