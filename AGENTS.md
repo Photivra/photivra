@@ -64,5 +64,8 @@ Run the relevant tests while working and the full set above before merging.
 
 - Work on a branch and open a pull request; merge when CI is green.
 - Sign off commits (`git commit -s`, DCO).
+- A contribution from anyone other than the owner is merged only after they have signed the project's
+  contributor licence agreement; until the CLA is published, review but do not merge outside pull requests
+  (`CONTRIBUTING.md`, "Licensing of contributions").
 - Releasing, tagging or publishing follows rule 3: the owner approves it first.
 - Never commit secrets or credentials.
