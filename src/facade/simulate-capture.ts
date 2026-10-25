@@ -833,6 +833,67 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   return await runCapture(options, "capture") as SimulateCaptureResult;
 }
 
+/** One part of a whole-frame DNG (#391): a region render's packed RAW and where its native sites lie (`result.raw`, `result.region`). */
+export interface SimulateCaptureDngPart {
+  raw: Pick<NativeRawOutput, "codes" | "blackLevels" | "digitalSaturationCodes" | "saturationFlags" | "effectiveSaturationCodes">;
+  region: { nativeRect: { x: number; y: number; width: number; height: number } };
+}
+
+/**
+ * Writes the whole-frame DNG of `options` (`output.format: "dng"`, no `output.region`) from the packed RAW of region renders of
+ * the same request (#391), so the RAW can render in parallel. A region render's native sites are the same sites as the whole
+ * render's (each site's seeds come from its index in the whole raster), so the joined RAW is the whole render's RAW, and the
+ * request is resolved and written exactly as `simulateCapture` writes its DNG: the bytes are the same. The parts must cover
+ * every native site of the frame; where they overlap (each region carries the demosaic margin) their sites must agree. Region
+ * renders of the request with any format serve (a region's own `output.format` does not change its RAW). A region cannot take
+ * `output.whiteBalance: "auto"` or `output.dng`: render the parts with a fixed white balance (the RAW codes do not depend on the
+ * white-balance intent) and pass the DNG's own options here, where auto white balance is measured over the joined frame.
+ * @returns The DNG (its `bytes` are those of `SimulateCaptureResult.image.dng` for the same options), with its stored levels and identifiers.
+ */
+export async function serializeSimulatedCaptureDngFromParts(options: SimulateCaptureOptions, parts: readonly SimulateCaptureDngPart[]): Promise<NativeRawDng> {
+  return await runCapture(options, "dng-from-parts", parts) as NativeRawDng;
+}
+
+/** The whole frame's packed RAW from region parts (see `serializeSimulatedCaptureDngFromParts`). */
+function joinNativeRawParts(value: unknown, plan: NativeRawOutput["plan"], width: number, height: number): NativeRawOutput {
+  if (!Array.isArray(value) || value.length === 0) throw new InvalidConfigurationError("serializeSimulatedCaptureDngFromParts needs at least one part.");
+  const parts = value as readonly SimulateCaptureDngPart[], count = width * height;
+  const codes = new Uint16Array(count), blackLevels = new Uint16Array(count), digitalSaturationCodes = new Uint16Array(count), saturationFlags = new Uint8Array(count);
+  const covered = new Uint8Array(count), white = new Uint16Array(4);
+  const bad = (k: number, what: string): never => { throw new InvalidConfigurationError("DNG part " + k + ": " + what); };
+  parts.forEach((part, k) => {
+    const rect = part?.region?.nativeRect, raw = part?.raw;
+    if (!rect || !raw) bad(k, "needs raw and region.nativeRect (a region render's result).");
+    const { x, y, width: w, height: h } = rect!;
+    if (![x, y, w, h].every(Number.isSafeInteger) || x < 0 || y < 0 || w < 1 || h < 1 || x + w > width || y + h > height) bad(k, "its nativeRect is not inside the frame's native raster.");
+    const n = w * h;
+    if (!(raw!.codes instanceof Uint16Array) || raw!.codes.length !== n || !(raw!.blackLevels instanceof Uint16Array) || raw!.blackLevels.length !== n ||
+      !(raw!.digitalSaturationCodes instanceof Uint16Array) || raw!.digitalSaturationCodes.length !== n || !(raw!.saturationFlags instanceof Uint8Array) || raw!.saturationFlags.length !== n)
+      bad(k, "its RAW arrays do not match its nativeRect.");
+    const phases = raw!.effectiveSaturationCodes;
+    if (!(phases instanceof Uint16Array) || phases.length !== 4) bad(k, "needs four per-phase white levels.");
+    // Per-phase white levels are in the whole raster's CFA phases (0 for a phase the part has no site of); all parts agree.
+    for (let phase = 0; phase < 4; phase++) {
+      const code = phases[phase]!;
+      if (code === 0) continue;
+      if (white[phase] === 0) white[phase] = code; else if (white[phase] !== code) bad(k, "its white level differs from another part's: not the same request.");
+    }
+    for (let row = 0; row < h; row++) for (let column = 0; column < w; column++) {
+      const from = row * w + column, to = (y + row) * width + x + column;
+      if (covered[to]) {
+        if (codes[to] !== raw!.codes[from] || blackLevels[to] !== raw!.blackLevels[from] || digitalSaturationCodes[to] !== raw!.digitalSaturationCodes[from] ||
+          saturationFlags[to] !== raw!.saturationFlags[from]) bad(k, "a site differs from another part's at the same place: not the same request.");
+        continue;
+      }
+      covered[to] = 1; codes[to] = raw!.codes[from]!; blackLevels[to] = raw!.blackLevels[from]!;
+      digitalSaturationCodes[to] = raw!.digitalSaturationCodes[from]!; saturationFlags[to] = raw!.saturationFlags[from]!;
+    }
+  });
+  if (covered.includes(0)) throw new InvalidConfigurationError("The DNG parts do not cover every native site of the frame.");
+  if (white.includes(0)) throw new InvalidConfigurationError("The DNG parts lack a white level for a CFA phase.");
+  return { plan, codes, blackLevels, digitalSaturationCodes, saturationFlags, effectiveSaturationCodes: white };
+}
+
 /**
  * The ideal reference of a capture request (2.3): the same scene, framing, chart size, output size, region and pixel
  * grid as `simulateCapture(options)` would use, rendered with no camera effects (no lens blur, diffraction, defocus,
@@ -988,7 +1049,7 @@ export const DISPLAY_VIEW_WITHOUT_VIEW: unique symbol = Symbol("display view wit
  * Internal: the request path shared by {@link simulateCapture}, {@link simulateIdealReference} and the display view, whose renderer is
  * passed in; for a display view the renderer's value is returned (a result, or a prepared view with DISPLAY_VIEW_WITHOUT_VIEW).
  */
-export async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ideal-reference" | "display-view", viewOption?: unknown,
+export async function runCapture(options: SimulateCaptureOptions, run: "capture" | "ideal-reference" | "display-view" | "dng-from-parts", viewOption?: unknown,
   renderView?: (context: DisplayViewRunContext) => Promise<unknown>):
   Promise<unknown> {
   const started = Date.now(), idealReference = run === "ideal-reference", displayView = run === "display-view";
@@ -1128,6 +1189,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     dngCapturedAtUtc = d.capturedAtUtc as string | undefined;
     if (dngCapturedAtUtc === undefined) assume("output.dng.capturedAtUtc", "default", null, "No capture time: the DNG carries no DateTimeOriginal (the engine never invents a wall clock).");
   } else if (outputOptions.dng !== undefined) fail("output.dng applies only to output.format \"dng\".");
+  if (run === "dng-from-parts" && format !== "dng") fail("serializeSimulatedCaptureDngFromParts needs output.format \"dng\".");
   const textMetadata = parseOutputTextMetadata(outputOptions.metadata, "output.metadata");
   if (textMetadata && format !== "jpeg" && format !== "png" && format !== "dng") fail("output.metadata applies only to output.format \"jpeg\", \"png\" or \"dng\".");
   const assumeTextMetadata = (layout: string): void => {
@@ -1898,8 +1960,11 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // #394 step 2: an engine-built planar scene (chart preset or caller material scene; still, rectilinear, no distortion, vignetting,
   // pupil rays or caller PSF) takes its expected electrons from the tabulated signal, verified per CFA phase against the chain.
   const tabulatedScene = chart !== undefined || callerScene?.kind === "material-function";
+  // #391: a DNG from region parts takes the whole frame's RAW from the parts instead of rendering it.
+  if (run === "dng-from-parts" && regionNative) fail("serializeSimulatedCaptureDngFromParts writes the whole frame: the options take no output.region.");
+  const dngParts = run === "dng-from-parts" ? viewOption : undefined;
   let tabulated: Awaited<ReturnType<typeof renderTabulatedNativeRaw>>;
-  if (tabulatedScene && !pupil && !lensFieldMapping && !vignetting && !lensPsf && !rotating && (!diffraction || diffractionObjectSpace) && provider.chartMaterialAt && provider.materialRadiance) {
+  if (dngParts === undefined && tabulatedScene && !pupil && !lensFieldMapping && !vignetting && !lensPsf && !rotating && (!diffraction || diffractionObjectSpace) && provider.chartMaterialAt && provider.materialRadiance) {
     const { electronsPerRadiance, wavelengths } = axisChannelResponse("simulateCapture");
     const perNode = CHANNELS.map((c) => Float64Array.from(wavelengths, (nm) => electronsPerRadiance[c].get(nm) ?? 0)) as [Float64Array, Float64Array, Float64Array];
     const sceneMaterials = chart ? chart.materials : (callerScene as ResolvedCallerMaterialScene).materials, materialRadiance = provider.materialRadiance;
@@ -1916,7 +1981,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       electrons: createDisplayViewExpectedSignal(signalInput), onTile: rawTick, tileWidth, yieldControl: () => yieldControl(), checkAbort });
   }
   let rawOutput: { raw: NativeRawOutput; providerEvaluationCount: number };
-  if (tabulated) {
+  if (dngParts !== undefined) rawOutput = { raw: joinNativeRawParts(dngParts, plan, nativeWidth, nativeHeight), providerEvaluationCount: 0 };
+  else if (tabulated) {
     rawOutput = { raw: tabulated.raw, providerEvaluationCount: tabulated.providerEvaluationCount };
     // The verification's relative difference itself is not reported: it is a last-bits quantity, and captures use the JavaScript
     // engine's own Math functions, so it differs between engines while the results are the same.
@@ -1963,7 +2029,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       sampleSet: { imageStateId: "facade-pre-wb-raw", inputDomain: "relative-pre-wb-camera-linear-rgb", samples } });
     finalRawInput = { raw: buildRawInput(intentOf(whiteBalanceState)), sceneBinding, maximumProviderEvaluations: environmentRaw.maximumProviderEvaluations };
     const wbTick = progress("white-balance", plan.tileCount);
-    if (tabulated) {
+    if (tabulated || dngParts !== undefined) {
       // #394: the RAW codes do not depend on the white-balance intent (it is development metadata), so the tabulated RAW is
       // kept with the plan of the measured intent instead of being rendered again.
       rawOutput = { ...rawOutput, raw: { ...rawOutput.raw, plan: calculateNativeRawPlan(finalRawInput.raw) } };
@@ -2004,6 +2070,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       noiseProfile: dng.noiseProfile, unrepresentedSaturationFlagCount: dng.unrepresentedSaturationFlagCount },
       "Lossless uncompressed 16-bit CFA DNG of exactly the packed native RAW codes: per-phase BlackLevel, WhiteLevel = smallest per-phase effective white, ActiveArea and DefaultCrop from the capture geometry, ColorMatrix1/ForwardMatrix1 from the facade's diagonal camera→XYZ profile (D65), AsShotNeutral from the white-balance intent, BaselineExposure 0, and NoiseProfile from each channel's readout regime (conversion gain ÷ digital gain, combined read noise; Poisson + Gaussian + quantization only). No linear master or developed image is declared; saturation flags below WhiteLevel are not representable and are counted.");
   }
+  if (dngParts !== undefined) return dng;
 
   // Development
   const development: Omit<NativeRawDevelopmentInput, "raw"> = { phaseProfiles, colorProfile,

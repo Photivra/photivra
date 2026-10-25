@@ -62,6 +62,23 @@ export interface IdealReferenceResult {
 }
 ```
 
+## serializeSimulatedCaptureDngFromParts
+
+Writes the whole-frame DNG of `options` (`output.format: "dng"`, no `output.region`) from the packed RAW of region renders of
+the same request (#391), so the RAW can render in parallel. A region render's native sites are the same sites as the whole
+render's (each site's seeds come from its index in the whole raster), so the joined RAW is the whole render's RAW, and the
+request is resolved and written exactly as `simulateCapture` writes its DNG: the bytes are the same. The parts must cover
+every native site of the frame; where they overlap (each region carries the demosaic margin) their sites must agree. Region
+renders of the request with any format serve (a region's own `output.format` does not change its RAW). A region cannot take
+`output.whiteBalance: "auto"` or `output.dng`: render the parts with a fixed white balance (the RAW codes do not depend on the
+white-balance intent) and pass the DNG's own options here, where auto white balance is measured over the joined frame.
+
+```ts
+export async function serializeSimulatedCaptureDngFromParts(options: SimulateCaptureOptions, parts: readonly SimulateCaptureDngPart[]): Promise<NativeRawDng>;
+```
+
+This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.
+
 ## SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES
 
 Default midpoint samples per axis of `sensor.pixelAperture: "box"`.
@@ -174,6 +191,17 @@ edge-directed method that reduces zipper and false colour on sharp edges.
 
 ```ts
 export type SimulateCaptureDemosaic = "bilinear" | "ahd";
+```
+
+## SimulateCaptureDngPart
+
+One part of a whole-frame DNG (#391): a region render's packed RAW and where its native sites lie (`result.raw`, `result.region`).
+
+```ts
+export interface SimulateCaptureDngPart {
+  raw: Pick<NativeRawOutput, "codes" | "blackLevels" | "digitalSaturationCodes" | "saturationFlags" | "effectiveSaturationCodes">;
+  region: { nativeRect: { x: number; y: number; width: number; height: number } };
+}
 ```
 
 ## SimulateCaptureExposureMode
