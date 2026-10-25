@@ -218,6 +218,19 @@ export interface PlanarSceneRadianceProvider {
   materialRadiance?(material: number, wavelengthNanometers: number): number;
 }
 
+/**
+ * Internal (#394, not exported from the package): per provider of a chart preset or caller material scene, the material its
+ * `evaluateRadiance` reads for an environment-direction query with a given outgoing direction (the same plane-point
+ * arithmetic), or undefined where `evaluateRadiance` would throw. Its radiance is `materialRadiance(material, wavelength)`.
+ */
+const MATERIAL_OF_DIRECTION = new WeakMap<PlanarSceneRadianceProvider, (direction: Readonly<{ x: number; y: number; z: number }>) => number | undefined>();
+
+/** Internal (#394): the material lookup of a provider built by {@link buildPlanarSceneRadianceProvider}, if it has one. */
+export function planarProviderMaterialOfDirection(provider: PlanarSceneRadianceProvider):
+  ((direction: Readonly<{ x: number; y: number; z: number }>) => number | undefined) | undefined {
+  return MATERIAL_OF_DIRECTION.get(provider);
+}
+
 const UNCERTAINTY = Object.freeze({ kind: "not-quantified" as const, limitation: "Analytic planar Lambertian scene; no measured scene, BRDF or illumination." });
 
 /** Most distinct wavelengths {@link tabulatedSpectrum} keeps; later ones are evaluated on every call. */
@@ -313,15 +326,22 @@ export function buildPlanarSceneRadianceProvider(input: {
     if (!(value >= 0)) throw new InvalidConfigurationError("Unknown chart material.");
     return value * irradianceScale * shapeAt(nm) / Math.PI;
   }
-  const chartAccess = chart ? {
-    chartMaterialAt(u: number, v: number): number {
-      if (!placed) return chart.materialAt(u, v);
-      const cu = u * scale / half, cv = v * scale / half;
-      return Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect ? chart.materialAt(cu, cv) : chart.materials.length;
-    },
-    materialRadiance: materialRadianceOf
-  } : materialScene ? { chartMaterialAt: callerMaterialAt, materialRadiance: materialRadianceOf } : {};
-  return {
+  function chartMaterialAt(u: number, v: number): number {
+    if (!placed) return chart!.materialAt(u, v);
+    const cu = u * scale / half, cv = v * scale / half;
+    return Math.abs(cu) <= 1 && Math.abs(cv) <= chartAspect ? chart!.materialAt(cu, cv) : chart!.materials.length;
+  }
+  const chartAccess = chart ? { chartMaterialAt, materialRadiance: materialRadianceOf } :
+    materialScene ? { chartMaterialAt: callerMaterialAt, materialRadiance: materialRadianceOf } : {};
+  // #394: evaluateRadiance's own plane-point arithmetic; radianceAt is then materialRadianceOf(material, nm) for both scene forms.
+  const materialAtPoint = chart ? chartMaterialAt : materialScene ? callerMaterialAt : undefined;
+  const materialOfDirection = materialAtPoint === undefined ? undefined : (o: Readonly<{ x: number; y: number; z: number }>): number | undefined => {
+    const lz = -o.z;
+    if (!(lz > 0)) return undefined;
+    const t = distance / lz;
+    return materialAtPoint(-o.x * t / scale, -o.y * t / scale);
+  };
+  const provider: PlanarSceneRadianceProvider = {
     sceneId, providerProfileId, radianceAt, ...chartAccess,
     evaluateRadiance(request): SceneRadianceEvaluationResult {
       const target = request.target;
@@ -338,6 +358,8 @@ export function buildPlanarSceneRadianceProvider(input: {
       return result(request, radianceAt((origin.x + d.x * t) / scale, (origin.y + d.y * t) / scale, request.wavelengthNanometers));
     }
   };
+  if (materialOfDirection) MATERIAL_OF_DIRECTION.set(provider, materialOfDirection);
+  return provider;
 }
 
 /** 2.3: a chart's physical size on the scene plane (`simulateCapture` `chartSize`, `createPlanarSceneRadianceProvider` `chartSize`). */

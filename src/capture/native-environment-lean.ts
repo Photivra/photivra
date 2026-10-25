@@ -39,7 +39,7 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { apertureRadianceQuery } from "../sensor/environment-photo-signal.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
-import { isDeeplyFrozen } from "../core/internal-radiance-evaluator.js";
+import { isDeeplyFrozen, type InternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import { parseSceneRadianceEvaluationResult, parseSceneRadianceEvaluationResultWithValidatedRecords, validateSceneRadianceEvaluationBindings, type ValidatedSceneRadianceRecords,
   type SceneRadianceEvaluationRequest, type SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
 import { calculateSceneRadianceToSensorIrradiance } from "../optics/scene-to-sensor-irradiance.js";
@@ -81,7 +81,7 @@ const REDUCTION_TOLERANCE = 1e-10;
 /** Disables the lean executor process-wide (internal; tests compare both paths). */
 let leanDisabled = false;
 /** Internal counters of lean work (tests assert the lean path actually runs). Not exported from the package. */
-export const nativeEnvironmentLeanStatistics = { plannedSites: 0, executedSites: 0, sensorSites: 0, psfFallbacks: 0 };
+export const nativeEnvironmentLeanStatistics = { plannedSites: 0, executedSites: 0, sensorSites: 0, psfFallbacks: 0, keySites: 0 };
 export function setNativeEnvironmentLeanExecutionEnabled(enabled: boolean): void { leanDisabled = !enabled; }
 
 function isPlainRecord(value: object): boolean {
@@ -176,6 +176,13 @@ interface Template {
   execution?: ExecutionConstants;
   /** undefined until the template site executed through the full path. */
   executionVerified?: boolean;
+  /**
+   * #394: true when an engine-built evaluator's key lookup reproduced every radiance of the template's own full execution; its
+   * sites are then planned as key taps and their radiances taken from the lookup instead of the evaluator (tabulated keys, chart
+   * materials, from `radiance`: per key, per spectral node, NaN until first needed).
+   */
+  keyMode?: boolean;
+  radiance?: Float64Array[];
 }
 interface PlanConstants {
   spectralCount: number; spatialCount: number; temporalCount: number; pupilCount: number; count: number;
@@ -201,7 +208,10 @@ interface PlanConstants {
   sceneBindings: FullPlan["sceneBindings"];
 }
 interface LeanTap {
-  request: SceneRadianceEvaluationRequest;
+  /** The provider request; absent for a key tap (#394), whose radiance comes from the evaluator's key lookup. */
+  request?: SceneRadianceEvaluationRequest;
+  /** #394: the key (chart material or lattice site) the request would read (key taps only). */
+  key?: number;
   sourcePointImagePlaneMm: { x: number; y: number };
   fieldThroughput: FieldThroughput;
   fieldFactor: number;
@@ -226,6 +236,8 @@ export interface LeanEnvironmentPlan {
   readonly instants: readonly { time: number; taps: readonly LeanTap[] }[];
   /** Per group: the resolved PSF kernel weights. Present only with a sampled PSF. */
   readonly kernels?: readonly (readonly number[])[];
+  /** #394: true when the taps are key taps (no requests). */
+  readonly keyTaps?: true;
 }
 export function isLeanEnvironmentPlan(plan: unknown): plan is LeanEnvironmentPlan {
   return typeof plan === "object" && plan !== null && (plan as { lean?: unknown }).lean === true;
@@ -261,7 +273,8 @@ export interface NativeEnvironmentLeanExecutor {
    * it is called only when a sampled-PSF check fails and the full PSF quadrature must decide.
    */
   execute(plan: LeanEnvironmentPlan, evaluate: EnvironmentRadianceEvaluator,
-    aperture: EnvironmentApertureRadianceEvaluator | undefined, fullPlan: () => FullPlan, internalEvaluator?: boolean): SensorEqeTemporalPhotoSignal | undefined;
+    aperture: EnvironmentApertureRadianceEvaluator | undefined, fullPlan: () => FullPlan, internalEvaluator?: boolean,
+    countEvaluations?: (count: number) => void): SensorEqeTemporalPhotoSignal | undefined;
 }
 
 function siteOf(environment: Env): { x: unknown; y: unknown } | undefined {
@@ -269,8 +282,13 @@ function siteOf(environment: Env): { x: unknown; y: unknown } | undefined {
   return site as { x: unknown; y: unknown } | undefined;
 }
 
-/** Plans the site-dependent parts with the full planner's arithmetic. Returns undefined on any doubt, and the caller plans in full. */
-function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFrame, environment: Env, index: number): LeanEnvironmentPlan | undefined {
+/**
+ * Plans the site-dependent parts with the full planner's arithmetic. Returns undefined on any doubt, and the caller plans in full.
+ * With `access` (#394: a verified key-mode template, no pupil or lens mapping), each tap keeps the key its request would read
+ * instead of the request.
+ */
+function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFrame, environment: Env, index: number,
+  access?: InternalRadianceAccess): LeanEnvironmentPlan | undefined {
   try {
     const x = index % frame.nativeWidth, y = Math.floor(index / frame.nativeWidth), site = siteOf(environment);
     // Object.is: a -0 coordinate would flow into the full path's outputs, so it takes the full path.
@@ -354,14 +372,18 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
       const displacement = { pitch: omega.pitch * time, yaw: omega.yaw * time, roll: omega.roll * time };
       const taps: LeanTap[] = [];
       for (let gi = 0; gi < S * P; gi++) {
+        // #394: without a PSF a key tap depends only on its spatial node (same point, direction, field and key at
+        // every spectral node), so groups after the first spectral node share the first one's tap.
+        if (access !== undefined && destinationFields !== undefined && gi >= P) { taps.push(taps[gi % P]!); continue; }
         const s = Math.floor(gi / P), points = destinationFields === undefined ? tapPoints[gi]! : undefined;
         const tapCount = points === undefined ? 1 : points.length;
         for (let pi = 0; pi < tapCount; pi++) {
-          const point = points === undefined ? sources[gi % P]! : points[pi]!, sampleId = `${id}-t${ti}-n${gi}-p${pi}`;
+          const point = points === undefined ? sources[gi % P]! : points[pi]!, sampleId = access === undefined ? `${id}-t${ti}-n${gi}-p${pi}` : "";
           const apertureRays = pupil === undefined ? undefined : sensorApertureRayValues({ sourcePointNativeSensorMm: point, focalLengthMm,
             nominalFNumber, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: time }, pupil, k.parsedFocus).rays;
-          let request: SceneRadianceEvaluationRequest, imagePointMm: { x: number; y: number }, distortionAreaFactor: number | undefined;
+          let request: SceneRadianceEvaluationRequest | undefined, key: number | undefined, imagePointMm: { x: number; y: number }, distortionAreaFactor: number | undefined;
           if (k.lensMapping !== undefined) {
+            if (access !== undefined) return undefined;
             // The full planner's own mapped query, with the same input; only its result envelope is not kept.
             const query = calculateMappedSensorEnvironmentRadianceQuery({ ...(motion as unknown as Pick<Parameters<typeof calculateMappedSensorEnvironmentRadianceQuery>[0],
               "angularVelocityRadPerSec" | "timeReference" | "environmentDirectionConvention">), sourcePointNativeSensorMm: point, focalLengthMm, focus: k.focus,
@@ -388,7 +410,11 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
             if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y) || !Number.isFinite(direction.z)) return undefined;
             const norm = Math.hypot(direction.x, direction.y, direction.z);
             if (!Number.isFinite(norm) || Math.abs(norm - 1) > 1e-9) return undefined;
-            request = Object.freeze({ schemaVersion: "0.1.0" as const, sampleId, providerProfileId: base.providerProfileId,
+            // #394: the key the evaluator would read for this request (undefined where it would throw: the full path decides).
+            if (access !== undefined) {
+              key = access.keyOfDirection(direction);
+              if (key === undefined) return undefined;
+            } else request = Object.freeze({ schemaVersion: "0.1.0" as const, sampleId, providerProfileId: base.providerProfileId,
               sceneId: base.sceneId, illuminationProfileId: base.illuminationProfileId, materialResponseProfileId: base.materialResponseProfileId,
               target: Object.freeze({ kind: "environment-direction" as const, outgoingDirectionUnitVector: Object.freeze(direction) }),
               timeSecondsFromExposureStart: time, wavelengthNanometers: k.wavelengths[s]!,
@@ -396,7 +422,8 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
           }
           const f = destinationFields === undefined ? tapFields[gi]![pi]! : destinationFields[gi % P]!;
           // Built without object spread (cheaper per tap); optional fields are added only when present.
-          const leanTap: LeanTap = { request, sourcePointImagePlaneMm: imagePointMm, fieldThroughput: f.value, fieldFactor: f.factor, fieldValid: f.valid };
+          const leanTap: LeanTap = { sourcePointImagePlaneMm: imagePointMm, fieldThroughput: f.value, fieldFactor: f.factor, fieldValid: f.valid };
+          if (request !== undefined) leanTap.request = request; else leanTap.key = key!;
           if (apertureRays !== undefined) leanTap.apertureRays = apertureRays;
           if (distortionAreaFactor !== undefined) leanTap.distortionAreaFactor = distortionAreaFactor;
           taps.push(leanTap);
@@ -405,7 +432,7 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
       instants.push({ time, taps });
     }
     return { lean: true, template: t, index, owned: environment, count: k.count, site: { x, y }, start, end, duration, instants,
-      ...(k.psf === undefined ? {} : { kernels }) };
+      ...(k.psf === undefined ? {} : { kernels }), ...(access === undefined ? {} : { keyTaps: true as const }) };
   } catch {
     return undefined;
   }
@@ -683,7 +710,41 @@ function executionConstants(k: PlanConstants, environment: Env, plan: FullPlan, 
   return mine && sameData(mine, full, new WeakMap()) ? c : undefined;
 }
 
-export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLeanFrame): NativeEnvironmentLeanExecutor {
+/** #394: the evaluator's radiance for a key at spectral node s (tabulated keys from the template's table, computed once). */
+function keyRadiance(t: Template, k: PlanConstants, access: InternalRadianceAccess, key: number, s: number): number {
+  // Untabulated keys (lattice sites) are read from the evaluator's own lookup on each use.
+  if (!access.tabulated) return access.radianceOfKey(key, k.wavelengths[s]!);
+  const table = t.radiance!, row = table[key] ??= new Float64Array(k.spectralCount).fill(NaN);
+  let value = row[s]!;
+  if (Number.isNaN(value)) { value = access.radianceOfKey(key, k.wavelengths[s]!); row[s] = value; }
+  return value;
+}
+
+/**
+ * #394: true when the key taps of the template's own site give, tap by tap in callback order, exactly the radiance of each
+ * evaluation of its full execution. Only then do its sites take radiances from the key lookup.
+ */
+function keyModeReproduced(t: Template, k: PlanConstants, access: InternalRadianceAccess, self: LeanEnvironmentPlan | undefined,
+  result: FullResult): boolean {
+  if (!self || self.keyTaps !== true || k.pupilCount !== 1 || self.instants.length !== result.value.instants.length) return false;
+  const S = k.spectralCount, P = k.spatialCount;
+  for (let ti = 0; ti < self.instants.length; ti++) {
+    const evaluations = result.value.instants[ti]!.evaluations, taps = self.instants[ti]!.taps;
+    if (evaluations.length !== taps.length) return false;
+    for (let gi = 0; gi < S * P; gi++) for (let i = k.tapOffsets[gi]!; i < k.tapOffsets[gi + 1]!; i++) {
+      const key = taps[i]!.key;
+      if (key === undefined || !Object.is(keyRadiance(t, k, access, key, Math.floor(gi / P)),
+        evaluations[i]!.result.spectralRadianceWattsPerSquareMeterSteradianNanometer)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Creates the per-event lean executor. With `access` (#394: the key lookup of an engine-built evaluator), a template whose own
+ * site verifies it plans its sites as key taps and takes their radiances from the lookup.
+ */
+export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLeanFrame, access?: InternalRadianceAccess): NativeEnvironmentLeanExecutor {
   const templates: Template[] = [];
   const candidates = new Map<number, Template>();
   const memo = new WeakMap<object, object>();
@@ -715,7 +776,7 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
       }
       if (!t) return templates.length < MAXIMUM_TEMPLATES ? "candidate" : undefined;
       if (t.disabled || !t.consts || t.executionVerified === false) return undefined;
-      const leanPlan = geometry(t, t.consts, frame, environment, index);
+      const leanPlan = geometry(t, t.consts, frame, environment, index, t.keyMode === true ? access : undefined);
       if (leanPlan) nativeEnvironmentLeanStatistics.plannedSites++;
       return leanPlan;
     },
@@ -746,17 +807,73 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         if (!c) return;
         t.execution = c;
         t.executionVerified = true;
+        // #394: key taps need no pupil and no lens mapping (the evaluator then reads one plane point per tap).
+        if (access !== undefined && t.consts.lensMapping === undefined && (t.environment as unknown as Rec).pupil === undefined) {
+          t.radiance = [];
+          t.keyMode = keyModeReproduced(t, t.consts, access, geometry(t, t.consts, frame, t.environment, index, access), result);
+          if (!t.keyMode) delete t.radiance;
+        }
       } catch {
         // Unverified: sites of this template run the full path.
       }
     },
-    execute(plan, evaluate, aperture, fullPlan, internalEvaluator = false): SensorEqeTemporalPhotoSignal | undefined {
+    execute(plan, evaluate, aperture, fullPlan, internalEvaluator = false, countEvaluations): SensorEqeTemporalPhotoSignal | undefined {
       const t = plan.template, c = t.execution, k = t.consts;
       if (t.executionVerified !== true || !c || !k) return undefined;
       const environment = plan.owned, optics = (environment as unknown as Rec).optics;
       const S = k.spectralCount, P = k.spatialCount, kernels = plan.kernels;
+      if (plan.keyTaps === true) {
+        // #394: every tap's radiance from the evaluator's key lookup, with tapIrradiance's arithmetic. A tap that would
+        // need the full irradiance function returns undefined before anything is counted: the caller runs the site in full.
+        if (t.keyMode !== true || !access || !countEvaluations) return undefined;
+        const values: Float64Array[] = [], times: number[] = [], instantTaps: Float64Array[][] = [];
+        for (const instant of plan.instants) {
+          const v = new Float64Array(S * P), tapValues: Float64Array[] = [];
+          if (kernels === undefined) {
+            // One tap per group.
+            for (let gi = 0; gi < S * P; gi++) {
+              const tap = instant.taps[gi]!, s = Math.floor(gi / P);
+              const irradiance = keyRadiance(t, k, access, tap.key!, s) * (c.acceptance[s]! * tap.fieldFactor);
+              if (!tap.fieldValid || !Number.isFinite(irradiance) || irradiance < 0) return undefined;
+              let integrated = 0;
+              integrated += irradiance * 1;
+              v[gi] = integrated;
+            }
+            values.push(v);
+            times.push(instant.time);
+            continue;
+          }
+          for (let gi = 0; gi < S * P; gi++) {
+            const first = k.tapOffsets[gi]!, s = Math.floor(gi / P), groupValues = new Float64Array(k.tapOffsets[gi + 1]! - first);
+            for (let pi = 0; pi < groupValues.length; pi++) {
+              const tap = instant.taps[first + pi]!;
+              const irradiance = keyRadiance(t, k, access, tap.key!, s) * (c.acceptance[s]! * tap.fieldFactor);
+              if (!tap.fieldValid || !Number.isFinite(irradiance) || irradiance < 0) return undefined;
+              let integrated = 0;
+              integrated += irradiance * 1;
+              groupValues[pi] = integrated;
+            }
+            tapValues.push(groupValues);
+            v[gi] = kernels === undefined ? groupValues[0]! : psfSum(kernels[gi]!, groupValues);
+          }
+          values.push(v);
+          instantTaps.push(tapValues);
+          times.push(instant.time);
+        }
+        // The evaluations the full path would count (and its abort check), then the PSF checks after each instant's taps.
+        countEvaluations(plan.count);
+        let full: FullPlan | undefined;
+        if (kernels !== undefined) for (let ti = 0; ti < values.length; ti++) {
+          if (!psfChecksPass(k, c, instantTaps[ti]!, values[ti]!)) values[ti] = fullPsfInstant(full ??= fullPlan(), ti, instantTaps[ti]!);
+        }
+        nativeEnvironmentLeanStatistics.executedSites++;
+        nativeEnvironmentLeanStatistics.keySites++;
+        return photo(k, c, values, environment, plan.site, plan.start, plan.end, plan.duration, times) ??
+          createSensorEqeTemporalPhotoSignal(fullPhotoInput(k, values, environment, times)).value.photoSignal;
+      }
       /** One tap: its callbacks in order, each result validated, the pupil sum, then the distortion area factor once. */
-      const tapIrradiance = (tap: LeanTap, s: number): number => {
+      const tapIrradiance = (leanTap: LeanTap, s: number): number => {
+        const tap = leanTap as LeanTap & { request: SceneRadianceEvaluationRequest };
         let integrated = 0;
         const support: readonly (SensorApertureRay | undefined)[] = tap.apertureRays ?? [undefined];
         for (const ray of support) {

@@ -141,7 +141,7 @@ It produces byte-identical results to the full path: RAW codes, black levels, sa
   - with ideal pupil rays, each tap's rays, by `calculateSensorApertureRays`' own code after one pupil, f-number and focus validation per template; each ray handed to the provider is a frozen key-by-key copy, equal to the `structuredClone` copy used before;
   - then scene-to-sensor acceptance, spatio-spectral reduction, operating range, EQE electron rate (Kahan sums), temporal midpoint sums, dark and total charge, Poisson charge draws, read noise, fixed-pattern values and the ADC transfer.
 
-  Every provider result is validated by the same parser.
+  Every provider result is validated by the same parser (engine-built key taps, below, call no provider).
 - **Every data-dependent check is kept.** When one fails (for example an out-of-range operating input, a non-finite irradiance or a provider identity mismatch), the lean path calls the full engine function with exactly the same inputs. It therefore throws the same error after the same callbacks. Planning falls back before any callback. Checks that the full path runs while composing or parsing a site are evaluated at that same point.
   With a sampled PSF, the PSF quadrature's per-instant checks (finite, non-negative tap irradiances, finite weighted sums and reduction) run after that instant's callbacks, as in the full path. If one fails, the full quadrature runs on the site's full plan (built without callbacks) and throws its own error or returns its own values.
 - **Self-verification.** Each template's own site is planned and executed by both paths. Every lean value must match bit for bit (`Object.is`) before any other site uses the template, including each resolved PSF kernel and each node's PSF irradiance. A mismatch disables the template, and its sites run the full path.
@@ -167,6 +167,18 @@ Sampled-PSF and lens-mapped coverage (#275 follow-up), `simulateCapture()` 48 ×
 All #275 follow-ups together (main before, branch head after, same method): sampled PSF 11.2 → 1.60 s, radial distortion 2.66 → 0.46 s, 1 × 4 pupil rays 2.32 → 1.15 s; default optics unchanged within noise (0.33 vs 0.34 s).
 
 The remaining time is mostly the private copy of each supplied tile, parsing provider results, comparing templates, and the provider callbacks themselves.
+
+### Engine-built tiles and key taps (2.8, #394)
+
+Two further changes apply only to inputs that `simulateCapture` builds itself; they change no byte of any result.
+
+- **No private copy of engine-built tiles.** The facade's tile reader is marked internal (`markInternalNativeTileReader`). Its site records are fresh per call, never shown to supplied code and never changed afterwards, so the task plans them as engine-owned data without the `structuredClone` it makes of a caller's tiles. Shared nested records keep their identity, which shortens the template comparisons.
+- **Key taps.** The evaluator of a chart preset or a caller material scene is engine-built: its result for an environment-direction query is `materialRadiance(material, wavelength)` for the material at the queried plane point. With object-space diffraction, it is the convolved value at one lattice site (shift, column, row) for the wavelength. The facade registers this lookup (`registerInternalRadianceAccess`: the key of a direction, with the evaluator's own plane-point arithmetic, and the radiance of a key). A verified template whose environment has no pupil and no lens field mapping then plans its sites' taps as keys instead of frozen requests. Without a PSF, a tap's point, direction, field throughput and key are the same at every spectral node, so they are computed once per spatial node. Execution takes each tap's radiance from the key (chart materials from a table filled once per material and spectral node) and applies `tapIrradiance`'s arithmetic, in the same order. It adds the evaluations the full path would count and runs its abort check, then the PSF checks of each instant.
+  - **Verification:** a template takes key taps only after its own site's key radiances equal every evaluation of its full execution, tap by tap (`Object.is`).
+  - **Fallbacks:** a tap whose irradiance needs the full function (not finite, negative, or a field throughput outside the fast path) returns the site to the full path before anything is counted. A direction the evaluator would reject, or a caller `materialAt` that throws, makes key planning fall back, and the full path then throws its own error.
+  - **Not applied:** caller reflectance and radiance functions, batched providers, pupil rays and lens field mappings keep request taps and real callbacks.
+
+`test/native-environment-key-taps.test.ts` compares lean and full captures for these cases. Speed-ups are in the 2.8.0 CHANGELOG entry.
 
 ### Optional smaller execution chunks (unreleased)
 

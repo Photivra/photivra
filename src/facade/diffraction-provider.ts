@@ -42,7 +42,7 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { isInternalSceneRadianceEvaluator, markInternalSceneRadianceEvaluator } from "../core/internal-radiance-evaluator.js";
+import { isInternalSceneRadianceEvaluator, markInternalSceneRadianceEvaluator, registerInternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
 import { calculateIrradianceConvolution } from "../optics/irradiance-convolution.js";
 import { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
@@ -157,7 +157,32 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
   };
   // 2.6: the result is the base result with only its radiance replaced (same keys and records), so an engine-built base
   // evaluator keeps its mark (see core/internal-radiance-evaluator.ts).
-  if (isInternalSceneRadianceEvaluator(baseEvaluate)) markInternalSceneRadianceEvaluator(evaluateRadiance);
+  if (isInternalSceneRadianceEvaluator(baseEvaluate)) {
+    markInternalSceneRadianceEvaluator(evaluateRadiance);
+    // #394: its radiance is the convolved value at one lattice site (shift s, lattice column li, row lj) per wavelength, so
+    // the lean executor may read it by that key: the same plane point, lattice choice and band value as evaluateRadiance.
+    registerInternalRadianceAccess(evaluateRadiance, {
+      tabulated: false,
+      keyOfDirection(o): number | undefined {
+        if (!(-o.z > 0)) return undefined;
+        const t = distance / -o.z, u = -o.x * t / scale, v = -o.y * t / scale, fi = u / g - 0.5 + W / 2, fj = -v / g - 0.5 + H / 2;
+        for (let s = 0; s < shifts.length; s++) {
+          const shift = shifts[s]!, i = Math.round(fi - shift.x), j = Math.round(fj - shift.y);
+          if (Math.abs(fi - shift.x - i) > LATTICE_TOLERANCE_SITES || Math.abs(fj - shift.y - j) > LATTICE_TOLERANCE_SITES) continue;
+          const li = i + M, lj = j + M;
+          if (li < lx0 || lj < ly0 || li >= lx1 || lj >= ly1) return undefined;
+          return (s * LH + lj) * LW + li;
+        }
+        return undefined;
+      },
+      radianceOfKey(key, nm): number {
+        const w = index.get(nm);
+        if (w === undefined) throw new InvalidConfigurationError("Diffraction query is off the site lattice; the object-space convolution does not apply.");
+        const li = key % LW, rest = (key - li) / LW, lj = rest % LH, s = (rest - lj) / LH;
+        return band(Math.floor((lj - ly0) / BAND_ROWS))[s]![w]![((lj - ly0) % BAND_ROWS) * NW + li - lx0]!;
+      }
+    });
+  }
   return {
     sceneId: base.sceneId, providerProfileId: base.providerProfileId, radianceAt: base.radianceAt,
     evaluateRadiance,
