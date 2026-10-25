@@ -63,7 +63,7 @@
 
     Samples fell 3–9× and site evaluations 3–10×. The time fell less, because the 2.7 memos had already made repeated samples cheap: at device-pixel sizes the view now does about one real pixel's work per real pixel.
   - **Why 25:** measured on 8-row strips of a 24 MP view (Siemens star and dead leaves, f/2.8, one thread, one run each), the exact path took the stratified estimator's time within run-to-run spread up to 25 real pixels per display pixel and longer above: 1.1–1.2× at 36, 1.4–1.5× at 64, 1.5–2.4× at 144, because it evaluates every real pixel while the estimator takes a quarter of its samples per axis where the pilot finds no detail.
-  - **Validation:** the 155-case validation was re-run on October 25 (`de77074`, [record](docs/validation/display-view-2026-10-25/README.md)): 145 cases are identical to the 2.6.0 record, and the 10 cases on the exact area mean (the phone at 800 wide) are the same or better (Siemens star: expected-value RMS 1.78 → 1.35 codes, SSIM 0.9931 → 0.9966). The known Quality noise miss of case 138 (#379) remains: 1.165 against the 1.15 limit.
+  - **Validation:** the 155-case validation was re-run on October 25 (`de77074`, [record](https://github.com/Photivra/photivra/blob/main/docs/validation/display-view-2026-10-25/README.md)): 145 cases are identical to the 2.6.0 record, and the 10 cases on the exact area mean (the phone at 800 wide) are the same or better (Siemens star: expected-value RMS 1.78 → 1.35 codes, SSIM 0.9931 → 0.9966). The known Quality noise miss of case 138 (#379) remains: 1.165 against the 1.15 limit.
 
 ## 2.7.0 — published October 24, 2026
 
