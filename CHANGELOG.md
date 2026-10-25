@@ -1,14 +1,6 @@
 # Changelog
 
-## Unreleased
-
-### Faster, same output
-
-- **Display view: a sample's terms written in place; the clock read less often.** Each real pixel's recorded terms went through a new typed-array view (`subarray`, then `fill`) and `Date.now()` was read per display pixel. The terms are now written straight into the real pixel's memo slot (a scratch buffer only for the first sample of a one-material key), and the clock is read every 16 display pixels and at each row's end; yield timing never changes the output.
-  - **Same values:** 57 display views (Speed, a 2 × 2 box aperture and the Quality options; three presets, a caller material scene and a caller function scene; exact and stratified sizes) hash identically before and after: samples, expected values, noise and diagnostics. All hash locks pass.
-  - **Measured:** four 32-row bands of the app's 2028 × 1352 view of a 24 MP frame (a caller material scene, Speed, 2 × 2 box aperture), one thread, median of five alternating runs: 4.31 s → 4.00 s (about 7 %). A line profile puts the rest of the time in the per-real-pixel statistics and the scene's material lookups (the caller's `materialAt` with the frozen point it receives), which these changes leave as they are.
-
-## 2.8.0 — unreleased (prepared October 25, 2026)
+## 2.8.0 — published October 25, 2026
 
 A minor release that makes full-resolution captures of chart and material scenes about 50× faster (48–84× in the regions measured), and makes the display view exact at device-pixel sizes.
 - **Faster captures, same bytes:** for chart presets and caller material scenes with a still, rectilinear camera, the RAW stage takes tabulated expected electrons and skips the per-site record pipeline. On every request tested, the samples, RAW codes and files are the bytes of 2.7.0.
@@ -61,6 +53,9 @@ Measured on one thread (24 MP frame, 6 µm, 50 mm f/8, 2 × 2 pixel averaging), 
     | Siemens star as a caller material scene | 58.6 → 7.1 s (8.3×) | 252.9 → 40.4 s (6.3×) |
 
     The material scene gains more because it now also takes the engine-built evaluator's shorter result parsing that chart presets had since 2.6.
+- **Display view: a sample's terms written in place; the clock read less often.** Each real pixel's recorded terms went through a new typed-array view (`subarray`, then `fill`) and `Date.now()` was read per display pixel. The terms are now written straight into the real pixel's memo slot (a scratch buffer only for the first sample of a one-material key), and the clock is read every 16 display pixels and at each row's end; yield timing never changes the output.
+  - **Same values:** 57 display views (Speed, a 2 × 2 box aperture and the Quality options; three presets, a caller material scene and a caller function scene; exact and stratified sizes) hash identically before and after: samples, expected values, noise and diagnostics. All hash locks pass.
+  - **Measured:** four 32-row bands of the app's 2028 × 1352 view of a 24 MP frame (a caller material scene, Speed, 2 × 2 box aperture), one thread, median of five alternating runs: 4.31 s → 4.00 s (about 7 %). A line profile puts the rest of the time in the per-real-pixel statistics and the scene's material lookups (the caller's `materialAt` with the frozen point it receives), which these changes leave as they are.
 
 ### Changed
 
