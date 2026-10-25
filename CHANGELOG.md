@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- **A whole-frame DNG from region parts (#391): `serializeSimulatedCaptureDngFromParts(options, parts)`.** A large DNG's RAW can now render in parallel: render region parts of the request (any format), pass each part's `raw` and `region`, and the function joins their native sites and writes the DNG exactly as `simulateCapture` writes it, with the same bytes. Parts must cover the native raster and agree where they overlap; a part from another request is refused. Parts take a fixed white balance and no `output.dng`; auto white balance and the capture time apply to the DNG options and are measured over the joined frame.
+  - **Same bytes:** tests compare the joined DNG with the whole-frame DNG for bilinear and AHD, diffraction with the four-spot filter and the 2 × 2 box, auto white balance with a capture time, a reflectance-function scene and the environment path; on the Photivra app's 24 MP request both presets gave the same bytes.
+  - **Measured** (24 MP, 24 parts of about 1024 pixels, Node, one thread): parts 58.1 s of CPU against 50.6 s for one whole render (Quality options 119.3 s against 113.6 s), join 2.6 s. On four workers the wall time is roughly a quarter of the whole render's.
+  - New root exports: `serializeSimulatedCaptureDngFromParts` and the type `SimulateCaptureDngPart`.
+
 ### Faster, same output
 
 - **Display view of chart and caller material scenes: lattice materials kept across refinement windows; caller scene points no longer frozen.**

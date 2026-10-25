@@ -1185,6 +1185,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | --- | --- |
 | [`DisplayViewResult`](api/facade-simulate-capture.md#displayviewresult) | Type |
 | [`IdealReferenceResult`](api/facade-simulate-capture.md#idealreferenceresult) | Type |
+| [`serializeSimulatedCaptureDngFromParts`](api/facade-simulate-capture.md#serializesimulatedcapturedngfromparts) | Runtime |
 | [`SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES`](api/facade-simulate-capture.md#simulate_capture_box_aperture_default_samples) | Runtime |
 | [`SIMULATE_CAPTURE_COST_OPTIONS`](api/facade-simulate-capture.md#simulate_capture_cost_options) | Runtime |
 | [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
@@ -1196,6 +1197,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureColorEncoding`](api/facade-simulate-capture.md#simulatecapturecolorencoding) | Type |
 | [`SimulateCaptureCostOption`](api/facade-simulate-capture.md#simulatecapturecostoption) | Type |
 | [`SimulateCaptureDemosaic`](api/facade-simulate-capture.md#simulatecapturedemosaic) | Type |
+| [`SimulateCaptureDngPart`](api/facade-simulate-capture.md#simulatecapturedngpart) | Type |
 | [`SimulateCaptureExposureMode`](api/facade-simulate-capture.md#simulatecaptureexposuremode) | Type |
 | [`SimulateCaptureLensDistortion`](api/facade-simulate-capture.md#simulatecapturelensdistortion) | Type |
 | [`SimulateCaptureMotion`](api/facade-simulate-capture.md#simulatecapturemotion) | Type |

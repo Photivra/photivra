@@ -7868,6 +7868,11 @@
       "kind": "runtime"
     },
     {
+      "name": "serializeSimulatedCaptureDngFromParts",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "setExposureCompensationOnMeterTarget",
       "source": "src/exposure/metering-target.ts",
       "kind": "runtime"
@@ -7974,6 +7979,11 @@
     },
     {
       "name": "SimulateCaptureDemosaic",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureDngPart",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
