@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.8.1 — unreleased (prepared October 25, 2026)
+## 2.8.1 — published October 25, 2026
 
 A patch release: the same results as 2.8.0, faster. It fixes a 2.8.0 slowdown before a chart or material capture's first RAW tile and writes JPEGs about 3× faster.
 - **Captures:** a 768-pixel Quality capture takes 5.6 s instead of 23.4 s on 2.8.0 (796 s on 2.7.0), and the slowest first tile measured takes 2.2 s instead of 24 s (Node, one thread).
