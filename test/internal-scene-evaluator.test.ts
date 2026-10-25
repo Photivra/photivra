@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CHART_SCENE_PRESETS, InvalidConfigurationError, createNativeEnvironmentRawTask, createPlanarSceneRadianceProvider, simulateCapture,
   type NativeEnvironmentRawProvider, type NativeEnvironmentRawTile, type SceneRadianceEvaluationRequest,
   type SimulateCaptureOptions } from "../src/index.js";
 import { isDeeplyFrozen, isInternalSceneRadianceEvaluator, markInternalSceneRadianceEvaluator } from "../src/core/internal-radiance-evaluator.js";
 import { parseSceneRadianceEvaluationResult, parseSceneRadianceEvaluationResultWithValidatedRecords } from "../src/schema/scene-radiance.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
+import { setTabulatedNativeRawEnabled } from "../src/capture/native-environment-tabulated.js";
 
 /*
  * 2.6: results of the engine's own chart evaluators skip the unknown-key scan and the re-parse of their (deep-frozen,
@@ -31,6 +32,9 @@ const sceneFor = (preset: string): SimulateCaptureOptions["scene"] => (preset ==
   preset === "patches" ? { preset: "patches", patches: [{ patchId: "a", reflectance: 0.05 }, { patchId: "b", reflectance: 0.6 }], columns: 2 } : { preset }) as SimulateCaptureOptions["scene"];
 
 describe("engine-built scene evaluators (2.6)", () => {
+  // The environment path itself is under test (#394: chart captures otherwise take the tabulated RAW path).
+  beforeAll(() => setTabulatedNativeRawEnabled(false));
+  afterAll(() => setTabulatedNativeRawEnabled(true));
   it("every reduced parse of a chart result equals the full parse, for every chart preset and the Quality options", async () => {
     const before = audit.reduced;
     for (const preset of CHART_SCENE_PRESETS) await simulateCapture({ scene: sceneFor(preset), output: { width: 8, height: 6 } });

@@ -1012,7 +1012,7 @@ function sensorMatches(site: Site, photo: SensorEqeTemporalPhotoSignal, x: numbe
 }
 
 /** The sensor stage of calculateNativeRawSite, in the same operation order. Returns undefined when one of its checks would throw. */
-function leanSensorSite(t: SensorTemplate, h: Pick<SensorHandle, "photo" | "darkE" | "total" | "x" | "y">, index: number, seed: number):
+function leanSensorSite(t: Pick<SensorTemplate, "capacity" | "readout" | "pattern" | "whiteCode">, h: Pick<SensorHandle, "photo" | "darkE" | "total" | "x" | "y">, index: number, seed: number):
   (NativeRawLeanOutput & { photoRealized: number; darkRealized: number }) | undefined {
   const ratio = h.total / t.capacity, headroom = t.capacity - h.total;
   if (!Number.isFinite(ratio) || !Number.isFinite(headroom)) return undefined;
@@ -1050,6 +1050,46 @@ function chargeTotal(photoE: number, darkE: number): number {
     correction = (next - sum) - adjusted; sum = next;
   }
   return sum;
+}
+
+/** #394: the sensor stage of one CFA phase for given expected photo electrons, verified against a full site computation. */
+export interface NativeSiteReadout {
+  /** The site's RAW outputs for expected photo electrons `photoE` over a local exposure of `duration` seconds; undefined where a check of the full path would throw. */
+  compute(photoE: number, duration: number, x: number, y: number, index: number, seed: number): NativeRawLeanOutput | undefined;
+}
+
+/**
+ * #394: a sensor template from one fully parsed and computed site (`calculateNativeRawSite`), as the lean sensor stage builds
+ * its templates; undefined unless the lean arithmetic reproduces that site's dark and total charge, both charge realizations,
+ * its codes and its flags bit for bit. Its `compute` then gives `calculateNativeRawSite`'s outputs for any site of the same
+ * readout inputs (same CFA channel, dark current, capacity, readout regime and fixed-pattern profile).
+ */
+export function createVerifiedNativeSiteReadout(parsed: SensorRawProducerSiteInput, result: ReturnType<typeof calculateNativeRawSite>, whiteCode: number,
+  photo: SensorEqeTemporalPhotoSignal, x: number, y: number, index: number, seed: number): NativeSiteReadout | undefined {
+  try {
+    const readout = resolveSensorReadoutRegime({ profile: parsed.readoutProfile, regimeId: parsed.regimeId });
+    const t: Pick<SensorTemplate, "darkRate" | "capacity" | "readout" | "pattern" | "whiteCode"> = { darkRate: parsed.charge.darkCharge.darkCurrentElectronsPerSecond,
+      capacity: result.capacity.value.physicalChargeCapacityElectrons, readout, pattern: parsed.fixedPatternNoise, whiteCode };
+    const darkE = t.darkRate * photo.localExposureDurationSeconds, total = chargeTotal(photo.expectedGeneratedElectronCount, darkE);
+    const r = result.readout.value, realization = result.realization.value, out = leanSensorSite(t, { photo, darkE, total, x, y }, index, seed);
+    if (!out || !Object.is(darkE, parsed.charge.darkCharge.expectedDarkElectronCount) || !Object.is(total, result.accumulatedCharge.value.totalExpectedStoredElectronCount) ||
+      !Object.is(out.photoRealized, realization.photoRealizedElectronCount) || !Object.is(out.darkRealized, realization.darkRealizedElectronCount) ||
+      realization.additionalComponents.length !== 0 || out.rawCode !== r.rawCode || out.blackLevelCode !== r.blackLevelCode || out.digitalSaturationCode !== r.digitalSaturationCode ||
+      out.flags !== (Number(r.physicalScalarSaturationApplied) | Number(r.preAdcSaturationApplied) << 1 | Number(r.digitalSaturationApplied) << 2)) return undefined;
+    return {
+      compute(photoE, duration, sx, sy, siteIndex, siteSeed): NativeRawLeanOutput | undefined {
+        // The parse-phase predicates of the full path (claim()): finite non-negative dark and total charge.
+        const siteDark = t.darkRate * duration;
+        if (!Number.isFinite(photoE) || photoE < 0 || !Number.isFinite(siteDark) || siteDark < 0) return undefined;
+        const siteTotal = chargeTotal(photoE, siteDark);
+        if (!Number.isFinite(siteTotal) || siteTotal < 0) return undefined;
+        const o = leanSensorSite(t, { photo: { expectedGeneratedElectronCount: photoE } as SensorEqeTemporalPhotoSignal, darkE: siteDark, total: siteTotal, x: sx, y: sy }, siteIndex, siteSeed);
+        return o && { rawCode: o.rawCode, blackLevelCode: o.blackLevelCode, digitalSaturationCode: o.digitalSaturationCode, flags: o.flags, whiteCode: o.whiteCode };
+      }
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 /**

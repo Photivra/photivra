@@ -181,8 +181,8 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
   return createNativeEnvironmentRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
 }
 /** Internal: the same task with an explicit host-yield timing. Timing never changes tiles, callbacks or output. Not exported from the package. */
-/** Validates a native environment input exactly as task creation does, before any callback. */
-function admitNativeEnvironmentInput(input:NativeEnvironmentRawInput):{plan:ReturnType<typeof calculateNativeRawPlan>;
+/** Validates a native environment input exactly as task creation does, before any callback. Internal (also the tabulated RAW path, #394). */
+export function admitNativeEnvironmentInput(input:NativeEnvironmentRawInput):{plan:ReturnType<typeof calculateNativeRawPlan>;
   sceneBinding:NativeEnvironmentRawInput["sceneBinding"];retention:NativeEnvironmentOpticalStageRetention|undefined;maximum:number} {
   const r=requireAllowlistedRecord(input,["raw","sceneBinding","maximumProviderEvaluations","opticalStage"],"Invalid native environment input.");
   const plan=calculateNativeRawPlan(input.raw),sceneBinding=parseSceneBinding(r.sceneBinding);

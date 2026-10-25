@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, evaluateSrgbDecoding, simulateCapture,
   type SimulateCaptureOptions, type SimulateCaptureResult, type SimulateCaptureSensorAntiAliasing } from "../src/index.js";
 import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
+import { setTabulatedNativeRawEnabled } from "../src/capture/native-environment-tabulated.js";
 
 /** Mean false colour of a neutral chart: |R − G| + |B − G| per pixel, in 8-bit codes. */
 const falseColour = (samples: ArrayLike<number>): number => {
@@ -26,6 +27,9 @@ const starModulation = (samples: ArrayLike<number>, size: number, radius: number
 };
 
 describe("simulateCapture sensor.antiAliasing (2.1)", () => {
+  // The environment path itself is under test (#394: chart captures otherwise take the tabulated RAW path).
+  beforeAll(() => setTabulatedNativeRawEnabled(false));
+  afterAll(() => setTabulatedNativeRawEnabled(true));
   it("maps the presets onto the engine's point-splitting optical stack and records the assumption", async () => {
     const r = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4 }, sensor: { antiAliasing: { kind: "four-spot" } } });
     const stack = (r.request.siteInput(0).environment as unknown as { sensor: { spatialSampling: { opticalStackProfile: { profileId: string;
@@ -85,6 +89,9 @@ describe("simulateCapture sensor.antiAliasing (2.1)", () => {
 });
 
 describe("sensor.antiAliasing with diffraction: the object-space convolution equals the per-tap environment quadrature", () => {
+  // The environment path itself is under test (#394: chart captures otherwise take the tabulated RAW path).
+  beforeAll(() => setTabulatedNativeRawEnabled(false));
+  afterAll(() => setTabulatedNativeRawEnabled(true));
   /*
    * An odd output (9 × 7, native 11 × 9) keeps every query lattice off the frame centre, where the slanted edge and
    * the point grid have a material boundary: with an even native size the half-site lattice of the four-spot filter

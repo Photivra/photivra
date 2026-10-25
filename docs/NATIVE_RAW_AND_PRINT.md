@@ -168,6 +168,20 @@ All #275 follow-ups together (main before, branch head after, same method): samp
 
 The remaining time is mostly the private copy of each supplied tile, parsing provider results, comparing templates, and the provider callbacks themselves.
 
+### Tabulated RAW for engine-built planar scenes (2.8, #394 step 2)
+
+A `simulateCapture()` of a chart preset or a caller material scene with a still, rectilinear, distortion-free camera (no rotation, lens projection or distortion, vignetting, pupil sampling or caller PSF; diffraction only as the object-space convolution) does not run the environment task.
+
+- **Electrons:** each native site's expected photo electrons come from the display view's tabulated expected signal (`src/facade/expected-signal.ts`). It is the same sum over pixel-aperture nodes, anti-aliasing spots, diffraction taps and spectral nodes that the chain forms for this scene, in another order, with the channel responses taken from the facade's own chain at the optical axis.
+- **Sensor stage:** the native one (`createVerifiedNativeSiteReadout`): dark charge from the site's local exposure window, both Poisson draws and read noise with the site's own seeds, and the ADC. The output arrays, white levels and region handling are those of the environment task (`src/capture/native-environment-tabulated.ts`).
+- **Verification:** the top-left 2 × 2 sites of the frame or region (one per CFA phase) run the full chain: planning, the evaluator's callbacks, composition, parsing and `calculateNativeRawSite`.
+  - The readout template must reproduce each of those sites bit for bit.
+  - Its tabulated electrons must agree with the chain's within 1e-9 relative.
+  - A site whose sensor checks would fail also hands the capture back.
+
+  If any check fails, the facade runs the environment task.
+- **Exactness:** electrons that differ from the chain's in the last bits could, rarely, take a different branch of a Poisson draw. On the frames tested (above 1.3 million sites, Speed and Quality) no RAW code differed. `test/native-environment-tabulated.test.ts` compares both paths. Tests of the environment path itself turn the tabulated path off (`setTabulatedNativeRawEnabled`, internal).
+
 ### Engine-built tiles and key taps (2.8, #394)
 
 Two further changes apply only to inputs that `simulateCapture` builds itself; they change no byte of any result.

@@ -487,7 +487,7 @@ with diffraction, the four-spot filter and AHD.
 | Value | Meaning |
 | --- | --- |
 | `"scene-illuminant"` | A custom white balance measured from a perfect white diffuser under the scene illuminant, like a grey-card setting. |
-| `"auto"` | Grey-world auto white balance (AWB) with the body's `neutral-priority` policy, over 2 × 2 block means of the RAW before white balance. The RAW is then rendered again with that setting, which repeats the radiance queries (`diagnostics.providerEvaluationCount` counts one pass). |
+| `"auto"` | Grey-world auto white balance (AWB) with the body's `neutral-priority` policy, over 2 × 2 block means of the RAW before white balance. The RAW is then rendered again with that setting, which repeats the radiance queries (`diagnostics.providerEvaluationCount` counts one pass); a capture on the tabulated RAW path (2.8, chart and material scenes) keeps its RAW, whose codes do not depend on the setting. |
 | `"none"` | No white balance; development assumes a D65 adopted white. Scenes under other light keep their colour cast. |
 | `{ kelvin, tint? }` | A colour-temperature setting on the Planckian locus (tint as Duv). |
 | `{ channelGains }` | Manual channel gains. |
