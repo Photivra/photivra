@@ -107,6 +107,38 @@ export function createDeterministicUniformStream(seedUint32: number): Determinis
   };
 }
 
+/** A uniform stream reseeded in place (internal, #418). */
+export interface ResettableUniformStream extends DeterministicUniformStream {
+  /** Sets the state createDeterministicUniformStream(seedUint32) starts from, so the draws that follow are that stream's. */
+  reset(seedUint32: number): void;
+}
+
+/**
+ * The stream of createDeterministicUniformStream, reseeded in place instead of created anew (internal, #418). The seeding and
+ * the xorshift32 step are the same statements, so after `reset(seed)` every draw equals that of
+ * `createDeterministicUniformStream(seed)`. It saves a typed array and a closure per stream where a hot loop needs two
+ * fresh streams per site.
+ */
+export function createResettableUniformStream(): ResettableUniformStream {
+  const state = new Uint32Array(1);
+  return {
+    reset(seedUint32: number): void {
+      state[0] = fmix32((seedUint32 ^ 0x9e3779b9) >>> 0);
+      if (state[0] === 0) {
+        state[0] = 0x6d2b79f5;
+      }
+    },
+    next(): number {
+      let x = state[0]!;
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      state[0] = x;
+      return (state[0] + 0.5) / 0x1_0000_0000;
+    }
+  };
+}
+
 /**
  * Box–Muller transform of two uniform values in (0,1) (Box & Muller 1958). Each call uses two values
  * and returns one standard normal sample. The second possible sample is not cached, so the order of

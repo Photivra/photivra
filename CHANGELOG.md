@@ -11,6 +11,11 @@
 
 ### Faster, same output
 
+- **Captures of chart and material scenes: the sensor stage allocates less per site (#418).**
+  - **What changed:** the tabulated RAW path's sensor stage reseeds its charge and read-noise streams in place for each site instead of creating two new streams, sums the read-noise components in one loop instead of a mapped array, and returns each site's record without a second copy. The seeds, every draw and every addition are the same, in the same order.
+  - **Same bytes:** RAW codes and samples are identical (SHA-256) on a 24 MP Siemens star and a dead-leaves frame; the bit-identity hash locks and the tabulated-path tests pass. A new test checks that a reseeded stream draws what a new one does for 137 seeds, including the fallback-state seed.
+  - **Measured** in Node, one thread, the 2.8.0 record's request (24 MP full frame, 6 µm, 50 mm f/8, 2 × 2 box, ISO 100), built `dist`, before and after interleaved on the same host: RAW stage of a 2048 × 2048 centre region 3.21–3.24 s → 2.74–2.78 s (Siemens star) and 3.27–3.36 s → 2.80–2.89 s (dead leaves), three runs each; the whole frame 18.5 s → 16.4 s (RAW 15.5 s → 13.3 s), one run.
+
 - **Display view of chart and caller material scenes: lattice materials kept across refinement windows; caller scene points no longer frozen.**
   - **Lattice rows kept:** at device-pixel sizes each display pixel's window spans its footprint (about 3 real pixels) plus the demosaic reach and kernel radius, so successive display rows re-read most lattice points. Each lattice group now keeps up to 128 rows of looked-up material indices (Int16 where they fit, about 3 MB for four groups of a 6000-site row) across the filled windows of a render; a material is a function of its lattice point alone, so the values are the same.
   - **Points not frozen:** caller `materialAt` and `evaluate` callbacks receive a new plain point object per call, which the engine does not read afterwards. `Object.freeze` on it took about 40 % of a chart lookup (268 → 160 ns in a micro-benchmark). The point was never documented as frozen; mutating it affects nothing.
