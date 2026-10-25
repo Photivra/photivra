@@ -247,7 +247,10 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   /** Makes the band of group g cover lattice columns [x0, x1) of rows [y0, y0 + rows), extending it to the right when it can. */
   function coverBand(g: number, x0: number, x1: number, y0: number, rows: number): void {
     const group = groups[g]!, band = bands[g]!, materials = scene as Extract<DisplayViewScene, { kind: "materials" }>;
-    if (!(band.rows === rows && band.y0 === y0 && x0 >= band.x0 && x1 - band.x0 <= band.capacity)) {
+    if (!(y0 >= band.y0 && y0 + rows <= band.y0 + band.rows && x0 >= band.x0 && x1 - band.x0 <= band.capacity)) {
+      // A band with the ring is built twice as tall, so the next display rows' windows (a few lattice rows lower) reuse its
+      // filled columns; a lattice point's material and the change counts inside a rectangle do not depend on the band's origin.
+      if (rows <= LATTICE_RING_MAXIMUM_BAND_ROWS) rows *= 2;
       const capacity = Math.max(x1 - x0, Math.min(Math.floor(BAND_LIMIT / rows), W + 2 * (x1 - x0)));
       const size = rows * capacity, tables = (rows + 1) * (capacity + 1);
       band.x0 = x0; band.y0 = y0; band.rows = rows; band.capacity = capacity; band.filled = 0;
@@ -259,7 +262,8 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
       for (let j = 0; j < rows; j++) band.v[j] = latticeV(group, y0 + j);
     }
     const stride = band.capacity, S1 = stride + 1, material = band.material, left = band.changeLeft, up = band.changeUp;
-    const ring = rows <= LATTICE_RING_MAXIMUM_BAND_ROWS ? latticeRing(g) : undefined;
+    rows = band.rows; y0 = band.y0;
+    const ring = rows <= 2 * LATTICE_RING_MAXIMUM_BAND_ROWS ? latticeRing(g) : undefined;
     for (let i = band.filled; i < x1 - band.x0; i++) {
       const p = band.x0 + i, u = latticeU(group, p), column = p + LATTICE_RING_MARGIN;
       for (let j = 0; j < rows; j++) {
@@ -381,12 +385,12 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     if (ringOn) {
       if (!cached) { outsideRead(i, j); return ringRead(x, y, i, j); }
       const v = ringRead(x, y, i, j);
-      siteCache[j * sw + i] = v; windowMaterial[j * sw + i] = lastMaterial;
+      siteCache[j * sw + i] = v; windowMaterial[j * sw + i] = lastMaterial; markFilled(i, j);
       return v;
     }
     if (filled && !cached) outsideRead(i, j);
     const v = filled ? filledSite(x, y, i, j) : input.kernels ? kernelSite(x, y) : directSite(x, y);
-    if (cached) siteCache[j * sw + i] = v;
+    if (cached) { siteCache[j * sw + i] = v; if (filled) markFilled(i, j); }
     return v;
   }
   /**
@@ -395,6 +399,32 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
    */
   function windowLookups(): number {
     let total = 0;
+    if (outsideSites.length === 0 && filledCount === 0) return 0;
+    if (outsideSites.length === 0 && sw <= 31) {
+      // Computed sites as a bit mask per window row. Cache point (ci, cj) is covered when a computed site (i, j) has
+      // i ≤ ci < i + cw and j ≤ cj < j + ch; a union of dilations is the dilation of the union, so per cache row the
+      // covered columns are the dilation of the OR of the masks of window rows cj − ch + 1 … cj.
+      for (const group of groups) {
+        const cw = group.cw, ch = group.ch, cpw = group.cpw, cph = group.cph, last = Math.min(cph - 1, fy1 + ch - 1);
+        let previous = -1, width = 0;
+        for (let cj = fy0; cj <= last; cj++) {
+          let m = 0;
+          for (let j = Math.max(fy0, cj - ch + 1), top = Math.min(fy1, cj); j <= top; j++) m |= rowMask[j]!;
+          if (m !== previous) {
+            previous = m; width = 0;
+            let end = -1;
+            for (let i = 0; m >>> i !== 0; i++) {
+              if (((m >>> i) & 1) === 0) continue;
+              const to = Math.min(i + cw - 1, cpw - 1);
+              if (i > end) width += to - i + 1; else if (to > end) width += to - end;
+              if (to > end) end = to;
+            }
+          }
+          total += width;
+        }
+      }
+      return total;
+    }
     for (const group of groups) {
       const cw = group.cw, ch = group.ch, cpw = group.cpw, cph = group.cph, ew = cpw + cw - 1, eh = cph + ch - 1;
       // Top-left marks in extended coordinates (window coordinates + (cw − 1, ch − 1)), and their bounding box.
@@ -434,6 +464,16 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     return total;
   }
   let sx0 = 0, sy0 = 0, sw = 0, sh = 0, siteCache = new Float64Array(0);
+  // The computed entries of a filled window's site cache (windowLookups): their count, bounding box and a bit mask per row
+  // (columns below 31).
+  let filledCount = 0, fx0 = 0, fx1 = -1, fy0 = 0, fy1 = -1;
+  let rowMask = new Int32Array(0);
+  function markFilled(i: number, j: number): void {
+    if (i < 31) rowMask[j] = rowMask[j]! | (1 << i);
+    if (filledCount++ === 0) { fx0 = fx1 = i; fy0 = fy1 = j; return; }
+    if (i < fx0) fx0 = i; else if (i > fx1) fx1 = i;
+    if (j < fy0) fy0 = j; else if (j > fy1) fy1 = j;
+  }
   const pilotNode = input.wavelengthsNm[Math.floor(nodes / 2)]!;
   return {
     get lookups(): number { return lookups + (filled ? windowLookups() : 0); },
@@ -442,10 +482,11 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     get cachesSites(): boolean { return sw > 0; },
     window(x0: number, y0: number, x1: number, y1: number): void {
       if (filled) lookups += windowLookups();
-      filled = false; ringOn = false; outsideSites = [];
+      filled = false; ringOn = false; outsideSites = []; filledCount = 0; rowMask.fill(0, 0, sh);
       sx0 = x0; sy0 = y0; sw = Math.max(0, x1 - x0); sh = Math.max(0, y1 - y0);
       if (sw * sh > CACHE_LIMIT) { sw = 0; sh = 0; }
       if (siteCache.length < sw * sh) siteCache = new Float64Array(sw * sh);
+      if (rowMask.length < sh) rowMask = new Int32Array(sh);
       siteCache.fill(NaN, 0, sw * sh);
       if (!input.kernels) {
         // A ring of at least twice the window's rows keeps the rows of the previous display row's windows.

@@ -11,6 +11,11 @@
 
 ### Faster, same output
 
+- **Display view refinement of chart scenes: taller lattice bands and a cheaper `sceneLookups` count.**
+  - **Taller bands:** a filled window's band of lattice materials and change counts is built twice as tall (when it uses the lattice ring), so the next display rows' windows reuse its columns instead of rebuilding a full-width band per display row. A lattice point's material, and the number of material changes inside a rectangle, do not depend on the band's origin, so every value is the same.
+  - **`sceneLookups` count:** the lookups a window's lazy cache would have made are counted from a bit mask per window row (a union of dilations is the dilation of the union) instead of marking and box-filtering the whole window per lattice group. Same count: checked against the previous method on every window of the measured band; the diagnostics are part of the display-view hash locks.
+  - **Measured** in Node, one thread, the Photivra app's 24 MP request with its maker-label chart: one Quality refinement band (2028 × 32 of a 2028 × 1352 view) 6.1 s → 4.1 s, with the same result hash; Speed unchanged within run-to-run variation.
+
 - **Display view of chart and caller material scenes: lattice materials kept across refinement windows; caller scene points no longer frozen.**
   - **Lattice rows kept:** at device-pixel sizes each display pixel's window spans its footprint (about 3 real pixels) plus the demosaic reach and kernel radius, so successive display rows re-read most lattice points. Each lattice group now keeps up to 128 rows of looked-up material indices (Int16 where they fit, about 3 MB for four groups of a 6000-site row) across the filled windows of a render; a material is a function of its lattice point alone, so the values are the same.
   - **Points not frozen:** caller `materialAt` and `evaluate` callbacks receive a new plain point object per call, which the engine does not read afterwards. `Object.freeze` on it took about 40 % of a chart lookup (268 → 160 ns in a micro-benchmark). The point was never documented as frozen; mutating it affects nothing.
