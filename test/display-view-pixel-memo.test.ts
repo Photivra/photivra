@@ -24,6 +24,9 @@ describe("display view per-real-pixel memo (#392)", () => {
       const { result, internals } = await simulateDisplayViewWithInternals(options, view);
       const diagnostics: Partial<typeof result.diagnostics> = { ...result.diagnostics }, hash = createHash("sha256");
       delete diagnostics.timingsMs;
+      // #395: diagnostics.fast is additive; it is checked on its own and left out of the recorded digests.
+      expect(diagnostics.fast?.assurance).toBe("engine-reference");
+      delete diagnostics.fast;
       for (const a of [result.image.samples, internals.expected, internals.noiseStd]) hash.update(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
       hash.update(JSON.stringify(diagnostics));
       expect(hash.digest("hex")).toBe(expected);

@@ -79,6 +79,11 @@ export interface ImageKernelExecution {
   arithmetic: "float64" | "float32";
   assurance: "engine-reference" | "approximation-with-a-priori-bound";
   /**
+   * The exact-or-fast flag in the facade's words (#395): false for `cpu-reference` (the engine reference), true for
+   * `webgpu-f32` (a bounded approximation). `backend` still names where the work ran.
+   */
+  fast: boolean;
+  /**
    * True only for `cpu-reference`. Bit-exact identities (SHA-256 artifact bindings, byte-parity fixtures,
    * cross-engine determinism hashes) are CPU-only and must never be computed from a `webgpu-f32` result.
    */
@@ -149,12 +154,12 @@ export const WEBGPU_F32_LIMITATIONS = Object.freeze([
 ]);
 
 export function cpuExecution(requestedBackend: ImageKernelBackend, fallbackReason: ImageKernelFallbackReason | null): ImageKernelExecution {
-  return { backend: "cpu-reference", requestedBackend, fallbackReason, arithmetic: "float64", assurance: "engine-reference",
+  return { backend: "cpu-reference", requestedBackend, fallbackReason, arithmetic: "float64", assurance: "engine-reference", fast: false,
     bitIdenticalToReference: true, errorBound: null, diagnosticsExact: true, diagnosticUncertaintySampleCount: 0, limitations: CPU_REFERENCE_LIMITATIONS };
 }
 
 export function webGpuExecution(errorBound: ImageKernelExecution["errorBound"], uncertainty: number): ImageKernelExecution {
   return { backend: "webgpu-f32", requestedBackend: "webgpu-f32", fallbackReason: null, arithmetic: "float32",
-    assurance: "approximation-with-a-priori-bound", bitIdenticalToReference: false, errorBound, diagnosticsExact: uncertainty === 0,
+    assurance: "approximation-with-a-priori-bound", fast: true, bitIdenticalToReference: false, errorBound, diagnosticsExact: uncertainty === 0,
     diagnosticUncertaintySampleCount: uncertainty, limitations: WEBGPU_F32_LIMITATIONS };
 }

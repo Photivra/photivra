@@ -132,6 +132,8 @@ export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020";
  * edge-directed method that reduces zipper and false colour on sharp edges.
  */
 export type SimulateCaptureDemosaic = "bilinear" | "ahd";
+/** `output.demosaic` as a record (#395): the demosaic and its `fast` override (see {@link SimulateCaptureOptions.fast}). */
+export interface SimulateCaptureDemosaicRecord { kind: SimulateCaptureDemosaic; fast?: boolean }
 /**
  * `margin` renders extra native sites around the output, as far as the kernel reaches. `mirror` renders
  * exactly the output and reads mirrored (reflect-101) copies of the missing border sites. Mirroring is
@@ -141,8 +143,18 @@ export type SimulateCaptureBorderHandling = "margin" | "mirror";
 export type SimulateCaptureLensDistortion =
   | { kind: "radial"; profile: RadialDistortionProfile }
   | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
-/** Diffraction model (2.1): the shorthand or a record with an explicit kernel radius in sites. */
-export type SimulateCaptureLensDiffraction = "circular-aperture" | { aperture: "circular-aperture"; kernelRadiusSamples?: number };
+/**
+ * Diffraction model (2.1): the shorthand or a record with an explicit kernel radius in sites and (#395) a `fast` override
+ * (see {@link SimulateCaptureOptions.fast}). The record names the model by `kind`; `aperture`, its name before #395, is still
+ * accepted as a deprecated alias until 3.0.0, and giving both is an error.
+ */
+export type SimulateCaptureLensDiffraction =
+  | "circular-aperture"
+  | { kind: "circular-aperture"; kernelRadiusSamples?: number; fast?: boolean }
+  | {
+    /** @deprecated Since #395: use `kind`. Accepted until 3.0.0. */
+    aperture: "circular-aperture"; kernelRadiusSamples?: number; fast?: boolean;
+  };
 /**
  * Optical anti-aliasing (low-pass) filter (2.1), modelled as birefringent point splitting: each image point is
  * split into equally bright copies (the engine's `normalized-point-splitting-kernel` optical-stack response).
@@ -154,11 +166,11 @@ export type SimulateCaptureLensDiffraction = "circular-aperture" | { aperture: "
  * frequency 1/(2·pitch)).
  */
 export type SimulateCaptureSensorAntiAliasing =
-  | { kind: "four-spot"; separationSites?: number }
-  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number }
-  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[] };
-/** Pixel aperture (2.3): centre sampling, or the square photosite integrated with an N × N midpoint rule. */
-export type SimulateCapturePixelAperture = "point" | "box" | { kind: "box"; samplesPerAxis?: number };
+  | { kind: "four-spot"; separationSites?: number; fast?: boolean }
+  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number; fast?: boolean }
+  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[]; fast?: boolean };
+/** Pixel aperture (2.3): centre sampling, or the square photosite integrated with an N × N midpoint rule; `fast` (#395) overrides the top-level flag. */
+export type SimulateCapturePixelAperture = "point" | "box" | { kind: "box"; samplesPerAxis?: number; fast?: boolean };
 /** Default midpoint samples per axis of `sensor.pixelAperture: "box"`. */
 export const SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES = 4;
 export interface SimulateCaptureMotion {
@@ -260,8 +272,8 @@ export interface SimulateCaptureOptions {
      * through `prepareRgbGamutMapping`: constant CIELAB L* and hue, chroma above 90 % of the boundary compressed.
      */
     gamutMapping?: "clip" | "perceptual";
-    /** Default: the 1.0 facade's bilinear RGGB kernels. */
-    demosaic?: SimulateCaptureDemosaic;
+    /** Default: the 1.0 facade's bilinear RGGB kernels. The record form (#395) adds a `fast` override. */
+    demosaic?: SimulateCaptureDemosaic | SimulateCaptureDemosaicRecord;
     /** Default "margin". */
     borderHandling?: SimulateCaptureBorderHandling;
     /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
@@ -319,6 +331,13 @@ export interface SimulateCaptureOptions {
      */
     pixelAperture?: SimulateCapturePixelAperture;
   };
+  /**
+   * Exact or fast (#395). `false` or omitted: every option runs its exact method, the engine reference. `true`: each option
+   * listed in {@link SIMULATE_CAPTURE_FAST_OPTIONS} runs its fast method where it has one, a measured, bounded approximation of
+   * the exact one; an option without a fast method runs exact. An option's own record `fast` overrides this for that option
+   * only. `diagnostics.fast` reports what was requested and what ran. No option has a fast method yet, so every result is exact.
+   */
+  fast?: boolean;
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
   /** Called after each committed RAW, development or JPEG tile. Cannot change output. */
@@ -334,6 +353,24 @@ export const SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling"
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const);
 export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[number];
+
+/**
+ * The options that take the exact-or-fast flag (#395), in the path style of {@link SIMULATE_CAPTURE_COST_OPTIONS}: each accepts
+ * the record form with `fast` and is reported in `diagnostics.fast.applied` when it runs. Every one of them takes the flag,
+ * whether or not it has a fast method yet; one without runs exact and reports `false`.
+ */
+export const SIMULATE_CAPTURE_FAST_OPTIONS = Object.freeze(["lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "output.demosaic.ahd"] as const);
+export type SimulateCaptureFastOption = typeof SIMULATE_CAPTURE_FAST_OPTIONS[number];
+
+/** `diagnostics.fast` of a capture or display view (#395): what was asked for and what ran. */
+export interface SimulateCaptureFastReport {
+  /** True when `fast: true` was given at the top level or in any option's record. */
+  requested: boolean;
+  /** Each fast-capable option that ran, in {@link SIMULATE_CAPTURE_FAST_OPTIONS} order: true where its fast method ran. */
+  applied: Readonly<Partial<Record<SimulateCaptureFastOption, boolean>>>;
+  /** `engine-reference` when every option ran exact; `approximation-with-a-priori-bound` when any fast method ran (the WebGPU execution record's values). */
+  assurance: "engine-reference" | "approximation-with-a-priori-bound";
+}
 
 export interface SimulateCaptureProgress {
   stage: "raw" | "white-balance" | "development" | "jpeg";
@@ -451,6 +488,8 @@ export interface SimulateCaptureResult {
      * the user's device.
      */
     options: readonly SimulateCaptureCostOption[];
+    /** #395: exact or fast, as requested and as run (see {@link SimulateCaptureFastReport}). */
+    fast: SimulateCaptureFastReport;
   };
   provenance: {
     scientificStatus: "approximation";
@@ -518,6 +557,12 @@ const channelResponseCache = new Map<string, Record<"red" | "green" | "blue", Ma
 const AA_DEFAULT_SEPARATION_SITES = 1;
 interface ParsedAntiAliasing { kind: SimulateCaptureSensorAntiAliasing["kind"]; separationSites?: number; axis?: "horizontal" | "vertical";
   components: AntiAliasingPointSplitComponent[] }
+/** #395: the `fast` override of an option record (undefined when absent), which must be a Boolean. */
+function fastOverride(record: Record<string, unknown>, path: string): boolean | undefined {
+  const value = record.fast;
+  if (value !== undefined && typeof value !== "boolean") fail(path + ".fast must be true or false.");
+  return value as boolean | undefined;
+}
 /** Parses `sensor.antiAliasing` into engine point-splitting components (offsets in µm, +x right, +y down). */
 function parseAntiAliasing(value: unknown, pitch: number): ParsedAntiAliasing {
   requireInputObject(value, "sensor.antiAliasing");
@@ -529,17 +574,17 @@ function parseAntiAliasing(value: unknown, pitch: number): ParsedAntiAliasing {
     return d;
   };
   if (kind === "four-spot") {
-    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "separationSites"]), d = separation(record), h = d * pitch / 2;
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "separationSites", "fast"]), d = separation(record), h = d * pitch / 2;
     return { kind, separationSites: d, components: [[-h, -h], [h, -h], [-h, h], [h, h]].map(([x, y]) => ({ offsetMicrometers: { x: x!, y: y! }, normalizedWeight: 0.25 })) };
   }
   if (kind === "two-spot") {
-    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "axis", "separationSites"]), d = separation(record), h = d * pitch / 2;
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "axis", "separationSites", "fast"]), d = separation(record), h = d * pitch / 2;
     if (record.axis !== "horizontal" && record.axis !== "vertical") fail("sensor.antiAliasing.axis must be horizontal or vertical.");
     const axis = record.axis as "horizontal" | "vertical";
     return { kind, axis, separationSites: d, components: [-h, h].map((o) => ({ offsetMicrometers: axis === "horizontal" ? { x: o, y: 0 } : { x: 0, y: o }, normalizedWeight: 0.5 })) };
   }
   if (kind === "point-splitting") {
-    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "components"]);
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "components", "fast"]);
     if (!Array.isArray(record.components) || record.components.length === 0 || record.components.length > AA_MAXIMUM_COMPONENTS) {
       fail("sensor.antiAliasing.components must be an array of 1 to " + AA_MAXIMUM_COMPONENTS + " components.");
     }
@@ -964,7 +1009,9 @@ export interface DisplayViewResult {
    * milliseconds (diagnostic only; never affects the samples).
    */
   diagnostics: { sampleCount: number; siteEvaluations: number; sceneLookups: number; detailPixelCount: number; uniformPixelCount: number; ahdCorrectedPixelCount: number;
-    timingsMs: { view: number; total: number } };
+    timingsMs: { view: number; total: number };
+    /** #395: exact or fast, as requested and as run (see {@link SimulateCaptureFastReport}). */
+    fast: SimulateCaptureFastReport };
   provenance: { scientificStatus: "approximation"; cameraPresetId: string; cameraPresetVersion: string; evidence: readonly EvidenceProvenance[];
     composedContracts: readonly string[]; limitations: readonly string[] };
   /** The capture request's assumptions, then `view.definition`, `view.estimation`, `view.noise`, `view.demosaic` and `view.source`. */
@@ -974,6 +1021,7 @@ export interface DisplayViewResult {
 /** Internal: the resolved request state that the display view's renderer (simulate-display-view.ts) reads. */
 export interface DisplayViewRunContext {
   ahd: boolean;
+  fastReport: SimulateCaptureFastReport;
   antiAliasing: ParsedAntiAliasing | undefined;
   aspect: number;
   assume: (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string) => void;
@@ -1055,7 +1103,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const started = Date.now(), idealReference = run === "ideal-reference", displayView = run === "display-view";
   requireInputObject(options, "simulateCapture options");
   const top = allowKeys(options, "simulateCapture options", ["camera", "lens", "exposure", "scene", "subjectDistanceM", "chartSize", "illuminant",
-    "illuminanceLux", "output", "sensor", "motion", "signal", "onProgress"]);
+    "illuminanceLux", "output", "sensor", "motion", "fast", "signal", "onProgress"]);
   const signal = top.signal as AbortSignal | undefined, onProgress = top.onProgress as SimulateCaptureOptions["onProgress"];
   if (signal !== undefined && (typeof signal !== "object" || signal === null || typeof (signal as AbortSignal).aborted !== "boolean")) fail("signal must be an AbortSignal.");
   if (onProgress !== undefined && typeof onProgress !== "function") fail("onProgress must be a function.");
@@ -1140,14 +1188,18 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     lensPsf = p as unknown as typeof lensPsf;
   }
   // Diffraction (2.1): validated here, built once the f-number is resolved.
-  let diffractionRadiusOption: number | null | undefined;
+  let diffractionRadiusOption: number | null | undefined, diffractionFast: boolean | undefined;
   if (lensOptions.diffraction !== undefined) {
     const d = lensOptions.diffraction;
     if (d === "circular-aperture") diffractionRadiusOption = null;
     else {
-      const record = allowKeys(d, "lens.diffraction", ["aperture", "kernelRadiusSamples"]);
-      if (record.aperture !== "circular-aperture") fail("lens.diffraction must be \"circular-aperture\" or { aperture: \"circular-aperture\", kernelRadiusSamples }.");
+      const record = allowKeys(d, "lens.diffraction", ["kind", "aperture", "kernelRadiusSamples", "fast"]);
+      // #395: the record names the model by `kind`; `aperture` is its deprecated alias (until 3.0.0).
+      if (record.kind !== undefined && record.aperture !== undefined) fail("lens.diffraction takes kind or its deprecated alias aperture, not both.");
+      const model = record.kind !== undefined ? record.kind : record.aperture;
+      if (model !== "circular-aperture") fail("lens.diffraction must be \"circular-aperture\" or { kind: \"circular-aperture\", kernelRadiusSamples, fast }.");
       diffractionRadiusOption = record.kernelRadiusSamples === undefined ? null : integerIn(record.kernelRadiusSamples, "lens.diffraction.kernelRadiusSamples", 0, 32);
+      diffractionFast = fastOverride(record, "lens.diffraction");
     }
     if (lensPsf) fail("lens.diffraction cannot be combined with lens.psf: diffraction would be counted twice.");
     if (pupil) fail("lens.diffraction cannot be combined with lens.pupilSampling: the environment contract does not mix a sampled PSF with pupil rays.");
@@ -1234,14 +1286,16 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       "One temporal sample: the static scene and still camera make more samples unnecessary."), "sensor.temporalSampleCount", 1, 256);
   const noiseSeed = integerIn(pick(sensorOptions, "noiseSeed", "sensor.noiseSeed", DEFAULTS.noiseSeed, "Fixed noise seed 1 (deterministic output)."), "sensor.noiseSeed", 0, 0xffffffff);
   const antiAliasing = sensorOptions.antiAliasing === undefined ? undefined : parseAntiAliasing(sensorOptions.antiAliasing, pitch);
+  const antiAliasingFast = antiAliasing ? fastOverride(sensorOptions.antiAliasing as Record<string, unknown>, "sensor.antiAliasing") : undefined;
   // Pixel aperture (2.3): N × N midpoint nodes over the square photosite; 1 = the default centre sample.
-  let boxSamples = 1;
+  let boxSamples = 1, boxFast: boolean | undefined;
   if (sensorOptions.pixelAperture !== undefined && sensorOptions.pixelAperture !== "point") {
     const a = sensorOptions.pixelAperture;
     if (a === "box") boxSamples = SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES;
     else {
-      const record = allowKeys(a, "sensor.pixelAperture", ["kind", "samplesPerAxis"]);
-      if (record.kind !== "box") fail("sensor.pixelAperture must be \"point\", \"box\" or { kind: \"box\", samplesPerAxis }.");
+      const record = allowKeys(a, "sensor.pixelAperture", ["kind", "samplesPerAxis", "fast"]);
+      if (record.kind !== "box") fail("sensor.pixelAperture must be \"point\", \"box\" or { kind: \"box\", samplesPerAxis, fast }.");
+      boxFast = fastOverride(record, "sensor.pixelAperture");
       boxSamples = record.samplesPerAxis === undefined ? SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES : integerIn(record.samplesPerAxis, "sensor.pixelAperture.samplesPerAxis", 1, 16);
     }
   }
@@ -1266,9 +1320,27 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     layout: { kind: "periodic-mosaic" as const, repeatWidthSites: 2, repeatHeightSites: 2, siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" as const } };
   // Demosaic (2.0): built-in Bayer kernels and border handling. Omitted, the 1.0 bilinear kernels and a
   // one-site rendered border are used unchanged.
-  const demosaicOption = outputOptions.demosaic as SimulateCaptureDemosaic | undefined, borderOption = outputOptions.borderHandling as SimulateCaptureBorderHandling | undefined;
+  // #395: the record form { kind, fast } names the same demosaic.
+  let demosaicOption: SimulateCaptureDemosaic | undefined, demosaicFast: boolean | undefined;
+  if (outputOptions.demosaic !== undefined && typeof outputOptions.demosaic === "object" && outputOptions.demosaic !== null) {
+    const record = allowKeys(outputOptions.demosaic, "output.demosaic", ["kind", "fast"]);
+    if (record.kind !== "bilinear" && record.kind !== "ahd") fail("output.demosaic must be bilinear or ahd, or { kind, fast }.");
+    demosaicOption = record.kind as SimulateCaptureDemosaic;
+    demosaicFast = fastOverride(record, "output.demosaic");
+  } else demosaicOption = outputOptions.demosaic as SimulateCaptureDemosaic | undefined;
+  const borderOption = outputOptions.borderHandling as SimulateCaptureBorderHandling | undefined;
   if (demosaicOption !== undefined && demosaicOption !== "bilinear" && demosaicOption !== "ahd") fail("output.demosaic must be bilinear or ahd.");
   const ahd = demosaicOption === "ahd";
+  // #395: exact or fast per option. No option has a fast method yet, so each runs exact and reports false.
+  if (top.fast !== undefined && typeof top.fast !== "boolean") fail("fast must be true or false.");
+  const fastTop = top.fast === true;
+  const fastInUse: [SimulateCaptureFastOption, boolean, boolean | undefined][] = [["lens.diffraction", diffractionRadiusOption !== undefined, diffractionFast],
+    ["sensor.antiAliasing", antiAliasing !== undefined, antiAliasingFast], ["sensor.pixelAperture.box", boxAperture, boxFast], ["output.demosaic.ahd", ahd, demosaicFast]];
+  const fastApplied: Partial<Record<SimulateCaptureFastOption, boolean>> = {};
+  for (const [option, used] of fastInUse) if (used) fastApplied[option] = false;
+  const fastReport: SimulateCaptureFastReport = Object.freeze({
+    requested: fastTop || [diffractionFast, antiAliasingFast, boxFast, demosaicFast].some((value) => value === true),
+    applied: Object.freeze(fastApplied), assurance: "engine-reference" as const });
   if (borderOption !== undefined && borderOption !== "margin" && borderOption !== "mirror") fail("output.borderHandling must be margin or mirror.");
   const builtInDemosaic = demosaicOption === undefined ? undefined : createBuiltInBayerDemosaicProfiles({ kernel: "bilinear",
     captureModeId: IDS.mode, colorSamplingProfile, channelRoles: { red: "red", green: "green", blue: "blue" } }).value;
@@ -1865,7 +1937,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
-  if (displayView) return await renderView!({ ahd, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();
@@ -2192,7 +2264,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started,
         ...(diffraction && diffractionObjectSpace ? { diffraction: diffractionMs } : {}), ...(demosaicMs === undefined ? {} : { demosaic: demosaicMs }),
         ...(encodeMs === undefined ? {} : { encode: encodeMs }) },
-      options: Object.freeze(SIMULATE_CAPTURE_COST_OPTIONS.filter((option) => ranOptions.has(option))) },
+      options: Object.freeze(SIMULATE_CAPTURE_COST_OPTIONS.filter((option) => ranOptions.has(option))), fast: fastReport },
     provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion,
       evidence: [...FACADE_EVIDENCE, ...preset.evidence],
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",

@@ -201,6 +201,39 @@ Internal helpers for immutable data live in `src/core/owned-data.ts`. This modul
 - Planner FNV-1a fingerprints and export SHA-256 hashes stay separate identity contracts. The helper does not pick a hash and does not change either contract.
 - Capture's public serialization keeps its existing validated `JSON.stringify` representation.
 
+## Exact and fast modes
+
+Owner direction of October 24, 2026 (#395): every slow option keeps its exact method, the engine reference, and may also
+have a fast method, a measured and bounded approximation of it. One flag style serves every such option; a test
+(`test/fast-flag-convention.test.ts`) walks `SIMULATE_CAPTURE_FAST_OPTIONS` and enforces it.
+
+- **One Boolean, one name.** The choice is always `fast?: boolean`: `false` or omitted is exact, `true` is fast. No option
+  uses "quality", "fidelity", "accuracy", "precise", "approximate" or "mode" for this choice (`fidelity` and `mode` already
+  name other things).
+- **One top-level default.** `fast` on the `simulateCapture` request sets every listed option. `simulateDisplayView` and
+  `prepareDisplayView` take the same request, so the flag is set there once.
+- **The override sits inside the option.** Each listed option has a shorthand string (its model with defaults) and a record
+  `{ kind: <model>; fast?: boolean; …parameters }`. The record's `fast` overrides the top-level flag for that option only.
+  There is no separate overrides map.
+- **Every listed option takes the flag**, whether or not it has a fast method. Without one it runs exact and reports `false`,
+  so callers never need to know which options have a fast method.
+- **One list:** `SIMULATE_CAPTURE_FAST_OPTIONS`, in the path style of `SIMULATE_CAPTURE_COST_OPTIONS`:
+  `lens.diffraction`, `sensor.antiAliasing`, `sensor.pixelAperture.box` and `output.demosaic.ahd`.
+- **One report** on every capture and display view: `diagnostics.fast = { requested, applied, assurance }`. `requested` is true
+  when `fast: true` was given anywhere; `applied` names each listed option that ran, `true` where its fast method ran;
+  `assurance` is `engine-reference` when everything ran exact and `approximation-with-a-priori-bound` otherwise. A fast method
+  that runs also adds an assumption `fast.<path>` naming its method and its bound.
+- **The same words on WebGPU.** The image-kernel execution record carries `fast` (`false` for `cpu-reference`, `true` for
+  `webgpu-f32`) beside `assurance`; `backend` still names where the work runs.
+- **When a fast method needs no flag.** A faster method that is byte-identical to the exact one, or differs only by rounding
+  (the same quantities summed in another order, with a measured bound), replaces the exact code: no flag and no second
+  implementation. A faster method that is more accurate than the reference replaces it too, and the reference moves. Only a
+  less accurate method becomes the fast method behind the flag.
+- **Parameters are not the flag.** Sample counts and windows (`samplesPerAxis`, `kernelRadiusSamples`, `separationSites`) are
+  model parameters and keep their names.
+- **Names:** `lens.diffraction` names its model by `kind` like the other records; `aperture`, its name before #395, stays a
+  deprecated alias until 3.0.0, and giving both is an error.
+
 ## Compatibility and deprecation policy
 
 The package and the root API share a release version. Update independent schema, model or POC versions only when their observable contracts change.

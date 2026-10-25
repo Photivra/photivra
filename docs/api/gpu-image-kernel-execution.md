@@ -52,6 +52,11 @@ export interface ImageKernelExecution {
   arithmetic: "float64" | "float32";
   assurance: "engine-reference" | "approximation-with-a-priori-bound";
   /**
+   * The exact-or-fast flag in the facade's words (#395): false for `cpu-reference` (the engine reference), true for
+   * `webgpu-f32` (a bounded approximation). `backend` still names where the work ran.
+   */
+  fast: boolean;
+  /**
    * True only for `cpu-reference`. Bit-exact identities (SHA-256 artifact bindings, byte-parity fixtures,
    * cross-engine determinism hashes) are CPU-only and must never be computed from a `webgpu-f32` result.
    */

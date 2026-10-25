@@ -4,10 +4,21 @@
 
 ### Added
 
+- **One exact-or-fast flag for every slow option (#395, stage 2): `fast`, `SIMULATE_CAPTURE_FAST_OPTIONS` and `diagnostics.fast`.** No option has a fast method yet, so every result is the same as before.
+  - **The flag:** `fast?: boolean` on the `simulateCapture` request (and so on `simulateDisplayView` and `prepareDisplayView`, which take the same request). `false` or omitted is exact, the engine reference; `true` asks each listed option for its fast method, a measured, bounded approximation. An option's record `fast` overrides the top-level flag for that option only.
+  - **The options:** `SIMULATE_CAPTURE_FAST_OPTIONS` lists `lens.diffraction`, `sensor.antiAliasing`, `sensor.pixelAperture.box` and `output.demosaic.ahd`. Each takes a record with `fast`: `lens.diffraction` `{ kind: "circular-aperture", kernelRadiusSamples?, fast? }`, `output.demosaic` (new record form) `{ kind: "bilinear" | "ahd", fast? }`, and the existing `sensor.antiAliasing` and `sensor.pixelAperture` records gain `fast?`. An option without a fast method accepts the flag, runs exact and reports `false`.
+  - **The report:** captures and display views carry `diagnostics.fast = { requested, applied, assurance }`: whether `fast: true` was given anywhere, each listed option that ran (true where its fast method ran) and `engine-reference` or `approximation-with-a-priori-bound`. The WebGPU image-kernel execution record gains `fast` (`false` for `cpu-reference`, `true` for `webgpu-f32`).
+  - **Same output:** every request gives the same samples, RAW and files as before; a new test (`test/fast-flag-convention.test.ts`) checks each listed option with the flag on, off and overridden, and enforces the convention documented in `docs/API_STYLE.md`, "Exact and fast modes".
+  - New root exports: `SIMULATE_CAPTURE_FAST_OPTIONS` and the types `SimulateCaptureFastOption`, `SimulateCaptureFastReport` and `SimulateCaptureDemosaicRecord`.
+
 - **A whole-frame DNG from region parts (#391): `serializeSimulatedCaptureDngFromParts(options, parts)`.** A large DNG's RAW can now render in parallel: render region parts of the request (any format), pass each part's `raw` and `region`, and the function joins their native sites and writes the DNG exactly as `simulateCapture` writes it, with the same bytes. Parts must cover the native raster and agree where they overlap; a part from another request is refused. Parts take a fixed white balance and no `output.dng`; auto white balance and the capture time apply to the DNG options and are measured over the joined frame.
   - **Same bytes:** tests compare the joined DNG with the whole-frame DNG for bilinear and AHD, diffraction with the four-spot filter and the 2 × 2 box, auto white balance with a capture time, a reflectance-function scene and the environment path; on the Photivra app's 24 MP request both presets gave the same bytes.
   - **Measured** (24 MP, 24 parts of about 1024 pixels, Node, one thread): parts 58.1 s of CPU against 50.6 s for one whole render (Quality options 119.3 s against 113.6 s), join 2.6 s. On four workers the wall time is roughly a quarter of the whole render's.
   - New root exports: `serializeSimulatedCaptureDngFromParts` and the type `SimulateCaptureDngPart`.
+
+### Deprecated
+
+- **`lens.diffraction`'s `aperture` key (#395): use `kind`.** `{ aperture: "circular-aperture" }` is still accepted, with the same result, until 3.0.0; giving both `kind` and `aperture` is an error.
 
 ### Faster, same output
 

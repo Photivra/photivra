@@ -30,7 +30,9 @@ export interface DisplayViewResult {
    * milliseconds (diagnostic only; never affects the samples).
    */
   diagnostics: { sampleCount: number; siteEvaluations: number; sceneLookups: number; detailPixelCount: number; uniformPixelCount: number; ahdCorrectedPixelCount: number;
-    timingsMs: { view: number; total: number } };
+    timingsMs: { view: number; total: number };
+    /** #395: exact or fast, as requested and as run (see {@link SimulateCaptureFastReport}). */
+    fast: SimulateCaptureFastReport };
   provenance: { scientificStatus: "approximation"; cameraPresetId: string; cameraPresetVersion: string; evidence: readonly EvidenceProvenance[];
     composedContracts: readonly string[]; limitations: readonly string[] };
   /** The capture request's assumptions, then `view.definition`, `view.estimation`, `view.noise`, `view.demosaic` and `view.source`. */
@@ -118,6 +120,16 @@ Version of how the facade builds requests. It changes whenever the same input wo
 SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const
 ```
 
+## SIMULATE_CAPTURE_FAST_OPTIONS
+
+The options that take the exact-or-fast flag (#395), in the path style of {@link SIMULATE_CAPTURE_COST_OPTIONS}: each accepts
+the record form with `fast` and is reported in `diagnostics.fast.applied` when it runs. Every one of them takes the flag,
+whether or not it has a fast method yet; one without runs exact and reports `false`.
+
+```ts
+SIMULATE_CAPTURE_FAST_OPTIONS = Object.freeze(["lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "output.demosaic.ahd"] as const)
+```
+
 ## SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS
 
 Default stratified samples per axis of a display view (`view.samplesPerAxis`): 16 × 16 sampled real pixels per display pixel with detail, 4 × 4 where it is uniform.
@@ -193,6 +205,14 @@ edge-directed method that reduces zipper and false colour on sharp edges.
 export type SimulateCaptureDemosaic = "bilinear" | "ahd";
 ```
 
+## SimulateCaptureDemosaicRecord
+
+`output.demosaic` as a record (#395): the demosaic and its `fast` override (see {@link SimulateCaptureOptions.fast}).
+
+```ts
+export interface SimulateCaptureDemosaicRecord { kind: SimulateCaptureDemosaic; fast?: boolean }
+```
+
 ## SimulateCaptureDngPart
 
 One part of a whole-frame DNG (#391): a region render's packed RAW and where its native sites lie (`result.raw`, `result.region`).
@@ -210,6 +230,29 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shutter-priority" | "program";
+```
+
+## SimulateCaptureFastOption
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export type SimulateCaptureFastOption = typeof SIMULATE_CAPTURE_FAST_OPTIONS[number];
+```
+
+## SimulateCaptureFastReport
+
+`diagnostics.fast` of a capture or display view (#395): what was asked for and what ran.
+
+```ts
+export interface SimulateCaptureFastReport {
+  /** True when `fast: true` was given at the top level or in any option's record. */
+  requested: boolean;
+  /** Each fast-capable option that ran, in {@link SIMULATE_CAPTURE_FAST_OPTIONS} order: true where its fast method ran. */
+  applied: Readonly<Partial<Record<SimulateCaptureFastOption, boolean>>>;
+  /** `engine-reference` when every option ran exact; `approximation-with-a-priori-bound` when any fast method ran (the WebGPU execution record's values). */
+  assurance: "engine-reference" | "approximation-with-a-priori-bound";
+}
 ```
 
 ## SimulateCaptureLensDistortion
@@ -332,8 +375,8 @@ export interface SimulateCaptureOptions {
      * through `prepareRgbGamutMapping`: constant CIELAB L* and hue, chroma above 90 % of the boundary compressed.
      */
     gamutMapping?: "clip" | "perceptual";
-    /** Default: the 1.0 facade's bilinear RGGB kernels. */
-    demosaic?: SimulateCaptureDemosaic;
+    /** Default: the 1.0 facade's bilinear RGGB kernels. The record form (#395) adds a `fast` override. */
+    demosaic?: SimulateCaptureDemosaic | SimulateCaptureDemosaicRecord;
     /** Default "margin". */
     borderHandling?: SimulateCaptureBorderHandling;
     /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
@@ -391,6 +434,13 @@ export interface SimulateCaptureOptions {
      */
     pixelAperture?: SimulateCapturePixelAperture;
   };
+  /**
+   * Exact or fast (#395). `false` or omitted: every option runs its exact method, the engine reference. `true`: each option
+   * listed in {@link SIMULATE_CAPTURE_FAST_OPTIONS} runs its fast method where it has one, a measured, bounded approximation of
+   * the exact one; an option without a fast method runs exact. An option's own record `fast` overrides this for that option
+   * only. `diagnostics.fast` reports what was requested and what ran. No option has a fast method yet, so every result is exact.
+   */
+  fast?: boolean;
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
   /** Called after each committed RAW, development or JPEG tile. Cannot change output. */
@@ -408,10 +458,10 @@ export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" 
 
 ## SimulateCapturePixelAperture
 
-Pixel aperture (2.3): centre sampling, or the square photosite integrated with an N × N midpoint rule.
+Pixel aperture (2.3): centre sampling, or the square photosite integrated with an N × N midpoint rule; `fast` (#395) overrides the top-level flag.
 
 ```ts
-export type SimulateCapturePixelAperture = "point" | "box" | { kind: "box"; samplesPerAxis?: number };
+export type SimulateCapturePixelAperture = "point" | "box" | { kind: "box"; samplesPerAxis?: number; fast?: boolean };
 ```
 
 ## SimulateCaptureProgress
@@ -532,6 +582,8 @@ export interface SimulateCaptureResult {
      * the user's device.
      */
     options: readonly SimulateCaptureCostOption[];
+    /** #395: exact or fast, as requested and as run (see {@link SimulateCaptureFastReport}). */
+    fast: SimulateCaptureFastReport;
   };
   provenance: {
     scientificStatus: "approximation";
@@ -559,9 +611,9 @@ frequency 1/(2·pitch)).
 
 ```ts
 export type SimulateCaptureSensorAntiAliasing =
-  | { kind: "four-spot"; separationSites?: number }
-  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number }
-  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[] };
+  | { kind: "four-spot"; separationSites?: number; fast?: boolean }
+  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number; fast?: boolean }
+  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[]; fast?: boolean };
 ```
 
 ## SimulateCaptureWhiteBalance
