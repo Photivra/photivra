@@ -317,6 +317,12 @@ same exposure); display widths 96, 192, 384 and 800; Speed (the engine defaults)
 
 ## Validation results
 
+**2.8.0 re-run (October 25, 2026, `de77074`; [record](validation/display-view-2026-10-25/README.md)).** 145 cases are
+identical to the October 19 results below. The 10 cases on the [exact area mean](#exact-area-mean), the phone at 800
+pixels wide, are the same or better against every limit (Siemens star: expected-value RMS 1.78 → 1.35 codes, SSIM
+0.9931 → 0.9966). The known noise miss of case 138 (#379) remains at 1.165. The run took about 9 minutes instead of
+3 h 27 min, because the reference captures take the tabulated RAW path.
+
 155 cases on `main` at `ea6dbe7` (`node scripts/validate-display-view.mjs`, seven reference seeds; the display views of
 `05d24cb` are byte-identical; every row, and the raw lines, in
 [the validation record](validation/display-view-2026-10-19/README.md)). Summary by options, ISO and block type:
