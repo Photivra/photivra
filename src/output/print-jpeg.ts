@@ -4,7 +4,7 @@
  * Print JPEG export: downsamples an SDR image by exact area averaging, then writes a baseline JPEG
  * with an ICC colour profile. Bounded in size; the encoder is written for this project.
  */
-import { createExportJpegEncoder, EXPORT_JPEG_ENCODER_ID } from "../capture/export-jpeg.js";
+import { createExportJpegEncoder, encodeJpegStrip, EXPORT_JPEG_ENCODER_ID, type JpegStripBits } from "../capture/export-jpeg.js";
 import { packExportJpegExif, exportTiffNumbers, exportTiffAscii, exportTiffRationals, type ExportTiffTag } from "../capture/export-tiff.js";
 import { createSrgbIccProfile, SRGB_ICC_PROFILE_VERSION } from "../color/srgb-icc.js";
 import { decodeSrgbComponent, encodeSrgbComponent } from "../color/srgb-transfer.js";
@@ -124,6 +124,68 @@ export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput {
   return freezeOwnedData({source,crop,outputWidth,outputHeight,quantizationStep,maximumEncodedBytes,maximumProviderReads,...(ppi===undefined ? {} : {pixelsPerInch:ppi}),
     ...(r.maximumPixels===undefined ? {} : {maximumPixels})});
 }
+/** The JPEG writer of a Print plan: its size, quantization, budget, ICC profile, EXIF, XMP plan record and density. */
+function printEncoder(plan:PrintJpegInput):ReturnType<typeof createExportJpegEncoder> {
+  const exif=printExif(plan);
+  const escaped=JSON.stringify(plan).replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  const xmp=new TextEncoder().encode('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:photivra="https://photivra.com/ns/simulation/1.0/" photivra:PrintExportPlan="'+escaped+'" photivra:SourceBytesVerified="False"/></rdf:RDF></x:xmpmeta>');
+  return createExportJpegEncoder({width:plan.outputWidth,height:plan.outputHeight,quantizationStep:plan.quantizationStep,maximumOutputBytes:plan.maximumEncodedBytes,icc:createSrgbIccProfile(),exif,xmp,
+    ...(plan.pixelsPerInch===undefined ? {} : {densityDotsPerInch:Math.round(plan.pixelsPerInch)})});
+}
+/** At 1:1, the output code of each source code (its decoded value re-encoded and rounded). */
+function directCodes():Uint8Array {
+  return Uint8Array.from(srgbDecodeTable(),(value)=>Math.min(255,Math.max(0,Math.round(encodeSrgbComponent(value)*255))));
+}
+/** Rows of a 1:1 Print JPEG for `createPrintJpegStrip`: crop rows `y` to `y + height` (relative to the crop), crop-wide RGB. */
+export interface PrintJpegStripInput {y:number;height:number;samples:Uint8Array}
+/** A strip of a 1:1 Print JPEG's coded blocks (`createPrintJpegStrip`), for `composePrintJpegStrips`. */
+export interface PrintJpegStrip {readonly y:number;readonly height:number;readonly width:number;readonly quantizationStep:number;readonly bits:JpegStripBits}
+function requireIdentity(plan:PrintJpegInput):void {
+  if(plan.outputWidth!==plan.crop.width||plan.outputHeight!==plan.crop.height)throw new InvalidConfigurationError("Print JPEG strips require a 1:1 plan (output size equal to the crop).");
+}
+/**
+ * Codes rows of a 1:1 Print JPEG (output size equal to the crop) apart from the rows before them, so a large file's strips
+ * can be written on separate workers. `strip.y` is a multiple of 8 and `strip.height` a multiple of 8 unless the strip ends at
+ * the image's bottom; `strip.samples` are those crop rows' 8-bit sRGB RGB, crop-wide. `composePrintJpegStrips` joins strips that
+ * cover the image, in order, into the bytes `createPrintJpegTask` writes for the same plan and source pixels.
+ */
+export function createPrintJpegStrip(input:PrintJpegInput,strip:PrintJpegStripInput):PrintJpegStrip {
+  const plan=parsePrintJpegInput(input);requireIdentity(plan);
+  const r=requireAllowlistedRecord(strip,["y","height","samples"],"Invalid Print JPEG strip.");
+  const y=integer(r.y,0),height=integer(r.height),width=plan.outputWidth,samples=r.samples;
+  if(y%8!==0||y+height>plan.outputHeight||(height%8!==0&&y+height!==plan.outputHeight))throw new InvalidConfigurationError("Print JPEG strips start on a block row and cover whole block rows.");
+  if(!(samples instanceof Uint8Array)||samples.length!==width*height*3)throw new InvalidConfigurationError("Print JPEG strip requires the crop rows' RGB samples.");
+  const direct=directCodes(),blocksX=Math.ceil(width/8),rowBytes=width*3;
+  // The same block samples as createPrintJpegTask's 1:1 path: each block's edge pixels repeated into a partial block.
+  const bits=encodeJpegStrip(plan.quantizationStep,blocksX*Math.ceil(height/8),(index,out)=>{
+    const bx=(index%blocksX)*8,by=Math.floor(index/blocksX)*8,bw=Math.min(8,width-bx),bh=Math.min(8,plan.outputHeight-y-by);
+    for(let yy=0,o=0;yy<8;yy++){
+      const row=(by+Math.min(yy,bh-1))*rowBytes+bx*3;
+      for(let x=0;x<8;x++,o+=3){const i=row+Math.min(x,bw-1)*3;out[o]=direct[samples[i]!]!;out[o+1]=direct[samples[i+1]!]!;out[o+2]=direct[samples[i+2]!]!;}
+    }
+  });
+  return Object.freeze({y,height,width,quantizationStep:plan.quantizationStep,bits});
+}
+/**
+ * Joins the strips of a 1:1 Print JPEG (`createPrintJpegStrip`), covering the image top to bottom in order, into its file:
+ * the same bytes `createPrintJpegTask` writes for the plan and the same source pixels. No source is read, so the output's
+ * `providerReads` is 0.
+ */
+export function composePrintJpegStrips(input:PrintJpegInput,strips:readonly PrintJpegStrip[]):PrintJpegOutput {
+  const plan=parsePrintJpegInput(input);requireIdentity(plan);
+  if(!Array.isArray(strips)||strips.length<1)throw new InvalidConfigurationError("Print JPEG assembly requires strips.");
+  const encoder=printEncoder(plan);
+  try{
+    let next=0;
+    for(const strip of strips){
+      if(strip.y!==next||strip.width!==plan.outputWidth||strip.quantizationStep!==plan.quantizationStep)throw new InvalidConfigurationError("Print JPEG strips must cover the plan's image in order.");
+      encoder.appendStrip(strip.bits);next+=strip.height;
+    }
+    if(next!==plan.outputHeight)throw new InvalidConfigurationError("Print JPEG strips must cover the plan's image in order.");
+    const bytes=encoder.finish();
+    return {schemaVersion:PRINT_JPEG_SCHEMA_VERSION,input:plan,mediaType:"image/jpeg",bytes,iccProfileVersion:SRGB_ICC_PROFILE_VERSION,width:plan.outputWidth,height:plan.outputHeight,resampling:"exact-area-average-in-decoded-linear-light",sourceStage:"post-SDR-8-bit-quantization",digitalUpscalingApplied:false,sourceBytesVerified:false,providerReads:0,encoderId:EXPORT_JPEG_ENCODER_ID};
+  }catch(error){encoder.dispose();throw error;}
+}
 /** Creates the export task. Filtering weights each source pixel by its exact area overlap, after decoding the declared 8-bit SDR source. */
 export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvider):PrintJpegTask {
   const plan=parsePrintJpegInput(input);
@@ -136,11 +198,7 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
     async run():Promise<void>{
       if(state!=="ready")throw new InvalidConfigurationError("Print export is single-use.");state="running";
       try{
-        const exif=printExif(plan);
-        const escaped=JSON.stringify(plan).replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;");
-        const xmp=new TextEncoder().encode('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:photivra="https://photivra.com/ns/simulation/1.0/" photivra:PrintExportPlan="'+escaped+'" photivra:SourceBytesVerified="False"/></rdf:RDF></x:xmpmeta>');
-        encoder=createExportJpegEncoder({width:plan.outputWidth,height:plan.outputHeight,quantizationStep:plan.quantizationStep,maximumOutputBytes:plan.maximumEncodedBytes,icc:createSrgbIccProfile(),exif,xmp,
-          ...(plan.pixelsPerInch===undefined ? {} : {densityDotsPerInch:Math.round(plan.pixelsPerInch)})});
+        encoder=printEncoder(plan);
         const scaleX=plan.crop.width/plan.outputWidth,scaleY=plan.crop.height/plan.outputHeight,area=scaleX*scaleY;
         const cropRight=plan.crop.x+plan.crop.width,cropBottom=plan.crop.y+plan.crop.height,rowBytes=plan.crop.width*3;
         // Every crop pixel is read exactly once, in tiles of at most 256 x 32 aligned to the crop origin.
@@ -175,7 +233,7 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
         // At 1:1 every output pixel is one source pixel with weight exactly 1, so its sum is exactly lut[code] and its
         // sample is a function of the code alone: the same bytes from a 256-entry table, without the accumulation.
         const identity=scaleX===1&&scaleY===1;
-        const direct=identity?Uint8Array.from(lut,(value)=>Math.min(255,Math.max(0,Math.round(encodeSrgbComponent(value)*255)))):undefined;
+        const direct=identity?directCodes():undefined;
         if(direct)for(let by=0;by<plan.outputHeight;by+=8){
           check();
           const height=Math.min(8,plan.outputHeight-by);await ensureRows(plan.crop.y+by,height);check();

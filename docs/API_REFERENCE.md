@@ -126,6 +126,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | Export | Kind |
 | --- | --- |
 | [`EXPORT_JPEG_ENCODER_ID`](api/capture-export-jpeg.md#export_jpeg_encoder_id) | Runtime |
+| [`JpegStripBits`](api/capture-export-jpeg.md#jpegstripbits) | Type |
 
 ## capture/focus-control.ts
 
@@ -2022,6 +2023,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`composePrintJpegStrips`](api/output-print-jpeg.md#composeprintjpegstrips) | Runtime |
+| [`createPrintJpegStrip`](api/output-print-jpeg.md#createprintjpegstrip) | Runtime |
 | [`createPrintJpegTask`](api/output-print-jpeg.md#createprintjpegtask) | Runtime |
 | [`parsePrintJpegInput`](api/output-print-jpeg.md#parseprintjpeginput) | Runtime |
 | [`PRINT_JPEG_LIMITS`](api/output-print-jpeg.md#print_jpeg_limits) | Runtime |
@@ -2030,6 +2033,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`PrintJpegOutput`](api/output-print-jpeg.md#printjpegoutput) | Type |
 | [`PrintJpegProvider`](api/output-print-jpeg.md#printjpegprovider) | Type |
 | [`PrintJpegSource`](api/output-print-jpeg.md#printjpegsource) | Type |
+| [`PrintJpegStrip`](api/output-print-jpeg.md#printjpegstrip) | Type |
+| [`PrintJpegStripInput`](api/output-print-jpeg.md#printjpegstripinput) | Type |
 | [`PrintJpegTask`](api/output-print-jpeg.md#printjpegtask) | Type |
 | [`PrintJpegTile`](api/output-print-jpeg.md#printjpegtile) | Type |
 | [`PrintJpegTileRequest`](api/output-print-jpeg.md#printjpegtilerequest) | Type |
