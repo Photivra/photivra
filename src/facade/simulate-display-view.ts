@@ -17,7 +17,7 @@ import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolvePortableChartScene, type ChartScene } from "./chart-scenes.js";
 import { resolvePortableCaptureIlluminant, calculateIlluminantIrradianceScale } from "./scene-radiance.js";
 import { ahdCandidateKernels, createDisplayViewExpectedSignal, renderDisplayView, type DisplayViewChannelReadout, type DisplayViewExpectedSignal, type DisplayViewRenderResult,
-  type DisplayViewScene } from "./display-view.js";
+  type DisplayViewScene, EXACT_AREA_MEAN_MAX_PIXELS } from "./display-view.js";
 import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, sceneIlluminantWhiteBalance, CAMERA_TO_XYZ, CHANNELS, DARK_CURRENT_ELECTRONS_PER_SECOND, FACADE_EVIDENCE,
   SIMULATE_CAPTURE_FACADE_VERSION, DISPLAY_VIEW_WITHOUT_VIEW, allowKeys, parseDisplayViewOption, type DisplayViewResult, type DisplayViewRunContext, type ParsedDisplayView,
   type SimulateCaptureAssumption, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
@@ -197,13 +197,23 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
       "The image the full-resolution capture of this request would give after resizing to " + v.width + " × " + v.height + ": each display pixel is the area-weighted mean, in linear light (sRGB samples decoded with the sRGB EOTF), " +
       "of the real output pixels its rectangle covers (" + scaleX + " × " + scaleY + " real pixels), then sRGB-encoded and rounded. The real capture's own samples are rounded to the view's bit depth before averaging.");
     const uniformSamplesPerAxis = Math.max(1, Math.round(v.samplesPerAxis / 4));
-    assume("view.estimation", "model", { method: "stratified-monte-carlo-over-real-pixels", samplesPerAxis: v.samplesPerAxis, uniformSamplesPerAxis,
-      detailPixels: rendered.detailPixelCount, uniformPixels: rendered.uniformPixelCount },
-      "Each display pixel's expected value is the mean over K × K strata of its rectangle, one seeded uniformly jittered real pixel in each, so it is unbiased; the error is zero where the rectangle is uniform " +
-      "and falls as K^-3/2 at an edge. K = " + v.samplesPerAxis + " where a fixed pilot grid over the rectangle (widened by the demosaic, filter and kernel reach) or a neighbouring pixel's grid finds more than one scene value, " +
-      "K = " + uniformSamplesPerAxis + " elsewhere. For each sampled pixel the expected electrons of the real sites its demosaic reads are exact at the real pitch (the scene sampled at those sites through the pixel aperture, " +
+    const siteSentence = "the expected electrons of the real sites its demosaic reads are exact at the real pitch (the scene sampled at those sites through the pixel aperture, " +
       "anti-aliasing filter and diffraction kernels, with the capture's own query arithmetic, so the colour mosaic and its aliasing are the real sensor's), and the per-site clip at white, the highlight clip, the tone curve " +
-      "and the clip to [0, 1] act on the pixel's own noise distribution, approximated as normal.");
+      "and the clip to [0, 1] act on the pixel's own noise distribution, approximated as normal.";
+    // 2.8 (#393): where a footprint holds at most 25 real pixels (and at most K²), every real pixel of it is evaluated once with its exact weight.
+    if (rendered.estimation === "exact-area-mean") {
+      assume("view.estimation", "model", { method: "exact-area-mean-over-real-pixels", samplesPerAxis: v.samplesPerAxis, realPixelsPerDisplayPixel: scaleX * scaleY,
+        evaluatedRealPixels: rendered.sampleCount },
+        "Each display pixel's expected value is the exact area mean of the real pixels its rectangle covers: every real pixel it touches is evaluated once and weighted by its overlap with the rectangle " +
+        "(w_j / A, summing to 1), so there is no sampling error. This applies because each rectangle holds " + scaleX * scaleY + " real pixels (" + scaleX + " × " + scaleY + "), at most " + EXACT_AREA_MEAN_MAX_PIXELS + " and at most K² = " + v.samplesPerAxis * v.samplesPerAxis + "; coarser views use a stratified estimate, which costs less there. " +
+        "For each real pixel " + siteSentence);
+    } else {
+      assume("view.estimation", "model", { method: "stratified-monte-carlo-over-real-pixels", samplesPerAxis: v.samplesPerAxis, uniformSamplesPerAxis,
+        detailPixels: rendered.detailPixelCount, uniformPixels: rendered.uniformPixelCount },
+        "Each display pixel's expected value is the mean over K × K strata of its rectangle, one seeded uniformly jittered real pixel in each, so it is unbiased; the error is zero where the rectangle is uniform " +
+        "and falls as K^-3/2 at an edge. K = " + v.samplesPerAxis + " where a fixed pilot grid over the rectangle (widened by the demosaic, filter and kernel reach) or a neighbouring pixel's grid finds more than one scene value, " +
+        "K = " + uniformSamplesPerAxis + " elsewhere. For each sampled pixel " + siteSentence);
+    }
     assume("view.noise", "model", { method: "variance-of-the-area-mean", distribution: "normal" },
       "Noise of the mean of the real pixels: the covariance of the weighted sum of independent site noises (shot, dark, read and ADC), with the demosaic correlation (B_c = Σ β², in closed form from the rectangle) and the " +
       "expected slopes of the clips and the tone curve (Stein's lemma); the variance the linearization misses and the real pixels' output rounding are added per pixel. One correlated normal draw per display pixel, seeded " +

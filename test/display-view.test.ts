@@ -208,6 +208,8 @@ describe("simulateDisplayView", () => {
 
   it("keeps its bytes, the same on every JavaScript engine: one set of hash locks", async () => {
     // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics (timings removed).
+    // Re-recorded for #393 (exact area mean): the cases whose footprints hold at most 25 real pixels changed; the first two
+    // and the last two (coarser views, stratified estimator) keep their 2.6.0 hashes.
     // Each case exercises one path: non-uniform and uniform diffraction sites, the AHD correction, spectral materials with
     // mirror borders, a radiance scene, AHD with a tone curve, and Speed. The display view's own arithmetic and its
     // illuminant use only correctly rounded operations and the engine's portable functions (src/core/portable-math.ts), so
@@ -223,9 +225,9 @@ describe("simulateDisplayView", () => {
         sensor: { pixelPitchMicrometers: 1.4 }, output: { width: 200, height: 150, demosaic: "ahd" } }, { width: 10, height: 8 }, "3c4d6097d5358111358165c7a820eab707b41eb5621c4ba5f2fe51bd004fb3b0"],
       [{ scene: { preset: "patches", patches: [{ patchId: "a", reflectance: red }, { patchId: "b", reflectance: 0.5 }], columns: 2 }, chartSize: { widthM: 0.002, surroundReflectance: 0.3 },
         lens: { diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 60, height: 40, borderHandling: "mirror" } }, { width: 12, height: 8 },
-      "f1f52a0a779391825983a305aa26c0a8121e746133462a802b231bd2b7ab13d3"],
+      "d1f47df34a757135ce4335656e9294b1a6995429e28183451d0386b5a03de451"],
       [{ scene: { kind: "reflectance-function", sceneId: "rings", evaluate: rings }, lens: { diffraction: "circular-aperture" },
-        sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, "4ea00b3d9af453c4e1dd82de4d7d018d974885a751788eeed6a327dc3edd50dd"],
+        sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, "992eec6e7a1d8d3ec4817baf703156c46f9dda4a8dd340624dac8d1b8f439b77"],
       [{ scene: { preset: "dead-leaves" }, lens: { fNumber: 11, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 4 },
         output: { width: 300, height: 200, demosaic: "ahd", toneCurve: "positive-reinhard-per-channel" } }, { width: 30, height: 20, region: { x: 5, y: 4, width: 9, height: 7 }, format: "srgb-16" },
       "0c459f1395213976a4c29d2441161749757141e6dada2a6e49997fa9f4954f68"],

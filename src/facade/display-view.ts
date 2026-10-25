@@ -659,6 +659,11 @@ export interface DisplayViewRenderResult {
   uniformPixelCount: number;
   /** Display pixels whose expected value includes the AHD low-signal correction. */
   ahdCorrectedPixelCount: number;
+  /**
+   * 2.8 (#393): "exact-area-mean" when each display pixel averaged every real pixel of its footprint once, with its exact
+   * overlap weight (views where a footprint holds at most K² real pixels); "stratified-monte-carlo" otherwise.
+   */
+  estimation: "exact-area-mean" | "stratified-monte-carlo";
 }
 
 /** One tap of a linear demosaic kernel: the site at (dx, dy) from the pixel, and its weight. */
@@ -802,6 +807,13 @@ function correctionStates(key: string): CorrectionStates {
 const MEMO_SIZE = 37;
 /** Most real pixels a display pixel's footprint may have for the per-real-pixel memo (#392); larger footprints rarely repeat a real pixel. */
 const PIXEL_MEMO_LIMIT = 1 << 16;
+/**
+ * Most real pixels a footprint may hold for the exact area mean (#393). Measured on 8-row strips of a 24 MP view (Siemens star
+ * and dead leaves, one thread): the exact path matched the stratified estimator's time within run-to-run spread up to 25 real
+ * pixels per display pixel and was slower above (1.2× at 36, 1.4–1.5× at 64, 1.5–2.4× at 144), because every real pixel is
+ * evaluated while the stratified estimator takes a quarter of its samples per axis where the pilot finds no detail.
+ */
+export const EXACT_AREA_MEAN_MAX_PIXELS = 25;
 /** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
 
@@ -810,6 +822,20 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const { frameWidth, frameHeight, margin, nativeWidth, nativeHeight, viewWidth, viewHeight, region, seed, reachSites } = setup;
   const sx = frameWidth / viewWidth, sy = frameHeight / viewHeight, area = sx * sy, g = 2 / frameWidth;
   const fullK = setup.samplesPerAxis, uniformK = Math.max(1, Math.round(fullK / 4));
+  // Exact area mean (#393): where a footprint holds at most EXACT_AREA_MEAN_MAX_PIXELS real pixels and at most K², every real
+  // pixel it touches is evaluated once with its exact overlap weight a_j = w_j / A, so the expected value is D_P = Σ_j a_j·E[L_j]
+  // with no sampling error at no more cost than sampling; coarser views keep the stratified estimator, whose cost does not
+  // grow with the footprint.
+  const exactView = area <= Math.min(EXACT_AREA_MEAN_MAX_PIXELS, fullK * fullK);
+  const columnOverlaps = exactView ? Array.from({ length: region.width }, (_, i) => overlaps((region.x + i) * sx, (region.x + i + 1) * sx, frameWidth)) : [];
+  // On the exact path a real pixel's recorded terms are shared by the 2–4 display pixels whose footprints touch it: they are
+  // kept for the region's native columns in a ring of native rows (a power of two, at least twice a footprint's height plus
+  // one), valid while a slot's stamp is its native row + 1.
+  const exactX0 = Math.floor(region.x * sx) + margin, exactWidth = Math.min(frameWidth - 1, Math.ceil((region.x + region.width) * sx) - 1) + margin - exactX0 + 1;
+  let exactRows = 1;
+  while (exactRows < 2 * (Math.ceil(sy) + 1)) exactRows *= 2;
+  const exactMemo = exactView && exactRows * exactWidth <= PIXEL_MEMO_LIMIT * 4;
+  const exactStamp = new Int32Array(exactMemo ? exactRows * exactWidth : 0), exactRecords = new Float64Array(exactMemo ? exactRows * exactWidth * MEMO_SIZE : 0);
   const maximum = setup.bitDepth === 8 ? 255 : 65535, step = 1 / maximum;
   const pixelCount = region.width * region.height;
   const samples = setup.bitDepth === 8 ? new Uint8Array(pixelCount * 3) : new Uint16Array(pixelCount * 3);
@@ -1016,13 +1042,14 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const ringWidth = region.width + 2, flagRows: Uint8Array[] = [];
   const pilotRow = (vy: number): Uint8Array => {
     const row = new Uint8Array(ringWidth);
-    if (vy < 0 || vy >= viewHeight) return row.fill(1);
+    // The exact area mean needs no pilot: every pixel evaluates its whole footprint.
+    if (exactView || vy < 0 || vy >= viewHeight) return row.fill(1);
     for (let i = 0; i < ringWidth; i++) { const vx = region.x - 1 + i; row[i] = vx < 0 || vx >= viewWidth ? 1 : pilotUniform(vx, vy) ? 1 : 0; }
     return row;
   };
   flagRows.push(pilotRow(region.y - 1), pilotRow(region.y));
   for (let ry = 0; ry < region.height; ry++) {
-    const vy = region.y + ry, rows = axisSums(vy * sy, (vy + 1) * sy, frameHeight, margin);
+    const vy = region.y + ry, rows = axisSums(vy * sy, (vy + 1) * sy, frameHeight, margin), rowOverlaps = exactView ? overlaps(vy * sy, (vy + 1) * sy, frameHeight) : undefined;
     flagRows.push(pilotRow(vy + 1));
     if (flagRows.length > 3) flagRows.shift();
     for (let rx = 0; rx < region.width; rx++) {
@@ -1031,27 +1058,41 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       let same = true;
       for (let j = 0; j < 3 && same; j++) for (let i = rx; i <= rx + 2; i++) if (flagRows[j]![i] === 0) { same = false; break; }
       const K = same ? uniformK : fullK, Q = K * K;
-      if (same) uniform++; else detail++;
+      // On the exact path every pixel counts as detailed (its whole footprint is evaluated).
+      if (exactView) detail++; else if (same) uniform++; else detail++;
+      const cols = exactView ? columnOverlaps[rx]! : undefined, nx = cols ? cols.w.length : 0, sampleTotal = exactView ? nx * rowOverlaps!.w.length : Q;
       setup.signal.window(Math.floor(vx * sx) + margin - windowReach, Math.floor(vy * sy) + margin - windowReach, Math.ceil((vx + 1) * sx) + margin + windowReach,
         Math.ceil((vy + 1) * sy) + margin + windowReach);
       const jitter = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID)), tracking = setup.signal.tracksMaterial;
       const mx0 = Math.floor(vx * sx) + margin, my0 = Math.floor(vy * sy) + margin;
       const mw = Math.min(frameWidth - 1, Math.ceil((vx + 1) * sx)) + margin - mx0 + 1, mh = Math.min(frameHeight - 1, Math.ceil((vy + 1) * sy)) + margin - my0 + 1;
-      const pixelMemo = setup.signal.cachesSites && mw * mh <= PIXEL_MEMO_LIMIT;
+      const pixelMemo = !exactView && setup.signal.cachesSites && mw * mh <= PIXEL_MEMO_LIMIT;
       if (pixelMemo) {
         if (pixelStamp.length < mw * mh) { pixelStamp = new Int32Array(mw * mh); pixelRecords = new Float64Array(mw * mh * MEMO_SIZE); pixelGeneration = 0; }
         pixelGeneration++;
       }
       let s0 = 0, s1 = 0, s2 = 0, c00 = 0, c01 = 0, c02 = 0, c11 = 0, c12 = 0, c22 = 0, r0 = 0, r1 = 0, r2 = 0, pixelVariance = 0, corrected = false;
-      for (let b = 0; b < K; b++) for (let a = 0; a < K; a++) {
-        const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
-        const x = Math.min(frameWidth - 1, Math.floor(fx)) + margin, y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
+      for (let n = 0; n < sampleTotal; n++) {
+        // A sample's weights: 1 for the stratified estimator (its sums are divided by Q below); a_j for the expected value and
+        // linear covariance and a_j² for the independent residual on the exact path. Multiplying by 1 leaves every value's bits.
+        let x: number, y: number, wE = 1, wR = 1;
+        if (cols) {
+          const i = n % nx, j = (n - i) / nx, aj = cols.w[i]! * rowOverlaps!.w[j]! / area;
+          x = cols.first + i + margin; y = rowOverlaps!.first + j + margin; wE = aj; wR = aj * aj;
+        } else {
+          const a = n % K, b = (n - a) / K;
+          const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
+          x = Math.min(frameWidth - 1, Math.floor(fx)) + margin; y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
+        }
         const phase = (y & 1) * 2 + (x & 1), list = phaseList[phase]!;
         let material = -2;
         const px = x - mx0, py = y - my0;
-        const pk = pixelMemo && px >= 0 && py >= 0 && px < mw && py < mh && x >= reach && y >= reach && x + reach < nativeWidth && y + reach < nativeHeight ? py * mw + px : -1;
+        const inside = x >= reach && y >= reach && x + reach < nativeWidth && y + reach < nativeHeight;
+        const stamps = exactMemo ? exactStamp : pixelStamp, records = exactMemo ? exactRecords : pixelRecords, stamp = exactMemo ? y + 1 : pixelGeneration;
+        const pk = exactMemo ? (inside && x >= exactX0 && x - exactX0 < exactWidth ? (y & (exactRows - 1)) * exactWidth + x - exactX0 : -1)
+          : pixelMemo && px >= 0 && py >= 0 && px < mw && py < mh && inside ? py * mw + px : -1;
         let memo: Float64Array | undefined, mo = 0;
-        if (pk >= 0 && pixelStamp[pk] === pixelGeneration) { memo = pixelRecords; mo = pk * MEMO_SIZE; siteCount += list.length; }
+        if (pk >= 0 && stamps[pk] === stamp) { memo = records; mo = pk * MEMO_SIZE; siteCount += list.length; }
         // The expected electrons of the sites the demosaic reads (sites outside the raster, at mirror borders, are read
         // reflect-101); where the signal tracks it, whether they all read one chart material, with the statistics below only
         // when the sample is not replayed; otherwise the statistics at once.
@@ -1077,23 +1118,23 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         const memoKey = !memo && material >= 0 ? material * 4 + phase : -1;
         if (memoKey >= 0) {
           memo = sampleMemo.get(memoKey);
-          if (memo && pk >= 0) { pixelRecords.set(memo, pk * MEMO_SIZE); pixelStamp[pk] = pixelGeneration; }
+          if (memo && pk >= 0) { records.set(memo, pk * MEMO_SIZE); stamps[pk] = stamp; }
         }
         const cs = candidateSlots[phase]!, cw = candidateWeights[phase]!, count = cs.length, share = 1 / count;
         if (memo) {
           for (let d = 0; d < count; d++) {
             for (let c = 0; c < 3; c++) {
-              const o = mo + 3 + (d * 3 + c) * 3, a0 = memo[o]!, a1 = memo[o + 1]!, a2 = memo[o + 2]!, wgt = share * B[c]! * memo[mo + c]!;
+              const o = mo + 3 + (d * 3 + c) * 3, a0 = memo[o]!, a1 = memo[o + 1]!, a2 = memo[o + 2]!, wgt = wE * share * B[c]! * memo[mo + c]!;
               c00 += wgt * a0 * a0; c01 += wgt * a0 * a1; c02 += wgt * a0 * a2; c11 += wgt * a1 * a1; c12 += wgt * a1 * a2; c22 += wgt * a2 * a2;
             }
-            r0 += memo[mo + 21 + d * 3]!; r1 += memo[mo + 22 + d * 3]!; r2 += memo[mo + 23 + d * 3]!;
+            r0 += wR * memo[mo + 21 + d * 3]!; r1 += wR * memo[mo + 22 + d * 3]!; r2 += wR * memo[mo + 23 + d * 3]!;
           }
-          s0 += memo[mo + 27]!; s1 += memo[mo + 28]!; s2 += memo[mo + 29]!;
-          if (count === 2) { r0 += memo[mo + 30]!; r1 += memo[mo + 31]!; r2 += memo[mo + 32]!; }
-          if (memo[mo + 33] === 1) { s0 += memo[mo + 34]!; s1 += memo[mo + 35]!; s2 += memo[mo + 36]!; corrected = true; }
+          s0 += wE * memo[mo + 27]!; s1 += wE * memo[mo + 28]!; s2 += wE * memo[mo + 29]!;
+          if (count === 2) { r0 += wR * memo[mo + 30]!; r1 += wR * memo[mo + 31]!; r2 += wR * memo[mo + 32]!; }
+          if (memo[mo + 33] === 1) { s0 += wE * memo[mo + 34]!; s1 += wE * memo[mo + 35]!; s2 += wE * memo[mo + 36]!; corrected = true; }
           continue;
         }
-        const record = memoKey >= 0 ? new Float64Array(MEMO_SIZE) : pk >= 0 ? pixelRecords.subarray(pk * MEMO_SIZE, (pk + 1) * MEMO_SIZE).fill(0) : undefined;
+        const record = memoKey >= 0 ? new Float64Array(MEMO_SIZE) : pk >= 0 ? records.subarray(pk * MEMO_SIZE, (pk + 1) * MEMO_SIZE).fill(0) : undefined;
         if (tracking) for (let li = 0; li < list.length; li++) { const slot = list[li]!; siteStatistics(slot, siteChannel[slot]!, siteElectrons[slot]!); }
         // Site variance of each channel through the bilinear kernels (for B_c), then the demosaic's own pixel statistics: the
         // mean and covariance of its camera channels, averaged over its candidates (AHD picks one per pixel).
@@ -1158,18 +1199,18 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           let l0 = 0, l1 = 0, l2 = 0;
           for (let c = 0; c < 3; c++) {
             const a0 = hs[0]! * (c === 0 ? m00 : c === 1 ? m01 : m02) * bs[c]!, a1 = hs[1]! * (c === 0 ? m10 : c === 1 ? m11 : m12) * bs[c]!, a2 = hs[2]! * (c === 0 ? m20 : c === 1 ? m21 : m22) * bs[c]!;
-            const wgt = share * B[c]! * csv[c]!;
+            const wgt = wE * share * B[c]! * csv[c]!;
             c00 += wgt * a0 * a0; c01 += wgt * a0 * a1; c02 += wgt * a0 * a2; c11 += wgt * a1 * a1; c12 += wgt * a1 * a2; c22 += wgt * a2 * a2;
             an[c] = a0; an[3 + c] = a1; an[6 + c] = a2;
             if (record) { const o = 3 + (d * 3 + c) * 3; record[o] = a0; record[o + 1] = a1; record[o + 2] = a2; }
           }
           for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const cij = C[i * 3 + j]!; l0 += an[i]! * an[j]! * cij; l1 += an[3 + i]! * an[3 + j]! * cij; l2 += an[6 + i]! * an[6 + j]! * cij; }
           const t0 = share * Math.max(0, hv[0]! - l0), t1 = share * Math.max(0, hv[1]! - l1), t2 = share * Math.max(0, hv[2]! - l2);
-          r0 += t0; r1 += t1; r2 += t2;
+          r0 += wR * t0; r1 += wR * t1; r2 += wR * t2;
           if (record) { record[21 + d * 3] = t0; record[22 + d * 3] = t1; record[23 + d * 3] = t2; }
           pixelVariance = Math.max(pixelVariance, hv[0]!, hv[1]!, hv[2]!);
         }
-        s0 += e0; s1 += e1; s2 += e2;
+        s0 += wE * e0; s1 += wE * e1; s2 += wE * e2;
         if (record) { record[0] = csv[0]!; record[1] = csv[1]!; record[2] = csv[2]!; record[27] = e0; record[28] = e1; record[29] = e2; }
         if (count === 2) {
           // AHD's per-pixel choice between the candidates adds independent variance: with a noise-driven choice each pixel
@@ -1182,7 +1223,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             const v = siteVar[slot]!, a = hs[0]! * (m00 * d0 + m01 * d1 + m02 * d2), b = hs[1]! * (m10 * d0 + m11 * d1 + m12 * d2), c = hs[2]! * (m20 * d0 + m21 * d1 + m22 * d2);
             x0 += a * a * v; x1 += b * b * v; x2 += c * c * v;
           }
-          r0 += x0 / 4; r1 += x1 / 4; r2 += x2 / 4;
+          r0 += wR * (x0 / 4); r1 += wR * (x1 / 4); r2 += wR * (x2 / 4);
           if (record) { record[30] = x0 / 4; record[31] = x1 / 4; record[32] = x2 / 4; }
         }
         // AHD at low signal: its homogeneity choice reacts to the noise, which the linear candidates cannot express. A sample
@@ -1192,20 +1233,22 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         // (docs/DISPLAY_VIEW.md).
         if (ahdCorrection && pixelVariance > ahdCorrection.thresholdVariance) {
           const fix = flatCorrection(cmAverage[0]!, cmAverage[1]!, cmAverage[2]!);
-          s0 += fix[0]!; s1 += fix[1]!; s2 += fix[2]!; corrected = true;
+          s0 += wE * fix[0]!; s1 += wE * fix[1]!; s2 += wE * fix[2]!; corrected = true;
           if (record) { record[33] = 1; record[34] = fix[0]!; record[35] = fix[1]!; record[36] = fix[2]!; }
         }
-        if (record && memoKey >= 0) { sampleMemo.set(memoKey, record); if (pk >= 0) pixelRecords.set(record, pk * MEMO_SIZE); }
-        if (pk >= 0) pixelStamp[pk] = pixelGeneration;
+        if (record && memoKey >= 0) { sampleMemo.set(memoKey, record); if (pk >= 0) records.set(record, pk * MEMO_SIZE); }
+        if (pk >= 0) stamps[pk] = stamp;
         pixelVariance = 0;
       }
-      sampleCount += Q;
+      sampleCount += sampleTotal;
       if (corrected) correctedPixels++;
-      const mean0 = s0 / Q, mean1 = s1 / Q, mean2 = s2 / Q, pixels = B[3]!;
+      // Stratified: means over Q samples. Exact: the weights already sum to 1 (Σ a_j = 1) and the residual carries Σ a_j²·r_j.
+      const Qd = exactView ? 1 : Q, mean0 = s0 / Qd, mean1 = s1 / Qd, mean2 = s2 / Qd, pixels = B[3]!;
       // The real pixels' output rounding (Δ²/12 in the encoded domain), mapped to linear light at the mean.
       const q0 = quantizationVariance(mean0, step), q1 = quantizationVariance(mean1, step), q2 = quantizationVariance(mean2, step);
       // Covariance in linear light: the linear part plus the independent per-pixel residuals and rounding.
-      const v00 = c00 / Q + pixels * (r0 / Q + q0), v01 = c01 / Q, v02 = c02 / Q, v11 = c11 / Q + pixels * (r1 / Q + q1), v12 = c12 / Q, v22 = c22 / Q + pixels * (r2 / Q + q2);
+      const v00 = exactView ? c00 + r0 + pixels * q0 : c00 / Q + pixels * (r0 / Q + q0), v01 = c01 / Qd, v02 = c02 / Qd,
+        v11 = exactView ? c11 + r1 + pixels * q1 : c11 / Q + pixels * (r1 / Q + q1), v12 = c12 / Qd, v22 = exactView ? c22 + r2 + pixels * q2 : c22 / Q + pixels * (r2 / Q + q2);
       const noise = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_NOISE_STREAM_ID));
       const z0 = samplePortableStandardNormal(noise), z1 = samplePortableStandardNormal(noise), z2 = samplePortableStandardNormal(noise);
       // Cholesky factor of the 3 × 3 covariance (positive semidefinite; tiny negative pivots are treated as 0).
@@ -1224,7 +1267,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       if (Date.now() - lastYield >= 8) { await setup.yieldControl(); setup.checkAbort(); lastYield = Date.now(); }
     }
   }
-  return { samples, expected, noiseStd, sampleCount, siteCount, detailPixelCount: detail, uniformPixelCount: uniform, ahdCorrectedPixelCount: correctedPixels };
+  return { samples, expected, noiseStd, sampleCount, siteCount, detailPixelCount: detail, uniformPixelCount: uniform, ahdCorrectedPixelCount: correctedPixels,
+    estimation: exactView ? "exact-area-mean" : "stratified-monte-carlo" };
 }
 
 /**
