@@ -604,6 +604,14 @@ same values with the same operations in the same order; none reassociates a floa
   ring measured 2–4 % slower there) and radiance scenes with diffraction (lazy window caches) keep the per-read path.
   Measured on the app-request shape (Node 24.21.0, one thread, two runs of three repeats, builds alternated): Quality
   part medians 169–194 → 148–164 ms at f/8 and 177–187 → 154–164 ms at f/11; Speed, which does not use the ring, within ±3 %.
+- **The render loop's tables have one element kind each (#442).** The readout tables (gain, dark electrons, read
+  variance and its square root) and the homogeneity white are `Float64Array`s instead of plain arrays, the per-phase
+  candidate tables are flat arrays of typed arrays (index phase·2 + candidate, and ·3 + channel) instead of nested
+  arrays, and a site's window offset comes from two per-render integer tables instead of a modulo and a division per
+  read. They hold the same numbers and the loop does the same arithmetic on them in the same order; the change only
+  stops V8 from discarding the render loop's optimized code when its loads met another array shape. Measured on the
+  app-request shape (Node 24.21.0, one thread, three repeats, builds alternated, against #441): Quality part medians
+  148–156 → 143–151 ms, Speed 83–91 → 79–84 ms.
 
 **Proof of byte identity.** The display views of all 155 validation cases at their seeds (the requests of
 `validate-display-view.mjs`, Speed and Quality, three sensors) were hashed before and after (SHA-256 of the samples, of
