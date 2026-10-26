@@ -317,6 +317,17 @@ same exposure); display widths 96, 192, 384 and 800; Speed (the engine defaults)
 
 ## Validation results
 
+**Set F, device-pixel views (October 26, 2026, `65decd1`; [record](validation/display-view-2026-10-26/README.md)).**
+`node scripts/validate-display-view.mjs --set F` validates the view where an interactive viewer renders it: 2028 pixels
+wide on the 24 MP full frame and 4000 on the 100 MP medium format, about 3 × 3 real pixels per display pixel, on the
+[exact area mean](#exact-area-mean) (12 cases, 32 × 32 blocks at the star's centre and on uniform grey at ISO 100 and
+6400). Speed passes every limit. Quality misses two: the predicted noise is 1.13–1.20 of the reference's on the uniform
+patches (the [known limit](#known-limit-quality-noise-at-small-footprints), #379), and at the star's centre the expected
+value is 5.1 codes RMS, at most 34 codes, from the capture (full frame; 3.6 / 22 on the medium format) against the 2-code
+limit, because the view's AHD result differs from the capture's where the pattern is finer than the sensor resolves.
+Diffraction and the four-spot filter match the capture there within 0.2 code; the AHD miss shrinks with the footprint
+(19.3 codes RMS with AHD alone at 2028 wide, 7.7 at 800). Set F is outside the default run.
+
 **2.8.0 re-run (October 25, 2026, `de77074`; [record](validation/display-view-2026-10-25/README.md)).** 145 cases are
 identical to the October 19 results below. The 10 cases on the [exact area mean](#exact-area-mean), the phone at 800
 pixels wide, are the same or better against every limit (Siemens star: expected-value RMS 1.78 → 1.35 codes, SSIM
@@ -391,8 +402,9 @@ B − G +15 %, and a green–blue correlation of −0.06 where the capture has +
 G 1.133, B 1.030, outside the 0.85–1.15 noise limit. On the slanted edge (case 92) R − G is +9 % and B − G +18 %, and the false colour
 exceeds the reference's by +0.48 code (+0.49 ± 0.05 over seven view and reference seeds; with the reference's own noise
 added to the view's expected image instead of the view's draw, +0.04): the expected value is right and the drawn
-noise is not. Speed (bilinear) is exact. On the 6 µm and 3.76 µm sensors, and on the 1.4 µm sensor at 384 pixels wide
-or less, the predicted noise is within 0.89–1.08. A redesign of the Quality noise model, from the autocovariance of
+noise is not. Speed (bilinear) is exact. On the 6 µm and 3.76 µm sensors at 800 pixels wide or less, and on the 1.4 µm sensor at
+384 pixels wide or less, the predicted noise is within 0.89–1.08. At device-pixel widths, about 3 × 3 real pixels per
+display pixel, the 6 µm and 3.76 µm sensors reach 1.13–1.20 as well (set F, October 26, 2026). A redesign of the Quality noise model, from the autocovariance of
 the real AHD output, is planned for 2.7.0 (#379).
 
 Known-limit misses in the validation, recorded under #379 and accepted for 2.6.0 by the owner (October 20, 2026), with
@@ -411,6 +423,46 @@ What changed during validation (each found by this matrix and checked again on i
 5. The clipped noise draw biased very noisy display pixels upward (+3.5 codes); its centre is now adjusted.
 
 ## Cost
+
+Two regimes. Where a display pixel covers more than 25 real pixels (narrower than about a fifth of the frame's width), the
+stratified estimator applies and the cost follows the detailed display pixels × K². At or below 25, the
+[exact area mean](#exact-area-mean) applies and the cost follows the real pixels the region touches.
+
+### A device-pixel view rendered in parts
+
+The request shape of an interactive viewer (#454): a 24 MP, 6 µm, 6000 × 4000 sensor with the 2 × 2 box pixel aperture, a
+caller material scene (an engine-authored composite chart plus a stand-in printed label), and a 2028 × 1352 view (a
+1440 × 900 window at twice the CSS pixel size), prepared once with `prepareDisplayView` and rendered in 96 × 96 parts,
+centre first. Every display pixel covers about 2.96 × 2.96 real pixels, so every part takes the exact area mean. Speed is
+the engine defaults plus the box; Quality adds `lens.diffraction: "circular-aperture"`, the four-spot filter and AHD. ISO
+100, so no part needs the AHD low-signal correction.
+
+`node scripts/benchmark-display-view.mjs --app`, on `main` at `65decd1` (2.9.0 plus #434): one fresh Node process per row
+and repeat, 30 of the 294 parts timed (every ninth in the centre-first order), two repeats; built `dist`, Node 24.21.0,
+4-vCPU Intel Xeon 2.80 GHz, Linux, load average 0.3–1.1. To show the noise floor the same build ran a second time as
+build B, interleaved with A: the per-part medians of the two builds and two repeats agree within 10 %, the prepare
+times within 20 %. Ranges are over both builds and both repeats.
+
+| Options | f | Prepare | Part median | Slowest part | µs per display pixel, median (min–max) | Whole view, one thread |
+| --- | --- | --- | --- | --- | --- | --- |
+| Speed | f/8 | 195–226 ms | 88–89 ms | 227–291 ms | 9.4–9.5 (8.4–31.3) | 31–33 s |
+| Speed | f/11 | 176–197 ms | 86–95 ms | 199–215 ms | 9.2–10.2 (8.5–23.1) | 29–33 s |
+| Quality | f/8 | 452–548 ms | 169–181 ms | 510–526 ms | 18.2–19.3 (16.5–57.1) | 63–65 s |
+| Quality | f/11 | 461–559 ms | 175–186 ms | 496–535 ms | 18.7–19.9 (16.9–57.5) | 65–67 s |
+
+The whole-view column is an extrapolation from the timed parts (their mean × 294), not a measurement. Quality costs about
+twice Speed per part. The slowest parts are the first one (its own warm-up) and those over the chart's busiest areas. The
+stand-in label costs a few comparisons per lookup; a caller's label tested by polygon winding costs more (about 3 % of the
+self time in one caller's profile). Comparing two builds: `DIST_B=<other dist/index.js> node
+scripts/benchmark-display-view.mjs --app` runs them interleaved, alternating which goes first.
+
+### Whole views against the 2.5 whole-frame view (2.6.0)
+
+The table below is the 2.6.0 record: whole views of 96–800 pixels wide, mostly on the stratified estimator, against the
+2.5 whole-frame view, which no caller renders any more. Both columns have changed since: re-run on `main` at `65decd1`
+(Node 24.21.0, same host, load average 4.4), the full-frame star at 384 wide takes 5.7–6.0 s (Speed) and 13.1–13.8 s
+(Quality) as a display view, and 0.16–0.20 s and 0.54–0.56 s as a whole-frame view, now that captures take the tabulated
+RAW path (2.8.0).
 
 **Method.** `node scripts/benchmark-display-view.mjs`: one fresh Node process per row, a 16 × 16 warm-up capture,
 then one timed `simulateDisplayView` of the whole view and one timed 2.5 whole-frame view (a `simulateCapture` at
@@ -457,7 +509,8 @@ after).
 | Dead leaves | 100 MP medium format | Quality | 384 × 288 | 282.3 s | 68.2 s | 4.1× | 26.7 s | 2.6× |
 
 **Speed** costs 0.6–2.4× the whole-frame view at every size and sensor: 0.9–1.2× for the star and 1.6–2.3× for dead
-leaves at 384 pixels wide. The cost follows the detailed display pixels × K², not the 12–100 million real pixels.
+leaves at 384 pixels wide (2.6.0). On the stratified estimator the cost follows the detailed display pixels × K², not the
+12–100 million real pixels.
 
 **Quality** costs more on small pixels, for two reasons that the accuracy requirements impose (12 MP phone star at
 96 × 72, one option at a time, before → after: diffraction 55.6 → 8.2 s, AHD 312.5 → 100.1 s):
