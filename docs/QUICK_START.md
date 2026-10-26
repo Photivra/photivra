@@ -1327,7 +1327,11 @@ view allocates nothing at full resolution).
 
 **Many regions of one view (2.7).** Each `simulateDisplayView` call repeats the request's setup: the camera, lens,
 scene and illuminant, the channel responses, the diffraction kernels and the colour tables. That is about 0.25 s with
-the engine defaults and 0.7 s with the Quality options on a 24 MP request. To render one view in many regions, prepare
+the engine defaults and 0.7 s with the Quality options on a 24 MP request (measured before #443). The channel responses
+do not depend on the scene and are kept across calls, so a call after a chart, illuminant or illuminance change costs
+less than one after an aperture or shutter change: with the Quality options, about 30–50 ms after a chart, illuminant or
+illuminance change and about 55–70 ms after an aperture or shutter change, against about 0.4 s for each before #443
+(Node 24.21.0, one thread, prepares in one process after a warm-up). To render one view in many regions, prepare
 the request once and render each region from it; each region then costs only its own pixels:
 
 ```ts
