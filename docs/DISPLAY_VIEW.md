@@ -464,6 +464,14 @@ warm-up, the app-request shape, five rounds alternating the builds (Node 24.21.0
 change 378–430 ms → 54–67 ms (Quality) and 110–142 ms → 15–19 ms (Speed); after a chart change 379–435 ms → 34–39 ms
 and 108–115 ms → 6–7 ms; after an illuminant change 370–385 ms → 35–47 ms and 108–120 ms → 6–7 ms.
 
+With diffraction on, a prepare also needs one site diffraction kernel per spectral node, which depends only on the
+optics (f-number, focal length, focus), the pitch, the kernel radius, the spectral nodes and the field extent. Since #446
+the kernels are kept by value for the last four such optics settings, so a prepare after an ISO, white-balance or shutter
+change, or a repeat of the same request, reuses them with the same bytes; an aperture, focal-length, focus or pitch change
+resolves them again. Prepares in one process, the app-request shape, five rounds alternating the builds: after an ISO
+change 37–45 → 9–16 ms at 6 µm f/11, 76–84 → 10–12 ms at 6 µm f/22 and 241–276 → 15–19 ms at
+1.4 µm f/11 (Node 24.21.0, one thread, five rounds alternating the builds).
+
 ### Whole views against the 2.5 whole-frame view (2.6.0)
 
 The table below is the 2.6.0 record: whole views of 96–800 pixels wide, mostly on the stratified estimator, against the

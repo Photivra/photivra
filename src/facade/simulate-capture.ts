@@ -88,6 +88,7 @@ import { createRollingShutterCaptureExposureSchedule, resolveElectronicRollingSh
 import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
+import { registerDiffractionPsfKey } from "../optics/site-diffraction-kernel.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
 import { resolveGenericPrimeLens, type GenericPrimeLens } from "../equipment/generic-prime-lenses.js";
 import { calculateChannelElectronsPerRadiance } from "./channel-response.js";
@@ -1802,13 +1803,16 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     // larger tail energy outside it is listed per wavelength like any other (2.2.1 states the cap in the explanation).
     const thirdRingSites = Math.max(1, Math.ceil(AIRY_THIRD_ZERO_PER_LAMBDA_N * lambdaN / pitch));
     const kernelRadiusSamples = diffractionRadiusOption ?? Math.min(32, thirdRingSites);
-    diffraction = createDiffractionLimitedPsfProfile({ aperture: "circular", focalLengthMm, apertureFNumber: fNumber, focus: { kind: "finite", distanceM: focusDistanceM },
+    const profileInput = { aperture: "circular" as const, focalLengthMm, apertureFNumber: fNumber, focus: { kind: "finite" as const, distanceM: focusDistanceM },
       wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: aaReachMm === 0 ? { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 } :
         { x: imagingArea.widthMm / 2 + aaReachMm, y: imagingArea.heightMm / 2 + aaReachMm },
-      profileId: "facade-diffraction-airy" }).value;
+      profileId: "facade-diffraction-airy" };
+    diffraction = createDiffractionLimitedPsfProfile(profileInput).value;
     diffractionPsf = { kind: "sampled-local", configuration: { psf: { profile: diffraction.profile, focalLengthMm, focus: { kind: "finite", distanceM: focusDistanceM },
       apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
     spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Diffraction-limited Airy PSF, the same at every field point." } } };
+    // Requests with the same profile input and PSF fields share their site diffraction kernels (optics/site-diffraction-kernel.ts).
+    registerDiffractionPsfKey(diffractionPsf.configuration.psf, profileInput);
     assume("lens.diffraction", "model", { model: diffraction.model, aperture: "circular-aperture", fNumber, workingFNumber: diffraction.workingFNumber,
       kernelRadiusSamples, samplePitchMicrometers: pitch, maximumTruncatedEnergyFraction: diffraction.maximumTruncatedEnergyFraction,
       truncatedEnergyByWavelength: diffraction.wavelengths.map((w) => ({ wavelengthNm: w.wavelengthNm, truncatedEnergyFraction: w.truncatedEnergyFraction })),
