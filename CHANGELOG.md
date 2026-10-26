@@ -15,7 +15,7 @@
 
 - **`lens.diffraction`'s `aperture` key (#395): use `kind`.** `{ aperture: "circular-aperture" }` is still accepted, with the same result, until 3.0.0; giving both `kind` and `aperture` is an error.
 
-## 2.9.0 — unreleased (prepared October 25, 2026)
+## 2.9.0 — published October 26, 2026
 
 A minor release: new functions for writing a whole-frame DNG from region parts and a Print JPEG in strips, and a faster display view and Quality preview. Results are the same as 2.8.1, except display views and binned frames whose diffraction cells have β ≥ 32, which change in the last bits.
 - **New:** `serializeSimulatedCaptureDngFromParts` joins region parts' RAW into a DNG with the bytes of one whole-frame run. `createPrintJpegStrip` and `composePrintJpegStrips` write a 1:1 Print JPEG's rows on separate workers and join them into the bytes of `createPrintJpegTask`. In the Photivra app, on four browser workers:
