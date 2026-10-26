@@ -337,8 +337,9 @@ export interface SimulateCaptureOptions {
    * listed in {@link SIMULATE_CAPTURE_FAST_OPTIONS} runs its fast method where it has one, a measured, bounded approximation of
    * the exact one; an option without a fast method runs exact. An option's own record `fast` overrides this for that option
    * only. `diagnostics.fast` reports what was requested and what ran. Fast methods: `lens.diffraction` (#397, the kernel window
-   * reaches the second dark ring instead of the third; see the assumption `fast.lens.diffraction` for its bound). The other
-   * listed options have none yet and run exact.
+   * reaches the second dark ring instead of the third; see the assumption `fast.lens.diffraction` for its bound) and
+   * `sensor.pixelAperture.box` with diffraction where the Airy pattern spans at least 3.5 sites (#398, the box folded into the
+   * diffraction kernels; a measured bound in `fast.sensor.pixelAperture.box`). The other listed options have none yet and run exact.
    */
   fast?: boolean;
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
@@ -371,8 +372,12 @@ export interface SimulateCaptureFastReport {
   requested: boolean;
   /** Each fast-capable option that ran, in {@link SIMULATE_CAPTURE_FAST_OPTIONS} order: true where its fast method ran. */
   applied: Readonly<Partial<Record<SimulateCaptureFastOption, boolean>>>;
-  /** `engine-reference` when every option ran exact; `approximation-with-a-priori-bound` when any fast method ran (the WebGPU execution record's values). */
-  assurance: "engine-reference" | "approximation-with-a-priori-bound";
+  /**
+   * `engine-reference` when every option ran exact; `approximation-with-a-priori-bound` when every fast method that ran has a
+   * bound derived in advance (the WebGPU execution record's values); `approximation-with-measured-bound` when any fast method
+   * that ran has only a measured bound (#398, `sensor.pixelAperture.box`).
+   */
+  assurance: "engine-reference" | "approximation-with-a-priori-bound" | "approximation-with-measured-bound";
 }
 
 export interface SimulateCaptureProgress {
@@ -616,6 +621,15 @@ const AIRY_THIRD_ZERO_PER_LAMBDA_N = 10.173468135062722 / Math.PI;
  * §10.21, Table 10.21.1, free): the kernel reach of `lens.diffraction`'s fast method (#397).
  */
 const AIRY_SECOND_ZERO_PER_LAMBDA_N = 7.015586669815619 / Math.PI;
+/** First dark ring of the Airy pattern in units of λ·N_w (j₁,₁/π, j₁,₁ = 3.8317059702; NIST DLMF §10.21, Table 10.21.1). */
+const AIRY_FIRST_ZERO_PER_LAMBDA_N = 3.8317059702075125 / Math.PI;
+/**
+ * #398 fast method: the box is folded into the diffraction kernels only where the Airy pattern's first dark ring at 550 nm
+ * reaches at least this many sites. The fold samples the scene once per site, and its error falls as the pattern widens:
+ * measured noise-free against an 8 × 8 box, the worst site moved by 16.7 % of the scene contrast on a Siemens star and 6.6 % on
+ * a slanted edge at 3.83 sites, 29 % and 16 % at 1.9 sites (the exact 2 × 2 box: 7.3 % and 1.6 %, then 11 % and 5.3 %).
+ */
+const BOX_FOLD_MINIMUM_FIRST_ZERO_SITES = 3.5;
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
@@ -1031,7 +1045,7 @@ export interface DisplayViewRunContext {
   ahd: boolean;
   fastReport: SimulateCaptureFastReport;
   /** #398: the Airy cut-off per spectral node when the box is folded into the diffraction kernels. */
-  boxFold: { cutoffs: ReadonlyMap<number, number> } | undefined;
+  boxFold: { cutoffs: ReadonlyMap<number, number>; firstZeroSites: number } | undefined;
   antiAliasing: ParsedAntiAliasing | undefined;
   aspect: number;
   assume: (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string) => void;
@@ -1200,7 +1214,16 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // Diffraction (2.1): validated here, built once the f-number is resolved.
   let diffractionRadiusOption: number | null | undefined, diffractionFast: boolean | undefined;
   /** #398: the Airy cut-off per spectral node when the box is folded into the diffraction kernels (fast mode). */
-  let boxFold: { cutoffs: ReadonlyMap<number, number> } | undefined;
+  let boxFold: { cutoffs: ReadonlyMap<number, number>; firstZeroSites: number } | undefined;
+  /** #398: the assumption of the fold, added where it runs (the display view, or the capture's tabulated path). */
+  const assumeBoxFold = (): void => assume("fast.sensor.pixelAperture.box", "model", { method: "box-folded-into-diffraction-kernel", samplesPerAxis: boxSamples,
+    firstZeroSites: boxFold!.firstZeroSites, minimumFirstZeroSites: BOX_FOLD_MINIMUM_FIRST_ZERO_SITES,
+    bound: { kind: "measured", reference: "box-8-midpoint-rule", maximumFractionSiemensStar: 0.167, maximumFractionSlantedEdge: 0.066, atFirstZeroSites: 3.83 } },
+    "Fast method (#398): the " + boxSamples + " × " + boxSamples + " box nodes are folded into one diffraction kernel per spectral node (the Airy energy in each site cell " +
+    "shifted to each box node, from cells of pitch / " + boxSamples + "), so the scene is read once per site instead of " + boxSamples * boxSamples + " times. It runs only where the " +
+    "Airy first dark ring at 550 nm reaches at least " + BOX_FOLD_MINIMUM_FIRST_ZERO_SITES + " sites (here " + boxFold!.firstZeroSites.toFixed(2) + "). Measured bound, not derived in advance: " +
+    "noise-free against an 8 × 8 box, the worst site's expected electrons moved by 16.7 % of the scene contrast on a Siemens star and 6.6 % on a slanted edge at 3.83 sites, " +
+    "falling to 10.9 % and 1.8 % at 7.7 sites; slanted-edge MTF50 within 0.5 %. Hard edges are effectively placed to the nearest site.");
   if (lensOptions.diffraction !== undefined) {
     const d = lensOptions.diffraction;
     if (d === "circular-aperture") diffractionRadiusOption = null;
@@ -1838,8 +1861,9 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
     spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Diffraction-limited Airy PSF, the same at every field point." } } };
     // #398 fast method: the box folded into the diffraction kernels, from the same Airy PSF binned at pitch / samplesPerAxis.
-    if (boxAperture && boxSamples > 1 && wantsFast(boxFast) && diffractionObjectSpace) {
-      boxFold = { cutoffs: new Map(diffraction.wavelengths.map((w) => [w.wavelengthNm, w.cutoffFrequencyCyclesPerMicrometer])) };
+    const firstZeroSites = AIRY_FIRST_ZERO_PER_LAMBDA_N * 0.55 * diffraction.workingFNumber / pitch;
+    if (boxAperture && boxSamples > 1 && wantsFast(boxFast) && diffractionObjectSpace && firstZeroSites >= BOX_FOLD_MINIMUM_FIRST_ZERO_SITES) {
+      boxFold = { cutoffs: new Map(diffraction.wavelengths.map((w) => [w.wavelengthNm, w.cutoffFrequencyCyclesPerMicrometer])), firstZeroSites };
     }
     assume("lens.diffraction", "model", { model: diffraction.model, aperture: "circular-aperture", fNumber, workingFNumber: diffraction.workingFNumber,
       kernelRadiusSamples, samplePitchMicrometers: pitch, maximumTruncatedEnergyFraction: diffraction.maximumTruncatedEnergyFraction,
@@ -1981,8 +2005,10 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
   const reportFast = (applied: Partial<Record<SimulateCaptureFastOption, boolean>>): SimulateCaptureFastReport => Object.freeze({ requested: fastRequested,
-    applied: Object.freeze({ ...applied }), assurance: Object.values(applied).some((value) => value) ? "approximation-with-a-priori-bound" as const : "engine-reference" as const });
+    applied: Object.freeze({ ...applied }), assurance: applied["sensor.pixelAperture.box"] ? "approximation-with-measured-bound" as const :
+      Object.values(applied).some((value) => value) ? "approximation-with-a-priori-bound" as const : "engine-reference" as const });
   const fastReport = reportFast(fastApplied);
+  if (displayView && boxFold) assumeBoxFold();
   if (displayView) return await renderView!({ ahd, fastReport: boxFold ? reportFast({ ...fastApplied, "sensor.pixelAperture.box": true }) : fastReport, boxFold, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
@@ -2102,7 +2128,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     tabulated = await renderTabulatedNativeRaw({ input: environmentRaw, region: regionNative, siteInput, evaluateRadiance: verificationProvider.evaluateRadiance,
       electrons: createDisplayViewExpectedSignal(signalInput), ...(exactSignalInput ? { verificationElectrons: createDisplayViewExpectedSignal(exactSignalInput) } : {}),
       onTile: rawTick, tileWidth, yieldControl: () => yieldControl(), checkAbort });
-    if (tabulated && boxFold) fastApplied["sensor.pixelAperture.box"] = true;
+    if (tabulated && boxFold) { fastApplied["sensor.pixelAperture.box"] = true; assumeBoxFold(); }
   }
   let rawOutput: { raw: NativeRawOutput; providerEvaluationCount: number };
   if (dngParts !== undefined) rawOutput = { raw: joinNativeRawParts(dngParts, plan, nativeWidth, nativeHeight), providerEvaluationCount: 0 };

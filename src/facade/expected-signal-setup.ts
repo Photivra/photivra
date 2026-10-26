@@ -78,9 +78,10 @@ export function buildExpectedSignalInput(input: ExpectedSignalSetupInput): { off
   const spots = input.antiAliasing ? input.antiAliasing.components : [{ offsetMicrometers: { x: 0, y: 0 }, normalizedWeight: 1 }];
   // #398 fast method: with the box folded into the kernels, each spot reads one lattice at the site centre.
   const fold = input.diffraction?.foldBox !== undefined && boxSamples > 1;
-  const nodes = fold ? [{ x: 0, y: 0 }] : input.apertureNodes, nodeWeight = fold ? 1 : 1 / (boxSamples * boxSamples);
+  // The exact path keeps its own expression for the weight (w / N², not w · (1/N²)), so its bits are unchanged for every N.
+  const nodes = fold ? [{ x: 0, y: 0 }] : input.apertureNodes;
   const offsets = nodes.flatMap((node) => spots.map((c) => ({ x: node.x - c.offsetMicrometers.x / pitch, y: node.y - c.offsetMicrometers.y / pitch,
-    weight: c.normalizedWeight * nodeWeight })));
+    weight: fold ? c.normalizedWeight : c.normalizedWeight / (boxSamples * boxSamples) })));
   // Diffraction: the same per-node site kernels as the object-space convolution (createDiffractedPlanarProvider).
   let kernels: { radius: number; perNode: Float64Array[] } | undefined;
   const diffraction = input.diffraction;

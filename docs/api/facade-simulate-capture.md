@@ -250,8 +250,12 @@ export interface SimulateCaptureFastReport {
   requested: boolean;
   /** Each fast-capable option that ran, in {@link SIMULATE_CAPTURE_FAST_OPTIONS} order: true where its fast method ran. */
   applied: Readonly<Partial<Record<SimulateCaptureFastOption, boolean>>>;
-  /** `engine-reference` when every option ran exact; `approximation-with-a-priori-bound` when any fast method ran (the WebGPU execution record's values). */
-  assurance: "engine-reference" | "approximation-with-a-priori-bound";
+  /**
+   * `engine-reference` when every option ran exact; `approximation-with-a-priori-bound` when every fast method that ran has a
+   * bound derived in advance (the WebGPU execution record's values); `approximation-with-measured-bound` when any fast method
+   * that ran has only a measured bound (#398, `sensor.pixelAperture.box`).
+   */
+  assurance: "engine-reference" | "approximation-with-a-priori-bound" | "approximation-with-measured-bound";
 }
 ```
 
@@ -440,8 +444,9 @@ export interface SimulateCaptureOptions {
    * listed in {@link SIMULATE_CAPTURE_FAST_OPTIONS} runs its fast method where it has one, a measured, bounded approximation of
    * the exact one; an option without a fast method runs exact. An option's own record `fast` overrides this for that option
    * only. `diagnostics.fast` reports what was requested and what ran. Fast methods: `lens.diffraction` (#397, the kernel window
-   * reaches the second dark ring instead of the third; see the assumption `fast.lens.diffraction` for its bound). The other
-   * listed options have none yet and run exact.
+   * reaches the second dark ring instead of the third; see the assumption `fast.lens.diffraction` for its bound) and
+   * `sensor.pixelAperture.box` with diffraction where the Airy pattern spans at least 3.5 sites (#398, the box folded into the
+   * diffraction kernels; a measured bound in `fast.sensor.pixelAperture.box`). The other listed options have none yet and run exact.
    */
   fast?: boolean;
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */

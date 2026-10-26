@@ -221,8 +221,9 @@ have a fast method, a measured and bounded approximation of it. One flag style s
   `lens.diffraction`, `sensor.antiAliasing`, `sensor.pixelAperture.box` and `output.demosaic.ahd`.
 - **One report** on every capture and display view: `diagnostics.fast = { requested, applied, assurance }`. `requested` is true
   when `fast: true` was given anywhere; `applied` names each listed option that ran, `true` where its fast method ran;
-  `assurance` is `engine-reference` when everything ran exact and `approximation-with-a-priori-bound` otherwise. A fast method
-  that runs also adds an assumption `fast.<path>` naming its method and its bound.
+  `assurance` is `engine-reference` when everything ran exact, `approximation-with-a-priori-bound` when every fast method that
+  ran has a bound derived in advance, and `approximation-with-measured-bound` when any has only a measured one. A fast method
+  that runs also adds an assumption `fast.<path>` naming its method and its bound, and whether the bound is derived or measured.
 - **The same words on WebGPU.** The image-kernel execution record carries `fast` (`false` for `cpu-reference`, `true` for
   `webgpu-f32`) beside `assurance`; `backend` still names where the work runs.
 - **When a fast method needs no flag.** A faster method that is byte-identical to the exact one, or differs only by rounding

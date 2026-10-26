@@ -107,6 +107,39 @@ describe("exact-or-fast flag convention (#395)", () => {
     await expect(simulateCapture(request({ lens: { diffraction: { kind: "circular-aperture", aperture: "circular-aperture" } } }))).rejects.toThrow("not both");
   }, scaledTimeout(120_000));
 
+  it("sensor.pixelAperture.box fast: folded into the diffraction kernels only where the Airy pattern spans enough sites", async () => {
+    const box = (fast: boolean): Options => ({ sensor: { pixelPitchMicrometers: 1.4, pixelAperture: { kind: "box", samplesPerAxis: 2, fast } }, lens: { diffraction: "circular-aperture" } });
+    const exact = await simulateCapture(request(box(false))), folded = await simulateCapture(request(box(true)));
+    // 1.4 µm sites at f/8: the first dark ring at 550 nm reaches about 3.8 sites, above the 3.5-site threshold.
+    expect(folded.diagnostics.fast).toEqual({ requested: true, applied: { "lens.diffraction": false, "sensor.pixelAperture.box": true }, assurance: "approximation-with-measured-bound" });
+    const note = folded.assumptions.find((a) => a.id === "fast.sensor.pixelAperture.box")!.value as { firstZeroSites: number; minimumFirstZeroSites: number; bound: { kind: string } };
+    expect(note.firstZeroSites).toBeGreaterThanOrEqual(note.minimumFirstZeroSites);
+    expect(note.bound.kind).toBe("measured");
+    // The fold keeps the capture on its tabulated path (the verification sites check the exact signal against the chain).
+    expect(folded.assumptions.find((a) => a.id === "raw.expectedSignal")).toBeDefined();
+    expect(samples(folded)).not.toEqual(samples(exact));
+    // 6 µm sites at f/8 (about 0.9 sites): below the threshold, so the box stays exact and the result is unchanged.
+    const large = (fast: boolean): Options => ({ sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2, fast } }, lens: { diffraction: "circular-aperture" } });
+    const largeFast = await simulateCapture(request(large(true)));
+    expect(samples(largeFast)).toEqual(samples(await simulateCapture(request(large(false)))));
+    expect(largeFast.diagnostics.fast.applied["sensor.pixelAperture.box"]).toBe(false);
+    expect(largeFast.assumptions.some((a) => a.id === "fast.sensor.pixelAperture.box")).toBe(false);
+    // Without diffraction there is no kernel to fold into.
+    const plain = await simulateCapture(request({ sensor: { pixelPitchMicrometers: 1.4, pixelAperture: { kind: "box", samplesPerAxis: 2, fast: true } } }));
+    expect(plain.diagnostics.fast.applied["sensor.pixelAperture.box"]).toBe(false);
+    // The display view folds the same way, and its expected signal stays near the exact box's.
+    const view = { width: 32, height: 24 };
+    const viewExact = await simulateDisplayViewWithInternals(request(box(false)), view), viewFolded = await simulateDisplayViewWithInternals(request(box(true)), view);
+    expect(viewFolded.result.diagnostics.fast.applied["sensor.pixelAperture.box"]).toBe(true);
+    viewExact.signal.window(0, 0, 32, 24); viewFolded.signal.window(0, 0, 32, 24);
+    let lo = Infinity, hi = -Infinity, worst = 0;
+    const pairs: [number, number][] = [];
+    for (let y = 0; y < 24; y++) for (let x = 0; x < 32; x++) { const e = viewExact.signal.site(x, y); pairs.push([e, viewFolded.signal.site(x, y)]); lo = Math.min(lo, e); hi = Math.max(hi, e); }
+    for (const [e, f] of pairs) worst = Math.max(worst, Math.abs(f - e) / (hi - lo));
+    expect(worst).toBeGreaterThan(0);
+    expect(worst).toBeLessThan(0.25);
+  }, scaledTimeout(300_000));
+
   it("refuses a fast value that is not a Boolean", async () => {
     await expect(simulateCapture(request({ fast: "yes" }))).rejects.toThrow("fast must be true or false");
     for (const option of SIMULATE_CAPTURE_FAST_OPTIONS) {
