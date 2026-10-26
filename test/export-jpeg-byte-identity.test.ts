@@ -34,7 +34,7 @@ function block(next: () => number, pattern: typeof patterns[number], bx: number,
   }
   return out;
 }
-function run(factory: typeof createExportJpegEncoder, options: EncoderOptions, blocks: readonly (readonly number[])[]): Outcome {
+function run(factory: (options: EncoderOptions) => Pick<ReturnType<typeof createExportJpegEncoder>, "writeRgbBlock" | "finish" | "dispose">, options: EncoderOptions, blocks: readonly (readonly number[])[]): Outcome {
   try {
     const encoder = factory(options);
     for (const b of blocks) encoder.writeRgbBlock(b);

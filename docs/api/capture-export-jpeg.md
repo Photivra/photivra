@@ -14,3 +14,13 @@ was exactly a negative half-integer. The repository's test images are unchanged.
 ```ts
 EXPORT_JPEG_ENCODER_ID = "photivra-baseline-jpeg-444-v2" as const
 ```
+
+## JpegStripBits
+
+The entropy-coded bits of consecutive blocks of one image, coded apart from the blocks before them (`encodeJpegStrip`):
+the first block's quantized coefficients (3 × 64, natural order), whose DC differences need the block before; the other
+blocks' bits, unstuffed, most-significant first; and the last block's DC values, which the next strip's first block needs.
+
+```ts
+export interface JpegStripBits { first: Float64Array; bits: Uint8Array; bitLength: number; blockCount: number; lastDc: Float64Array }
+```

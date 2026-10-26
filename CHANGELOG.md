@@ -1,8 +1,21 @@
 # Changelog
 
-## Unreleased
+## 2.9.0 — unreleased (prepared October 25, 2026)
+
+A minor release: new functions for writing a whole-frame DNG from region parts and a Print JPEG in strips, and a faster display view and Quality preview. Results are the same as 2.8.1, except display views and binned frames whose diffraction cells have β ≥ 32, which change in the last bits.
+- **New:** `serializeSimulatedCaptureDngFromParts` joins region parts' RAW into a DNG with the bytes of one whole-frame run. `createPrintJpegStrip` and `composePrintJpegStrips` write a 1:1 Print JPEG's rows on separate workers and join them into the bytes of `createPrintJpegTask`. In the Photivra app, on four browser workers:
+  - a 24 MP DNG takes 23.8 s instead of 79.1 s (Speed) and 46.2 s instead of 158.0 s (Quality);
+  - a 24 MP JPEG takes about 20 s instead of 32–35 s (Speed) and about 40 s instead of 53–59 s (Quality).
+- **Faster preview:** in the app's Quality preview (Chromium, four workers), the quick frame takes 0.7 s instead of 4.0 s, and the fully sharp preview 65 s instead of 170 s.
+- **Compatibility:** five new root exports (1,734); no option, default or result field changes. `createDisplayViewExpectedSignal`, which is internal, takes an optional span hint.
 
 ### Added
+
+- **A Print JPEG written in strips: `createPrintJpegStrip` and `composePrintJpegStrips`.** At 1:1, a Print JPEG's rows can be coded on separate workers and joined into the file `createPrintJpegTask` writes for the same plan and pixels, with the same bytes. Only each strip's first block depends on the strip before it, through its DC differences; the join codes that block and copies the rest of the strip's bits.
+  - **Same bytes:** tests compare the joined file with the task's file for several splits, crops, quantization steps and a density. The Photivra app's 24 MP JPEG from strips equals the engine's whole-frame JPEG in Speed and Quality.
+  - **Measured:** 24 MP, Node, one thread: the whole task 8.1 s; four strips 1.9 s each; the join 1.1 s for a 64 MB file. In the app (Chromium, four workers), writing the JPEG takes about 3 s instead of 9–12 s. A full-size Speed JPEG export takes 19.7–21.0 s instead of 32–35 s, and Quality 39.9–40.2 s instead of 53–59 s.
+  - The whole-image JPEG writer and the strips share one block coder, and the existing byte-identity tests pass.
+  - New root exports: `createPrintJpegStrip`, `composePrintJpegStrips`, and the types `PrintJpegStripInput`, `PrintJpegStrip` and `JpegStripBits`.
 
 - **A whole-frame DNG from region parts (#391): `serializeSimulatedCaptureDngFromParts(options, parts)`.** A large DNG's RAW can now render in parallel: render region parts of the request (any format), pass each part's `raw` and `region`, and the function joins their native sites and writes the DNG exactly as `simulateCapture` writes it, with the same bytes. Parts must cover the native raster and agree where they overlap; a part from another request is refused. Parts take a fixed white balance and no `output.dng`; auto white balance and the capture time apply to the DNG options and are measured over the joined frame.
   - **Same bytes:** tests compare the joined DNG with the whole-frame DNG for bilinear and AHD, diffraction with the four-spot filter and the 2 × 2 box, auto white balance with a capture time, a reflectance-function scene and the environment path; on the Photivra app's 24 MP request both presets gave the same bytes.
@@ -15,6 +28,17 @@
   - **What changed:** the tabulated RAW path's sensor stage reseeds its charge and read-noise streams in place for each site instead of creating two new streams, sums the read-noise components in one loop instead of a mapped array, and returns each site's record without a second copy. The seeds, every draw and every addition are the same, in the same order.
   - **Same bytes:** RAW codes and samples are identical (SHA-256) on a 24 MP Siemens star and a dead-leaves frame; the bit-identity hash locks and the tabulated-path tests pass. A new test checks that a reseeded stream draws what a new one does for 137 seeds, including the fallback-state seed.
   - **Measured** in Node, one thread, the 2.8.0 record's request (24 MP full frame, 6 µm, 50 mm f/8, 2 × 2 box, ISO 100), built `dist`, before and after interleaved on the same host: RAW stage of a 2048 × 2048 centre region 3.21–3.24 s → 2.74–2.78 s (Siemens star) and 3.27–3.36 s → 2.80–2.89 s (dead leaves), three runs each; the whole frame 18.5 s → 16.4 s (RAW 15.5 s → 13.3 s), one run.
+
+- **Display view parts: request tables kept across renders of a prepared view; bands sized to the part.**
+  - **Kept tables:** a prepared view's renders share its expected-signal tables (lattice groups, combined kernels, each material's uniform sum) and its lattice material rings, instead of rebuilding them per render. They depend only on the request, and a ring entry only on its lattice point, so concurrent renders may share them.
+  - **Band width:** a filled band is built as wide as the part's windows span, not the sensor's full width.
+  - **Same values:** a hash of 24 of the Photivra app's Quality and Speed parts (samples, diagnostics and assumptions) is unchanged; concurrent renders of a Quality chart view equal separate calls.
+  - **Measured:** a 1 × 1 render of the app's Quality view took 37 ms, of which 21 ms was tables and 10 ms the full-width band. The app's 48 × 48 Quality parts take 94–112 µs per display pixel instead of 115–130 µs (Node, one thread). In the app's Chromium preview (four workers), Quality becomes fully sharp in 65 s instead of 85 s, and in 71 s instead of 97 s after an f-number change; Speed is unchanged.
+
+- **Display view refinement of chart scenes: taller lattice bands and a cheaper `sceneLookups` count.**
+  - **Taller bands:** a filled window's band of lattice materials and change counts is built twice as tall (when it uses the lattice ring), so the next display rows' windows reuse its columns instead of rebuilding a full-width band per display row. A lattice point's material, and the number of material changes inside a rectangle, do not depend on the band's origin, so every value is the same.
+  - **`sceneLookups` count:** the lookups a window's lazy cache would have made are counted from a bit mask per window row (a union of dilations is the dilation of the union) instead of marking and box-filtering the whole window per lattice group. Same count: checked against the previous method on every window of the measured band; the diagnostics are part of the display-view hash locks.
+  - **Measured** in Node, one thread, the Photivra app's 24 MP request with its maker-label chart: one Quality refinement band (2028 × 32 of a 2028 × 1352 view) 6.1 s → 4.1 s, with the same result hash; Speed unchanged within run-to-run variation.
 
 - **Display view of chart and caller material scenes: lattice materials kept across refinement windows; caller scene points no longer frozen.**
   - **Lattice rows kept:** at device-pixel sizes each display pixel's window spans its footprint (about 3 real pixels) plus the demosaic reach and kernel radius, so successive display rows re-read most lattice points. Each lattice group now keeps up to 128 rows of looked-up material indices (Int16 where they fit, about 3 MB for four groups of a 6000-site row) across the filled windows of a render; a material is a function of its lattice point alone, so the values are the same.

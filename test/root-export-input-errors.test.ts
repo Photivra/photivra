@@ -100,7 +100,7 @@ describe("root exports reject malformed input with domain errors (API review #4)
     "createGenericEquipmentTierSelection", "createHdrBracketMergeTask", "createHdrImageEncodingTask", "createImageKernelAccelerator",
     "createIsoGainReadoutRegimes", "createNativeCaptureSdrTask", "createNativeEnvironmentRawPartitionTask", "createNativeEnvironmentRawTask", "createNativeEnvironmentSensorStageTask",
     "createNativeRawDevelopmentTask", "createNativeRawTask", "composeNativeEnvironmentRawPartitions", "createNonLocalMeansTask", "createPanoramaTask", "createPhotographicExportPair",
-    "createPrintJpegTask", "createReinhardGlobalToneMappingTask", "createSensorRawFrame", "createSimulatedCapture",
+    "createPrintJpegStrip", "createPrintJpegTask", "composePrintJpegStrips", "createReinhardGlobalToneMappingTask", "createSensorRawFrame", "createSimulatedCapture",
     "createSyntheticFilmGrainTask", "mapEnvironmentDirectionsToChartPoints", "createUnsharpMaskTask", "resolveCaptureIlluminant", "resolveLensPsfConvolutionKernels", "resolveGenericEquipmentTierCatalog",
     "resolveGenericEquipmentTierLensProfiles", "resolveRawFrameReconstruction", "serializeNativeRawDng", "serializePngImage",
     "prepareDisplayView", "serializeSimulatedCaptureDngFromParts", "simulateCapture", "simulateDisplayView", "simulateIdealReference", "simulatePackedSensorRaw", "simulateSensorRawFrame"

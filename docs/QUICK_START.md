@@ -1182,6 +1182,34 @@ const dng = await serializeSimulatedCaptureDngFromParts(dngFrame, parts);
 console.log(dng.bytes.length);
 ```
 
+### A Print JPEG written in strips
+
+At 1:1 (output size equal to the crop), a Print JPEG's rows can be coded on separate workers.
+`createPrintJpegStrip(input, { y, height, samples })` codes crop rows `y` to `y + height` (8-bit sRGB RGB, crop-wide;
+`y` a multiple of 8, and `height` too unless the strip ends at the image's bottom) apart from the rows before them.
+`composePrintJpegStrips(input, strips)` joins strips that cover the image, top to bottom, into the file
+`createPrintJpegTask` writes for the same plan and source pixels: the same bytes. Only the first block of each strip
+depends on the strip before it (its DC differences), so the join codes that block and copies the rest of the strip's
+bits. The output's `providerReads` is 0, because no source is read.
+
+Tests compare the joined file with the task's file byte for byte, for several splits, crops, quantization steps and a
+density. For a 24 MP file (Node, one thread), the whole task took 8.1 s; four strips took 1.9 s each, and the join took
+1.1 s (a 64 MB file). In the Photivra app (Chromium, four workers), writing a 24 MP JPEG takes about 3 s instead of 9–12 s.
+
+```ts
+import { composePrintJpegStrips, createPrintJpegStrip, type PrintJpegInput } from "@photivra/engine";
+
+const width = 64, height = 40, pixels = new Uint8Array(width * height * 3).fill(120);
+const jpegPlan: PrintJpegInput = {
+  source: { captureId: "capture", imageStateId: "sdr", artifactId: "pixels", sha256: "0".repeat(64), width, height, encoding: "encoded-srgb-8-rgb" },
+  crop: { x: 0, y: 0, width, height }, outputWidth: width, outputHeight: height, quantizationStep: 2, maximumEncodedBytes: 1_000_000, maximumProviderReads: 16
+};
+// Two strips (in an application, coded in separate Web Workers), then the file.
+const strips = [[0, 24], [24, 16]].map(([y, rows]) => createPrintJpegStrip(jpegPlan, { y: y!, height: rows!, samples: pixels.slice(y! * width * 3, (y! + rows!) * width * 3) }));
+const jpeg = composePrintJpegStrips(jpegPlan, strips);
+console.log(jpeg.bytes.length);
+```
+
 ## Ideal reference (2.3)
 
 `simulateIdealReference(options)` takes the same options as `simulateCapture` and returns what the camera
