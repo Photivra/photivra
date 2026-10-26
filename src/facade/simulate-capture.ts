@@ -553,6 +553,36 @@ const AA_MAXIMUM_OFFSET_SITES = 4;
 /** Channel responses kept across calls (`axisChannelResponse`): one entry per distinct sensor, exposure and optics state. */
 const CHANNEL_RESPONSE_CACHE_SIZE = 8;
 const channelResponseCache = new Map<string, Record<"red" | "green" | "blue", Map<number, number>>>();
+/**
+ * #449: diffraction profiles kept across calls, by the JSON of their `createDiffractionLimitedPsfProfile` input (the last
+ * DIFFRACTION_PROFILE_CACHE_SIZE, most recently used last). Every region part and detail tile of one request builds the same
+ * input. The kept record is private: each call gets its own copy, as mutable as a newly built one, so a caller's change
+ * never reaches another call. The copy is made of plain records and arrays (plainDataCopy): the kernel set-up structured-clones
+ * the profile once per spectral node, and in a CPU profile of the 96 × 64 Quality tile that clone took about twice as long
+ * (24 instead of 12 ms per call) on a deep-frozen record or on a structuredClone copy as on a newly built record or this copy.
+ */
+const DIFFRACTION_PROFILE_CACHE_SIZE = 8;
+const diffractionProfileCache = new Map<string, DiffractionLimitedPsfProfile>();
+/** A copy of plain data (records, arrays, primitives; typed arrays are sliced), built from ordinary literals. */
+function plainDataCopy<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(plainDataCopy) as T;
+  if (ArrayBuffer.isView(value)) return (value as unknown as { slice(): T }).slice();
+  if (value === null || typeof value !== "object") return value;
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) copy[key] = plainDataCopy((value as Record<string, unknown>)[key]);
+  return copy as T;
+}
+/** The profile of `input` (a pure function of the input record): a copy of the kept one when the same input was built before. */
+function cachedDiffractionProfile(input: Parameters<typeof createDiffractionLimitedPsfProfile>[0]): DiffractionLimitedPsfProfile {
+  const key = JSON.stringify(input);
+  let kept = diffractionProfileCache.get(key);
+  if (kept) diffractionProfileCache.delete(key);
+  else kept = createDiffractionLimitedPsfProfile(input).value;
+  diffractionProfileCache.set(key, kept);
+  if (diffractionProfileCache.size > DIFFRACTION_PROFILE_CACHE_SIZE) diffractionProfileCache.delete(diffractionProfileCache.keys().next().value!);
+  // The same fields in the same order as the built record, frozen at the top level like it; `model` is the frozen constant.
+  return Object.freeze({ ...kept, profile: plainDataCopy(kept.profile), wavelengths: plainDataCopy(kept.wavelengths), quadrature: plainDataCopy(kept.quadrature) });
+}
 /** Default birefringent separation in sites: the two-spot MTF |cos(π·f·d)| then has its first zero at Nyquist, f = 1/(2·pitch). */
 const AA_DEFAULT_SEPARATION_SITES = 1;
 interface ParsedAntiAliasing { kind: SimulateCaptureSensorAntiAliasing["kind"]; separationSites?: number; axis?: "horizontal" | "vertical";
@@ -691,11 +721,23 @@ function spectrumDigestForm(raw: unknown, prepared: PreparedColorimetricSpectrum
   for (let nm = FACADE_SPECTRAL_RANGE_NANOMETERS.minimum; nm <= FACADE_SPECTRAL_RANGE_NANOMETERS.maximum; nm++) values.push(prepared.evaluate(nm));
   return { kind: "function-sampled-1nm", rangeNanometers: [FACADE_SPECTRAL_RANGE_NANOMETERS.minimum, FACADE_SPECTRAL_RANGE_NANOMETERS.maximum], values };
 }
+/**
+ * #449: the CIE 1931 ȳ values at luminanceOf's 5 nm nodes, evaluated once (estimateCie1931ColorMatchingFunctions is a pure
+ * function of the wavelength, so each entry is the value the loop would compute).
+ */
+let luminanceCmfY: Float64Array | undefined;
+function luminanceNodesY(): Float64Array {
+  if (luminanceCmfY) return luminanceCmfY;
+  const values: number[] = [];
+  for (let nm = FACADE_SPECTRAL_RANGE_NANOMETERS.minimum; nm <= FACADE_SPECTRAL_RANGE_NANOMETERS.maximum; nm += 5) values.push(estimateCie1931ColorMatchingFunctions(nm).y);
+  return (luminanceCmfY = Float64Array.from(values));
+}
 function luminanceOf(radiance: (nm: number) => number): number {
+  const cmfY = luminanceNodesY();
   let sum = 0;
-  for (let nm = FACADE_SPECTRAL_RANGE_NANOMETERS.minimum; nm <= FACADE_SPECTRAL_RANGE_NANOMETERS.maximum; nm += 5) {
+  for (let nm = FACADE_SPECTRAL_RANGE_NANOMETERS.minimum, i = 0; nm <= FACADE_SPECTRAL_RANGE_NANOMETERS.maximum; nm += 5, i++) {
     const w = nm === FACADE_SPECTRAL_RANGE_NANOMETERS.minimum || nm === FACADE_SPECTRAL_RANGE_NANOMETERS.maximum ? 2.5 : 5;
-    sum += w * radiance(nm) * estimateCie1931ColorMatchingFunctions(nm).y;
+    sum += w * radiance(nm) * cmfY[i]!;
   }
   return PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W * sum;
 }
@@ -1807,7 +1849,9 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: aaReachMm === 0 ? { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 } :
         { x: imagingArea.widthMm / 2 + aaReachMm, y: imagingArea.heightMm / 2 + aaReachMm },
       profileId: "facade-diffraction-airy" };
-    diffraction = createDiffractionLimitedPsfProfile(profileInput).value;
+    // #449: a copy of the profile kept for this input; it equals createDiffractionLimitedPsfProfile(profileInput).value field by
+    // field, so the registration below (keyed by profileInput) holds for it.
+    diffraction = cachedDiffractionProfile(profileInput);
     diffractionPsf = { kind: "sampled-local", configuration: { psf: { profile: diffraction.profile, focalLengthMm, focus: { kind: "finite", distanceM: focusDistanceM },
       apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
     spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Diffraction-limited Airy PSF, the same at every field point." } } };
