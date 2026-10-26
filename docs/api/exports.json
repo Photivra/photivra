@@ -1,6 +1,6 @@
 {
-  "packageVersion": "2.8.1",
-  "engineApiVersion": "2.8.1",
+  "packageVersion": "2.9.0",
+  "engineApiVersion": "2.9.0",
   "exports": [
     {
       "name": "AbsoluteUncertaintyEstimate",
@@ -2098,6 +2098,11 @@
       "kind": "runtime"
     },
     {
+      "name": "composePrintJpegStrips",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "composeRelativeErrorBounds",
       "source": "src/gpu/image-kernel-execution.ts",
       "kind": "runtime"
@@ -2375,6 +2380,11 @@
     {
       "name": "createPlanckianSpectrum",
       "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPrintJpegStrip",
+      "source": "src/output/print-jpeg.ts",
       "kind": "runtime"
     },
     {
@@ -3880,6 +3890,11 @@
     {
       "name": "IsoStandardSettingGrid",
       "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "JpegStripBits",
+      "source": "src/capture/export-jpeg.ts",
       "kind": "type"
     },
     {
@@ -5519,6 +5534,16 @@
     },
     {
       "name": "PrintJpegSource",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegStrip",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegStripInput",
       "source": "src/output/print-jpeg.ts",
       "kind": "type"
     },
