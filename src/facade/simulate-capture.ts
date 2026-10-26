@@ -90,10 +90,9 @@ import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
 import { resolveGenericPrimeLens, type GenericPrimeLens } from "../equipment/generic-prime-lenses.js";
-import { executeEnvironmentSensorPhotoSignal, planEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
+import { calculateChannelElectronsPerRadiance } from "./channel-response.js";
 import { calculateSiteEffectiveSaturationCode } from "../capture/raw-white-level.js";
 import { prepareSensorColorDevelopment } from "../color/sensor-color-development.js";
-import type { SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { resolveAntiAliasingSpatialKernel, type AntiAliasingPointSplitComponent, type SensorOpticalStackProfile } from "../sensor/optical-stack.js";
 import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
@@ -1904,9 +1903,11 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       delete environment.evaluateApertureRadiance;
       environments[channel] = environment;
     }
-    // The responses are a function of these records alone (the radiance is replaced per node), and a request split into region
-    // tiles builds the same records for every tile, so they are kept across calls (the last CHANNEL_RESPONSE_CACHE_SIZE).
-    const key = JSON.stringify(CHANNELS.map((c) => environments[c]));
+    // The responses are a function of these records without their scene bindings: the radiance is replaced at every node,
+    // and the bindings (provider, illumination and material profiles) are only checked, never enter a number. So a chart,
+    // illuminant or illuminance change keeps the entry (#443). A request split into region tiles builds the same records for
+    // every tile. The entries are kept across calls (the last CHANNEL_RESPONSE_CACHE_SIZE).
+    const key = JSON.stringify(CHANNELS.map((c) => ({ ...environments[c], sceneBindings: undefined })));
     const copy = (responses: Record<Channel, Map<number, number>>): Record<Channel, Map<number, number>> => Object.fromEntries(CHANNELS.map((c) => [c, new Map(responses[c])])) as Record<Channel, Map<number, number>>;
     const cached = channelResponseCache.get(key);
     let electronsPerRadiance: Record<Channel, Map<number, number>>;
@@ -1916,17 +1917,9 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       electronsPerRadiance = copy(cached);
     } else {
       electronsPerRadiance = {} as Record<Channel, Map<number, number>>;
-      for (const channel of CHANNELS) {
-        // Planned once per channel and executed per spectral node: calculateEnvironmentSensorPhotoSignal is this plan and execution.
-        const photoPlan = planEnvironmentSensorPhotoSignal(environments[channel] as unknown as Parameters<typeof planEnvironmentSensorPhotoSignal>[0]);
-        const electrons = (radiance: (nm: number) => number): number => (executeEnvironmentSensorPhotoSignal(photoPlan,
-          (request: Readonly<SceneRadianceEvaluationRequest>) => ({ ...provider.evaluateRadiance(request), spectralRadianceWattsPerSquareMeterSteradianNanometer: radiance(request.wavelengthNanometers) })
-        ).value as unknown as { photo: { value: { photoSignal: { expectedGeneratedElectronCount: number } } } })
-          .photo.value.photoSignal.expectedGeneratedElectronCount;
-        const nodes = new Set<number>();
-        electrons((nm) => { nodes.add(nm); return 1; });
-        electronsPerRadiance[channel] = new Map([...nodes].sort((a, b) => a - b).map((node) => [node, electrons((nm) => (nm === node ? 1 : 0))]));
-      }
+      // One chain execution per channel, each node's electrons read from its own rate term (#443; exact, see channel-response.ts).
+      // The records are built above for this call only, so they are planned as engine-owned data.
+      for (const channel of CHANNELS) electronsPerRadiance[channel] = calculateChannelElectronsPerRadiance(environments[channel], (request) => provider.evaluateRadiance(request), caller);
       // Callers get their own maps; the cached ones are never handed out.
       channelResponseCache.set(key, copy(electronsPerRadiance));
       if (channelResponseCache.size > CHANNEL_RESPONSE_CACHE_SIZE) channelResponseCache.delete(channelResponseCache.keys().next().value!);
