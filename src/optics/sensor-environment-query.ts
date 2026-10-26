@@ -37,6 +37,7 @@ import { parseSceneRadianceEvaluationRequest, type SceneRadianceEvaluationReques
 import { parseFocusPlane, type FocusPlane } from "./focus-state.js";
 import { requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { hypot3 } from "../core/portable-math.js";
 
 /**
  * Lens field mapping between the physical (distorted) sensor point and the scene ray (2.0).
@@ -166,7 +167,7 @@ export function calculateSensorEnvironmentRadianceQuery(
     timeSecondsFromExposureStart: input.timeSecondsFromOpeningReference,
     ...(focus.kind === "finite" ? { focusDistanceM: focus.distanceM } : {}) });
   const point = projection.value.referenceImagePointMm, z = projection.value.projectionDistanceMm;
-  const length = Math.hypot(point.x, point.y, z);
+  const length = hypot3(point.x, point.y, z);
   const referenceLookDirectionUnitVector = { x: point.x/length, y: point.y/length, z: z/length };
   const ray = referenceLookDirectionUnitVector;
   const request = parseSceneRadianceEvaluationRequest({ ...input.request,
@@ -225,7 +226,7 @@ export function calculateMappedSensorEnvironmentRadianceQuery(
       timeSecondsFromExposureStart: input.timeSecondsFromOpeningReference,
       ...(focus.kind === "finite" ? { focusDistanceM: focus.distanceM } : {}) });
     const point = projection.value.referenceImagePointMm, z = projection.value.projectionDistanceMm;
-    const length = Math.hypot(point.x, point.y, z);
+    const length = hypot3(point.x, point.y, z);
     look = { x: point.x/length, y: point.y/length, z: z/length };
     projectionScaleMm = z;
   } else {
@@ -240,7 +241,7 @@ export function calculateMappedSensorEnvironmentRadianceQuery(
     const captured = lensProjectionDirectionValue(mapping.projectionModel, projectionScaleMm, ideal.x, ideal.y);
     const reference = applyPhysicalCameraRotation(captured,
       { pitch: velocity.pitch*t, yaw: velocity.yaw*t, roll: velocity.roll*t }, "camera-to-reference");
-    const length = Math.hypot(reference.x, reference.y, reference.z);
+    const length = hypot3(reference.x, reference.y, reference.z);
     if (!(length > 0) || !Number.isFinite(length)) throw new InvalidScientificInputError("Mapped reference ray must be finite.");
     look = { x: reference.x/length, y: reference.y/length, z: reference.z/length };
   }

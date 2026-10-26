@@ -646,8 +646,10 @@ Functions*, 3rd ed., 2016, ch. 11); the bounds were checked against 60-digit dec
 
 Captures keep `Math` and `**`: their bytes are a 2.x guarantee. The display view therefore still takes some inputs
 from the capture's code: the sensor's spectral response, the CIE 1931 colour-matching fit (`Math.exp`), the diffraction
-kernels (`Math.sin`, `Math.cos` and others), the chart geometry (`Math.atan2` and others), the capture's query
-arithmetic (`Math.hypot`) and an automatic exposure. Their bits are the same on every Node.js version tested, so the
+kernels (`Math.sin`, `Math.cos` and others), the chart geometry (`Math.atan2` and others) and an automatic exposure.
+The capture's query arithmetic and the view's copy of it no longer use `Math.hypot`: both take `hypot3`, V8's
+three-argument `Math.hypot` sequence written as correctly rounded operations, so the query points have V8's bits in
+every engine (#452; on V8 nothing changed). Their bits are the same on every Node.js version tested, so the
 display view is byte-identical across them: the six hash-locked requests give one set of hashes on Node 22.13.0,
 22.22.0, 24.21.0 and 26.12.0, and so did 156 other requests on Node 22.13.0, 24.21.0 and 26.12.0 (three sensors, Speed
 and Quality, six charts, four f-number and ISO pairs; plus CIE A, a 3200 K blackbody, a daylight basis, Kelvin, fixed

@@ -33,8 +33,9 @@ describe("capture-only bundles", () => {
     expect(modules.has("facade/simulate-capture.ts")).toBe(true);
     expect(modules.has("facade/display-view.ts")).toBe(false);
     expect(modules.has("facade/simulate-display-view.ts")).toBe(false);
-    // Captures use only these two portable-math exports (as in 2.5.0).
-    expect([...(modules.get("core/portable-math.ts") ?? [])].sort()).toEqual(["equalWithinUlps", "portableHypot"]);
+    // Captures use only these portable-math exports: the two of 2.5.0 and V8's three-argument hypot sequence of the
+    // capture's query arithmetic (#452).
+    expect([...(modules.get("core/portable-math.ts") ?? [])].sort()).toEqual(["equalWithinUlps", "hypot3", "portableHypot"]);
   }, testTimeout(60_000));
 
   it("keep them when the display view is imported", async () => {

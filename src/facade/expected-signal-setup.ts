@@ -10,6 +10,7 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import type { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
 import { siteDiffractionKernel } from "../optics/site-diffraction-kernel.js";
 import { resolveProjectionDistanceMm } from "../motion/camera-rotation.js";
+import { hypot3 } from "../core/portable-math.js";
 import type { DisplayViewExpectedSignalInput, DisplayViewScene } from "./display-view.js";
 
 type Psf = Parameters<typeof resolveLensPsfConvolutionKernels>[0]["psf"];
@@ -75,7 +76,7 @@ export function buildExpectedSignalInput(input: ExpectedSignalSetupInput): { off
     const centerX = -imagingArea.widthMm / 2 + (pitch / 2 + x * pitch + 0) / 1000, centerY = -imagingArea.heightMm / 2 + (pitch / 2 + y * pitch + 0) / 1000;
     const sourceX = (centerX - siteWidthMm / 2 + node.xPhase * siteWidthMm) - node.aaX, sourceY = (centerY - siteWidthMm / 2 + node.yPhase * siteWidthMm) - node.aaY;
     const rx = projectionDistance * (sourceX / projectionDistance), ry = projectionDistance * (-sourceY / projectionDistance);
-    const length = Math.hypot(rx, ry, projectionDistance), t = subjectDistanceM / (projectionDistance / length);
+    const length = hypot3(rx, ry, projectionDistance), t = subjectDistanceM / (projectionDistance / length);
     out[0] = rx / length * t / metresPerFrameUnit; out[1] = ry / length * t / metresPerFrameUnit;
   };
   return { offsets, signalInput: { nativeWidth: input.nativeWidth, nativeHeight: input.nativeHeight, outputWidth: input.width, wavelengthsNm: wavelengths,

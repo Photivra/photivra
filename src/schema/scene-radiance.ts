@@ -30,6 +30,7 @@ import type {
 } from "./illumination-temporal.js";
 import type { Vector3 } from "./scene.js";
 import { requireInputObject, requireInputArray, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
+import { hypot3 } from "../core/portable-math.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -333,7 +334,7 @@ function parseUnitDirection(
   path: string
 ): Vector3 {
   const vector = parseVector3(value, path);
-  const length = Math.hypot(
+  const length = hypot3(
     vector.x,
     vector.y,
     vector.z

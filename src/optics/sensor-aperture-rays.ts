@@ -10,6 +10,7 @@ import { calculateFocusPlaneImageDistance, parseFocusPlane, type FocusPlane } fr
 import { applyPhysicalCameraRotation, calculateInverseCameraRotationImageMapping,
   type CameraAngularVelocityRadPerSec } from "../motion/camera-rotation.js";
 import { requireInputKeys } from "../core/record-validation.js";
+import { hypot3 } from "../core/portable-math.js";
 export interface IdealCircularPupil {
   kind: "ideal-uniform-circular-pupil";
   radialSampleCount: number;
@@ -96,7 +97,7 @@ export function sensorApertureRayValues(owned: Pick<CalculateSensorApertureRaysI
     const x = owned.sourcePointNativeSensorMm.x/v, y = -owned.sourcePointNativeSensorMm.y/v;
     const direction = focus.kind === "finite" ? { x: x*focus.distanceM-origin.x, y: y*focus.distanceM-origin.y, z: focus.distanceM }
       : { x, y, z: 1 };
-    const length = Math.hypot(direction.x,direction.y,direction.z);
+    const length = hypot3(direction.x,direction.y,direction.z);
     const unit = { x: direction.x/length, y: direction.y/length, z: direction.z/length };
     // Same physical right-hand camera rotation as the inverse mapping above.
     const rotatedOrigin = applyPhysicalCameraRotation(origin, displacement, "camera-to-reference"),
