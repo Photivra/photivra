@@ -11,16 +11,44 @@
   - **Same output:** every request gives the same samples, RAW and files as before; a new test (`test/fast-flag-convention.test.ts`) checks each listed option with the flag on, off and overridden, and enforces the convention documented in `docs/API_STYLE.md`, "Exact and fast modes".
   - New root exports: `SIMULATE_CAPTURE_FAST_OPTIONS` and the types `SimulateCaptureFastOption`, `SimulateCaptureFastReport` and `SimulateCaptureDemosaicRecord`.
 
+### Deprecated
+
+- **`lens.diffraction`'s `aperture` key (#395): use `kind`.** `{ aperture: "circular-aperture" }` is still accepted, with the same result, until 3.0.0; giving both `kind` and `aperture` is an error.
+
+## 2.9.0 — unreleased (prepared October 25, 2026)
+
+A minor release: new functions for writing a whole-frame DNG from region parts and a Print JPEG in strips, and a faster display view and Quality preview. Results are the same as 2.8.1, except display views and binned frames whose diffraction cells have β ≥ 32, which change in the last bits.
+- **New:** `serializeSimulatedCaptureDngFromParts` joins region parts' RAW into a DNG with the bytes of one whole-frame run. `createPrintJpegStrip` and `composePrintJpegStrips` write a 1:1 Print JPEG's rows on separate workers and join them into the bytes of `createPrintJpegTask`. In the Photivra app, on four browser workers:
+  - a 24 MP DNG takes 23.8 s instead of 79.1 s (Speed) and 46.2 s instead of 158.0 s (Quality);
+  - a 24 MP JPEG takes about 20 s instead of 32–35 s (Speed) and about 40 s instead of 53–59 s (Quality).
+- **Faster preview:** in the app's Quality preview (Chromium, four workers), the quick frame takes 0.7 s instead of 4.0 s, and the fully sharp preview 65 s instead of 170 s.
+- **Faster captures:** a 24 MP chart capture takes 16.4 s instead of 18.5 s, and with AHD 28.5 s instead of 33.6 s (Node, one thread), with the same bytes.
+- **Compatibility:** five new root exports (1,734); no option, default or result field changes. `createDisplayViewExpectedSignal`, which is internal, takes an optional span hint.
+
+### Added
+
+- **A Print JPEG written in strips: `createPrintJpegStrip` and `composePrintJpegStrips`.** At 1:1, a Print JPEG's rows can be coded on separate workers and joined into the file `createPrintJpegTask` writes for the same plan and pixels, with the same bytes. Only each strip's first block depends on the strip before it, through its DC differences; the join codes that block and copies the rest of the strip's bits.
+  - **Same bytes:** tests compare the joined file with the task's file for several splits, crops, quantization steps and a density. The Photivra app's 24 MP JPEG from strips equals the engine's whole-frame JPEG in Speed and Quality.
+  - **Measured:** 24 MP, Node, one thread: the whole task 8.1 s; four strips 1.9 s each; the join 1.1 s for a 64 MB file. In the app (Chromium, four workers), writing the JPEG takes about 3 s instead of 9–12 s. A full-size Speed JPEG export takes 19.7–21.0 s instead of 32–35 s, and Quality 39.9–40.2 s instead of 53–59 s.
+  - The whole-image JPEG writer and the strips share one block coder, and the existing byte-identity tests pass.
+  - New root exports: `createPrintJpegStrip`, `composePrintJpegStrips`, and the types `PrintJpegStripInput`, `PrintJpegStrip` and `JpegStripBits`.
+
 - **A whole-frame DNG from region parts (#391): `serializeSimulatedCaptureDngFromParts(options, parts)`.** A large DNG's RAW can now render in parallel: render region parts of the request (any format), pass each part's `raw` and `region`, and the function joins their native sites and writes the DNG exactly as `simulateCapture` writes it, with the same bytes. Parts must cover the native raster and agree where they overlap; a part from another request is refused. Parts take a fixed white balance and no `output.dng`; auto white balance and the capture time apply to the DNG options and are measured over the joined frame.
   - **Same bytes:** tests compare the joined DNG with the whole-frame DNG for bilinear and AHD, diffraction with the four-spot filter and the 2 × 2 box, auto white balance with a capture time, a reflectance-function scene and the environment path; on the Photivra app's 24 MP request both presets gave the same bytes.
   - **Measured** (24 MP, 24 parts of about 1024 pixels, Node, one thread): parts 58.1 s of CPU against 50.6 s for one whole render (Quality options 119.3 s against 113.6 s), join 2.6 s. On four workers the wall time is roughly a quarter of the whole render's.
   - New root exports: `serializeSimulatedCaptureDngFromParts` and the type `SimulateCaptureDngPart`.
 
-### Deprecated
-
-- **`lens.diffraction`'s `aperture` key (#395): use `kind`.** `{ aperture: "circular-aperture" }` is still accepted, with the same result, until 3.0.0; giving both `kind` and `aperture` is an error.
-
 ### Faster, same output
+
+- **Captures with AHD demosaic: development about 3× cheaper around the demosaic (#420).**
+  - **What changed:** after the AHD demosaic, each output pixel looked up its native site through the full raster-point transform (validation and two new objects per pixel) and scanned a 7 × 7 square of saturation flags. The loop now steps along each output row from two transformed points, as the bilinear path already does, and finds saturated sites from a row-dilated mask: one column of 7 reads instead of 49, and none when no site is saturated. The demosaic itself is unchanged (capture AHD stays exact, #399).
+  - **Same bytes:** samples, RAW and the highlight counts are identical (SHA-256) on a 24 MP Siemens star frame and on 2048² regions of Siemens star and dead leaves at seven exposures, from no clipped pixel through 144,548 and 3.6 million to all of them. A new test checks the saturated-pixel count against a 7 × 7 brute-force count from the RAW on frames where none, some or all pixels clip; reducing the reach by one site fails it.
+  - **Measured** in Node, one thread, the 2.8.0 record's request (24 MP full frame, 6 µm, 50 mm f/8, 2 × 2 box, ISO 100) with `output.demosaic: "ahd"`, before and after interleaved: development of a 2048² Siemens star region 3.39–3.57 s → 2.32–2.35 s at 1/125 s (three runs); the whole frame 33.6 s → 28.5 s, development 18.0 s → 12.4 s with the demosaic at 10.1–10.3 s (one run).
+
+- **Captures of chart and material scenes: the sensor stage allocates less per site (#418).**
+  - **What changed:** the tabulated RAW path's sensor stage reseeds its charge and read-noise streams in place for each site instead of creating two new streams, sums the read-noise components in one loop instead of a mapped array, and returns each site's record without a second copy. The seeds, every draw and every addition are the same, in the same order.
+  - **Same bytes:** RAW codes and samples are identical (SHA-256) on a 24 MP Siemens star and a dead-leaves frame; the bit-identity hash locks and the tabulated-path tests pass. A new test checks that a reseeded stream draws what a new one does for 137 seeds, including the fallback-state seed.
+  - **Measured** in Node, one thread, the 2.8.0 record's request (24 MP full frame, 6 µm, 50 mm f/8, 2 × 2 box, ISO 100), built `dist`, before and after interleaved on the same host: RAW stage of a 2048 × 2048 centre region 3.21–3.24 s → 2.74–2.78 s (Siemens star) and 3.27–3.36 s → 2.80–2.89 s (dead leaves), three runs each; the whole frame 18.5 s → 16.4 s (RAW 15.5 s → 13.3 s), one run.
 
 - **Display view parts: request tables kept across renders of a prepared view; bands sized to the part.**
   - **Kept tables:** a prepared view's renders share its expected-signal tables (lattice groups, combined kernels, each material's uniform sum) and its lattice material rings, instead of rebuilding them per render. They depend only on the request, and a ring entry only on its lattice point, so concurrent renders may share them.

@@ -814,13 +814,24 @@ async function developAhd(v: ReturnType<typeof prepareNativeRawDevelopment>, raw
   host.onDemosaicMs?.(clockMs() - demosaicStarted);
   const demosaiced = task.takeOutput().data, rgb = new Float64Array(width * height * 3);
   const counts = { saturatedPixelCount: 0, whiteBalanceClippedSampleCount: 0, reconstructedPixelCount: 0 };
+  // #420: a pixel is clipped when a saturated site lies within AHD_VALUE_REACH of it, clipped to the raster. The sites within
+  // that reach of each column are found once per row (`near`, a horizontal dilation of `saturated`), so a pixel reads one
+  // column of 2·reach + 1 rows instead of the whole square; with no saturated site at all no pixel is clipped.
+  let anySaturated = false;
+  for (let k = 0; k < saturated.length && !anySaturated; k++) anySaturated = saturated[k] !== 0;
+  const near = anySaturated ? new Uint8Array(W * H) : undefined;
+  if (near) for (let y = 0; y < H; y++) {
+    const row = y * W;
+    for (let x = 0; x < W; x++) if (saturated[row + x] !== 0) near.fill(1, row + Math.max(0, x - AHD_VALUE_REACH), row + Math.min(W, x + AHD_VALUE_REACH + 1));
+  }
   for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const p = at(x, y), i = p.y * W + p.x;
+    // The oriented-to-native map is affine in x with whole-site steps (as the bilinear path's developRun uses): two points give the row.
+    const first = at(0, y), second = width > 1 ? at(1, y) : first, stepX = second.x - first.x, stepY = second.y - first.y;
+    for (let x = 0, px = first.x, py = first.y; x < width; x++, px += stepX, py += stepY) {
+      const i = py * W + px;
       let clipped = false;
-      for (let dy = -AHD_VALUE_REACH; dy <= AHD_VALUE_REACH && !clipped; dy++) for (let dx = -AHD_VALUE_REACH; dx <= AHD_VALUE_REACH; dx++) {
-        const sx = p.x + dx, sy = p.y + dy;
-        if (sx >= 0 && sy >= 0 && sx < W && sy < H && saturated[sy * W + sx] !== 0) { clipped = true; break; }
+      if (near) for (let sy = Math.max(0, py - AHD_VALUE_REACH), last = Math.min(H - 1, py + AHD_VALUE_REACH); sy <= last; sy++) {
+        if (near[sy * W + px] !== 0) { clipped = true; break; }
       }
       if (clipped) counts.saturatedPixelCount++;
       v.development.developInto(demosaiced[3 * i]!, demosaiced[3 * i + 1]!, demosaiced[3 * i + 2]!, rgb, (y * width + x) * 3, counts);

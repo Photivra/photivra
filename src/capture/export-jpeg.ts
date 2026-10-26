@@ -66,6 +66,127 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
   return encoder.finish();
 }
 /**
+ * The entropy-coded bits of consecutive blocks of one image, coded apart from the blocks before them (`encodeJpegStrip`):
+ * the first block's quantized coefficients (3 × 64, natural order), whose DC differences need the block before; the other
+ * blocks' bits, unstuffed, most-significant first; and the last block's DC values, which the next strip's first block needs.
+ */
+export interface JpegStripBits { first: Float64Array; bits: Uint8Array; bitLength: number; blockCount: number; lastDc: Float64Array }
+/**
+ * The DCT, quantization and entropy coding of one 8 × 8 RGB block, shared by the whole-image writer and strips so both
+ * make the same bits.
+ *
+ * The 8×8 DCT, computed directly, with orthonormal DC factors and one chosen quantization step.
+ *
+ * This is a deliberately simple 4:4:4 reference encoder. Lossy quantization means exact RGB pixels are
+ * not preserved. Decoding the JPEG and comparing is an interoperability check, not an exact scientific
+ * check of pixel values.
+ *
+ * Each coefficient is the direct 64-term sum Σ_y Σ_x (f(x,y)·C(u,x))·C(v,y), summed over y, then x.
+ * The row products f(x,y)·C(u,x) are computed once per u and reused for all eight v. This reuses the
+ * identical IEEE-754 products and keeps the exact order of multiplication and summation. A factored
+ * row/column DCT would reorder the sum, so it is deliberately not used.
+ *
+ * C(u,x) comes from the fixed table `JPEG_DCT_COSINES` (correctly rounded constants), not `Math.cos`,
+ * so the coefficients do not depend on the JavaScript engine's maths library. Each quantized coefficient
+ * is rounded half away from zero (`roundJpegCoefficient`).
+ */
+function createJpegBlockCoder(q:number, emit:(value:number,count:number)=>void):{
+  transform(samples:ArrayLike<number>,out:Float64Array):void; code(coefficients:Float64Array,previous:number[]|Float64Array):void;
+} {
+  const amplitude = (value: number, max: number): number => {
+    const size=value===0 ? 0 : Math.floor(Math.log2(Math.abs(value)))+1;
+    if (size>max) throw new InvalidConfigurationError("JPEG coefficient exceeds baseline entropy range.");
+    return size;
+  };
+  const coefficient = (value: number, size: number): void => { if (size) emit(value>=0 ? value : value+(1<<size)-1,size); };
+  const zigzag=new Int32Array(64);
+  for (let diagonal=0,i=0;diagonal<=14;diagonal++) {
+    const points: number[] = [];
+    for (let y=0;y<8;y++) { const x=diagonal-y; if (x>=0 && x<8) points.push(y*8+x); }
+    for (const point of diagonal%2===0 ? points.reverse() : points) zigzag[i++]=point;
+  }
+  // Huffman symbol index of each AC (run, size) pair; equals the index of the symbol in the DHT segment's AC list.
+  const ac=[0,240];
+  for (let run=0;run<16;run++) for (let size=1;size<=10;size++) ac.push(run*16+size);
+  const acIndex=new Int16Array(256).fill(-1);
+  for (let i=ac.length-1;i>=0;i--) acIndex[ac[i]!]=i;
+  const cosine=JPEG_DCT_COSINES;
+  const planes=[new Float64Array(64),new Float64Array(64),new Float64Array(64)];
+  const blueScale=2*(1-.114), redScale=2*(1-.299);
+  return {
+    transform(samples:ArrayLike<number>,out:Float64Array):void {
+      const [luma,blueDifference,redDifference]=planes as [Float64Array,Float64Array,Float64Array];
+      for (let i=0;i<64;i++) {
+        // JPEG pads only partial 8x8 blocks (MCUs, minimum coded units). The declared image and crop size never change.
+        const p=i*3;
+        const red=samples[p]!, green=samples[p+1]!, blue=samples[p+2]!, luminance=.299*red+.587*green+.114*blue;
+        luma[i]=luminance-128; blueDifference[i]=(blue-luminance)/blueScale; redDifference[i]=(red-luminance)/redScale;
+      }
+      for (let channel=0;channel<3;channel++) {
+        const block=planes[channel]!, o=channel*64;
+        for (let u=0;u<8;u++) {
+          const uOffset=u*8;
+          const uFactor=u===0 ? Math.SQRT1_2 : 1;
+          // The eight v sums in one pass over (y, x): each sum still adds the same products f(x,y)·C(u,x)·C(v,y) in the same
+          // order (y, then x), and each row product is the same IEEE product, formed once per (x, y) instead of stored.
+          let s0=0, s1=0, s2=0, s3=0, s4=0, s5=0, s6=0, s7=0;
+          for (let y=0;y<8;y++) {
+            const c0=cosine[y]!, c1=cosine[8+y]!, c2=cosine[16+y]!, c3=cosine[24+y]!, c4=cosine[32+y]!, c5=cosine[40+y]!, c6=cosine[48+y]!, c7=cosine[56+y]!;
+            for (let x=0;x<8;x++) {
+              const r=block[y*8+x]!*cosine[uOffset+x]!;
+              s0+=r*c0; s1+=r*c1; s2+=r*c2; s3+=r*c3; s4+=r*c4; s5+=r*c5; s6+=r*c6; s7+=r*c7;
+            }
+          }
+          // Scaled as before, left to right: sum·0.25·(u factor)·(v factor)/q.
+          out[o+u]=roundJpegCoefficient(s0*.25*uFactor*Math.SQRT1_2/q); out[o+8+u]=roundJpegCoefficient(s1*.25*uFactor*1/q);
+          out[o+16+u]=roundJpegCoefficient(s2*.25*uFactor*1/q); out[o+24+u]=roundJpegCoefficient(s3*.25*uFactor*1/q);
+          out[o+32+u]=roundJpegCoefficient(s4*.25*uFactor*1/q); out[o+40+u]=roundJpegCoefficient(s5*.25*uFactor*1/q);
+          out[o+48+u]=roundJpegCoefficient(s6*.25*uFactor*1/q); out[o+56+u]=roundJpegCoefficient(s7*.25*uFactor*1/q);
+        }
+      }
+    },
+    code(coefficients:Float64Array,previous:number[]|Float64Array):void {
+      for (let channel=0;channel<3;channel++) {
+        const o=channel*64, difference=coefficients[o]!-previous[channel]!, size=amplitude(difference,11); emit(size,4); coefficient(difference,size); previous[channel]=coefficients[o]!;
+        let zeroes=0;
+        for (let i=1;i<64;i++) {
+          const value=coefficients[o+zigzag[i]!]!;
+          if (value===0) { zeroes++; continue; }
+          while (zeroes>=16) { emit(1,8); zeroes-=16; }
+          const length=amplitude(value,10), symbol=zeroes*16+length; emit(acIndex[symbol]!,8); coefficient(value,length); zeroes=0;
+        }
+        if (zeroes) emit(0,8);
+      }
+    }
+  };
+}
+/**
+ * Codes `blockCount` consecutive blocks of an image (`block(i, out)` writes block i's 192 RGB samples, 0–255) apart from the
+ * blocks before them, for writing an image's strips on separate workers; `createExportJpegEncoder`'s `appendStrip` joins
+ * them into the bytes the whole image's `writeRgbBlock` calls would have written.
+ */
+export function encodeJpegStrip(quantizationStep:number, blockCount:number, block:(index:number,out:Uint8Array)=>void):JpegStripBits {
+  if(!Number.isSafeInteger(quantizationStep)||quantizationStep<1||quantizationStep>255||!Number.isSafeInteger(blockCount)||blockCount<1)
+    throw new InvalidConfigurationError("Invalid JPEG strip plan.");
+  let storage=new Uint8Array(65_536), length=0, accumulator=0, bits=0, bitLength=0;
+  // Unstuffed bits, most-significant first.
+  const emit=(value:number,count:number):void=>{
+    accumulator=(accumulator<<count)|(value&((1<<count)-1)); bits+=count; bitLength+=count;
+    while (bits>=8) {
+      bits-=8;
+      if(length===storage.length){const grown=new Uint8Array(storage.length*2);grown.set(storage);storage=grown;}
+      storage[length++]=(accumulator>>>bits)&255;
+    }
+    accumulator&=(1<<bits)-1;
+  };
+  const coder=createJpegBlockCoder(quantizationStep,emit), samples=new Uint8Array(192), first=new Float64Array(192), coefficients=new Float64Array(192), lastDc=new Float64Array(3);
+  block(0,samples); coder.transform(samples,first);
+  lastDc[0]=first[0]!; lastDc[1]=first[64]!; lastDc[2]=first[128]!;
+  for(let i=1;i<blockCount;i++){block(i,samples);coder.transform(samples,coefficients);coder.code(coefficients,lastDc);}
+  if(bits){if(length===storage.length){const grown=new Uint8Array(storage.length+1);grown.set(storage);storage=grown;}storage[length++]=(accumulator<<(8-bits))&255;}
+  return {first,bits:storage.slice(0,length),bitLength,blockCount,lastDc};
+}
+/**
  * Largest byte budget the internal writer accepts: the Print JPEG budget ceiling at the largest opt-in source
  * (256 000 000 bytes per 24 000 000 pixels at 2^27 pixels). Each caller enforces its own smaller budget.
  */
@@ -80,7 +201,7 @@ const EXPORT_JPEG_MAXIMUM_OUTPUT_BYTES=scaleBudgetCeiling(256_000_000,FULL_RESOL
  * APP0 keeps units=0 with a 1:1 pixel aspect ratio and states no physical size.
  */
 export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> & {maximumOutputBytes:number;icc?:Uint8Array;densityDotsPerInch?:number}): {
-  writeRgbBlock(samples:readonly number[]):void; finish():Uint8Array; dispose():void;
+  writeRgbBlock(samples:readonly number[]):void; appendStrip(strip:JpegStripBits):void; finish():Uint8Array; dispose():void;
 } {
   const {width,height,quantizationStep:q}=input;
   if(![width,height,q,input.maximumOutputBytes].every(Number.isSafeInteger)||width<1||height<1||width>65535||height>65535||q<1||q>255||input.maximumOutputBytes<1||input.maximumOutputBytes>EXPORT_JPEG_MAXIMUM_OUTPUT_BYTES)
@@ -131,86 +252,28 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
     while (bits>=8) { bits-=8; const byte=(accumulator>>>bits)&255; pushByte(byte); if (byte===255) pushByte(0); }
     accumulator&=(1<<bits)-1;
   };
-  const amplitude = (value: number, max: number): number => {
-    const size=value===0 ? 0 : Math.floor(Math.log2(Math.abs(value)))+1;
-    if (size>max) throw new InvalidConfigurationError("JPEG coefficient exceeds baseline entropy range.");
-    return size;
-  };
-  const coefficient = (value: number, size: number): void => { if (size) emit(value>=0 ? value : value+(1<<size)-1,size); };
-  const zigzag=new Int32Array(64);
-  for (let diagonal=0,i=0;diagonal<=14;diagonal++) {
-    const points: number[] = [];
-    for (let y=0;y<8;y++) { const x=diagonal-y; if (x>=0 && x<8) points.push(y*8+x); }
-    for (const point of diagonal%2===0 ? points.reverse() : points) zigzag[i++]=point;
-  }
-  // Huffman symbol index of each AC (run, size) pair; equals ac.indexOf(symbol) for every emitted symbol.
-  const acIndex=new Int16Array(256).fill(-1);
-  for (let i=ac.length-1;i>=0;i--) acIndex[ac[i]!]=i;
-/**
- * The 8×8 DCT, computed directly, with orthonormal DC factors and one chosen quantization step.
- *
- * This is a deliberately simple 4:4:4 reference encoder. Lossy quantization means exact RGB pixels are
- * not preserved. Decoding the JPEG and comparing is an interoperability check, not an exact scientific
- * check of pixel values.
- *
- * Each coefficient is the direct 64-term sum Σ_y Σ_x (f(x,y)·C(u,x))·C(v,y), summed over y, then x.
- * The row products f(x,y)·C(u,x) are computed once per u and reused for all eight v. This reuses the
- * identical IEEE-754 products and keeps the exact order of multiplication and summation. A factored
- * row/column DCT would reorder the sum, so it is deliberately not used.
- *
- * C(u,x) comes from the fixed table `JPEG_DCT_COSINES` (correctly rounded constants), not `Math.cos`,
- * so the coefficients do not depend on the JavaScript engine's maths library. Each quantized coefficient
- * is rounded half away from zero (`roundJpegCoefficient`).
- */
-  const cosine=JPEG_DCT_COSINES;
+  const coder=createJpegBlockCoder(q,emit), coefficients=new Float64Array(192);
   const previous=[0,0,0];
-  const planes=[new Float64Array(64),new Float64Array(64),new Float64Array(64)];
-  const transformed=new Float64Array(64);
-  const blueScale=2*(1-.114), redScale=2*(1-.299);
+  const totalBlocks=Math.ceil(width/8)*Math.ceil(height/8);
   return {
     writeRgbBlock(samples:readonly number[]):void {
-      let valid=!disposed&&blocks<Math.ceil(width/8)*Math.ceil(height/8)&&samples.length===192;
+      let valid=!disposed&&blocks<totalBlocks&&samples.length===192;
       for(let i=0;valid&&i<192;i++){const v=samples[i]!;valid=Number.isInteger(v)&&v>=0&&v<=255;}
       if(!valid)throw new InvalidConfigurationError("JPEG requires complete bounded RGB coding blocks.");
-    const [luma,blueDifference,redDifference]=planes as [Float64Array,Float64Array,Float64Array];
-    for (let i=0;i<64;i++) {
-      // JPEG pads only partial 8x8 blocks (MCUs, minimum coded units). The declared image and crop size never change.
-      const p=i*3;
-      const red=samples[p]!, green=samples[p+1]!, blue=samples[p+2]!, luminance=.299*red+.587*green+.114*blue;
-      luma[i]=luminance-128; blueDifference[i]=(blue-luminance)/blueScale; redDifference[i]=(red-luminance)/redScale;
-    }
-    for (let channel=0;channel<3;channel++) {
-      const block=planes[channel]!;
-      for (let u=0;u<8;u++) {
-        const uOffset=u*8;
-        const uFactor=u===0 ? Math.SQRT1_2 : 1;
-        // The eight v sums in one pass over (y, x): each sum still adds the same products f(x,y)·C(u,x)·C(v,y) in the same
-        // order (y, then x), and each row product is the same IEEE product, formed once per (x, y) instead of stored.
-        let s0=0, s1=0, s2=0, s3=0, s4=0, s5=0, s6=0, s7=0;
-        for (let y=0;y<8;y++) {
-          const c0=cosine[y]!, c1=cosine[8+y]!, c2=cosine[16+y]!, c3=cosine[24+y]!, c4=cosine[32+y]!, c5=cosine[40+y]!, c6=cosine[48+y]!, c7=cosine[56+y]!;
-          for (let x=0;x<8;x++) {
-            const r=block[y*8+x]!*cosine[uOffset+x]!;
-            s0+=r*c0; s1+=r*c1; s2+=r*c2; s3+=r*c3; s4+=r*c4; s5+=r*c5; s6+=r*c6; s7+=r*c7;
-          }
-        }
-        // Scaled as before, left to right: sum·0.25·(u factor)·(v factor)/q.
-        transformed[u]=roundJpegCoefficient(s0*.25*uFactor*Math.SQRT1_2/q); transformed[8+u]=roundJpegCoefficient(s1*.25*uFactor*1/q);
-        transformed[16+u]=roundJpegCoefficient(s2*.25*uFactor*1/q); transformed[24+u]=roundJpegCoefficient(s3*.25*uFactor*1/q);
-        transformed[32+u]=roundJpegCoefficient(s4*.25*uFactor*1/q); transformed[40+u]=roundJpegCoefficient(s5*.25*uFactor*1/q);
-        transformed[48+u]=roundJpegCoefficient(s6*.25*uFactor*1/q); transformed[56+u]=roundJpegCoefficient(s7*.25*uFactor*1/q);
-      }
-      const difference=transformed[0]!-previous[channel]!, size=amplitude(difference,11); emit(size,4); coefficient(difference,size); previous[channel]=transformed[0]!;
-      let zeroes=0;
-      for (let i=1;i<64;i++) {
-        const value=transformed[zigzag[i]!]!;
-        if (value===0) { zeroes++; continue; }
-        while (zeroes>=16) { emit(1,8); zeroes-=16; }
-        const length=amplitude(value,10), symbol=zeroes*16+length; emit(acIndex[symbol]!,8); coefficient(value,length); zeroes=0;
-      }
-      if (zeroes) emit(0,8);
-    }
-    blocks++;
+      coder.transform(samples,coefficients); coder.code(coefficients,previous);
+      blocks++;
+    },
+    appendStrip(strip:JpegStripBits):void {
+      if(disposed||blocks+strip.blockCount>totalBlocks||strip.first.length!==192||strip.lastDc.length!==3||strip.bits.length*8<strip.bitLength)
+        throw new InvalidConfigurationError("JPEG strip does not continue this encoding.");
+      // The strip's first block, coded against the DC values before it; then its other blocks' bits, which only depend on
+      // values inside the strip, as written (each byte's 0xFF stuffing happens here, as in writeRgbBlock).
+      coder.code(strip.first,previous);
+      const whole=strip.bitLength>>3;
+      for(let i=0;i<whole;i++)emit(strip.bits[i]!,8);
+      if(strip.bitLength&7)emit(strip.bits[whole]!>>(8-(strip.bitLength&7)),strip.bitLength&7);
+      previous[0]=strip.lastDc[0]!; previous[1]=strip.lastDc[1]!; previous[2]=strip.lastDc[2]!;
+      blocks+=strip.blockCount;
     },
     finish():Uint8Array {
       if(disposed||blocks!==Math.ceil(width/8)*Math.ceil(height/8))throw new InvalidConfigurationError("JPEG cannot finish incomplete or disposed encoding.");
