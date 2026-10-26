@@ -36,6 +36,7 @@ import type { SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-p
 import type { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal, EnvironmentRadianceEvaluator,
   EnvironmentApertureRadianceEvaluator } from "../sensor/environment-photo-signal.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { hypot3 } from "../core/portable-math.js";
 import { apertureRadianceQuery } from "../sensor/environment-photo-signal.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
@@ -401,14 +402,14 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
             const reference = applyPhysicalCameraRotation({ x: imagePointMm.x / pd, y: imagePointMm.y / pd, z: 1 }, displacement, "camera-to-reference");
             if (!Number.isFinite(reference.z) || reference.z <= 0) return undefined;
             const rx = pd * (reference.x / reference.z), ry = pd * (reference.y / reference.z);
-            const length = Math.hypot(rx, ry, pd);
+            const length = hypot3(rx, ry, pd);
             const ray = { x: rx / length, y: ry / length, z: pd / length };
             // Build the parseSceneRadianceEvaluationRequest output directly. Every other field is a template constant already
             // parsed for the template site. The sample ID is a public opaque ID (trimming cannot change it) and the time is
             // checked above. So only parseUnitDirection's unit-direction check depends on this site.
             const direction = { x: -ray.x, y: -ray.y, z: -ray.z };
             if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y) || !Number.isFinite(direction.z)) return undefined;
-            const norm = Math.hypot(direction.x, direction.y, direction.z);
+            const norm = hypot3(direction.x, direction.y, direction.z);
             if (!Number.isFinite(norm) || Math.abs(norm - 1) > 1e-9) return undefined;
             // #394: the key the evaluator would read for this request (undefined where it would throw: the full path decides).
             if (access !== undefined) {

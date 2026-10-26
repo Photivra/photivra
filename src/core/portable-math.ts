@@ -44,6 +44,44 @@ export function portableHypot(...values: readonly number[]): number {
 }
 
 /**
+ * V8's three-argument `Math.hypot` as a fixed sequence of correctly rounded operations, so the result has V8's bits in
+ * every JavaScript engine. The sequence is V8's `MathHypot` (src/builtins/math.tq; also its three-argument
+ * `FastMathHypot`): the largest magnitude, starting from 0, normalises the arguments; their squares are summed in
+ * argument order with Kahan compensation; the result is the square root of the sum times the largest magnitude. An
+ * infinite argument gives Infinity (even beside NaN), otherwise a NaN argument gives NaN, and all zeros give +0.
+ *
+ * It is not `portableHypot`: that function rescales by powers of two and sums without compensation, so it is portable
+ * too but gives other bits than `Math.hypot`. This one replaces `Math.hypot` where today's V8 bits must be kept (the
+ * capture's query arithmetic and the display view's copy of it), and makes the other engines compute them too.
+ * @see docs/NUMERICAL_CORRECTNESS.md §Cross-engine determinism
+ */
+export function hypot3(a: number, b: number, c: number): number {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  c = Math.abs(c);
+  let max = 0;
+  if (a > max) max = a;
+  if (b > max) max = b;
+  if (c > max) max = c;
+  if (max === Infinity) return Infinity;
+  if (a !== a || b !== b || c !== c) return NaN;
+  if (max === 0) return 0;
+  let sum = 0, compensation = 0;
+  let n = a / max, summand = n * n - compensation, preliminary = sum + summand;
+  compensation = (preliminary - sum) - summand;
+  sum = preliminary;
+  n = b / max;
+  summand = n * n - compensation;
+  preliminary = sum + summand;
+  compensation = (preliminary - sum) - summand;
+  sum = preliminary;
+  n = c / max;
+  summand = n * n - compensation;
+  sum = sum + summand;
+  return Math.sqrt(sum) * max;
+}
+
+/**
  * True when two finite numbers differ by at most `maximumUlps` ULPs (units in the last place).
  * One ULP here is `Number.EPSILON` times the larger magnitude. Use it to accept an archived value
  * that another engine or an earlier release computed with an implementation-approximated function.
