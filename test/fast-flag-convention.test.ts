@@ -69,7 +69,7 @@ describe("exact-or-fast flag convention (#395)", () => {
   it("lens.diffraction fast: the second dark ring, a caller's window kept, and a bound that holds site by site", async () => {
     const exact = await simulateDisplayViewWithInternals(request({ ...SMALL_SITES, lens: { diffraction: "circular-aperture" } }), { width: 32, height: 24 });
     const fast = await simulateDisplayViewWithInternals(request({ ...SMALL_SITES, lens: { diffraction: "circular-aperture" }, fast: true }), { width: 32, height: 24 });
-    const model = (r: typeof exact) => r.result.assumptions.find((a) => a.id === "lens.diffraction")!.value as { kernelRadiusSamples: number };
+    const model = (r: typeof exact): { kernelRadiusSamples: number } => r.result.assumptions.find((a) => a.id === "lens.diffraction")!.value as { kernelRadiusSamples: number };
     const note = fast.result.assumptions.find((a) => a.id === "fast.lens.diffraction")!.value as { kernelRadiusSamples: number; exactKernelRadiusSamples: number;
       bound: { kind: string; maximumFraction: number } };
     // 1.4 µm at f/8, longest node 770 nm: the second dark ring needs 10 sites, the third 15.
