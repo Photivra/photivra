@@ -24,6 +24,11 @@ A minor release: new functions for writing a whole-frame DNG from region parts a
 
 ### Faster, same output
 
+- **Captures of chart and material scenes: the sensor stage allocates less per site (#418).**
+  - **What changed:** the tabulated RAW path's sensor stage reseeds its charge and read-noise streams in place for each site instead of creating two new streams, sums the read-noise components in one loop instead of a mapped array, and returns each site's record without a second copy. The seeds, every draw and every addition are the same, in the same order.
+  - **Same bytes:** RAW codes and samples are identical (SHA-256) on a 24 MP Siemens star and a dead-leaves frame; the bit-identity hash locks and the tabulated-path tests pass. A new test checks that a reseeded stream draws what a new one does for 137 seeds, including the fallback-state seed.
+  - **Measured** in Node, one thread, the 2.8.0 record's request (24 MP full frame, 6 µm, 50 mm f/8, 2 × 2 box, ISO 100), built `dist`, before and after interleaved on the same host: RAW stage of a 2048 × 2048 centre region 3.21–3.24 s → 2.74–2.78 s (Siemens star) and 3.27–3.36 s → 2.80–2.89 s (dead leaves), three runs each; the whole frame 18.5 s → 16.4 s (RAW 15.5 s → 13.3 s), one run.
+
 - **Display view parts: request tables kept across renders of a prepared view; bands sized to the part.**
   - **Kept tables:** a prepared view's renders share its expected-signal tables (lattice groups, combined kernels, each material's uniform sum) and its lattice material rings, instead of rebuilding them per render. They depend only on the request, and a ring entry only on its lattice point, so concurrent renders may share them.
   - **Band width:** a filled band is built as wide as the part's windows span, not the sensor's full width.

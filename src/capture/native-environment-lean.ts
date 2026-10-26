@@ -62,7 +62,7 @@ import { calculateNativeRawSite, parseNativeRawProducerSite, type NativeRawProdu
 import type { NativeRawLeanOutput, NativeRawLeanSensorHook } from "./native-raw.js";
 import { calculateSiteEffectiveSaturationCode } from "./raw-white-level.js";
 import { adcTransfer, resolveSensorReadoutRegime, samplePoisson, type ResolvedSensorReadoutRegime } from "../sensor/raw-readout.js";
-import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, sampleDeterministicStandardNormal,
+import { createResettableUniformStream, deriveNativeSiteStreamSeedUint32, sampleDeterministicStandardNormal,
   NATIVE_SITE_CHARGE_STREAM_ID, NATIVE_SITE_READ_NOISE_STREAM_ID } from "../sensor/stochastic-seed.js";
 import { evaluateParsedFixedPatternSite, type SensorFixedPatternNoiseProfile } from "../sensor/fixed-pattern-noise.js";
 
@@ -1012,6 +1012,13 @@ function sensorMatches(site: Site, photo: SensorEqeTemporalPhotoSignal, x: numbe
 }
 
 /** The sensor stage of calculateNativeRawSite, in the same operation order. Returns undefined when one of its checks would throw. */
+/**
+ * #418: the charge and read-noise streams of the site leanSensorSite is computing, reseeded for each site. leanSensorSite is
+ * synchronous and never re-entered, so one pair serves every call; reseeding sets exactly the state a new
+ * createDeterministicUniformStream would start from, so every draw is unchanged.
+ */
+const chargeStream = createResettableUniformStream(), readNoiseStream = createResettableUniformStream();
+
 function leanSensorSite(t: Pick<SensorTemplate, "capacity" | "readout" | "pattern" | "whiteCode">, h: Pick<SensorHandle, "photo" | "darkE" | "total" | "x" | "y">, index: number, seed: number):
   (NativeRawLeanOutput & { photoRealized: number; darkRealized: number }) | undefined {
   const ratio = h.total / t.capacity, headroom = t.capacity - h.total;
@@ -1021,17 +1028,22 @@ function leanSensorSite(t: Pick<SensorTemplate, "capacity" | "readout" | "patter
   const photoMean = pattern === null ? photoE : photoE * pattern.photoResponseGainFactor;
   const darkMean = pattern === null ? h.darkE : h.darkE * pattern.darkCurrentFactor;
   if (!Number.isFinite(photoMean) || photoMean < 0 || !Number.isFinite(darkMean) || darkMean < 0) return undefined;
-  const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_CHARGE_STREAM_ID));
+  const random = chargeStream;
+  random.reset(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_CHARGE_STREAM_ID));
   const photoRealized = samplePoisson(photoMean, random), darkRealized = samplePoisson(darkMean, random);
   const realized = photoRealized + darkRealized + 0;
   if (!Number.isFinite(realized) || realized < 0) return undefined;
-  const readRandom = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_READ_NOISE_STREAM_ID));
+  const readRandom = readNoiseStream;
+  readRandom.reset(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_READ_NOISE_STREAM_ID));
   const regime = t.readout.regime, capacity = t.capacity;
   const afterPhysical = Math.min(realized, capacity), physicalSaturation = afterPhysical < realized;
-  const sampled = regime.readNoiseComponents.map(component => component.rmsElectrons.value === 0 ? 0 :
-    sampleDeterministicStandardNormal(readRandom) * component.rmsElectrons.value);
+  // The components' draws and their sum in one loop: the same draws, added to 0 in the same order as before (#418).
+  const components = regime.readNoiseComponents;
   let totalReadNoise = 0;
-  for (const value of sampled) totalReadNoise = totalReadNoise + value;
+  for (let k = 0; k < components.length; k++) {
+    const rms = components[k]!.rmsElectrons.value;
+    totalReadNoise = totalReadNoise + (rms === 0 ? 0 : sampleDeterministicStandardNormal(readRandom) * rms);
+  }
   const afterReadNoise = afterPhysical + totalReadNoise + (pattern === null ? 0 : pattern.readoutOffsetElectrons);
   const threshold = regime.preAdcSaturationElectronEquivalent.value;
   const afterPreAdc = Math.min(afterReadNoise, threshold), preAdcSaturation = afterReadNoise > threshold;
@@ -1083,8 +1095,8 @@ export function createVerifiedNativeSiteReadout(parsed: SensorRawProducerSiteInp
         if (!Number.isFinite(photoE) || photoE < 0 || !Number.isFinite(siteDark) || siteDark < 0) return undefined;
         const siteTotal = chargeTotal(photoE, siteDark);
         if (!Number.isFinite(siteTotal) || siteTotal < 0) return undefined;
-        const o = leanSensorSite(t, { photo: { expectedGeneratedElectronCount: photoE } as SensorEqeTemporalPhotoSignal, darkE: siteDark, total: siteTotal, x: sx, y: sy }, siteIndex, siteSeed);
-        return o && { rawCode: o.rawCode, blackLevelCode: o.blackLevelCode, digitalSaturationCode: o.digitalSaturationCode, flags: o.flags, whiteCode: o.whiteCode };
+        // The site's own record: the caller reads only the five RAW fields, so no copy without the realizations (#418).
+        return leanSensorSite(t, { photo: { expectedGeneratedElectronCount: photoE } as SensorEqeTemporalPhotoSignal, darkE: siteDark, total: siteTotal, x: sx, y: sy }, siteIndex, siteSeed);
       }
     };
   } catch {
