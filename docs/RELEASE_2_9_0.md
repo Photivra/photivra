@@ -18,6 +18,8 @@
 | Display view: taller lattice bands, cheaper `sceneLookups` count | #427 |
 | Display view parts: request tables kept across renders of a prepared view; bands sized to the part | #432 |
 | A Print JPEG written in strips: `createPrintJpegStrip`, `composePrintJpegStrips` | #433 |
+| Captures of chart and material scenes: the sensor stage allocates less per site (#418) | #429 |
+| Captures with AHD demosaic: development about 3× cheaper around the demosaic (#420) | #431 |
 
 Out of scope: the Quality display-view noise limit (#379) is unchanged from 2.8.1.
 
@@ -104,6 +106,27 @@ Out of scope: the Quality display-view noise limit (#379) is unchanged from 2.8.
 - 24 MP, Node, one thread: the whole task takes 8.1 s; four strips take 1.9 s each, and the join 1.1 s.
 - The app (Chromium, four workers): Speed JPEG export 32–35 s → about 20 s; Quality 53–59 s → about 40 s.
 
+### Captures: the sensor stage allocates less per site (#429, issue #418)
+
+**Change:** the tabulated RAW path's sensor stage now:
+- reseeds its charge and read-noise streams in place for each site;
+- sums the read-noise components in one loop;
+- returns each site's record without a second copy.
+
+The seeds, every draw and every addition are the same, in the same order.
+
+**Values:** RAW codes and samples are identical (SHA-256) on a 24 MP Siemens star and a dead-leaves frame. The bit-identity hash locks pass. A new test checks that a reseeded stream draws what a new one does for 137 seeds.
+
+**Measured** (Node, one thread, 24 MP full frame): whole frame 18.5 s → 16.4 s (RAW stage 15.5 s → 13.3 s).
+
+### Captures with AHD: development about 3× cheaper around the demosaic (#431, issue #420)
+
+**Change:** after the AHD demosaic, each output row steps from two transformed points, as the bilinear path already does. Saturated sites come from a row-dilated mask instead of a 7 × 7 scan per pixel. The demosaic itself is unchanged.
+
+**Values:** samples, RAW and the highlight counts are identical (SHA-256) on a 24 MP Siemens star and on 2048² regions at seven exposures, from no clipped pixel to all of them. A new test checks the saturated-pixel count against a brute-force count.
+
+**Measured** (Node, one thread, 24 MP full frame, AHD): whole frame 33.6 s → 28.5 s; development 18.0 s → 12.4 s.
+
 ### The app's preview, all changes together
 
 Chromium headless, production build, 4-vCPU container, four workers, 24 MP full frame; seconds from the change:
@@ -137,9 +160,9 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 
 ## Remaining release checklist
 
-- [x] The 2.9.0 changes merged with their changelog entries (#424, #425, #426, #427, #432, #433).
+- [x] The 2.9.0 changes merged with their changelog entries (#424, #425, #426, #427, #432, #433, #429, #431).
 - [x] Version surfaces aligned at 2.9.0 (`npm run release:prepare -- 2.9.0`). Root exports 1,734.
-- [x] Fingerprint against `v2.8.1`: all 24 results identical, with only the engine version normalized (re-run with #432 and #433).
+- [x] Fingerprint against `v2.8.1`: all 24 results identical, with only the engine version normalized (re-run on main at 2000e4f, with #429, #431, #432 and #433).
 - [ ] Owner's review of this record.
 - [ ] Green CI on this pull request, then on `main` after merge.
 - [ ] **The owner's explicit approval to tag `v2.9.0`.**
