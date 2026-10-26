@@ -92,7 +92,9 @@ functional of the scene radiance,
   μ_c(i, j) = Σ_o w_o Σ_λ A_c(λ) Σ_t K_λ(t) · L(p_o(i, j) − t, λ),
 
 with A_c(λ) the electrons per unit spectral radiance at spectral node λ (the facade's own environment
-chain evaluated once on the axis, as in the ideal reference), o the pixel-aperture nodes times the
+chain evaluated once on the axis, as in the ideal reference: one run per channel with unit radiance at every node, each
+node's value its own rate term times the exposure time; it does not depend on the scene, so it is kept across chart,
+illuminant and illuminance changes, #443), o the pixel-aperture nodes times the
 anti-aliasing split spots with weights w_o, and K_λ the diffraction kernel on the site lattice (one
 unit tap without `lens.diffraction`). Dark electrons (1 e⁻/s × exposure) are added.
 
@@ -455,6 +457,12 @@ twice Speed per part. The slowest parts are the first one (its own warm-up) and 
 stand-in label costs a few comparisons per lookup; a caller's label tested by polygon winding costs more (about 3 % of the
 self time in one caller's profile). Comparing two builds: `DIST_B=<other dist/index.js> node
 scripts/benchmark-display-view.mjs --app` runs them interleaved, alternating which goes first.
+
+The prepare column above predates #443, which runs the channel response's sensor chain once per channel instead of once
+per spectral node and keeps it across chart, illuminant and illuminance changes, with the same bytes. Prepares in one process after a
+warm-up, the app-request shape, five rounds alternating the builds (Node 24.21.0, load average 1.3): after an aperture
+change 378–430 ms → 54–67 ms (Quality) and 110–142 ms → 15–19 ms (Speed); after a chart change 379–435 ms → 34–39 ms
+and 108–115 ms → 6–7 ms; after an illuminant change 370–385 ms → 35–47 ms and 108–120 ms → 6–7 ms.
 
 ### Whole views against the 2.5 whole-frame view (2.6.0)
 
