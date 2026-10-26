@@ -13,7 +13,7 @@
  * over them; the view is rendered once, at the request's default seed.
  *
  * Informational only: no CI gate. A full run (155 cases, seven references each, the largest about a million real sites)
- * takes several hours on 4 cores.
+ * takes several hours on 4 cores. Set F (device-pixel views on the exact area mean, #454) runs only with `--set F`.
  */
 import "./require-fresh-dist.mjs";
 import console from "node:console";
@@ -160,7 +160,7 @@ async function busiest(sensor, preset, vw, bw, bh) {
   }
   return best;
 }
-async function cases() {
+async function cases(includeSetF = false) {
   const list = [], centre = (sensor, vw, bw, bh) => ({ x: Math.floor(vw / 2 - bw / 2), y: Math.floor(viewHeight(sensor, vw) / 2 - bh / 2), width: bw, height: bh });
   const add = async (set, sensor, options, preset, fNumber, iso, vw, bw, bh, where, scene) =>
     list.push({ id: list.length, set, sensor, options, scene: scene ?? { preset }, fNumber, iso, viewWidth: vw, block: where === "centre" ? centre(sensor, vw, bw, bh) : await busiest(sensor, preset, vw, bw, bh) });
@@ -195,6 +195,13 @@ async function cases() {
     const b = vw === 96 ? 8 : 16;
     await add("E", sensor, options, "uniform", 8, iso, vw, b, b, "centre", { preset: "uniform", reflectance });
   }
+  // Set F (#454), only with `--set F`: device-pixel views, where a display pixel covers at most 25 real pixels and the view
+  // takes the exact area mean, on the full-frame (2028 wide, about 2.96 real pixels per axis) and medium-format (4000 wide,
+  // about 2.91) sensors. Each reference block is about 95 × 95 real pixels at seven seeds.
+  if (includeSetF) for (const [sensor, vw] of [["ff", 2028], ["mf", 4000]]) for (const options of ["speed", "quality"]) {
+    await add("F", sensor, options, "siemens-star", 8, 100, vw, 32, 32, "centre");
+    for (const iso of [100, 6400]) await add("F", sensor, options, "uniform", 8, iso, vw, 32, 32, "centre", { preset: "uniform", reflectance: 0.18 });
+  }
   return list;
 }
 
@@ -220,7 +227,7 @@ else if (argv.includes("--case")) {
   const out = arg("--out", "display-view-validation.jsonl"), workers = Number(arg("--workers", "4")), set = arg("--set"), only = arg("--options");
   const done = new Set(existsSync(out) ? readFileSync(out, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((r) => !r.error).map((r) => r.id) : []);
   const cost = (c) => { const s = SENSORS[c.sensor].width / c.viewWidth; return c.block.width * c.block.height * s * s * (c.options === "speed" ? 1 : 3.5); };
-  const queue = (await cases()).filter((c) => (!set || c.set === set) && (!only || c.options === only) && !done.has(c.id)).sort((a, b) => cost(b) - cost(a));
+  const queue = (await cases(set === "F")).filter((c) => (!set || c.set === set) && (!only || c.options === only) && !done.has(c.id)).sort((a, b) => cost(b) - cost(a));
   const next = () => {
     const c = queue.shift();
     if (!c) return;

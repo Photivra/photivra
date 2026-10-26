@@ -1294,9 +1294,14 @@ Validated against real full-resolution captures resized in linear light: three s
 100 MP medium format), five charts, f/2.8–f/16, ISO 100–6400, 96–800 display pixels wide, Speed and Quality options (see
 [Validation results](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#validation-results)).
 
-**Cost.** It follows the detailed display pixels × `samplesPerAxis`², not the real pixel count. Measured against the
-whole-frame view of the same request (Siemens star, f/8, ISO 100, one run, Node 24.21.0 on a 4-vCPU 2.80 GHz Xeon;
-every row, and the times before the exact speed-ups, in [DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#cost)):
+**Cost.** Where a display pixel covers more than 25 real pixels, the cost follows the detailed display pixels ×
+`samplesPerAxis`², not the real pixel count; at 25 or fewer (the exact area mean) it follows the real pixels the region
+touches. A device-pixel view of a 24 MP frame, 2028 × 1352 in 96 × 96 parts from one prepared view, takes about 0.09 s
+per part with the engine defaults and about 0.18 s with the Quality options (2.9.0, Node 24.21.0, one thread on a
+4-vCPU 2.80 GHz Xeon; [the table](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#a-device-pixel-view-rendered-in-parts),
+`node scripts/benchmark-display-view.mjs --app`). The table below is the 2.6.0 record of whole views against the
+whole-frame view of the same request (Siemens star, f/8, ISO 100, one run, same host; every row, and the times before
+the exact speed-ups, in [DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#cost)):
 
 | Sensor | Options | 96 wide | 384 wide | 800 wide |
 | --- | --- | --- | --- | --- |

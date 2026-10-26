@@ -11,6 +11,11 @@
   - **Same output:** every request gives the same samples, RAW and files as before; a new test (`test/fast-flag-convention.test.ts`) checks each listed option with the flag on, off and overridden, and enforces the convention documented in `docs/API_STYLE.md`, "Exact and fast modes".
   - New root exports: `SIMULATE_CAPTURE_FAST_OPTIONS` and the types `SimulateCaptureFastOption`, `SimulateCaptureFastReport` and `SimulateCaptureDemosaicRecord`.
 
+- **Display-view benchmark and validation on a device-pixel request (#454).** Measurement and documentation only; no result changes.
+  - **Benchmark:** `node scripts/benchmark-display-view.mjs --app` times a 2028 × 1352 view of a 24 MP, 6 µm frame with the 2 × 2 box, a caller material scene and a stand-in label, prepared once and rendered in 96 × 96 parts centre first, in Speed and Quality at f/8 and f/11. It prints per-part medians and maxima, µs per display pixel, the estimation method, AHD-corrected pixels, the load average, the Node version and the commit; with `DIST_B` it runs a second build interleaved. Measured on 2.9.0 (Node 24.21.0, one thread, 4-vCPU Xeon): Speed about 0.09 s per part, Quality about 0.18 s, prepare 0.2 s and 0.5 s. The 2.6.0 whole-view table is now labelled as the 2.6.0 record.
+  - **Validation set F:** `node scripts/validate-display-view.mjs --set F` (outside the default run) checks the view at device-pixel widths on the full-frame (2028 wide) and medium-format (4000 wide) sensors. Speed passes every limit. Quality misses two, now recorded in `docs/DISPLAY_VIEW.md` and `docs/validation/display-view-2026-10-26/`: the predicted noise is 1.13–1.20 of the reference's (the known limit, #379), and at the Siemens star's centre the view's AHD result differs from the capture's by 5.1 codes RMS, at most 34 (full frame).
+  - **Test:** parts of a prepared device-pixel view of a caller material scene with the box and the Quality options equal separate `simulateDisplayView` calls, by SHA-256 (`test/display-view-prepared.test.ts`).
+
 ### Deprecated
 
 - **`lens.diffraction`'s `aperture` key (#395): use `kind`.** `{ aperture: "circular-aperture" }` is still accepted, with the same result, until 3.0.0; giving both `kind` and `aperture` is an error.

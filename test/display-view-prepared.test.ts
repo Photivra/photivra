@@ -4,7 +4,8 @@
  * exposure, scene, diagnostics except timings, assumptions), for regions and whole views, concurrently, and cancels per render.
  */
 import { describe, expect, it } from "vitest";
-import { InvalidConfigurationError, prepareDisplayView, simulateDisplayView, type DisplayViewResult, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "../src/index.js";
+import { createHash } from "node:crypto";
+import { InvalidConfigurationError, prepareDisplayView, resolveChartScene, simulateDisplayView, type DisplayViewResult, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "../src/index.js";
 import { scaledTimeout as testTimeout } from "./helpers/test-timeout.js";
 
 /** The result without its timings, as plain data. */
@@ -39,6 +40,34 @@ describe("prepared display view (#387)", () => {
     const together = await Promise.all(regions.map((view) => prepared.render(view)));
     for (let i = 0; i < regions.length; i++) expect(comparable(together[i]!)).toEqual(comparable(await simulateDisplayView(options, regions[i]!)));
   }, testTimeout(60_000));
+
+  // #454: the request shape of scripts/benchmark-display-view.mjs --app, scaled down: a caller material scene (a composite
+  // chart plus a stand-in label), the 2 × 2 box, Quality options, and a device-pixel view (3 × 3 real pixels per display
+  // pixel, so the exact area mean) rendered as parts, centre first, from one prepared view.
+  it("app-request shape: parts of a prepared device-pixel view hash equal to separate calls", async () => {
+    const width = 120, height = 81, view = { width: 40, height: 27 }, aspect = view.height / view.width;
+    const chart = resolveChartScene({ scene: { preset: "composite", background: { preset: "line-grid" },
+      elements: [{ scene: { preset: "siemens-star" }, centerU: 0, centerV: 0, width: 0.8, height: 0.8, mask: "ellipse" }, { scene: { preset: "step-wedge" }, centerU: 0, centerV: -0.55, width: 0.9, height: 0.12 }] }, aspect });
+    const materials = chart.materials.map((m) => (m.kind === "neutral" ? m.reflectance : 0.18)), label = materials.length;
+    const options: SimulateCaptureOptions = {
+      scene: { kind: "material-function", sceneId: "test:app-request", materials: [...materials, 0.85, 0.06],
+        materialAt: (p) => { const u = p.chartU ?? p.u, v = p.chartV ?? p.v; return u < -0.5 && v < -0.45 ? label + (Math.floor(u * 40) % 2 === 0 ? 1 : 0) : chart.materialAt(u, v); } },
+      chartSize: { widthM: 0.12, heightM: 0.081 }, subjectDistanceM: 0.5,
+      lens: { prime: 50, fNumber: 11, diffraction: "circular-aperture" }, exposure: { mode: "manual", iso: 100, shutterSeconds: 1 / 125 },
+      sensor: { pixelPitchMicrometers: 6, pixelAperture: { kind: "box", samplesPerAxis: 2 }, antiAliasing: { kind: "four-spot" } },
+      output: { width, height, format: "srgb-8", demosaic: "ahd" }
+    };
+    const prepared = await prepareDisplayView(options), side = 12, parts: { x: number; y: number; width: number; height: number }[] = [];
+    for (let y = 0; y < view.height; y += side) for (let x = 0; x < view.width; x += side) parts.push({ x, y, width: Math.min(side, view.width - x), height: Math.min(side, view.height - y) });
+    const centre = (r: { x: number; y: number; width: number; height: number }): number => Math.hypot(r.x + r.width / 2 - view.width / 2, r.y + r.height / 2 - view.height / 2);
+    parts.sort((a, b) => centre(a) - centre(b));
+    const hash = (result: DisplayViewResult): string => createHash("sha256").update(JSON.stringify(comparable(result))).digest("hex");
+    for (const region of parts) {
+      const part = await prepared.render({ ...view, region });
+      expect(part.assumptions.find((a) => a.id === "view.estimation")?.value).toMatchObject({ method: "exact-area-mean-over-real-pixels" });
+      expect(hash(part)).toBe(hash(await simulateDisplayView(options, { ...view, region })));
+    }
+  }, testTimeout(120_000));
 
   it("raises request errors when preparing, view errors when rendering, and cancels one render", async () => {
     await expect(prepareDisplayView({ scene: { preset: "uniform" }, output: { width: 16, height: 16, region: { x: 0, y: 0, width: 4, height: 4 } } })).rejects.toThrow(InvalidConfigurationError);
