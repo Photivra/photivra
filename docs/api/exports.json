@@ -7973,6 +7973,11 @@
       "kind": "runtime"
     },
     {
+      "name": "SIMULATE_CAPTURE_FAST_OPTIONS",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS",
       "source": "src/facade/simulate-capture.ts",
       "kind": "runtime"
@@ -8008,12 +8013,27 @@
       "kind": "type"
     },
     {
+      "name": "SimulateCaptureDemosaicRecord",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
       "name": "SimulateCaptureDngPart",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
     {
       "name": "SimulateCaptureExposureMode",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureFastOption",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureFastReport",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },

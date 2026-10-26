@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **One exact-or-fast flag for every slow option (#395, stage 2): `fast`, `SIMULATE_CAPTURE_FAST_OPTIONS` and `diagnostics.fast`.** No option has a fast method yet, so every result is the same as before.
+  - **The flag:** `fast?: boolean` on the `simulateCapture` request (and so on `simulateDisplayView` and `prepareDisplayView`, which take the same request). `false` or omitted is exact, the engine reference; `true` asks each listed option for its fast method, a measured, bounded approximation. An option's record `fast` overrides the top-level flag for that option only.
+  - **The options:** `SIMULATE_CAPTURE_FAST_OPTIONS` lists `lens.diffraction`, `sensor.antiAliasing`, `sensor.pixelAperture.box` and `output.demosaic.ahd`. Each takes a record with `fast`: `lens.diffraction` `{ kind: "circular-aperture", kernelRadiusSamples?, fast? }`, `output.demosaic` (new record form) `{ kind: "bilinear" | "ahd", fast? }`, and the existing `sensor.antiAliasing` and `sensor.pixelAperture` records gain `fast?`. An option without a fast method accepts the flag, runs exact and reports `false`.
+  - **The report:** captures and display views carry `diagnostics.fast = { requested, applied, assurance }`: whether `fast: true` was given anywhere, each listed option that ran (true where its fast method ran) and `engine-reference` or `approximation-with-a-priori-bound`. The WebGPU image-kernel execution record gains `fast` (`false` for `cpu-reference`, `true` for `webgpu-f32`).
+  - **Same output:** every request gives the same samples, RAW and files as before; a new test (`test/fast-flag-convention.test.ts`) checks each listed option with the flag on, off and overridden, and enforces the convention documented in `docs/API_STYLE.md`, "Exact and fast modes".
+  - New root exports: `SIMULATE_CAPTURE_FAST_OPTIONS` and the types `SimulateCaptureFastOption`, `SimulateCaptureFastReport` and `SimulateCaptureDemosaicRecord`.
+
+### Deprecated
+
+- **`lens.diffraction`'s `aperture` key (#395): use `kind`.** `{ aperture: "circular-aperture" }` is still accepted, with the same result, until 3.0.0; giving both `kind` and `aperture` is an error.
+
 ## 2.9.0 — published October 26, 2026
 
 A minor release: new functions for writing a whole-frame DNG from region parts and a Print JPEG in strips, and a faster display view and Quality preview. Results are the same as 2.8.1, except display views and binned frames whose diffraction cells have β ≥ 32, which change in the last bits.

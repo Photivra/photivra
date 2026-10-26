@@ -73,9 +73,11 @@ describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", (
       expect(current.length).toBe(locked.length);
       for (let at = all.indexOf(current); at >= 0; at = all.indexOf(current, at + 1)) locked.copy(all, at);
       expect(hex(all)).toBe(bytes);
-      // diagnostics.options (2.1, additive) is checked by name below and left out of the 2.0.0 digest, like the timings.
-      expect(hex(JSON.stringify({ a: r.assumptions, c: r.provenance.composedContracts, d: { ...r.diagnostics, timingsMs: 0, options: undefined } }))).toBe(meta);
+      // diagnostics.options (2.1) and diagnostics.fast (#395), both additive, are checked below and left out of the 2.0.0 digest, like the timings.
+      expect(hex(JSON.stringify({ a: r.assumptions, c: r.provenance.composedContracts, d: { ...r.diagnostics, timingsMs: 0, options: undefined, fast: undefined } }))).toBe(meta);
       expect(r.diagnostics.options).toEqual(expectedOptions[name]);
+      expect(r.diagnostics.fast.requested).toBe(false);
+      expect(r.diagnostics.fast.assurance).toBe("engine-reference");
     });
   }
 });

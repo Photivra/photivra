@@ -72,7 +72,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.distortion` | none | `{ kind: "radial", profile }` or `{ kind: "brown-conrady", profile }`. |
 | `lens.vignetting` | none | An `IlluminationVignettingProfile` (radial relative illumination). |
 | `lens.psf` | none | A `{ kind: "sampled-local", configuration }` sampled lens PSF, passed to the environment contract unchanged. |
-| `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ aperture: "circular-aperture", kernelRadiusSamples }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). |
+| `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
@@ -91,7 +91,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.gamutMapping` | `"clip"` | PNG only: or `"perceptual"`. |
 | `output.dng.capturedAtUtc` | none | DNG only: capture time for the date tags. |
 | `output.metadata` | none | 2.4: `{ description?, software?, copyright?, comment? }` written into JPEG, PNG and DNG files unchanged (see [Text metadata](#text-metadata-24)). |
-| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or, from 2.1, `"ahd"` (see [Demosaic](#demosaic)). |
+| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or, from 2.1, `"ahd"` (see [Demosaic](#demosaic)); or the record `{ kind, fast }`. |
 | `output.borderHandling` | `"margin"` | Or `"mirror"`. |
 | `output.toneCurve` | `"identity"` | Any `SdrToneCurve`, for example `"positive-reinhard-per-channel"`. |
 | `output.toneCurveParameters` | none | Required by the luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`); the facade invents no curve parameters. |
@@ -102,8 +102,9 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `sensor.spectralStepNanometers` | 20 | Spectral quadrature over 380–780 nm. |
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
-| `sensor.antiAliasing` | off | 2.1: an optical low-pass (anti-aliasing) filter: `{ kind: "four-spot", separationSites? }`, `{ kind: "two-spot", axis, separationSites? }` or `{ kind: "point-splitting", components }` (see [Anti-aliasing filter](#anti-aliasing-filter)). |
-| `sensor.pixelAperture` | `"point"` | 2.3: `"box"` or `{ kind: "box", samplesPerAxis }` integrates each square photosite (see [Pixel aperture](#pixel-aperture-23)). |
+| `sensor.antiAliasing` | off | 2.1: an optical low-pass (anti-aliasing) filter: `{ kind: "four-spot", separationSites? }`, `{ kind: "two-spot", axis, separationSites? }` or `{ kind: "point-splitting", components }` (see [Anti-aliasing filter](#anti-aliasing-filter)). Each record also takes `fast`. |
+| `sensor.pixelAperture` | `"point"` | 2.3: `"box"` or `{ kind: "box", samplesPerAxis, fast }` integrates each square photosite (see [Pixel aperture](#pixel-aperture-23)). |
+| `fast` | `false` | Exact or fast for every option in `SIMULATE_CAPTURE_FAST_OPTIONS`; an option's record `fast` overrides it. No option has a fast method yet, so results are exact; `diagnostics.fast` reports what was requested and what ran (see [Exact and fast modes](https://github.com/Photivra/photivra/blob/main/docs/API_STYLE.md#exact-and-fast-modes)). |
 | `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
 | `motion.shutter` | `"global"` | Or `"rolling"`. |
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
