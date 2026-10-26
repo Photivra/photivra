@@ -205,33 +205,57 @@ export function createAhdDemosaicTask(input: AhdDemosaicInput, provider: Process
       const W = p.width, H = p.height, s = p.samples;
       const roleAt = (x: number, y: number): number => tile[(y & 1) * 2 + (x & 1)]!;
       const at = (x: number, y: number): number => s[reflect(y, H) * W + reflect(x, W)]!;
+      // Sites whose neighbourhood lies inside the plane (two sites from the edge for stage 1, one for stages 2, 4
+      // and 5) read their neighbours by direct index offsets; reflect() returns its argument there, so they address
+      // the same samples as the border path. Every floating-point expression keeps the operands, order and grouping
+      // of the border path, so both paths give bit-identical results (test/processing-ahd-exactness.test.ts).
       // 1. Directional greens.
       const gh = new Float32Array(n), gv = new Float32Array(n);
       for (let y = 0; y < H; y++) {
+        const interiorRow = y >= 2 && y + 2 < H;
         for (let x = 0; x < W; x++) {
           const i = y * W + x, c = s[i]!;
           if (roleAt(x, y) === 1) { gh[i] = c; gv[i] = c; continue; }
-          gh[i] = (at(x - 1, y) + at(x + 1, y)) / 2 + (2 * c - at(x - 2, y) - at(x + 2, y)) / 4;
-          gv[i] = (at(x, y - 1) + at(x, y + 1)) / 2 + (2 * c - at(x, y - 2) - at(x, y + 2)) / 4;
+          if (interiorRow && x >= 2 && x + 2 < W) {
+            gh[i] = (s[i - 1]! + s[i + 1]!) / 2 + (2 * c - s[i - 2]! - s[i + 2]!) / 4;
+            gv[i] = (s[i - W]! + s[i + W]!) / 2 + (2 * c - s[i - 2 * W]! - s[i + 2 * W]!) / 4;
+          } else {
+            gh[i] = (at(x - 1, y) + at(x + 1, y)) / 2 + (2 * c - at(x - 2, y) - at(x + 2, y)) / 4;
+            gv[i] = (at(x, y - 1) + at(x, y + 1)) / 2 + (2 * c - at(x, y - 2) - at(x, y + 2)) / 4;
+          }
         }
         yield;
       }
       // 2. Two full-colour candidates from colour differences.
       const rgb = [new Float32Array(3 * n), new Float32Array(3 * n)], greens = [gh, gv];
       for (let y = 0; y < H; y++) {
+        const interiorRow = y >= 1 && y + 1 < H;
         for (let x = 0; x < W; x++) {
-          const i = y * W + x, own = roleAt(x, y);
+          const i = y * W + x, own = roleAt(x, y), interior = interiorRow && x >= 1 && x + 1 < W;
           for (let d = 0; d < 2; d++) {
-            const g = greens[d]!, out = rgb[d]!;
-            const diff = (xx: number, yy: number): number => { const j = reflect(yy, H) * W + reflect(xx, W); return s[j]! - g[j]!; };
-            out[3 * i + 1] = g[i]!;
+            const g = greens[d]!, out = rgb[d]!, gi = g[i]!;
+            out[3 * i + 1] = gi;
             if (own === 1) {
               const hRole = roleAt(x + 1, y), vRole = 2 - hRole;
-              out[3 * i + hRole] = g[i]! + (diff(x - 1, y) + diff(x + 1, y)) / 2;
-              out[3 * i + vRole] = g[i]! + (diff(x, y - 1) + diff(x, y + 1)) / 2;
+              if (interior) {
+                out[3 * i + hRole] = gi + ((s[i - 1]! - g[i - 1]!) + (s[i + 1]! - g[i + 1]!)) / 2;
+                out[3 * i + vRole] = gi + ((s[i - W]! - g[i - W]!) + (s[i + W]! - g[i + W]!)) / 2;
+              } else {
+                let j = reflect(y, H) * W + reflect(x - 1, W); const a = s[j]! - g[j]!;
+                j = reflect(y, H) * W + reflect(x + 1, W); const b = s[j]! - g[j]!;
+                out[3 * i + hRole] = gi + (a + b) / 2;
+                j = reflect(y - 1, H) * W + reflect(x, W); const cc = s[j]! - g[j]!;
+                j = reflect(y + 1, H) * W + reflect(x, W); const dd = s[j]! - g[j]!;
+                out[3 * i + vRole] = gi + (cc + dd) / 2;
+              }
             } else {
               out[3 * i + own] = s[i]!;
-              out[3 * i + 2 - own] = g[i]! + (diff(x - 1, y - 1) + diff(x + 1, y - 1) + diff(x - 1, y + 1) + diff(x + 1, y + 1)) / 4;
+              if (interior) {
+                out[3 * i + 2 - own] = gi + ((s[i - W - 1]! - g[i - W - 1]!) + (s[i - W + 1]! - g[i - W + 1]!) + (s[i + W - 1]! - g[i + W - 1]!) + (s[i + W + 1]! - g[i + W + 1]!)) / 4;
+              } else {
+                const ym = reflect(y - 1, H) * W, yp = reflect(y + 1, H) * W, xm = reflect(x - 1, W), xp = reflect(x + 1, W);
+                out[3 * i + 2 - own] = gi + ((s[ym + xm]! - g[ym + xm]!) + (s[ym + xp]! - g[ym + xp]!) + (s[yp + xm]! - g[yp + xm]!) + (s[yp + xp]! - g[yp + xp]!)) / 4;
+              }
             }
           }
         }
@@ -240,52 +264,67 @@ export function createAhdDemosaicTask(input: AhdDemosaicInput, provider: Process
       // 3. CIELAB (W3C CSS Color 4 Lab definition; also CIE 15) of both candidates.
       const lab = [new Float32Array(3 * n), new Float32Array(3 * n)];
       const f = (t: number): number => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+      const m00 = m[0][0], m01 = m[0][1], m02 = m[0][2], m10 = m[1][0], m11 = m[1][1], m12 = m[1][2], m20 = m[2][0], m21 = m[2][1], m22 = m[2][2];
+      const w0 = white[0]!, w1 = white[1]!, w2 = white[2]!;
       for (let y = 0; y < H; y++) {
         for (let i = y * W; i < (y + 1) * W; i++) for (let d = 0; d < 2; d++) {
           const c = rgb[d]!, R = c[3 * i]!, G = c[3 * i + 1]!, B = c[3 * i + 2]!;
-          const fx = f((m[0][0] * R + m[0][1] * G + m[0][2] * B) / white[0]!), fy = f((m[1][0] * R + m[1][1] * G + m[1][2] * B) / white[1]!);
-          const fz = f((m[2][0] * R + m[2][1] * G + m[2][2] * B) / white[2]!), o = lab[d]!;
+          const fx = f((m00 * R + m01 * G + m02 * B) / w0), fy = f((m10 * R + m11 * G + m12 * B) / w1);
+          const fz = f((m20 * R + m21 * G + m22 * B) / w2), o = lab[d]!;
           o[3 * i] = 116 * fy - 16; o[3 * i + 1] = 500 * (fx - fy); o[3 * i + 2] = 200 * (fy - fz);
         }
         yield;
       }
       // 4. Homogeneity maps with adaptive tolerances.
-      const homo = [new Uint8Array(n), new Uint8Array(n)];
-      const N4 = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const;
+      const homo = [new Uint8Array(n), new Uint8Array(n)], lab0 = lab[0]!, lab1 = lab[1]!;
       for (let y = 0; y < H; y++) {
+        const interiorRow = y >= 1 && y + 1 < H;
         for (let x = 0; x < W; x++) {
-          const i = y * W + x, dL = [[0, 0, 0, 0], [0, 0, 0, 0]], dC = [[0, 0, 0, 0], [0, 0, 0, 0]];
-          for (let d = 0; d < 2; d++) {
-            const o = lab[d]!;
-            for (let k = 0; k < 4; k++) {
-              const j = reflect(y + N4[k]![1], H) * W + reflect(x + N4[k]![0], W);
-              dL[d]![k] = Math.abs(o[3 * i]! - o[3 * j]!);
-              dC[d]![k] = (o[3 * i + 1]! - o[3 * j + 1]!) ** 2 + (o[3 * i + 2]! - o[3 * j + 2]!) ** 2;
-            }
-          }
-          const epsL = Math.min(Math.max(dL[0]![0]!, dL[0]![1]!), Math.max(dL[1]![2]!, dL[1]![3]!));
-          const epsC = Math.min(Math.max(dC[0]![0]!, dC[0]![1]!), Math.max(dC[1]![2]!, dC[1]![3]!));
-          for (let d = 0; d < 2; d++) {
-            let count = 0;
-            for (let k = 0; k < 4; k++) if (dL[d]![k]! <= epsL && dC[d]![k]! <= epsC) count++;
-            homo[d]![i] = count;
-          }
+          const i = y * W + x;
+          let jl: number, jr: number, ju: number, jd: number;
+          if (interiorRow && x >= 1 && x + 1 < W) { jl = i - 1; jr = i + 1; ju = i - W; jd = i + W; }
+          else { const row = reflect(y, H) * W, col = reflect(x, W); jl = row + reflect(x - 1, W); jr = row + reflect(x + 1, W); ju = reflect(y - 1, H) * W + col; jd = reflect(y + 1, H) * W + col; }
+          // Direction 0 (lab0), neighbours left, right, up, down (the N4 order).
+          const L0 = lab0[3 * i]!, a0 = lab0[3 * i + 1]!, b0 = lab0[3 * i + 2]!;
+          const dL00 = Math.abs(L0 - lab0[3 * jl]!), dC00 = (a0 - lab0[3 * jl + 1]!) ** 2 + (b0 - lab0[3 * jl + 2]!) ** 2;
+          const dL01 = Math.abs(L0 - lab0[3 * jr]!), dC01 = (a0 - lab0[3 * jr + 1]!) ** 2 + (b0 - lab0[3 * jr + 2]!) ** 2;
+          const dL02 = Math.abs(L0 - lab0[3 * ju]!), dC02 = (a0 - lab0[3 * ju + 1]!) ** 2 + (b0 - lab0[3 * ju + 2]!) ** 2;
+          const dL03 = Math.abs(L0 - lab0[3 * jd]!), dC03 = (a0 - lab0[3 * jd + 1]!) ** 2 + (b0 - lab0[3 * jd + 2]!) ** 2;
+          const L1 = lab1[3 * i]!, a1 = lab1[3 * i + 1]!, b1 = lab1[3 * i + 2]!;
+          const dL10 = Math.abs(L1 - lab1[3 * jl]!), dC10 = (a1 - lab1[3 * jl + 1]!) ** 2 + (b1 - lab1[3 * jl + 2]!) ** 2;
+          const dL11 = Math.abs(L1 - lab1[3 * jr]!), dC11 = (a1 - lab1[3 * jr + 1]!) ** 2 + (b1 - lab1[3 * jr + 2]!) ** 2;
+          const dL12 = Math.abs(L1 - lab1[3 * ju]!), dC12 = (a1 - lab1[3 * ju + 1]!) ** 2 + (b1 - lab1[3 * ju + 2]!) ** 2;
+          const dL13 = Math.abs(L1 - lab1[3 * jd]!), dC13 = (a1 - lab1[3 * jd + 1]!) ** 2 + (b1 - lab1[3 * jd + 2]!) ** 2;
+          const epsL = Math.min(Math.max(dL00, dL01), Math.max(dL12, dL13));
+          const epsC = Math.min(Math.max(dC00, dC01), Math.max(dC12, dC13));
+          let count = 0;
+          if (dL00 <= epsL && dC00 <= epsC) count++; if (dL01 <= epsL && dC01 <= epsC) count++; if (dL02 <= epsL && dC02 <= epsC) count++; if (dL03 <= epsL && dC03 <= epsC) count++;
+          homo[0]![i] = count;
+          count = 0;
+          if (dL10 <= epsL && dC10 <= epsC) count++; if (dL11 <= epsL && dC11 <= epsC) count++; if (dL12 <= epsL && dC12 <= epsC) count++; if (dL13 <= epsL && dC13 <= epsC) count++;
+          homo[1]![i] = count;
         }
         yield;
       }
       // 5. 3×3 summed homogeneity selects the candidate.
-      const out = new Float32Array(3 * n), direction = new Uint8Array(n);
+      const out = new Float32Array(3 * n), direction = new Uint8Array(n), h0 = homo[0]!, h1 = homo[1]!, rgb0 = rgb[0]!, rgb1 = rgb[1]!;
       for (let y = 0; y < H; y++) {
+        const interiorRow = y >= 1 && y + 1 < H;
         for (let x = 0; x < W; x++) {
           let sh = 0, sv = 0;
-          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-            const j = reflect(y + dy, H) * W + reflect(x + dx, W);
-            sh += homo[0]![j]!; sv += homo[1]![j]!;
+          const i = y * W + x;
+          if (interiorRow && x >= 1 && x + 1 < W) {
+            for (let dy = -1; dy <= 1; dy++) { const row = i + dy * W; for (let dx = -1; dx <= 1; dx++) { const j = row + dx; sh += h0[j]!; sv += h1[j]!; } }
+          } else {
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+              const j = reflect(y + dy, H) * W + reflect(x + dx, W);
+              sh += h0[j]!; sv += h1[j]!;
+            }
           }
-          const i = y * W + x, dir = sh > sv ? 0 : sv > sh ? 1 : 2;
+          const dir = sh > sv ? 0 : sv > sh ? 1 : 2;
           direction[i] = dir;
           for (let c = 0; c < 3; c++) {
-            const a = rgb[0]![3 * i + c]!, b = rgb[1]![3 * i + c]!;
+            const a = rgb0[3 * i + c]!, b = rgb1[3 * i + c]!;
             out[3 * i + c] = dir === 0 ? a : dir === 1 ? b : (a + b) / 2;
           }
         }
