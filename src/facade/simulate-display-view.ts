@@ -125,7 +125,7 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
   const sceneMaterials = viewChart ? viewChart.materials : callerScene?.kind === "material-function" ? callerScene.materials : undefined;
   const { offsets, signalInput } = buildExpectedSignalInput({ nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples,
     antiAliasing, pitch, diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm,
-      foldBox: context.boxFold } : undefined,
+      foldBox: context.boxFold } : undefined, latticeOffsets: context.latticeOffsets,
     materials: sceneMaterials && provider.chartMaterialAt ? { materialAt: provider.chartMaterialAt,
       list: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: (nm: number): number => viewProvider.materialRadiance!(index, nm) })),
         ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])],
@@ -170,7 +170,8 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
       "of the real output pixels its rectangle covers (" + scaleX + " × " + scaleY + " real pixels), then sRGB-encoded and rounded. The real capture's own samples are rounded to the view's bit depth before averaging.");
     const uniformSamplesPerAxis = Math.max(1, Math.round(v.samplesPerAxis / 4));
     const siteSentence = "the expected electrons of the real sites its demosaic reads are exact at the real pitch (the scene sampled at those sites through the pixel aperture, " +
-      "anti-aliasing filter and diffraction kernels, with the capture's own query arithmetic, so the colour mosaic and its aliasing are the real sensor's), and the per-site clip at white, the highlight clip, the tone curve " +
+      "anti-aliasing filter and diffraction kernels, " + (context.latticeOffsets ? "the spots read on the shared site lattice (fast.sensor.antiAliasing)" :
+      "with the capture's own query arithmetic") + ", so the colour mosaic and its aliasing are the real sensor's), and the per-site clip at white, the highlight clip, the tone curve " +
       "and the clip to [0, 1] act on the pixel's own noise distribution, approximated as normal.";
     // 2.8 (#393): where a footprint holds at most 25 real pixels (and at most K²), every real pixel of it is evaluated once with its exact weight.
     if (rendered.estimation === "exact-area-mean") {

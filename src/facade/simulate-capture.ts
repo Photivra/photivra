@@ -630,6 +630,8 @@ const AIRY_FIRST_ZERO_PER_LAMBDA_N = 3.8317059702075125 / Math.PI;
  * a slanted edge at 3.83 sites, 29 % and 16 % at 1.9 sites (the exact 2 × 2 box: 7.3 % and 1.6 %, then 11 % and 5.3 %).
  */
 const BOX_FOLD_MINIMUM_FIRST_ZERO_SITES = 3.5;
+/** #396: the distance, in sites, between a lattice point and the environment's query point for the same spot, rounded up from the largest measured (1.7e-12). */
+const LATTICE_MAXIMUM_QUERY_POINT_SHIFT_SITES = 2e-12;
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
@@ -1046,6 +1048,8 @@ export interface DisplayViewRunContext {
   fastReport: SimulateCaptureFastReport;
   /** #398: the Airy cut-off per spectral node when the box is folded into the diffraction kernels. */
   boxFold: { cutoffs: ReadonlyMap<number, number>; firstZeroSites: number } | undefined;
+  /** #396: whether the anti-aliasing spots (and box nodes) are read on the shared site lattice without diffraction. */
+  latticeOffsets: boolean;
   antiAliasing: ParsedAntiAliasing | undefined;
   aspect: number;
   assume: (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string) => void;
@@ -1366,7 +1370,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const borderOption = outputOptions.borderHandling as SimulateCaptureBorderHandling | undefined;
   if (demosaicOption !== undefined && demosaicOption !== "bilinear" && demosaicOption !== "ahd") fail("output.demosaic must be bilinear or ahd.");
   const ahd = demosaicOption === "ahd";
-  // #395: exact or fast per option. No option has a fast method yet, so each runs exact and reports false.
+  // #395: exact or fast per option; an option without a fast method (or where its method does not apply) runs exact and reports false.
   if (top.fast !== undefined && typeof top.fast !== "boolean") fail("fast must be true or false.");
   const fastTop = top.fast === true;
   const fastInUse: [SimulateCaptureFastOption, boolean, boolean | undefined][] = [["lens.diffraction", diffractionRadiusOption !== undefined, diffractionFast],
@@ -1878,6 +1882,21 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
         "Applied through the environment PSF quadrature (one scene query per kernel tap), because camera rotation, a lens field mapping or vignetting moves the taps off the site lattice. ") +
       "No defocus, aberration or pupil clipping; " + (boxAperture ? "the pixel aperture is integrated as declared by sensor.pixelAperture." : "the sensor pixel aperture is still point-sampled at the site centre."));
   }
+  // #396 fast method: without diffraction, the anti-aliasing spots are read on the shared site lattice (the box nodes with them
+  // only when the box also takes its fast method); applied where the tabulated expected signal runs.
+  const latticeOffsets = antiAliasing !== undefined && !diffraction && wantsFast(antiAliasingFast) && (boxSamples === 1 || wantsFast(boxFast));
+  const applyLatticeOffsets = (): void => {
+    fastApplied["sensor.antiAliasing"] = true;
+    if (boxSamples > 1) fastApplied["sensor.pixelAperture.box"] = true;
+    assume("fast.sensor.antiAliasing", "model", { method: "spots-on-shared-site-lattice", pixelApertureNodes: boxSamples > 1,
+      bound: { kind: "measured", maximumQueryPointShiftSites: LATTICE_MAXIMUM_QUERY_POINT_SHIFT_SITES, maximumSitesDifferingSiemensStar: 0.017, maximumFractionSiemensStar: 0.49 } },
+      "Fast method (#396): without diffraction, each anti-aliasing spot" + (boxSamples > 1 ? " and pixel-aperture node" : "") + " is read on its fractional-shift site lattice " +
+      "through a unit kernel, as the diffraction path reads it, instead of at the environment's own query points. Neighbouring sites then share lattice points (the four spots " +
+      "of a 1-site separation share one lattice), and a site whose spots all read one chart material takes a precomputed value. The lattice points are the query points up to " +
+      "rounding (measured within " + LATTICE_MAXIMUM_QUERY_POINT_SHIFT_SITES.toExponential(0) + " sites over the frame), so a site differs only where a spot lies on an exact chart " +
+      "boundary, where rounding picks the material, and then by that spot's weight times the material difference. Measured bound, noise-free on 256 × 256 centre blocks: " +
+      "0.7–1.7 % of the sites at a Siemens star's centre, by up to 49 % of the scene contrast (two spots); checkerboard up to 0.8 %, line grid up to 1.5 %, 2 of 65,536 sites on a slanted edge; none on dead leaves.");
+  };
   const psf = lensPsf ?? (diffractionObjectSpace ? { kind: "not-applied" as const, evidence,
     limitation: "No environment PSF: lens diffraction is applied upstream by the scene provider as an object-space convolution (request.diffraction)." } : undefined) ??
     diffractionPsf ?? { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
@@ -2005,11 +2024,11 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
   const reportFast = (applied: Partial<Record<SimulateCaptureFastOption, boolean>>): SimulateCaptureFastReport => Object.freeze({ requested: fastRequested,
-    applied: Object.freeze({ ...applied }), assurance: applied["sensor.pixelAperture.box"] ? "approximation-with-measured-bound" as const :
+    applied: Object.freeze({ ...applied }), assurance: applied["sensor.pixelAperture.box"] || applied["sensor.antiAliasing"] ? "approximation-with-measured-bound" as const :
       Object.values(applied).some((value) => value) ? "approximation-with-a-priori-bound" as const : "engine-reference" as const });
-  const fastReport = reportFast(fastApplied);
   if (displayView && boxFold) assumeBoxFold();
-  if (displayView) return await renderView!({ ahd, fastReport: boxFold ? reportFast({ ...fastApplied, "sensor.pixelAperture.box": true }) : fastReport, boxFold, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  if (displayView && latticeOffsets) applyLatticeOffsets();
+  if (displayView) return await renderView!({ ahd, fastReport: reportFast(boxFold ? { ...fastApplied, "sensor.pixelAperture.box": true } : fastApplied), boxFold, latticeOffsets, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();
@@ -2114,7 +2133,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     const sceneMaterials = chart ? chart.materials : (callerScene as ResolvedCallerMaterialScene).materials, materialRadiance = provider.materialRadiance;
     const expectedSignalSetup: ExpectedSignalSetupInput = { nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples, antiAliasing, pitch,
       diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm,
-        foldBox: boxFold } : undefined,
+        foldBox: boxFold } : undefined, latticeOffsets,
       materials: { materialAt: provider.chartMaterialAt, whiteRadiance: (nm: number): number => irradianceScale * illuminant.shape.evaluate(nm) / Math.PI,
         list: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: (nm: number): number => materialRadiance(index, nm) })),
           ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])] },
@@ -2124,11 +2143,14 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     // window never changes a value (see diffraction-provider.ts), so the chain it runs is the whole render's.
     const verificationProvider = diffractedProvider({ x: regionNative?.x ?? 0, y: regionNative?.y ?? 0, width: 2, height: 2 });
     // #398: with the box folded, the verification sites check the exact signal against the chain; the render reads the folded one.
-    const exactSignalInput = boxFold ? buildExpectedSignalInput({ ...expectedSignalSetup, diffraction: { ...expectedSignalSetup.diffraction!, foldBox: undefined } }).signalInput : undefined;
+    // #396 likewise with the spots on the shared lattice: the chain reads the environment's query points.
+    const exactSignalInput = boxFold ? buildExpectedSignalInput({ ...expectedSignalSetup, diffraction: { ...expectedSignalSetup.diffraction!, foldBox: undefined } }).signalInput :
+      latticeOffsets ? buildExpectedSignalInput({ ...expectedSignalSetup, latticeOffsets: false }).signalInput : undefined;
     tabulated = await renderTabulatedNativeRaw({ input: environmentRaw, region: regionNative, siteInput, evaluateRadiance: verificationProvider.evaluateRadiance,
       electrons: createDisplayViewExpectedSignal(signalInput), ...(exactSignalInput ? { verificationElectrons: createDisplayViewExpectedSignal(exactSignalInput) } : {}),
       onTile: rawTick, tileWidth, yieldControl: () => yieldControl(), checkAbort });
     if (tabulated && boxFold) { fastApplied["sensor.pixelAperture.box"] = true; assumeBoxFold(); }
+    if (tabulated && latticeOffsets) applyLatticeOffsets();
   }
   let rawOutput: { raw: NativeRawOutput; providerEvaluationCount: number };
   if (dngParts !== undefined) rawOutput = { raw: joinNativeRawParts(dngParts, plan, nativeWidth, nativeHeight), providerEvaluationCount: 0 };

@@ -33,6 +33,11 @@ export interface ExpectedSignalSetupInput {
    * cut-off frequency (cycles per µm) of each spectral node, with which the box nodes are folded into one kernel per node.
    */
   diffraction?: { radius: number; psf: Psf; profileWavelengths: readonly number[]; foldBox?: { cutoffs: ReadonlyMap<number, number> } | undefined } | undefined;
+  /**
+   * #396 fast method, without diffraction: every query offset is read on its fractional-shift lattice through a unit kernel, as
+   * the diffraction path reads it, instead of at the environment's own query points (the same points up to rounding).
+   */
+  latticeOffsets?: boolean | undefined;
   /** Material scenes: the materials (neutral reflectances, or radiance per wavelength), the material lookup and the white radiance. */
   materials?: { list: readonly ({ neutral: number } | { radiance: (nm: number) => number })[]; materialAt(u: number, v: number): number; whiteRadiance(nm: number): number } | undefined;
   radianceAt(u: number, v: number, nm: number): number;
@@ -95,6 +100,8 @@ export function buildExpectedSignalInput(input: ExpectedSignalSetupInput): { off
     }) } :
       { radius, perNode: wavelengths.map((wavelengthNm) => siteDiffractionKernel(diffraction.psf, wavelengthNm, pitch, radius, input.caller + ": diffraction kernels must sample the site pitch exactly.")) };
   }
+  // #396 fast method: a single unit tap per node, so the four spots' lattice points are shared by neighbouring sites.
+  else if (input.latticeOffsets) kernels = { radius: 0, perNode: wavelengths.map(() => Float64Array.of(1)) };
   // Chart presets and (2.7) caller material scenes take the material path: each material tabulated once per node.
   const materials = input.materials;
   const scene: DisplayViewScene = materials ? { kind: "materials", materialAt: materials.materialAt,

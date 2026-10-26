@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SIMULATE_CAPTURE_COST_OPTIONS, SIMULATE_CAPTURE_FAST_OPTIONS, simulateCapture, simulateDisplayView, type SimulateCaptureFastOption,
-  type SimulateCaptureOptions } from "../src/index.js";
+  type SimulateCaptureFastReport, type SimulateCaptureOptions } from "../src/index.js";
 import { cpuExecution, webGpuExecution } from "../src/gpu/image-kernel-execution.js";
 import { simulateDisplayViewWithInternals } from "../src/facade/simulate-display-view.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
@@ -31,8 +31,12 @@ const FORMS: Record<SimulateCaptureFastOption, { shorthand: Options; record: (fa
   "output.demosaic.ahd": { shorthand: { output: { demosaic: "ahd" } }, record: (fast) => ({ output: { demosaic: { kind: "ahd", fast } } }) }
 };
 const samples = (r: { image: { samples: Uint8Array | Uint16Array } }): number[] => Array.from(r.image.samples);
-/** Options that have a fast method (#397: lens.diffraction's second-dark-ring window). */
-const HAS_FAST: ReadonlySet<SimulateCaptureFastOption> = new Set(["lens.diffraction"]);
+/**
+ * Options whose fast method applies on the base request, with its assurance (#397: lens.diffraction's second-dark-ring
+ * window; #396: sensor.antiAliasing's spots on the shared lattice, without diffraction).
+ */
+const HAS_FAST: ReadonlyMap<SimulateCaptureFastOption, SimulateCaptureFastReport["assurance"]> = new Map([["lens.diffraction", "approximation-with-a-priori-bound"],
+  ["sensor.antiAliasing", "approximation-with-measured-bound"]]);
 /** A request on which the fast diffraction window is smaller than the exact one (1.4 µm sites at f/8: radius 15 → 10). */
 const SMALL_SITES: Options = { sensor: { pixelPitchMicrometers: 1.4 } };
 
@@ -60,7 +64,7 @@ describe("exact-or-fast flag convention (#395)", () => {
         const result = await simulateCapture(request(extra)), applied = hasFast && asked;
         if (!applied) expect(samples(result), option).toEqual(samples(exact));
         expect(result.diagnostics.fast, option).toEqual({ requested, applied: { [option]: applied },
-          assurance: applied ? "approximation-with-a-priori-bound" : "engine-reference" });
+          assurance: applied ? HAS_FAST.get(option) : "engine-reference" });
         expect(result.assumptions.some((a) => a.id === "fast." + option), option).toBe(applied);
       }
     }
@@ -97,7 +101,8 @@ describe("exact-or-fast flag convention (#395)", () => {
       output: { demosaic: { kind: "ahd" } }, fast: true });
     const result = await simulateCapture(all);
     expect(Object.keys(result.diagnostics.fast.applied)).toEqual([...SIMULATE_CAPTURE_FAST_OPTIONS]);
-    for (const option of SIMULATE_CAPTURE_FAST_OPTIONS) expect(result.diagnostics.fast.applied[option], option).toBe(HAS_FAST.has(option));
+    // With diffraction the spots already read the lattice (#396 does not apply); 6 µm sites are below the box fold's threshold.
+    expect(result.diagnostics.fast.applied).toEqual({ "lens.diffraction": true, "sensor.antiAliasing": false, "sensor.pixelAperture.box": false, "output.demosaic.ahd": false });
   }, scaledTimeout(120_000));
 
   it("keeps lens.diffraction's aperture key as a deprecated alias of kind, and refuses both", async () => {
@@ -138,6 +143,44 @@ describe("exact-or-fast flag convention (#395)", () => {
     for (const [e, f] of pairs) worst = Math.max(worst, Math.abs(f - e) / (hi - lo));
     expect(worst).toBeGreaterThan(0);
     expect(worst).toBeLessThan(0.25);
+  }, scaledTimeout(300_000));
+
+  it("sensor.antiAliasing fast: the spots on the shared lattice without diffraction, changing only sites with a spot on a boundary", async () => {
+    const spots = (extra: Options = {}): Options => ({ sensor: { antiAliasing: { kind: "four-spot" }, ...extra } });
+    const exact = await simulateCapture(request(spots())), lattice = await simulateCapture(request({ ...spots(), fast: true }));
+    expect(lattice.diagnostics.fast).toEqual({ requested: true, applied: { "sensor.antiAliasing": true }, assurance: "approximation-with-measured-bound" });
+    const note = lattice.assumptions.find((a) => a.id === "fast.sensor.antiAliasing")!.value as { method: string; pixelApertureNodes: boolean; bound: { kind: string } };
+    expect([note.method, note.pixelApertureNodes, note.bound.kind]).toEqual(["spots-on-shared-site-lattice", false, "measured"]);
+    // The capture stays on its tabulated path: its verification sites check the exact signal against the chain.
+    expect(lattice.assumptions.find((a) => a.id === "raw.expectedSignal")).toBeDefined();
+    expect(exact.assumptions.find((a) => a.id === "raw.expectedSignal")).toBeDefined();
+    // With diffraction the spots already read the lattice: the fast flag changes nothing.
+    const diffracted = (fast: boolean): Options => ({ ...spots(), lens: { diffraction: { kind: "circular-aperture", kernelRadiusSamples: 3 } }, fast });
+    const diffractedFast = await simulateCapture(request(diffracted(true)));
+    expect(samples(diffractedFast)).toEqual(samples(await simulateCapture(request(diffracted(false)))));
+    expect(diffractedFast.diagnostics.fast.applied["sensor.antiAliasing"]).toBe(false);
+    // Box nodes ride on the lattice only when the box asks for its fast method too; otherwise the spots stay exact.
+    const boxed = await simulateCapture(request({ ...spots({ pixelAperture: { kind: "box", samplesPerAxis: 2 } }), fast: true }));
+    expect(boxed.diagnostics.fast.applied).toEqual({ "sensor.antiAliasing": true, "sensor.pixelAperture.box": true });
+    const boxExact = spots({ pixelAperture: { kind: "box", samplesPerAxis: 2, fast: false } });
+    const boxKept = await simulateCapture(request({ ...boxExact, fast: true }));
+    expect(boxKept.diagnostics.fast.applied).toEqual({ "sensor.antiAliasing": false, "sensor.pixelAperture.box": false });
+    expect(samples(boxKept)).toEqual(samples(await simulateCapture(request(boxExact))));
+    // Site by site in the display view: a dead-leaves chart (no spot exactly on a boundary) agrees to rounding; on the Siemens
+    // star only a few sites change, each by at most the spot weights on its boundaries (all four: the scene contrast).
+    const view = { width: 32, height: 24 };
+    for (const [preset, maximumShare] of [["dead-leaves", 0], ["siemens-star", 0.05]] as const) {
+      const options = (fast: boolean): SimulateCaptureOptions => request({ ...spots(), scene: { preset }, fast });
+      const e = await simulateDisplayViewWithInternals(options(false), view), f = await simulateDisplayViewWithInternals(options(true), view);
+      expect(f.result.diagnostics.fast.applied["sensor.antiAliasing"], preset).toBe(true);
+      e.signal.window(0, 0, 32, 24); f.signal.window(0, 0, 32, 24);
+      const pairs: [number, number][] = [];
+      for (let y = 0; y < 24; y++) for (let x = 0; x < 32; x++) pairs.push([e.signal.site(x, y), f.signal.site(x, y)]);
+      const lo = Math.min(...pairs.map((p) => p[0])), hi = Math.max(...pairs.map((p) => p[0]));
+      const changed = pairs.filter(([a, b]) => Math.abs(b - a) > 1e-9 * hi);
+      expect(changed.length / pairs.length, preset).toBeLessThanOrEqual(maximumShare);
+      for (const [a, b] of changed) expect(Math.abs(b - a), preset).toBeLessThanOrEqual(hi - lo + 1e-9 * hi);
+    }
   }, scaledTimeout(300_000));
 
   it("refuses a fast value that is not a Boolean", async () => {
