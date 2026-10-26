@@ -49,6 +49,11 @@ export interface TabulatedNativeRawInput {
   evaluateRadiance: EnvironmentRadianceEvaluator;
   /** Expected photo electrons of native sites (`createDisplayViewExpectedSignal`). */
   electrons: { window(x0: number, y0: number, x1: number, y1: number): void; site(x: number, y: number): number; readonly lookups: number };
+  /**
+   * The exact expected signal, when `electrons` is a fast method's approximation (#398): the verification sites compare the
+   * full chain with this one, so the check still proves the setup matches the chain. Absent: `electrons` itself.
+   */
+  verificationElectrons?: { window(x0: number, y0: number, x1: number, y1: number): void; site(x: number, y: number): number };
   /** Called once per native tile-equivalent (progress), as the environment task reads its tiles. */
   onTile?: () => void;
   tileWidth: number;
@@ -88,8 +93,9 @@ export async function renderTabulatedNativeRaw(t: TabulatedNativeRawInput): Prom
     const whiteCode = calculateSiteEffectiveSaturationCode(result.readout.value, parsed.readoutProfile, parsed.regimeId);
     const readout = createVerifiedNativeSiteReadout(parsed, result, whiteCode, photo, x, y, index, seed);
     if (!readout) return undefined;
-    t.electrons.window(x, y, x + 1, y + 1);
-    const chain = photo.expectedGeneratedElectronCount, tabulated = t.electrons.site(x, y);
+    const verifier = t.verificationElectrons ?? t.electrons;
+    verifier.window(x, y, x + 1, y + 1);
+    const chain = photo.expectedGeneratedElectronCount, tabulated = verifier.site(x, y);
     const difference = chain === tabulated ? 0 : Math.abs(tabulated - chain) / Math.max(Math.abs(chain), Number.MIN_VALUE);
     if (!(difference <= TABULATED_RELATIVE_TOLERANCE)) return undefined;
     worst = Math.max(worst, difference);

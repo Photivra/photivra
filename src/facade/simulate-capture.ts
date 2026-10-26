@@ -54,7 +54,7 @@ import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "../capture/sensor-raw-producer.
 import { calculateNativeRawPlan, nativeRawMaximumProviderEvaluations, NATIVE_RAW_LIMITS, type NativeRawInput, type NativeRawOutput, type NativeRawPlan } from "../capture/native-raw.js";
 import { renderTabulatedNativeRaw, TABULATED_RELATIVE_TOLERANCE } from "../capture/native-environment-tabulated.js";
 import { createDisplayViewExpectedSignal } from "./expected-signal.js";
-import { buildExpectedSignalInput } from "./expected-signal-setup.js";
+import { buildExpectedSignalInput, type ExpectedSignalSetupInput } from "./expected-signal-setup.js";
 import { createNativeEnvironmentRawTask, createNativeEnvironmentRawRegionTask, type NativeEnvironmentRawInput,
   type NativeEnvironmentRawTask, type NativeEnvironmentRawTile } from "../capture/native-environment-raw.js";
 import { createNativeRawDevelopmentTask, type NativeRawDevelopmentInput, type RawHighlightDiagnostics } from "../capture/native-raw-development.js";
@@ -1030,6 +1030,8 @@ export interface DisplayViewResult {
 export interface DisplayViewRunContext {
   ahd: boolean;
   fastReport: SimulateCaptureFastReport;
+  /** #398: the Airy cut-off per spectral node when the box is folded into the diffraction kernels. */
+  boxFold: { cutoffs: ReadonlyMap<number, number> } | undefined;
   antiAliasing: ParsedAntiAliasing | undefined;
   aspect: number;
   assume: (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string) => void;
@@ -1197,6 +1199,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Diffraction (2.1): validated here, built once the f-number is resolved.
   let diffractionRadiusOption: number | null | undefined, diffractionFast: boolean | undefined;
+  /** #398: the Airy cut-off per spectral node when the box is folded into the diffraction kernels (fast mode). */
+  let boxFold: { cutoffs: ReadonlyMap<number, number> } | undefined;
   if (lensOptions.diffraction !== undefined) {
     const d = lensOptions.diffraction;
     if (d === "circular-aperture") diffractionRadiusOption = null;
@@ -1833,6 +1837,10 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     diffractionPsf = { kind: "sampled-local", configuration: { psf: { profile: diffraction.profile, focalLengthMm, focus: { kind: "finite", distanceM: focusDistanceM },
       apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
     spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Diffraction-limited Airy PSF, the same at every field point." } } };
+    // #398 fast method: the box folded into the diffraction kernels, from the same Airy PSF binned at pitch / samplesPerAxis.
+    if (boxAperture && boxSamples > 1 && wantsFast(boxFast) && diffractionObjectSpace) {
+      boxFold = { cutoffs: new Map(diffraction.wavelengths.map((w) => [w.wavelengthNm, w.cutoffFrequencyCyclesPerMicrometer])) };
+    }
     assume("lens.diffraction", "model", { model: diffraction.model, aperture: "circular-aperture", fNumber, workingFNumber: diffraction.workingFNumber,
       kernelRadiusSamples, samplePitchMicrometers: pitch, maximumTruncatedEnergyFraction: diffraction.maximumTruncatedEnergyFraction,
       truncatedEnergyByWavelength: diffraction.wavelengths.map((w) => ({ wavelengthNm: w.wavelengthNm, truncatedEnergyFraction: w.truncatedEnergyFraction })),
@@ -1972,9 +1980,10 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
-  const fastReport: SimulateCaptureFastReport = Object.freeze({ requested: fastRequested, applied: Object.freeze({ ...fastApplied }),
-    assurance: Object.values(fastApplied).some((value) => value) ? "approximation-with-a-priori-bound" as const : "engine-reference" as const });
-  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  const reportFast = (applied: Partial<Record<SimulateCaptureFastOption, boolean>>): SimulateCaptureFastReport => Object.freeze({ requested: fastRequested,
+    applied: Object.freeze({ ...applied }), assurance: Object.values(applied).some((value) => value) ? "approximation-with-a-priori-bound" as const : "engine-reference" as const });
+  const fastReport = reportFast(fastApplied);
+  if (displayView) return await renderView!({ ahd, fastReport: boxFold ? reportFast({ ...fastApplied, "sensor.pixelAperture.box": true }) : fastReport, boxFold, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();
@@ -2077,17 +2086,23 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     const { electronsPerRadiance, wavelengths } = axisChannelResponse("simulateCapture");
     const perNode = CHANNELS.map((c) => Float64Array.from(wavelengths, (nm) => electronsPerRadiance[c].get(nm) ?? 0)) as [Float64Array, Float64Array, Float64Array];
     const sceneMaterials = chart ? chart.materials : (callerScene as ResolvedCallerMaterialScene).materials, materialRadiance = provider.materialRadiance;
-    const { signalInput } = buildExpectedSignalInput({ nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples, antiAliasing, pitch,
-      diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm } : undefined,
+    const expectedSignalSetup: ExpectedSignalSetupInput = { nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples, antiAliasing, pitch,
+      diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm,
+        foldBox: boxFold } : undefined,
       materials: { materialAt: provider.chartMaterialAt, whiteRadiance: (nm: number): number => irradianceScale * illuminant.shape.evaluate(nm) / Math.PI,
         list: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: (nm: number): number => materialRadiance(index, nm) })),
           ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])] },
-      radianceAt: provider.radianceAt, imagingArea, focalLengthMm, focusDistanceM, subjectDistanceM, metresPerFrameUnit, caller: "simulateCapture" });
+      radianceAt: provider.radianceAt, imagingArea, focalLengthMm, focusDistanceM, subjectDistanceM, metresPerFrameUnit, caller: "simulateCapture" };
+    const { signalInput } = buildExpectedSignalInput(expectedSignalSetup);
     // The verification reads only the region's top-left 2 × 2 block, so its diffraction convolves only that block's lattice; the
     // window never changes a value (see diffraction-provider.ts), so the chain it runs is the whole render's.
     const verificationProvider = diffractedProvider({ x: regionNative?.x ?? 0, y: regionNative?.y ?? 0, width: 2, height: 2 });
+    // #398: with the box folded, the verification sites check the exact signal against the chain; the render reads the folded one.
+    const exactSignalInput = boxFold ? buildExpectedSignalInput({ ...expectedSignalSetup, diffraction: { ...expectedSignalSetup.diffraction!, foldBox: undefined } }).signalInput : undefined;
     tabulated = await renderTabulatedNativeRaw({ input: environmentRaw, region: regionNative, siteInput, evaluateRadiance: verificationProvider.evaluateRadiance,
-      electrons: createDisplayViewExpectedSignal(signalInput), onTile: rawTick, tileWidth, yieldControl: () => yieldControl(), checkAbort });
+      electrons: createDisplayViewExpectedSignal(signalInput), ...(exactSignalInput ? { verificationElectrons: createDisplayViewExpectedSignal(exactSignalInput) } : {}),
+      onTile: rawTick, tileWidth, yieldControl: () => yieldControl(), checkAbort });
+    if (tabulated && boxFold) fastApplied["sensor.pixelAperture.box"] = true;
   }
   let rawOutput: { raw: NativeRawOutput; providerEvaluationCount: number };
   if (dngParts !== undefined) rawOutput = { raw: joinNativeRawParts(dngParts, plan, nativeWidth, nativeHeight), providerEvaluationCount: 0 };
@@ -2301,7 +2316,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started,
         ...(diffraction && diffractionObjectSpace ? { diffraction: diffractionMs } : {}), ...(demosaicMs === undefined ? {} : { demosaic: demosaicMs }),
         ...(encodeMs === undefined ? {} : { encode: encodeMs }) },
-      options: Object.freeze(SIMULATE_CAPTURE_COST_OPTIONS.filter((option) => ranOptions.has(option))), fast: fastReport },
+      options: Object.freeze(SIMULATE_CAPTURE_COST_OPTIONS.filter((option) => ranOptions.has(option))), fast: reportFast(fastApplied) },
     provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion,
       evidence: [...FACADE_EVIDENCE, ...preset.evidence],
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
