@@ -1,6 +1,6 @@
 # Developer guide
 
-This is the entry point for **@photivra/engine 2.9.0**, root API contract **2.9.0**. 2.9.0 was prepared on October 25, 2026; npm publishing runs only from the owner's `v2.9.0` tag, and the [2.9.0 release record](RELEASE_2_9_0.md) states whether that has happened.
+This is the entry point for **@photivra/engine 2.9.0**, root API contract **2.9.0**. 2.9.0 was published on October 26, 2026 ([2.9.0 release record](RELEASE_2_9_0.md)).
 
 Repository `main` may later describe newer development. For the stable contract, use a published release's packaged docs or its exact tag. [Release notes and migration](RELEASE_1_3_0.md) explain why the package version and the root API version are now the same number.
 
