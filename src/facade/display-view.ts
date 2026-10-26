@@ -354,6 +354,8 @@ const PIXEL_MEMO_LIMIT = 1 << 16;
  * evaluated while the stratified estimator takes a quarter of its samples per axis where the pilot finds no detail.
  */
 export const EXACT_AREA_MEAN_MAX_PIXELS = 25;
+/** Most entries of the site ring (a native site's value, material and readout moments, kept across the display pixels of a render). */
+const SITE_RING_LIMIT = 1 << 18;
 /** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
 
@@ -409,6 +411,24 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const cm = new Float64Array(3), cv = new Float64Array(3), csv = new Float64Array(3), bm = new Float64Array(3), bv = new Float64Array(3), bs = new Float64Array(3);
   const hm = new Float64Array(3), hv = new Float64Array(3), hs = new Float64Array(3), an = new Float64Array(9);
   const reach2 = CLIP_REACH_SIGMA * CLIP_REACH_SIGMA;
+  // Site ring (#441, exact path with filled windows only): a native site's expected electrons, chart material and readout moments depend on the
+  // site alone, so they are computed once per render and kept for the region's native columns (plus the reach) in a ring of
+  // native rows, a power of two holding two display rows' footprints and their reach. An entry is valid while its stamp is
+  // its row + 1 (negated when the window did not track materials, so a material read in one mode is never used in the other).
+  // The ~27 (AHD) or ~7 (bilinear) sites a real pixel reads are copied from the ring instead of being read through the
+  // signal and clipped again for each real pixel that shares them; the signal's window is still told which of its sites were
+  // read (markReads), so its lookup count is the count reading them would give.
+  const siteX0 = Math.max(0, Math.floor(region.x * sx) + margin - reach), siteX1 = Math.min(nativeWidth - 1, Math.ceil((region.x + region.width) * sx) - 1 + margin + reach), siteW = siteX1 - siteX0 + 1;
+  let siteRows = 1;
+  while (siteRows < 2 * Math.ceil(sy) + 2 + 2 * reach) siteRows *= 2;
+  // Coarse (stratified) views read a few scattered real pixels per display pixel, where the ring measured slower; windows
+  // without diffraction kernels read their sites from the signal's own direct ring, cheaply enough that the ring measured
+  // 2–4 % slower there (Speed, #441). Both keep the per-read path below.
+  const siteMask = siteRows - 1, ringCapacity = siteRows * siteW, ringUsable = exactView && ringCapacity <= SITE_RING_LIMIT;
+  // Allocated at the first display pixel that uses the ring (a render whose windows never fill allocates nothing).
+  let ringStamp = new Int32Array(0), ringStatStamp = ringStamp, ringMat = ringStamp, siteSlotQ = ringStamp, siteSlotStamp = ringStamp, markX = ringStamp, markY = ringStamp, markM = ringStamp;
+  let ringV = new Float64Array(0), ringMean = ringV, ringVar = ringV, ringThird = ringV, markV = ringV;
+  // (No closure assigns them, so they stay locals of the render loop.)
   // AHD low-signal correction: an 11 × 11 noisy neighbourhood (AHD reads up to 5 sites away) and the local AHD steps.
   const ahdCorrection = setup.ahdCorrection, windowReach = ahdCorrection ? Math.max(reach, AHD_REACH) : reach;
   const correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE), cmAverage = new Float64Array(3);
@@ -544,8 +564,9 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
     for (let c = 0; c < 3; c++) out[c] = out[c]! - linear[c]! / 2;
   }
   /** Normalized site value of a slot: normal with mean k·e and variance k²·e + constant, clipped at the white level (1). */
-  function siteStatistics(slot: number, c: number, e: number): void {
-    const kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
+  function siteStatistics(slot: number): void {
+    // The channel and electrons are read from the slot arrays: a double passed to a call that is not inlined is boxed.
+    const c = siteChannel[slot]!, e = siteElectrons[slot]!, kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
     // Third cumulant of the normalized value: Poisson electrons have κ₃ = e (read and rounding noise add none).
     siteThird[slot] = kc * kc * kc * e;
     if (gap > 0 && gap * gap > reach2 * variance) { siteMean[slot] = mean; siteVar[slot] = variance; }
@@ -601,9 +622,18 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       // On the exact path every pixel counts as detailed (its whole footprint is evaluated).
       if (exactView) detail++; else if (same) uniform++; else detail++;
       const cols = exactView ? columnOverlaps[rx]! : undefined, nx = cols ? cols.w.length : 0, sampleTotal = exactView ? nx * rowOverlaps!.w.length : Q;
-      setup.signal.window(Math.floor(vx * sx) + margin - windowReach, Math.floor(vy * sy) + margin - windowReach, Math.ceil((vx + 1) * sx) + margin + windowReach,
-        Math.ceil((vy + 1) * sy) + margin + windowReach);
-      const jitter = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID)), tracking = setup.signal.tracksMaterial;
+      const wx0 = Math.floor(vx * sx) + margin - windowReach, wy0 = Math.floor(vy * sy) + margin - windowReach;
+      const wx1 = Math.ceil((vx + 1) * sx) + margin + windowReach, wy1 = Math.ceil((vy + 1) * sy) + margin + windowReach;
+      setup.signal.window(wx0, wy0, wx1, wy1);
+      // The jitter stream is only drawn from by the stratified estimator; the exact path reads no jitter.
+      const jitter = exactView ? undefined : createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, DISPLAY_VIEW_JITTER_STREAM_ID)), tracking = setup.signal.tracksMaterial;
+      const ringOn = ringUsable && setup.signal.marksReads, ringSign = tracking ? 1 : -1;
+      if (ringOn && ringStamp.length === 0) {
+        ringStamp = new Int32Array(ringCapacity); ringStatStamp = new Int32Array(ringCapacity); ringMat = new Int32Array(ringCapacity);
+        ringV = new Float64Array(ringCapacity); ringMean = new Float64Array(ringCapacity); ringVar = new Float64Array(ringCapacity); ringThird = new Float64Array(ringCapacity);
+        siteSlotQ = new Int32Array(slotsCount); siteSlotStamp = new Int32Array(slotsCount);
+        markX = new Int32Array(slotsCount); markY = new Int32Array(slotsCount); markV = new Float64Array(slotsCount); markM = new Int32Array(slotsCount);
+      }
       const mx0 = Math.floor(vx * sx) + margin, my0 = Math.floor(vy * sy) + margin;
       const mw = Math.min(frameWidth - 1, Math.ceil((vx + 1) * sx)) + margin - mx0 + 1, mh = Math.min(frameHeight - 1, Math.ceil((vy + 1) * sy)) + margin - my0 + 1;
       const pixelMemo = !exactView && setup.signal.cachesSites && mw * mh <= PIXEL_MEMO_LIMIT;
@@ -621,7 +651,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           x = cols.first + i + margin; y = rowOverlaps!.first + j + margin; wE = aj; wR = aj * aj;
         } else {
           const a = n % K, b = (n - a) / K;
-          const fx = (vx + (a + jitter.next()) / K) * sx, fy = (vy + (b + jitter.next()) / K) * sy;
+          const fx = (vx + (a + jitter!.next()) / K) * sx, fy = (vy + (b + jitter!.next()) / K) * sy;
           x = Math.min(frameWidth - 1, Math.floor(fx)) + margin; y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
         }
         const phase = (y & 1) * 2 + (x & 1), list = phaseList[phase]!;
@@ -636,7 +666,45 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         // The expected electrons of the sites the demosaic reads (sites outside the raster, at mirror borders, are read
         // reflect-101); where the signal tracks it, whether they all read one chart material, with the statistics below only
         // when the sample is not replayed; otherwise the statistics at once.
-        if (!memo) for (let li = 0; li < list.length; li++) {
+        if (!memo && ringOn) {
+          let marks = 0;
+          for (let li = 0; li < list.length; li++) {
+            const slot = list[li]!;
+            siteCount++;
+            let sxs = x + (slot % side) - reach, sys = y + ((slot / side) | 0) - reach;
+            if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
+            if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
+            const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
+            siteChannel[slot] = c;
+            // The site's ring entry, for a site inside the ring's columns and the signal's window (a site outside the window
+            // is read through the signal, which counts it as it counts any read outside its window).
+            const rowStamp = ringSign * (sys + 1), q = ringOn && sxs >= siteX0 && sxs <= siteX1 && sxs >= wx0 && sxs < wx1 && sys >= wy0 && sys < wy1 ? (sys & siteMask) * siteW + sxs - siteX0 : -1;
+            siteSlotQ[slot] = q; siteSlotStamp[slot] = rowStamp;
+            let e: number;
+            if (q >= 0 && ringStamp[q] === rowStamp) {
+              // The value and material the signal returned for this site; the window is told it was read (markReads below).
+              const v = ringV[q]!, own = ringMat[q]!;
+              e = v + dark[c]!;
+              markX[marks] = sxs; markY[marks] = sys; markV[marks] = v; markM[marks] = own; marks++;
+              if (tracking) { siteElectrons[slot] = e; material = material === -2 || material === own ? own : -1; continue; }
+            } else {
+              const v = setup.signal.site(sxs, sys), own = tracking ? setup.signal.uniformMaterial : -1;
+              e = v + dark[c]!;
+              if (q >= 0) { ringStamp[q] = rowStamp; ringV[q] = v; ringMat[q] = own; ringStatStamp[q] = 0; }
+              if (tracking) { siteElectrons[slot] = e; material = material === -2 || material === own ? own : -1; continue; }
+            }
+            if (q >= 0 && ringStatStamp[q] === rowStamp) { siteMean[slot] = ringMean[q]!; siteVar[slot] = ringVar[q]!; siteThird[slot] = ringThird[q]!; continue; }
+            // As siteStatistics, written out here for the untracked (Speed) path.
+            const kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean, third = kc * kc * kc * e;
+            let sm: number, sv: number;
+            if (gap > 0 && gap * gap > reach2 * variance) { sm = mean; sv = variance; }
+            else { upperClip(mean, variance, 1, clip); sm = clip[0]!; sv = clip[1]!; }
+            siteMean[slot] = sm; siteVar[slot] = sv; siteThird[slot] = third;
+            if (q >= 0) { ringStatStamp[q] = rowStamp; ringMean[q] = sm; ringVar[q] = sv; ringThird[q] = third; }
+          }
+          if (marks > 0) setup.signal.markReads(markX, markY, markV, markM, marks);
+        } else if (!memo) for (let li = 0; li < list.length; li++) {
+          // Without the ring (coarse views, windows without diffraction kernels or with lazy caches): each site through the signal.
           const slot = list[li]!;
           siteCount++;
           let sxs = x + (slot % side) - reach, sys = y + ((slot / side) | 0) - reach;
@@ -676,8 +744,22 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         }
         // The terms are written where they are kept: the real pixel's memo slot, or (for the first sample of a one-material key)
         // a scratch buffer that is then copied; no typed-array view per sample.
-        const rt = memoKey >= 0 ? recordScratch.fill(0) : pk >= 0 ? records.fill(0, pk * MEMO_SIZE, (pk + 1) * MEMO_SIZE) : undefined, ro = memoKey < 0 && pk >= 0 ? pk * MEMO_SIZE : 0;
-        if (tracking) for (let li = 0; li < list.length; li++) { const slot = list[li]!; siteStatistics(slot, siteChannel[slot]!, siteElectrons[slot]!); }
+        const rt = memoKey >= 0 ? recordScratch : pk >= 0 ? records : undefined, ro = memoKey < 0 && pk >= 0 ? pk * MEMO_SIZE : 0;
+        // Every field of the record (MEMO_SIZE layout) that the propagation below does not write for this sample is zeroed, as a
+        // fill of the whole record would leave it. Always written: [0, 3), [27, 30) and candidate 0's [3, 12) and [21, 24); with
+        // two candidates also candidate 1's [12, 21) and [24, 27) and the choice terms [30, 33); [33, 37) only with the AHD
+        // correction.
+        if (rt) {
+          if (count === 1) { for (let o = 12; o < 21; o++) rt[ro + o] = 0; rt[ro + 24] = 0; rt[ro + 25] = 0; rt[ro + 26] = 0; rt[ro + 30] = 0; rt[ro + 31] = 0; rt[ro + 32] = 0; }
+          rt[ro + 33] = 0; rt[ro + 34] = 0; rt[ro + 35] = 0; rt[ro + 36] = 0;
+        }
+        if (tracking && !ringOn) for (let li = 0; li < list.length; li++) siteStatistics(list[li]!);
+        else if (tracking) for (let li = 0; li < list.length; li++) {
+          const slot = list[li]!, q = siteSlotQ[slot]!, rowStamp = siteSlotStamp[slot]!;
+          if (q >= 0 && ringStatStamp[q] === rowStamp) { siteMean[slot] = ringMean[q]!; siteVar[slot] = ringVar[q]!; siteThird[slot] = ringThird[q]!; continue; }
+          siteStatistics(slot);
+          if (q >= 0) { ringStatStamp[q] = rowStamp; ringMean[q] = siteMean[slot]!; ringVar[q] = siteVar[slot]!; ringThird[q] = siteThird[slot]!; }
+        }
         // Site variance of each channel through the bilinear kernels (for B_c), then the demosaic's own pixel statistics: the
         // mean and covariance of its camera channels, averaged over its candidates (AHD picks one per pixel).
         const slots = phaseSlots[phase]!, weights = phaseWeights[phase]!, w2 = phaseW2[phase]!;
@@ -750,7 +832,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           const t0 = share * Math.max(0, hv[0]! - l0), t1 = share * Math.max(0, hv[1]! - l1), t2 = share * Math.max(0, hv[2]! - l2);
           r0 += wR * t0; r1 += wR * t1; r2 += wR * t2;
           if (rt) { rt[ro + 21 + d * 3] = t0; rt[ro + 22 + d * 3] = t1; rt[ro + 23 + d * 3] = t2; }
-          pixelVariance = Math.max(pixelVariance, hv[0]!, hv[1]!, hv[2]!);
+          // Two-argument maxima (inlined; the same value as one four-argument Math.max, which V8 calls with boxed arguments).
+          pixelVariance = Math.max(Math.max(pixelVariance, hv[0]!), Math.max(hv[1]!, hv[2]!));
         }
         s0 += wE * e0; s1 += wE * e1; s2 += wE * e2;
         if (rt) { rt[ro + 0] = csv[0]!; rt[ro + 1] = csv[1]!; rt[ro + 2] = csv[2]!; rt[ro + 27] = e0; rt[ro + 28] = e1; rt[ro + 29] = e2; }

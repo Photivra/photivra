@@ -593,6 +593,17 @@ same values with the same operations in the same order; none reassociates a floa
   recorded once and added again in the same order (with the display pixel's own footprint weights).
 - **Zero terms are skipped.** The covariance and third-cumulant sums of each AHD candidate skip the sites where its
   weights are zero (adding ±0 to a sum that starts at +0 changes nothing).
+- **Site values and moments are kept per render (#441).** On the exact area mean with diffraction on chart materials
+  (filled windows), a real pixel's demosaic reads 27 (AHD) or 7 (bilinear) native sites, and neighbouring real pixels
+  read mostly the same ones. A ring of native rows over the
+  part's columns keeps each site's expected electrons, chart material and readout moments (mean, variance and third
+  cumulant after the white-level clip) after its first read; later reads copy them. The expected signal's window is told
+  which of its sites were read this way (`markReads`), which does for each site what a first `site` call does for the
+  window's lookup count, so `sceneLookups` is unchanged. Every real pixel still receives the same values in the same
+  order. Coarse (stratified) views, views without diffraction (whose sites the signal's direct ring already serves; the
+  ring measured 2–4 % slower there) and radiance scenes with diffraction (lazy window caches) keep the per-read path.
+  Measured on the app-request shape (Node 24.21.0, one thread, two runs of three repeats, builds alternated): Quality
+  part medians 169–194 → 148–164 ms at f/8 and 177–187 → 154–164 ms at f/11; Speed, which does not use the ring, within ±3 %.
 
 **Proof of byte identity.** The display views of all 155 validation cases at their seeds (the requests of
 `validate-display-view.mjs`, Speed and Quality, three sensors) were hashed before and after (SHA-256 of the samples, of
