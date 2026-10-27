@@ -64,6 +64,25 @@ export interface TabulatedNativeRawResult {
   verificationRelativeDifference: number;
 }
 
+/**
+ * #449: the local exposure duration shared by every site of `region`, or undefined when the sampler must run per site. With
+ * simultaneous opening and closing boundaries both boundary phases are 0 at every point (exposure-window.ts, boundaryPhase), so
+ * each site's duration is the nominal one the sampler gives at the region's first site. The sampler's only other per-point step
+ * is its check that the point lies in the active capture rectangle; the region's first and last site centres bound every other
+ * centre, so when both pass every site passes. When either throws, the per-site path runs (and throws where it did).
+ */
+export function simultaneousExposureDuration(schedule: { opening: unknown; closing: unknown }, sampler: (point: { x: number; y: number }) => { localExposureDurationSeconds: number },
+  region: { x: number; y: number; width: number; height: number }): number | undefined {
+  if ((schedule.opening as { kind?: unknown }).kind !== "simultaneous" || (schedule.closing as { kind?: unknown }).kind !== "simultaneous") return undefined;
+  try {
+    const first = sampler({ x: region.x + 0.5, y: region.y + 0.5 }).localExposureDurationSeconds;
+    const last = sampler({ x: region.x + region.width - 0.5, y: region.y + region.height - 0.5 }).localExposureDurationSeconds;
+    return Object.is(first, last) ? first : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Renders the native RAW from tabulated expected electrons, or returns undefined when verification fails (see the module comment). */
 export async function renderTabulatedNativeRaw(t: TabulatedNativeRawInput): Promise<TabulatedNativeRawResult | undefined> {
   if (tabulatedDisabled) return undefined;
@@ -100,6 +119,7 @@ export async function renderTabulatedNativeRaw(t: TabulatedNativeRawInput): Prom
     saturationFlags: new Uint8Array(length), effectiveSaturationCodes: new Uint16Array(4) };
   const white = createPhaseWhiteLevelAccumulator(W, 2, 2), sampler = prepareCaptureExposureWindowSampler({ ...schedule, nativeRaster: native });
   const tilesPerRow = Math.ceil(region.width / t.tileWidth), point = { x: 0, y: 0 };
+  const constantDuration = simultaneousExposureDuration(schedule, sampler, region);
   let last = Date.now();
   for (let y0 = region.y; y0 < region.y + region.height; y0 += BAND_ROWS) {
     const y1 = Math.min(region.y + region.height, y0 + BAND_ROWS);
@@ -107,8 +127,9 @@ export async function renderTabulatedNativeRaw(t: TabulatedNativeRawInput): Prom
     for (let y = y0; y < y1; y++) {
       for (let x = region.x; x < region.x + region.width; x++) {
         const index = y * W + x, at = (y - region.y) * region.width + x - region.x;
-        point.x = x + 0.5; point.y = y + 0.5;
-        const o = readouts[(y & 1) * 2 + (x & 1)]!.compute(t.electrons.site(x, y), sampler(point).localExposureDurationSeconds, x, y, index, seed);
+        let duration = constantDuration;
+        if (duration === undefined) { point.x = x + 0.5; point.y = y + 0.5; duration = sampler(point).localExposureDurationSeconds; }
+        const o = readouts[(y & 1) * 2 + (x & 1)]!.compute(t.electrons.site(x, y), duration, x, y, index, seed);
         // A check of the full path failed for this site: let the environment task decide (it throws its own error).
         if (!o) return undefined;
         raw.codes[at] = o.rawCode; raw.blackLevels[at] = o.blackLevelCode; raw.digitalSaturationCodes[at] = o.digitalSaturationCode; raw.saturationFlags[at] = o.flags;

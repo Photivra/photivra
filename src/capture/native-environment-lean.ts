@@ -1055,6 +1055,85 @@ function leanSensorSite(t: Pick<SensorTemplate, "capacity" | "readout" | "patter
     whiteCode: t.whiteCode, photoRealized, darkRealized };
 }
 
+/**
+ * #449: leanSensorSite for one verified readout, with the readout regime's constants read once into flat fields, the dark
+ * Poisson threshold e^(−mean) kept while the dark mean repeats, adcTransfer's arithmetic inline when there is no integral non-linearity,
+ * and the outputs written into one record that every call reuses. The same operations in the same order as leanSensorSite;
+ * createVerifiedNativeSiteReadout checks it against the full site as it checks leanSensorSite.
+ */
+interface FlatSensorStage {
+  darkRate: number; capacity: number; pattern: SensorFixedPatternNoiseProfile | undefined; whiteCode: number;
+  regime: ResolvedSensorReadoutRegime["regime"]; adcMaximumCode: number; inlDefined: boolean;
+  gain: number; black: number; digitalGain: number | undefined; digitalSaturationCode: number; threshold: number; rms: Float64Array;
+  /** The dark mean of the last site and its samplePoisson threshold e^(−mean) (used for 0 < mean < 30). */
+  darkMean: number; darkThreshold: number;
+  /** The reused output record: the caller reads its five fields before the next call. */
+  out: NativeRawLeanOutput;
+}
+function flatSensorStage(t: Pick<SensorTemplate, "darkRate" | "capacity" | "readout" | "pattern" | "whiteCode">): FlatSensorStage {
+  const regime = t.readout.regime;
+  return { darkRate: t.darkRate, capacity: t.capacity, pattern: t.pattern, whiteCode: t.whiteCode, regime, adcMaximumCode: t.readout.adcMaximumCode,
+    inlDefined: regime.adc.integralNonLinearity !== undefined, gain: regime.systemConversionGainElectronsPerCode.value, black: regime.adc.blackLevelCode,
+    digitalGain: regime.adc.digitalGain, digitalSaturationCode: regime.adc.digitalSaturationCode, threshold: regime.preAdcSaturationElectronEquivalent.value,
+    rms: Float64Array.from(regime.readNoiseComponents, (component) => component.rmsElectrons.value), darkMean: NaN, darkThreshold: NaN,
+    out: { rawCode: 0, blackLevelCode: 0, digitalSaturationCode: 0, flags: 0, whiteCode: 0 } };
+}
+/** Writes the site's outputs into `f.out`; false where leanSensorSite returns undefined. */
+function flatSensorSite(f: FlatSensorStage, photoE: number, darkE: number, total: number, x: number, y: number, index: number, seed: number): boolean {
+  const ratio = total / f.capacity, headroom = f.capacity - total;
+  if (!Number.isFinite(ratio) || !Number.isFinite(headroom)) return false;
+  const pattern = f.pattern === undefined ? null : evaluateParsedFixedPatternSite(f.pattern, { x, y });
+  const photoMean = pattern === null ? photoE : photoE * pattern.photoResponseGainFactor;
+  const darkMean = pattern === null ? darkE : darkE * pattern.darkCurrentFactor;
+  if (!Number.isFinite(photoMean) || photoMean < 0 || !Number.isFinite(darkMean) || darkMean < 0) return false;
+  const random = chargeStream;
+  random.reset(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_CHARGE_STREAM_ID));
+  const photoRealized = samplePoisson(photoMean, random);
+  let darkRealized: number;
+  if (darkMean > 0 && darkMean < 30) {
+    // samplePoisson's branch for 0 < mean < 30 (Knuth's product of uniforms) with its threshold Math.exp(−mean) kept while the
+    // mean repeats: the same draws from the same stream. (createPoissonSampler would also do this, but it brings the
+    // portable-math functions into capture-only bundles.)
+    if (darkMean !== f.darkMean) { f.darkMean = darkMean; f.darkThreshold = Math.exp(-darkMean); }
+    const threshold = f.darkThreshold;
+    let product = 1, count = 0;
+    do { count += 1; product *= random.next(); } while (product > threshold);
+    darkRealized = count - 1;
+  } else darkRealized = samplePoisson(darkMean, random);
+  const realized = photoRealized + darkRealized + 0;
+  if (!Number.isFinite(realized) || realized < 0) return false;
+  const readRandom = readNoiseStream;
+  readRandom.reset(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_READ_NOISE_STREAM_ID));
+  const capacity = f.capacity;
+  const afterPhysical = Math.min(realized, capacity), physicalSaturation = afterPhysical < realized;
+  const rmsAll = f.rms;
+  let totalReadNoise = 0;
+  for (let k = 0; k < rmsAll.length; k++) {
+    const rms = rmsAll[k]!;
+    totalReadNoise = totalReadNoise + (rms === 0 ? 0 : sampleDeterministicStandardNormal(readRandom) * rms);
+  }
+  const afterReadNoise = afterPhysical + totalReadNoise + (pattern === null ? 0 : pattern.readoutOffsetElectrons);
+  const threshold = f.threshold;
+  const afterPreAdc = Math.min(afterReadNoise, threshold), preAdcSaturation = afterReadNoise > threshold;
+  let quantized: number;
+  if (f.inlDefined) quantized = adcTransfer(f.regime, f.adcMaximumCode, afterPreAdc).quantized;
+  else {
+    // adcTransfer without integral non-linearity: ideal = e/G + black, plus the zero INL offset, rounded half up (Math.round + 0),
+    // then with a digital gain the ADC clamp and the gain's own rounding about the black level.
+    const ideal = afterPreAdc / f.gain + f.black, quantizedAdc = Math.round(ideal + 0) + 0, digitalGain = f.digitalGain;
+    if (digitalGain === undefined) quantized = quantizedAdc;
+    else {
+      const adcCode = Math.max(0, Math.min(quantizedAdc, f.adcMaximumCode));
+      quantized = Math.round((adcCode - f.black) * digitalGain + f.black) + 0;
+    }
+  }
+  const digitalSaturationCode = f.digitalSaturationCode, out = f.out;
+  out.rawCode = Math.max(0, Math.min(quantized, digitalSaturationCode)); out.blackLevelCode = f.black; out.digitalSaturationCode = digitalSaturationCode;
+  out.flags = Number(physicalSaturation) | Number(preAdcSaturation) << 1 | Number(quantized >= digitalSaturationCode) << 2;
+  out.whiteCode = f.whiteCode;
+  return true;
+}
+
 /** The Kahan (compensated) total that composeSensorAccumulatedCharge computes, for photo and dark charge only. */
 function chargeTotal(photoE: number, darkE: number): number {
   let sum = 0, correction = 0;
@@ -1089,15 +1168,19 @@ export function createVerifiedNativeSiteReadout(parsed: SensorRawProducerSiteInp
       !Object.is(out.photoRealized, realization.photoRealizedElectronCount) || !Object.is(out.darkRealized, realization.darkRealizedElectronCount) ||
       realization.additionalComponents.length !== 0 || out.rawCode !== r.rawCode || out.blackLevelCode !== r.blackLevelCode || out.digitalSaturationCode !== r.digitalSaturationCode ||
       out.flags !== (Number(r.physicalScalarSaturationApplied) | Number(r.preAdcSaturationApplied) << 1 | Number(r.digitalSaturationApplied) << 2)) return undefined;
+    // #449: the flat stage must reproduce the verification site too.
+    const flat = flatSensorStage(t), fo = flat.out;
+    if (!flatSensorSite(flat, photo.expectedGeneratedElectronCount, darkE, total, x, y, index, seed) || fo.rawCode !== out.rawCode || fo.blackLevelCode !== out.blackLevelCode ||
+      fo.digitalSaturationCode !== out.digitalSaturationCode || fo.flags !== out.flags || fo.whiteCode !== out.whiteCode) return undefined;
     return {
       compute(photoE, duration, sx, sy, siteIndex, siteSeed): NativeRawLeanOutput | undefined {
         // The parse-phase predicates of the full path (claim()): finite non-negative dark and total charge.
-        const siteDark = t.darkRate * duration;
+        const siteDark = flat.darkRate * duration;
         if (!Number.isFinite(photoE) || photoE < 0 || !Number.isFinite(siteDark) || siteDark < 0) return undefined;
         const siteTotal = chargeTotal(photoE, siteDark);
         if (!Number.isFinite(siteTotal) || siteTotal < 0) return undefined;
-        // The site's own record: the caller reads only the five RAW fields, so no copy without the realizations (#418).
-        return leanSensorSite(t, { photo: { expectedGeneratedElectronCount: photoE } as SensorEqeTemporalPhotoSignal, darkE: siteDark, total: siteTotal, x: sx, y: sy }, siteIndex, siteSeed);
+        // One record for every site (#449): the caller copies the five RAW fields before its next call.
+        return flatSensorSite(flat, photoE, siteDark, siteTotal, sx, sy, siteIndex, siteSeed) ? fo : undefined;
       }
     };
   } catch {
