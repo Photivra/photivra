@@ -89,8 +89,8 @@ import { createRollingShutterCaptureExposureSchedule, resolveElectronicRollingSh
 import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
-import { registerDiffractionPsfKey } from "../optics/site-diffraction-kernel.js";
-import { requireDefocusDiscKernelRadius, resolveDefocusDisc } from "../optics/defocus-disc-kernel.js";
+import { registerDiffractionPsfKey, siteDiffractionKernel } from "../optics/site-diffraction-kernel.js";
+import { convolveSiteKernels, createDefocusDiscSiteKernel, requireDefocusDiscKernelRadius, resolveDefocusDisc, type ResolvedDefocusDisc } from "../optics/defocus-disc-kernel.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
 import { resolveGenericPrimeLens, type GenericPrimeLens } from "../equipment/generic-prime-lenses.js";
 import { calculateChannelElectronsPerRadiance } from "./channel-response.js";
@@ -365,7 +365,7 @@ export interface SimulateCaptureOptions {
  * a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.temporalSampleCount` a count above 1.
  */
 export const SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
-  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
+  "lens.diffraction", "lens.defocus", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const);
 export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[number];
@@ -496,8 +496,10 @@ export interface SimulateCaptureResult {
      * `diffraction` (the object-space convolution of `lens.diffraction`; part of `raw` and `whiteBalance`), `demosaic`
      * (the AHD demosaic; part of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond
      * resolution where the host has `performance.now()`. Timings vary from run to run and never enter any digest or output byte.
+     * #492: `defocus`, the object-space convolution of `lens.defocus` out of focus (with `lens.diffraction` the combined
+     * kernel's convolution, reported here instead of under `diffraction`).
      */
-    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; demosaic?: number; encode?: number };
+    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; defocus?: number; demosaic?: number; encode?: number };
     /**
      * 2.1: the opt-in options that changed the work of this run, in a fixed order (see `SIMULATE_CAPTURE_COST_OPTIONS`).
      * Empty for a capture with every default. With `timingsMs` it lets an application measure each option's cost on
@@ -1163,13 +1165,13 @@ export function parseDisplayViewOption(value: unknown, frameWidth: number, frame
 }
 
 /**
- * `lens.defocus` (#492, step 1): resolves the geometric defocus disc at the resolved f-number on the site pitch and
- * records it. In focus (c = 0) no kernel exists and nothing else changes. Until the capture and the display view apply
- * the kernel, a request that needs one fails rather than render without the blur; the ideal reference, which has no
- * camera effects, only records it.
+ * `lens.defocus` (#492): resolves the geometric defocus disc at the resolved f-number on the site pitch and records it.
+ * In focus (c = 0) no kernel exists and nothing else changes (undefined). The capture (step 2a) applies the disc as an
+ * object-space convolution and gets it back; the ideal reference, which has no camera effects, only records it. Until the
+ * display view applies the kernel, a display view that needs one fails rather than render without the blur.
  */
 function resolveDefocusOption(input: { run: "capture" | "ideal-reference" | "display-view" | "dng-from-parts"; assume: DisplayViewRunContext["assume"];
-  focalLengthMm: number; fNumber: number; focusDistanceM: number; subjectDistanceM: number; pitch: number }): void {
+  focalLengthMm: number; fNumber: number; focusDistanceM: number; subjectDistanceM: number; pitch: number; diffraction: boolean }): ResolvedDefocusDisc | undefined {
   const { run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch } = input;
   const disc = resolveDefocusDisc({ focalLengthMm, aperture: fNumber, focusDistanceM, subjectDistanceM, pitchMicrometers: pitch });
   const size = disc.diameterMicrometers + " µm (" + disc.diameterSites + " sites of " + pitch + " µm)";
@@ -1183,16 +1185,23 @@ function resolveDefocusOption(input: { run: "capture" | "ideal-reference" | "dis
     "No diffraction of the defocused wave, aberrations or pupil vignetting. ";
   if (disc.diameterSites === 0) {
     assume("lens.defocus", "model", value, model + "In focus (lens.focusDistanceM equals subjectDistanceM): the disc has zero diameter, so no defocus kernel is applied.");
-    return;
+    return undefined;
   }
   if (run === "ideal-reference") {
     assume("lens.defocus", "model", value, model + "Resolved but not applied: the ideal reference has no camera effects.");
-    return;
+    return undefined;
   }
-  fail((run === "display-view" ? "simulateDisplayView" : "simulateCapture") + " does not yet support lens.defocus out of focus: the geometric blur circle here is " + size +
+  if (run === "display-view") fail("simulateDisplayView does not yet support lens.defocus out of focus: the geometric blur circle here is " + size +
     " (kernel radius " + radius + " sites), and rendering it arrives in a later release (#492). The engine does not render the request without the blur. " +
-    (run === "display-view" ? "Set lens.focusDistanceM equal to subjectDistanceM, or omit lens.defocus." :
-      "Set lens.focusDistanceM equal to subjectDistanceM, omit lens.defocus, or use lens.pupilSampling (ray-sampled defocus) instead."));
+    "Set lens.focusDistanceM equal to subjectDistanceM, or omit lens.defocus.");
+  // The capture (#492, step 2a): an object-space convolution of the scene radiance on the site lattice.
+  assume("lens.defocus", "model", { ...value, execution: "object-space-convolution", combinedWithDiffraction: input.diffraction }, model +
+    "Applied as an object-space convolution: the scene radiance on the site lattice is convolved with the disc, the same kernel at every spectral node, " +
+    "and each site query is answered with the result (for a flat scene and a still, distortion-free rectilinear camera every disc point a site sees is the scene point of another site). " +
+    (input.diffraction ? "With lens.diffraction, each spectral node's diffraction kernel is convolved with the disc and applied as one kernel. That is a further approximation: " +
+      "the defocused wave PSF of a circular pupil is not exactly the in-focus Airy pattern convolved with the geometric disc. " : "") +
+    "The disc kernel is a sampling of the disc on the site lattice; lens.pupilSampling (ray-sampled, no diffraction) is the independent reference.");
+  return disc;
 }
 
 /** Internal: passed as the view of a "display-view" run to resolve the request without a view (`prepareDisplayView`, #387). */
@@ -1665,7 +1674,16 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   fNumber = resolution.resolvedSettings.aperture ?? fNumber;
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
-  if (defocusModel !== undefined) resolveDefocusOption({ run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch });
+  const defocusDisc = defocusModel === undefined ? undefined :
+    resolveDefocusOption({ run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch, diffraction: diffractionRadiusOption !== undefined });
+  // #492: the capture applies the disc as an object-space convolution, which needs every disc point a site sees to be another site's scene point.
+  if (defocusDisc) {
+    const reason = rotating ? "camera rotation (motion.angularVelocityRadPerSec)" : lensFieldMapping ? "lens.projection or lens.distortion" : vignetting ? "lens.vignetting" : undefined;
+    if (reason !== undefined) fail("simulateCapture does not support lens.defocus out of focus with " + reason + ": the defocus disc is applied as an object-space convolution " +
+      "on the site lattice, and " + reason + " moves the scene points the sites see off that lattice. Set lens.focusDistanceM equal to subjectDistanceM, or omit one of the two options.");
+  }
+  // #492: the disc on the site lattice (radius 0 for a disc inside one cell: the identity, still applied).
+  const defocusKernel = defocusDisc ? createDefocusDiscSiteKernel(defocusDisc.diameterSites) ?? undefined : undefined;
 
   // Sensor readout for the ISO setting. Standard output sensitivity S = 10/H (CIPA DC-004 §3.2) is defined at the
   // output, independent of pixel size, while the collected charge is proportional to the sensitive-aperture area
@@ -1877,7 +1895,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       uncertainty: { kind: "not-quantified" as const, limitation: "Analytic planar scene." },
       fidelity: { spectral: "wavelength-resolved" as const, material: "spectral-data" as const, visibility: "resolved" as const, directTransport: "approximation" as const, indirectTransport: "not-modeled" as const },
       wavelengthChangingTransportModeled: false, volumetricTransportModeled: false, polarizationModeled: false, evidence, limitations: ["Engine-authored planar chart or caller scene function.",
-        ...(diffractionObjectSpace ? ["Radiance is the scene radiance convolved with the lens diffraction PSF mapped onto the scene plane (object-space convolution, request.diffraction)."] : [])] } };
+        ...(diffractionObjectSpace ? ["Radiance is the scene radiance convolved with the lens diffraction PSF mapped onto the scene plane (object-space convolution, request.diffraction)."] : []),
+        ...(defocusKernel ? ["Radiance is the scene radiance convolved with the geometric defocus disc mapped onto the scene plane (object-space convolution, lens.defocus)."] : [])] } };
   const lensId = lensExposure.profileId;
   const opticsProfile = { schemaVersion: "0.1.0" as const, profileId: lensId + ":facade-transmission", profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, lensProfileId: lensId,
     scientificStatus: "approximation" as const, applicability: { focalLengthMm: { minimum: capabilities.selectedFocalLengthMm, maximum: capabilities.selectedFocalLengthMm },
@@ -1899,10 +1918,12 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     maximumSubintervalWidthNanometers: spectralStep }])) as Record<Channel, unknown>;
   // Diffraction (2.1): Airy kernels at the resolved f-number on the site pitch, one per spectral node of the sensor quadrature.
   let diffraction: DiffractionLimitedPsfProfile | undefined, diffractionPsf: typeof lensPsf | undefined;
-  if (diffractionRadiusOption !== undefined) {
-    const wavelengths = [...new Set(CHANNELS.flatMap((channelId) => calculateSensorSpectralQuadrature({ ...(spectralSamplingByChannel[channelId] as { channelId: string;
+  // The spectral nodes of the sensor quadrature, over all channels, ascending.
+  const quadratureWavelengths = (): number[] => [...new Set(CHANNELS.flatMap((channelId) => calculateSensorSpectralQuadrature({ ...(spectralSamplingByChannel[channelId] as { channelId: string;
       wavelengthBasis: "vacuum"; wavelengthRangeNanometers: { minimum: number; maximum: number }; maximumSubintervalWidthNanometers: number }), colorSamplingProfile,
     spectralResponseProfile: spectralResponseProfiles[channelId] as never }).value.nodes.map((node) => node.wavelengthNanometers)))].sort((a, b) => a - b);
+  if (diffractionRadiusOption !== undefined) {
+    const wavelengths = quadratureWavelengths();
     const lambdaN = wavelengths[wavelengths.length - 1]! / 1000 * fNumber * imageDistanceMm / focalLengthMm;
     // The environment resolves the PSF at each pre-filter source point, up to the largest split offset outside the imaging area.
     const aaReachMm = antiAliasing ? Math.max(...antiAliasing.components.map((c) => Math.max(Math.abs(c.offsetMicrometers.x), Math.abs(c.offsetMicrometers.y)))) / 1000 : 0;
@@ -1934,9 +1955,34 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
         "Applied through the environment PSF quadrature (one scene query per kernel tap), because camera rotation, a lens field mapping or vignetting moves the taps off the site lattice. ") +
       "No defocus, aberration or pupil clipping; " + (boxAperture ? "the pixel aperture is integrated as declared by sensor.pixelAperture." : "the sensor pixel aperture is still point-sampled at the site centre."));
   }
+  // #492: each spectral node's kernel for lens.defocus out of focus: the disc, or with lens.diffraction (always on the object-space path here)
+  // the node's diffraction kernel convolved with the disc, radius R_diffraction + R_defocus (built on first use, kept for the request).
+  let defocusSiteKernels: { radius: number; wavelengthsNm: readonly number[]; at(wavelengthNm: number): Float64Array } | undefined;
+  if (defocusKernel) {
+    if (diffraction) {
+      const diffractionRadius = diffraction.kernelRadiusSamples, combined = new Map<number, Float64Array>(), profileWavelengths = diffraction.profile.axes.wavelengthNm;
+      const radius = diffractionRadius + defocusKernel.radius;
+      // At most 32 + 64 = 96 sites (the two caps). Neither the expected-signal table nor the provider's own gather (diffraction-provider.ts)
+      // uses the public 32-site limit of calculateIrradianceConvolution; the combination costs at most about 0.1 s per spectral node
+      // (measured, docs/QUICK_START.md "Optics"), so no tighter limit applies.
+      const psfConfiguration = diffractionPsf!.configuration.psf;
+      defocusSiteKernels = { radius, wavelengthsNm: profileWavelengths, at(wavelengthNm: number): Float64Array {
+        let kernel = combined.get(wavelengthNm);
+        if (!kernel) {
+          if (!profileWavelengths.includes(wavelengthNm)) fail("simulateCapture: a spectral node has no diffraction kernel.");
+          kernel = convolveSiteKernels(siteDiffractionKernel(psfConfiguration, wavelengthNm, pitch, diffractionRadius, "simulateCapture: diffraction kernels must sample the site pitch exactly."),
+            diffractionRadius, defocusKernel.weights, defocusKernel.radius);
+          combined.set(wavelengthNm, kernel);
+        }
+        return kernel;
+      } };
+    } else defocusSiteKernels = { radius: defocusKernel.radius, wavelengthsNm: quadratureWavelengths(), at: (): Float64Array => defocusKernel.weights };
+  }
   const psf = lensPsf ?? (diffractionObjectSpace ? { kind: "not-applied" as const, evidence,
     limitation: "No environment PSF: lens diffraction is applied upstream by the scene provider as an object-space convolution (request.diffraction)." } : undefined) ??
-    diffractionPsf ?? { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
+    diffractionPsf ?? (defocusSiteKernels ? { kind: "not-applied" as const, evidence,
+      limitation: "No environment PSF: lens defocus is applied upstream by the scene provider as an object-space convolution (lens.defocus)." } : undefined) ??
+    { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
   const pupilRecord = pupil ? { kind: "ideal-uniform-circular-pupil" as const, radialSampleCount: pupil.radialSamples, angularSampleCount: pupil.angularSamples, evidence,
     limitation: "Ideal uniform circular pupil; finite ray sampling, no convergence claim." } : undefined;
   const chargeSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.chargeSampling, completenessProfileId: IDS.completeness, scientificStatus: "approximation" as const,
@@ -1973,8 +2019,14 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     ({ ...request, sites: Array.from({ length: request.width }, (_, j) => siteInput(request.y * nativeWidth + request.x + j)) });
   const yieldControl = createHostYield().yieldControl;
   const perSite = queriesPerSite * (diffraction && psf === diffractionPsf ? (2 * diffraction.kernelRadiusSamples + 1) ** 2 : 1);
-  let diffractionMs = 0, demosaicMs: number | undefined, encodeMs: number | undefined;
+  let diffractionMs = 0, defocusMs = 0, demosaicMs: number | undefined, encodeMs: number | undefined;
   const diffractedProvider = (window: { x: number; y: number; width: number; height: number } | undefined): PlanarSceneRadianceProvider =>
+    defocusSiteKernels ? createDiffractedPlanarProvider({ base: provider, siteKernels: defocusSiteKernels.at,
+      wavelengthsNm: defocusSiteKernels.wavelengthsNm, kernelRadius: defocusSiteKernels.radius, nativeWidth, nativeHeight, outputWidth: width,
+      sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit, onConvolution: (ms) => { defocusMs += ms; },
+      ...(window ? { window } : {}),
+      ...(antiAliasing || boxSamples > 1 ? { queryOffsetsSites: apertureNodeOffsets(boxSamples).flatMap((node) =>
+        (antiAliasing ? antiAliasing.components : [{ offsetMicrometers: { x: 0, y: 0 } }]).map((c) => ({ x: node.x - c.offsetMicrometers.x / pitch, y: node.y - c.offsetMicrometers.y / pitch }))) } : {}) }) :
     diffraction && diffractionObjectSpace ? createDiffractedPlanarProvider({ base: provider, psf: diffractionPsf!.configuration.psf,
       wavelengthsNm: diffraction.profile.axes.wavelengthNm, kernelRadius: diffraction.kernelRadiusSamples, nativeWidth, nativeHeight, outputWidth: width,
       sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit, onConvolution: (ms) => { diffractionMs += ms; },
@@ -2157,12 +2209,20 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     const { electronsPerRadiance, wavelengths } = axisChannelResponse("simulateCapture");
     const perNode = CHANNELS.map((c) => Float64Array.from(wavelengths, (nm) => electronsPerRadiance[c].get(nm) ?? 0)) as [Float64Array, Float64Array, Float64Array];
     const sceneMaterials = chart ? chart.materials : (callerScene as ResolvedCallerMaterialScene).materials, materialRadiance = provider.materialRadiance;
-    const { signalInput } = buildExpectedSignalInput({ nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples, antiAliasing, pitch,
-      diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm } : undefined,
+    const { signalInput: builtSignalInput } = buildExpectedSignalInput({ nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples, antiAliasing, pitch,
+      diffraction: diffraction && !defocusSiteKernels ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm } : undefined,
       materials: { materialAt: provider.chartMaterialAt, whiteRadiance: (nm: number): number => irradianceScale * illuminant.shape.evaluate(nm) / Math.PI,
         list: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: (nm: number): number => materialRadiance(index, nm) })),
           ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])] },
       radianceAt: provider.radianceAt, imagingArea, focalLengthMm, focusDistanceM, subjectDistanceM, metresPerFrameUnit, caller: "simulateCapture" });
+    // #492: with lens.defocus the table convolves the lattice radiance with each node's defocus (or combined) kernel, on the
+    // lattice formula, exactly as the object-space provider does.
+    let signalInput = builtSignalInput;
+    if (defocusSiteKernels) {
+      const lattice = { ...builtSignalInput };
+      delete lattice.queryPoint;
+      signalInput = { ...lattice, kernels: { radius: defocusSiteKernels.radius, perNode: wavelengths.map((nm) => defocusSiteKernels!.at(nm)) } };
+    }
     // The verification reads only the region's top-left 2 × 2 block, so its diffraction convolves only that block's lattice; the
     // window never changes a value (see diffraction-provider.ts), so the chain it runs is the whole render's.
     const verificationProvider = diffractedProvider({ x: regionNative?.x ?? 0, y: regionNative?.y ?? 0, width: 2, height: 2 });
@@ -2359,7 +2419,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
 
   const ranOptions = new Set<SimulateCaptureCostOption>([...(pupil ? ["lens.pupilSampling" as const] : []), ...(projection !== undefined ? ["lens.projection" as const] : []),
     ...(distortion ? ["lens.distortion" as const] : []), ...(vignetting ? ["lens.vignetting" as const] : []), ...(lensPsf ? ["lens.psf" as const] : []),
-    ...(diffraction ? ["lens.diffraction" as const] : []), ...(antiAliasing ? ["sensor.antiAliasing" as const] : []), ...(boxAperture ? ["sensor.pixelAperture.box" as const] : []),
+    ...(diffraction ? ["lens.diffraction" as const] : []), ...(defocusSiteKernels ? ["lens.defocus" as const] : []), ...(antiAliasing ? ["sensor.antiAliasing" as const] : []), ...(boxAperture ? ["sensor.pixelAperture.box" as const] : []),
     ...(temporalSampleCount > 1 ? ["sensor.temporalSampleCount" as const] : []), ...(rotating ? ["motion.rotation" as const] : []),
     ...(rollingSchedule ? ["motion.shutter.rolling" as const] : []), ...(mirrorBorder ? ["output.borderHandling.mirror" as const] : []), ...(region ? ["output.region" as const] : []),
     ...(needsAuto ? ["output.whiteBalance.auto" as const] : []), ...(ahd ? ["output.demosaic.ahd" as const] : []),
@@ -2379,7 +2439,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },
     diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics, ...(gamutMappingDiagnostics ? { gamutMapping: gamutMappingDiagnostics } : {}),
       timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started,
-        ...(diffraction && diffractionObjectSpace ? { diffraction: diffractionMs } : {}), ...(demosaicMs === undefined ? {} : { demosaic: demosaicMs }),
+        ...(diffraction && diffractionObjectSpace && !defocusSiteKernels ? { diffraction: diffractionMs } : {}), ...(defocusSiteKernels ? { defocus: defocusMs } : {}), ...(demosaicMs === undefined ? {} : { demosaic: demosaicMs }),
         ...(encodeMs === undefined ? {} : { encode: encodeMs }) },
       options: Object.freeze(SIMULATE_CAPTURE_COST_OPTIONS.filter((option) => ranOptions.has(option))), fast: fastReport },
     provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion,
@@ -2387,7 +2447,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
         "resolve" + (mode === "manual" ? "Manual" : mode === "aperture-priority" ? "AperturePriority" : mode === "shutter-priority" ? "ShutterPriority" : "ProgramAuto") + "ExposureMode",
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
-        ...(diffraction ? ["createDiffractionLimitedPsfProfile", ...(diffractionObjectSpace ? ["resolveLensPsfConvolutionKernels", "calculateIrradianceConvolution"] : [])] : []),
+        ...(diffraction ? ["createDiffractionLimitedPsfProfile", ...(diffractionObjectSpace ? ["resolveLensPsfConvolutionKernels", ...(defocusSiteKernels ? [] : ["calculateIrradianceConvolution"])] : [])] : []),
+        ...(defocusSiteKernels ? ["calculateDefocusCircle", "defocus disc site kernel (object-space convolution)"] : []),
         ...(antiAliasing ? ["resolveAntiAliasingSpatialKernel"] : []), "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []), ...(ahd ? ["createAhdDemosaicTask"] : []),
         ...(ahd ? ["native RAW development operator (colour, after AHD)", ...(linearPath ? ["resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["SDR rendering kernel"])] : linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["createNativeRawDevelopmentTask"]),

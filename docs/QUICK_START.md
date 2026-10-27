@@ -72,7 +72,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.distortion` | none | `{ kind: "radial", profile }` or `{ kind: "brown-conrady", profile }`. |
 | `lens.vignetting` | none | An `IlluminationVignettingProfile` (radial relative illumination). |
 | `lens.psf` | none | A `{ kind: "sampled-local", configuration }` sampled lens PSF, passed to the environment contract unchanged. |
-| `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). Rendering arrives in the next steps of #492: until then a request out of focus is refused as not yet supported. |
+| `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). `simulateCapture` renders it. `simulateDisplayView` still refuses it out of focus until the next step of #492. |
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
@@ -762,7 +762,7 @@ The optics options feed only what the environment site contract accepts:
     is sampled at its centre). It cannot be
     combined with `lens.psf` or `lens.pupilSampling`.
 
-- `lens.defocus: { model: "geometric-disc" }` (#492, in progress) models defocus of the flat scene plane when
+- `lens.defocus: { model: "geometric-disc" }` (#492; the capture renders it, the display view does not yet) models defocus of the flat scene plane when
   `lens.focusDistanceM` differs from `subjectDistanceM`.
   - The model is a geometric approximation for an ideal uniform circular pupil. Each in-focus image point spreads
     into a uniform disc of diameter c = f²·|s − d| / (N·d·(s − f)) on the sensor (`calculateDefocusCircle`, thin-lens
@@ -777,18 +777,71 @@ The optics options feed only what the environment site contract accepts:
     - A test blurs a sampled straight edge with the kernel and compares it with the disc's closed-form
       edge-spread function, the circular-segment area. They agree to rounding (2e-13) when the edge lies on cell
       boundaries. Elsewhere they agree within the site sampling of the edge.
-  - The kernel radius is capped at 64 sites, a 129 × 129 window. This cap is provisional: it will be set from
-    the cost measured when the blur is applied. A larger blur is refused with an error that names the cap and the
-    radius needed; the disc is never clipped.
-  - **Rendering is not available yet.** Within #492, the capture, the display view and then the GPU apply the kernel
-    in the next steps.
-    - Today the option resolves the disc and records it in the `lens.defocus` assumption: the model, its
-      approximation status, and the diameter in µm and in sites.
-    - In focus (c = 0) no kernel is applied, and the image is byte-identical to the same request without the option.
-    - A request that would need a non-zero disc, even one smaller than a site, fails with an
-      `InvalidConfigurationError` saying that it is not yet supported. The engine does not show it sharp.
-    - The same applies to `simulateDisplayView`.
-    - `simulateIdealReference`, which has no camera effects, only records the disc.
+  - The kernel radius is capped at 64 sites, a 129 × 129 window (`DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES`). A larger
+    blur is refused with an error that names the cap and the radius needed; the disc is never clipped.
+  - **The capture renders it** (#492, step 2a). The scene radiance on the site lattice is convolved with the disc,
+    the same kernel at every spectral node, and each site query is answered with the result. This is the object-space
+    convolution that `lens.diffraction` uses.
+    - The capture keeps its tabulated fast path. Regions, strips and DNG parts stay byte-identical to the whole frame.
+    - The `lens.defocus` assumption records `execution: "object-space-convolution"`.
+    - `diagnostics.options` lists `lens.defocus`, and `diagnostics.timingsMs.defocus` times the provider's convolution.
+    - The site inputs declare no PSF, because the defocus is applied upstream.
+  - **With `lens.diffraction`**, each spectral node's diffraction kernel is convolved with the disc and applied as
+    one kernel. The combined radius is the diffraction radius plus the defocus radius, at most 32 + 64 = 96 sites.
+    - This is a further approximation, and the assumption says so. The defocused wave PSF of a circular pupil is not
+      exactly the in-focus Airy pattern convolved with the geometric disc. Where the two differ is measured in a
+      later step of #492.
+    - Building the combined kernels cost 0.5 ms per spectral node at diffraction radius 2 with defocus radius 41. It
+      cost 90 ms per node at 32 with 64, the largest pair (Node, one thread).
+  - **Refused out of focus** with camera rotation, `lens.projection` or `lens.distortion`, and `lens.vignetting`. Each
+    of these moves the scene points that a site sees off the site lattice, so the convolution does not apply. In
+    focus they render as without `lens.defocus`.
+  - **Sampling.** The scene enters at the lattice points the sites query: site centres, or the pixel-aperture nodes
+    and anti-aliasing spots. So near an edge the result can differ from the continuous disc integral by the lattice's
+    point sampling of the edge. Measured on a 16 × 12 slanted edge, as the relative difference in expected electrons
+    per site (max / RMS):
+
+    | Disc | Pixel aperture | Convolution vs continuous integral | 4 × 8 rays | 8 × 16 rays | 16 × 16 rays |
+    | --- | --- | --- | --- | --- | --- |
+    | 5.95 sites (R 3) | point | 0.112 / 0.026 | 0.089 / 0.021 | 0.023 / 0.0049 | 0.018 / 0.0035 |
+    | 5.95 sites (R 3) | 4 × 4 box | 0.035 / 0.0065 | 0.048 / 0.010 | 0.0067 / 0.0014 | 0.0044 / 0.0007 |
+    | 13.4 sites (R 7) | point | 0.030 / 0.0056 | 0.094 / 0.032 | 0.029 / 0.0077 | 0.023 / 0.0053 |
+    | 13.4 sites (R 7) | 4 × 4 box | 0.0051 / 0.0013 | 0.070 / 0.026 | 0.012 / 0.0034 | 0.0090 / 0.0021 |
+
+    The ray columns are `lens.pupilSampling` (the independent reference, without diffraction) against the same
+    continuous integral. They converge toward it as the rays increase. Against the convolution, the 13.4-site disc
+    with the box aperture gives 0.070, 0.012 and 0.0093 (max). In the test (the 5.95-site disc, point aperture), the rays
+    and the convolution agree to 1e-9 at every site more than one site beyond the disc's reach of the edge.
+  - **Validation** (`test/simulate-capture-defocus-render.test.ts`):
+    - A vertical edge halfway between two lattice columns gives the exact circular-segment fraction at every site,
+      to 1e-12.
+    - A 48 × 480 slanted-edge capture's averaged edge profile is compared with the disc's closed-form edge-spread
+      function. It uses RAW codes, green sites and quarter-site bins. The largest difference was 0.0093 of the
+      step (noise seed 1).
+    - The tabulated and environment paths give the same RAW.
+    - Regions and DNG parts equal the whole frame: chart, Quality options with diffraction, a `material-layers`
+      scene and a caller function.
+  - **Cost and the 64-site cap.** Direct convolution costs (2R + 1)² multiply-adds per site and node wherever the disc
+    sees more than one material. Uniform areas cost almost nothing on the tabulated path. Measured on the tabulated
+    capture path (Node 24, one thread, rounds interleaved over the radii, median [range] of 3 rounds; 2 at 2048 × 1366;
+    a shared 4-vCPU host):
+
+    | Scene, size | in focus | R 2 | R 8 | R 16 | R 32 | R 41 | R 64 |
+    | --- | --- | --- | --- | --- | --- | --- | --- |
+    | Siemens star, 1024 × 683 | 0.37 s | 0.37 s | 0.51 s | 0.98 s | 2.9 s | 4.7 s | 11.6 s [11.4–11.8] |
+    | Dead leaves, 1024 × 683 | 0.37 s | 0.38 s | 0.66 s | 1.6 s | 5.0 s | 7.9 s | 17.7 s [17.6–18.0] |
+    | Slanted edge, 1024 × 683 | 0.32 s | 0.33 s | 0.35 s | 0.40 s | 0.70 s | 1.05 s | 2.7 s |
+    | Siemens star, 1024 × 683, Quality (diffraction, four-spot, 2 × 2 box, AHD) | 0.81 s | 0.87 s | 1.7 s | 4.1 s | 12.5 s | 20.0 s | 52.9 s [52.0–53.2] |
+    | Siemens star, 2048 × 1366 | 1.39 s | | 1.8 s | | 10.4 s | | 38.3 s [37.5–38.3] |
+
+    - The cap stays at 64 sites, set from these numbers. It covers the 1.4 µm example of #492 (50 mm f/2.8, subject
+      2 m, focus 1.6 m: R = 41) with room for larger blurs.
+    - The time grows with R² per edge site, and the caller chooses it through the focus distance. Past the cap the
+      request fails and names the radius it needed.
+    - A 24 MP frame costs proportionally more. Render it in parts across workers, as for diffraction.
+    - Off the tabulated path (caller reflectance or radiance functions), the provider gathers only each 32-row band's
+      own values, not the 2R extra rows `calculateIrradianceConvolution` would return (#419). On a 256 × 171
+      function scene the convolution took 0.3 s at R 8, 3.5 s at R 32 and 12.9 s at R 64.
   - It cannot be combined with `lens.pupilSampling` (the rays already render defocus) or `lens.psf` (a caller PSF
     declares its own defocus). It can be combined with `lens.diffraction`.
 

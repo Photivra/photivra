@@ -39,9 +39,10 @@ import { calculateDefocusCircle } from "./depth-of-field.js";
 
 /**
  * Largest kernel radius in sites, R ≤ 64 (a 129 × 129 window, 16 641 taps per site; the diffraction kernels stop at 32).
- * PROVISIONAL: chosen so that the issue's 1.4 µm example (50 mm f/2.8, subject 2 m, focus 1.6 m: c ≈ 114 µm, R = 41)
- * fits. Direct convolution costs (2R + 1)² multiply-adds per site and spectral node, so the final value is set from the
- * cost measured when the capture and display view apply the kernel (#492, step 2).
+ * Set from the cost measured in the capture (#492, step 2a; docs/QUICK_START.md, "Optics"): the capture's time grows with
+ * R² at every site the disc sees an edge from, and a 0.7 MP Siemens star took 0.37 s in focus, 2.9 s at R = 32, 4.7 s at
+ * R = 41 and 11.6 s at R = 64 (Node, one thread). 64 keeps the issue's 1.4 µm example (50 mm f/2.8, subject 2 m, focus
+ * 1.6 m: R = 41) with room for larger blurs, at a cost the caller chooses and the docs state; past it the call fails.
  */
 export const DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES = 64;
 
@@ -72,7 +73,7 @@ export function requireDefocusDiscKernelRadius(diameterSites: number): number {
   const radius = defocusDiscKernelRadius(diameterSites);
   if (radius > DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES)
     throw new InvalidScientificInputError("The defocus disc of " + diameterSites + " sites needs a kernel radius of " + radius +
-      " sites; the limit is " + DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES + " sites (provisional, DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES).");
+      " sites; the limit is " + DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES + " sites (DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES).");
   return radius;
 }
 
@@ -171,4 +172,30 @@ export function resolveDefocusDisc(input: { focalLengthMm: number; aperture: num
   const diameterMicrometers = calculateDefocusCircle(circle).value.diameterMm * 1000;
   const diameterSites = diameterMicrometers / pitchMicrometers;
   return { diameterMicrometers, diameterSites, kernelRadiusSites: defocusDiscKernelRadius(diameterSites) };
+}
+
+/**
+ * The full 2-D convolution of two square site kernels (row-major, radii `radiusA` and `radiusB`): a kernel of radius
+ * radiusA + radiusB with out(t) = Σ_s a(s)·b(t − s), each output summed over the taps of `a` in row-major order (zero taps
+ * of either kernel skipped, which adds exact zeros only). Used for lens.defocus with lens.diffraction (#492): each spectral
+ * node's diffraction kernel convolved with the defocus disc. That combination is an approximation: the defocused wave PSF
+ * of a circular pupil is not exactly the in-focus Airy pattern convolved with the geometric disc. Both inputs here are
+ * centred and non-negative, so the result is too; its sum is the product of the inputs' sums up to rounding.
+ */
+export function convolveSiteKernels(a: Float64Array, radiusA: number, b: Float64Array, radiusB: number): Float64Array {
+  const wa = 2 * radiusA + 1, wb = 2 * radiusB + 1, radius = radiusA + radiusB, width = 2 * radius + 1;
+  if (a.length !== wa * wa || b.length !== wb * wb) throw new InvalidScientificInputError("Site kernels must be (2R + 1)² taps.");
+  const out = new Float64Array(width * width);
+  // Non-zero taps of b, as (row, column, weight).
+  const bRows: number[] = [], bColumns: number[] = [], bWeights: number[] = [];
+  for (let j = 0; j < wb; j++) for (let i = 0; i < wb; i++) { const w = b[j * wb + i]!; if (w !== 0) { bRows.push(j); bColumns.push(i); bWeights.push(w); } }
+  for (let sj = 0; sj < wa; sj++) for (let si = 0; si < wa; si++) {
+    const w = a[sj * wa + si]!;
+    if (w === 0) continue;
+    for (let k = 0; k < bWeights.length; k++) {
+      const index = (sj + bRows[k]!) * width + si + bColumns[k]!;
+      out[index] = out[index]! + w * bWeights[k]!;
+    }
+  }
+  return out;
 }

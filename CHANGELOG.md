@@ -4,6 +4,20 @@
 
 ### Added
 
+- **`simulateCapture` renders `lens.defocus` out of focus (#492, step 2a).** No result changes without the option or in focus; every existing hash lock and fingerprint is unchanged.
+  - **How:** an object-space convolution of the scene radiance on the site lattice with the geometric defocus disc, beside the diffraction convolution. The capture keeps its tabulated fast path, and regions, strips and DNG parts stay byte-identical to the whole frame. The `lens.defocus` assumption records `execution: "object-space-convolution"` and the geometric approximation.
+  - **With `lens.diffraction`:** each spectral node's diffraction kernel is convolved with the disc, up to 32 + 64 = 96 sites. This is labelled as a further approximation, because the defocused wave PSF is not the Airy pattern convolved with the disc. Neither path uses the public 32-site limit of `calculateIrradianceConvolution`: the provider gathers only each band's own values (#419). The combined kernels cost at most 90 ms per spectral node (measured).
+  - **Refused out of focus** with camera rotation, `lens.projection`, `lens.distortion` and `lens.vignetting`, which move the scene points off the lattice. The display view still refuses `lens.defocus` out of focus (step 2b).
+  - **Diagnostics:** `lens.defocus` joins `SIMULATE_CAPTURE_COST_OPTIONS` after `lens.diffraction`. `diagnostics.timingsMs.defocus` times the convolution; with diffraction the combined convolution is reported there, not under `diffraction`.
+  - **Cap:** `DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES` stays at 64, now set from measured cost. On a 1024 × 683 tabulated capture (Node 24, one thread) a Siemens star took 0.37 s in focus, 2.9 s at R 32, 4.7 s at R 41 and 11.6 s at R 64. Dead leaves took 17.7 s at R 64, and Quality 52.9 s. The table is in `docs/QUICK_START.md`, "Optics".
+  - **Validation** (`test/simulate-capture-defocus-render.test.ts`):
+    - A vertical edge between lattice columns gives the exact circular-segment fraction (1e-12).
+    - A slanted-edge capture's averaged profile follows the disc's closed-form edge-spread function, within 0.0093 of the step.
+    - Against `lens.pupilSampling` at 4 × 8, 8 × 16 and 16 × 16 rays, the rays converge toward the continuous disc integral (RMS 0.021, 0.0049, 0.0035 for a 6-site disc). The lattice convolution differs from that integral by its point sampling of the edge: 0.112 max with point sampling, 0.035 with the 4 × 4 box.
+    - The tabulated and environment paths give the same RAW.
+    - Parts equal the whole frame, including `material-layers` scenes.
+  - Docs: `docs/QUICK_START.md` (inputs table and Optics) and `docs/USAGE.md` (an example).
+
 - **`lens.defocus: { model: "geometric-disc" }` and the geometric defocus disc on the site lattice (#492, step 1: the kernel and the option; no rendering yet).** No result changes without the option.
   - **The kernel** (internal, `src/optics/defocus-disc-kernel.ts`):
     - It takes the thin-lens blur circle c from `calculateDefocusCircle` and models it as a uniform disc of c/pitch sites.
