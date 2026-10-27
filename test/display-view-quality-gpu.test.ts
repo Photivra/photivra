@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { renderDisplayView } from "../src/facade/display-view.js";
-import { CorrectionStateStore, DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE, createDisplayViewGpuRenderer, displayViewQualityGpuSupports, displayViewQualityGpuUnsupportedReason,
+import { CorrectionStateStore, DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE, DISPLAY_VIEW_QUALITY_DEFOCUS_CONFORMANCE_CASE, createDisplayViewGpuRenderer, displayViewQualityGpuSupports, displayViewQualityGpuUnsupportedReason,
   registerDisplayViewGpuRenderer } from "../src/gpu/display-view-quality-gpu.js";
 import { DISPLAY_VIEW_SPEED_CONFORMANCE_CASE } from "../src/gpu/display-view-speed-gpu.js";
 import { DISPLAY_VIEW_QUALITY_FLAG, DISPLAY_VIEW_QUALITY_LATTICE_WGSL, DISPLAY_VIEW_QUALITY_PIXELS_WGSL, DISPLAY_VIEW_QUALITY_SITES_WGSL, assembleDisplayViewQualityLatticeWgsl } from "../src/gpu/wgsl-display-view-quality-kernel.js";
@@ -201,7 +201,7 @@ describe("display view Quality kernels (float32 emulation) vs the CPU reference"
   it("the combined renderer's id, cases and support check", async () => {
     const runtime = await runtimeOf(createFakeGpu().gpu), renderer = createDisplayViewGpuRenderer(runtime);
     expect(renderer.id).toBe("photivra-display-view");
-    expect(renderer.conformanceCases!.map((c) => c.id)).toEqual([DISPLAY_VIEW_SPEED_CONFORMANCE_CASE.id, DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE.id]);
+    expect(renderer.conformanceCases!.map((c) => c.id)).toEqual([DISPLAY_VIEW_SPEED_CONFORMANCE_CASE.id, DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE.id, DISPLAY_VIEW_QUALITY_DEFOCUS_CONFORMANCE_CASE.id]);
     expect(renderer.supports({ ahd: false, diffraction: false, antiAliasing: false, boxSamples: 2, toneCurve: "identity", scene: "chart" })).toBe(true);
     expect(renderer.supports({ ahd: true, diffraction: true, antiAliasing: true, boxSamples: 2, toneCurve: "identity", scene: "chart" })).toBe(true);
     expect(renderer.supports({ ahd: true, diffraction: true, antiAliasing: true, boxSamples: 2, toneCurve: "identity", scene: "radiance-function" })).toMatch(/caller/u);
@@ -273,31 +273,34 @@ describe("display view Quality kernels (float32 emulation) vs the CPU reference"
     expect(qualityMaterialSetup(plain.input.setup.gpu!)).toBe(plain.input.setup.gpu!);
   }, scaledTimeout(120_000));
 
-  it("#492: lens.defocus out of focus is refused by the GPU renderer at supports() time; in focus the request renders on the GPU", async () => {
+  it("#492: lens.defocus is supported by the GPU renderer; in focus the request is the in-focus render, out of focus the GPU gathers the disc", async () => {
     const quality = { ahd: true, diffraction: true, antiAliasing: true, boxSamples: 2, toneCurve: "identity" as const, scene: "chart" as const };
-    expect(displayViewQualityGpuSupports({ ...quality, defocus: true })).toMatch(/lens\.defocus/u);
+    expect(displayViewQualityGpuSupports({ ...quality, defocus: true })).toBe(true);
     const runtime = await runtimeOf(createFakeGpu().gpu), renderer = createDisplayViewGpuRenderer(runtime);
-    expect(renderer.supports({ ...quality, defocus: true })).toMatch(/lens\.defocus/u);
-    expect(renderer.supports({ ...quality, ahd: false, diffraction: false, antiAliasing: false, defocus: true })).toMatch(/lens\.defocus/u);
+    expect(renderer.supports({ ...quality, defocus: true })).toBe(true);
+    expect(renderer.supports({ ...quality, ahd: false, diffraction: false, antiAliasing: false, defocus: true })).toBe(true);
     expect(renderer.supports({ ...quality, defocus: false })).toBe(true);
     renderer.dispose?.();
     runtime.destroy();
     const previous = registerDisplayViewGpuRenderer();
     try {
       const base = QUALITY_CASES[3]![1], view = { ...SMALL_VIEW, region: { x: 90, y: 60, width: 12, height: 8 } };
-      // In focus: the option resolves a zero disc and the GPU renders the view.
+      // In focus: the option resolves a zero disc and the GPU renders the view with the tap-list site pass, as without the option.
+      const plain = await prepareDisplayView(base, { gpu: "require", gpuDevice: createFakeGpu().gpu });
       const inFocus = await prepareDisplayView({ ...base, lens: { ...lens, defocus: { model: "geometric-disc" } } }, { gpu: "require", gpuDevice: createFakeGpu().gpu });
-      try { expect((await inFocus.render(view)).diagnostics.fast.execution).toMatchObject({ backend: "webgpu-f32", fallbackReason: null }); } finally { inFocus.dispose(); }
-      // Out of focus (#492 step 2b: the CPU renders it): the renderer's supports() refuses it, so "require" fails while the view is
-      // prepared and "auto" renders the CPU reference with the reason, byte-identical to gpu "off".
-      const defocused = { ...base, lens: { ...lens, focusDistanceM: 1.5, defocus: { model: "geometric-disc" as const } }, subjectDistanceM: 3 };
-      await expect(prepareDisplayView(defocused, { gpu: "require", gpuDevice: createFakeGpu().gpu })).rejects.toMatchObject({ reason: "unsupported-on-backend", message: expect.stringMatching(/lens\.defocus/u) });
-      const off = await prepareDisplayView(defocused), auto = await prepareDisplayView(defocused, { gpu: "auto", gpuDevice: createFakeGpu().gpu });
       try {
-        const cpu = await off.render(view), fallback = await auto.render(view);
-        expect(fallback.diagnostics.fast.execution).toMatchObject({ backend: "cpu-reference", fallbackReason: "unsupported-on-backend" });
-        expect(Array.from(fallback.image.samples)).toEqual(Array.from(cpu.image.samples));
-      } finally { off.dispose(); auto.dispose(); }
+        const a = await plain.render(view), b = await inFocus.render(view);
+        expect(b.diagnostics.fast.execution).toMatchObject({ backend: "webgpu-f32", fallbackReason: null });
+        expect(Array.from(b.image.samples)).toEqual(Array.from(a.image.samples));
+      } finally { plain.dispose(); inFocus.dispose(); }
+      // Out of focus (#492 step 2c): the GPU renders it, within one code of the CPU reference (test/display-view-defocus-gpu.test.ts has the bounds).
+      const defocused = { ...base, lens: { ...lens, focusDistanceM: 1.5, defocus: { model: "geometric-disc" as const } }, subjectDistanceM: 3 };
+      const off = await prepareDisplayView(defocused), gpu = await prepareDisplayView(defocused, { gpu: "require", gpuDevice: createFakeGpu().gpu });
+      try {
+        const cpu = await off.render(view), rendered = await gpu.render(view);
+        expect(rendered.diagnostics.fast.execution).toMatchObject({ backend: "webgpu-f32", fallbackReason: null });
+        for (let i = 0; i < cpu.image.samples.length; i++) expect(Math.abs(rendered.image.samples[i]! - cpu.image.samples[i]!)).toBeLessThanOrEqual(1);
+      } finally { off.dispose(); gpu.dispose(); }
     } finally { setDisplayViewGpuRendererFactory(previous); }
   }, scaledTimeout(300_000));
 

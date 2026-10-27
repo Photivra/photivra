@@ -19,6 +19,7 @@ import { acceptanceOf } from "../helpers/display-view-acceptance-metrics.js";
 import { allElementsComposite, COMPOSITE_ELEMENTS, FIXTURE_ASPECT, labelLayer, layeredScene } from "../helpers/chart-composite-fixtures.js";
 import { chartGeometry } from "../../src/facade/chart-scenes.js";
 import { resolveChartScene } from "../../src/index.js";
+import { DEFOCUS_GPU_EXTRA, DEFOCUS_GPU_GRID } from "../helpers/display-view-defocus-gpu-fixtures.js";
 import { adapterSkipReason, findChromium, isSoftwareAdapter, openBrowserPage, type BrowserPage, type WebGpuAdapterProbe } from "./chromium.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
@@ -239,6 +240,39 @@ describe("webgpu-f32 display view (Quality) vs the float64 reference", () => {
   it("the Quality self-check case passes on the device", async () => {
     if (guard()) return;
     const { outcome } = await call<{ outcome: true | string }>("displayViewQualityConformance", {});
+    expect(outcome).toBe(true);
+  });
+});
+
+interface DefocusPageResult extends QualityPageResult { blockedSum: boolean; siteSumRelativeBound: number; latticePointsResolved: number; pixelFlags: Uint32Array }
+/**
+ * #492 step 2c: the defocus fixtures of test/display-view-defocus-gpu.test.ts on the device (the Quality site pass with the
+ * factored table, the blocked sum and the host's lattice resolution; a defocused Speed request runs the Quality passes with its
+ * bilinear demosaic). Per-stage times on a software adapter are recorded, not GPU performance.
+ */
+describe("webgpu-f32 display view with lens.defocus vs the float64 reference", () => {
+  it.each([...DEFOCUS_GPU_GRID, ...DEFOCUS_GPU_EXTRA].map((c) => [c.name, c] as const))("%s: inside the a-priori bounds; samples within one code; the #480 thresholds met", async (name, c) => {
+    if (guard()) return;
+    const result = await call<DefocusPageResult>("displayViewQuality", { options: c.options, view: c.view });
+    const a = compareDisplayViews(result.cpu, result.gpu), region = c.view.region!, { metrics, verdict } = acceptanceOf(region.width, region.height, result.cpu, result.gpu);
+    expect(result.execution).toMatchObject({ backend: "webgpu-f32", arithmetic: "float32" });
+    expect(result.blockedSum).toBe(true);
+    expect(a.outsideExpectedBound).toBe(0);
+    expect(a.outsideVarianceBound).toBe(0);
+    expect(a.largestCodeDifference).toBeLessThanOrEqual(1);
+    expect(verdict.pass, JSON.stringify(verdict.checks)).toBe(true);
+    expect(Array.from(result.hostRecomputedPixelIndices)).toEqual(Array.from(result.flaggedPixelIndices));
+    expect(result.ahdCorrectedPixelCount).toBe(result.cpu.ahdCorrectedPixelCount);
+    report.push({ case: "defocus: " + name, kernelRadius: c.kernelRadius, tapsPerSite: result.tapsPerSite, siteSumRelativeBound: result.siteSumRelativeBound, pixels: a.pixels,
+      deltaE2000Maximum: a.deltaEMaximum, deltaE2000Rms: a.deltaERms, sigmaUnitsMaximum: a.sigmaUnitsMaximum, sigmaRelativeMaximum: a.sigmaRelativeMaximum, differingSamples: a.differingSamples,
+      largestExpectedBoundRatio: a.largestExpectedRatio, largestVarianceBoundRatio: a.largestVarianceRatio, flagged: result.flaggedPixelIndices.length,
+      flaggedFraction: result.flaggedPixelIndices.length / a.pixels, latticePointsResolved: result.latticePointsResolved,
+      acceptance: { withinFraction: metrics.withinFraction, maxDeltaE: metrics.maxDeltaE, maxSigma: metrics.maxSigma, maxCode8: metrics.maxCode8, pass: verdict.pass },
+      softwareAdapterMilliseconds: result.gpuMilliseconds, softwareAdapterStageMilliseconds: result.stageMilliseconds });
+  });
+  it("the defocus self-check case passes on the device", async () => {
+    if (guard()) return;
+    const { outcome } = await call<{ outcome: true | string }>("displayViewQualityDefocusConformance", {});
     expect(outcome).toBe(true);
   });
 });

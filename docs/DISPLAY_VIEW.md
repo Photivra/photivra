@@ -159,9 +159,13 @@ with K_λ the diffraction kernel (a unit tap without `lens.diffraction`).
   ([Cost, defocus](#defocus-1)).
 - **In focus** (c = 0), or without the option, nothing changes: the view is byte-identical to the request without it,
   and every display-view hash lock holds.
-- **The GPU** display-view renderer does not take the kernel yet (a later step of #492). It refuses a view whose
-  expected signal carries site kernels with `unsupported-on-backend`, so `prepareDisplayView(request, { gpu: "auto" })`
-  renders a defocused view on this CPU path, labelled.
+- **The GPU** renders defocus too (#492 step 2c; `docs/WEBGPU.md`, "Defocus on the GPU"). The engine's renderer gathers
+  these same kernels (the disc, or each node's diffraction kernel convolved with it, rounded once to float32) in its
+  Quality site pass, for Speed and Quality requests alike, up to the same caps; a defocused Speed request runs the Quality
+  passes with its own bilinear demosaic. The result is labelled `webgpu-f32` with its a-priori bound, as every GPU
+  display view. A device whose storage binding limit cannot hold a render's kernel table refuses it with
+  `insufficient-limits`, and `gpu: "auto"` then renders that part on this CPU path, labelled. The Speed-only renderer
+  (`registerDisplayViewSpeedGpuRenderer`) still refuses a view with site kernels at render time.
 
 **Validation** (`test/display-view-defocus.test.mjs`; `scripts/accept-display-view-defocus.mjs` for the whole matrix):
 
@@ -679,8 +683,8 @@ view at R = 4 (f/8) and 32–45× at R = 60 (f/2.8), with medians and ranges as 
 
 The disc's cap of 64 sites (set from the capture's cost, step 2a) applies: a larger blur fails rather than render
 slowly or be clipped. At radii of 30 sites and above, a 96 × 96 part takes seconds on one thread. A faster path (separable sums for the disc's
-rows, or an FFT) is not part of this step; it would be justified by these measurements, and the GPU gather of #492 is
-the planned route for interactive use.
+rows, or an FFT) is not part of this step; it would be justified by these measurements, and the GPU gather of #492
+(step 2c, `docs/WEBGPU.md`) is the route for interactive use; its hardware timing is TBD-TIMING (#475).
 
 ### Whole views against the 2.5 whole-frame view (2.6.0)
 
