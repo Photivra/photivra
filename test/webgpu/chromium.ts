@@ -116,6 +116,30 @@ export interface BrowserPage {
   close(): Promise<void>;
 }
 
+export interface DevToolsTarget { type: string; webSocketDebuggerUrl: string }
+
+/**
+ * Polls the DevTools target list until it holds a page. Chromium prints "DevTools listening on" before its
+ * first page (`about:blank`) is registered, so one query right after that line can see an empty list or
+ * a refused connection; the first CI run of the suite hit this (#488).
+ */
+export async function awaitPageTarget(listTargets: () => Promise<DevToolsTarget[]>, attempts = 100,
+  delayMilliseconds = 100, wait: (ms: number) => Promise<void> = (ms) => new Promise((done) => setTimeout(done, ms))):
+  Promise<DevToolsTarget> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const target = (await listTargets()).find((t) => t.type === "page");
+      if (target) return target;
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt + 1 < attempts) await wait(delayMilliseconds);
+  }
+  throw new Error(`Chromium exposed no page target within ${attempts * delayMilliseconds} ms.`
+    + (lastError instanceof Error ? ` Last error: ${lastError.message}` : ""));
+}
+
 /** Launches headless Chromium on the loopback-served repository and opens its root page (a secure context). */
 export async function openBrowserPage(binary: string, repositoryRoot: string): Promise<BrowserPage> {
   const root = resolve(repositoryRoot);
@@ -143,9 +167,8 @@ export async function openBrowserPage(binary: string, repositoryRoot: string): P
       child.once("exit", () => { clearTimeout(timer); reject(new Error("Chromium exited before exposing DevTools.")); });
     });
     const port = new URL(endpoint).port;
-    const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json() as { type: string; webSocketDebuggerUrl: string }[];
-    const target = targets.find((t) => t.type === "page");
-    if (!target) throw new Error("Chromium exposed no page target.");
+    const target = await awaitPageTarget(async () =>
+      (await fetch(`http://127.0.0.1:${port}/json/list`)).json() as Promise<DevToolsTarget[]>);
     const socket = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise<void>((done, reject) => { socket.onopen = (): void => done(); socket.onerror = (): void => reject(new Error("DevTools socket failed.")); });
     let id = 0;
