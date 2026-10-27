@@ -629,6 +629,14 @@ same values with the same operations in the same order; none reassociates a floa
   shape (Node 24.21.0, one thread, four repeats, builds alternated, against #445): Speed whole-view CPU, extrapolated
   from 30 parts, 31.0–32.1 → 28.8–32.0 s (part medians 82–89 → 73–89 ms); the Siemens-star centre part, whose samples
   read two materials, is slower, 202–342 → 234–341 ms (one part per process, six repeats). Quality is unchanged.
+- **Chart tables are shared by requests of equal numbers (#449).** The expected signal's tables (materials, lattice
+  groups, combined diffraction kernels, whole-kernel material sums) are a function of the spectral nodes, channel
+  responses, query offsets, kernel taps and material values alone, so for chart materials they are kept by those numbers
+  (compared bit for bit, the 4 most recently used) as well as per prepared view: single `simulateDisplayView` calls and
+  captures of one request build them once. Each render keeps its own window state, and the lattice material rings stay
+  per prepared view. Radiance scenes are not shared. Measured on the app-request shape (Node 24.21.0, one
+  thread, builds alternated, against #444): a prepared view's parts are unchanged (medians 68–73 ms in Speed and
+  124–135 ms in Quality with both builds); the capture of the Quality 96 × 64 detail tile, median 116 → 95 ms per call.
 
 **Proof of byte identity.** The display views of all 155 validation cases at their seeds (the requests of
 `validate-display-view.mjs`, Speed and Quality, three sensors) were hashed before and after (SHA-256 of the samples, of

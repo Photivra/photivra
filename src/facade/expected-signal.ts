@@ -99,16 +99,81 @@ const BAND_LIMIT = 1 << 22;
  */
 const LATTICE_RING_ROWS = 128, LATTICE_RING_MAXIMUM_BAND_ROWS = 64, LATTICE_RING_MARGIN = 64;
 
-/** The tables of `createDisplayViewExpectedSignal` that depend only on its input (see there), cached per input object. */
-interface PreparedSignal {
-  reflectance: Float64Array; spectralIndex: Int32Array; spectral: Float64Array[]; groups: Group[]; neutralDirect: number[]; spectralDirect: number[][]; uniformSite: Float64Array[];
-  /** The filled path's lattice material rings, per group (created on first use). */
-  rings: ({ width: number; material: Int16Array | Int32Array; rowId: Int32Array } | undefined)[];
+/**
+ * The tables of `createDisplayViewExpectedSignal` (see there) that are a function of the input's numbers alone: the materials,
+ * the lattice groups' geometry and combined kernels, and the per-material sums. Written only while they are built, never after:
+ * they are shared by every render of an input and, for chart materials, by every input of the same content (#449). Everything a
+ * render changes (each group's window cache and its origin and size, the bands, rings and counts) lives in the render.
+ */
+interface SignalTables {
+  readonly reflectance: Float64Array; readonly spectralIndex: Int32Array; readonly spectral: readonly Float64Array[]; readonly groups: readonly GroupTables[];
+  readonly neutralDirect: readonly number[]; readonly spectralDirect: readonly (readonly number[])[]; readonly uniformSite: readonly Float64Array[];
 }
+/** A lattice group's fixed part: its fractional shift, members, index bounds, rectangle and combined kernels. */
+interface GroupTables { fx: number; fy: number; members: { ix: number; iy: number; weight: number }[]; minIx: number; maxIx: number; minIy: number; maxIy: number;
+  cw: number; ch: number; neutral: Float64Array[]; spectral: Float64Array[][]; perNode: Float64Array[][] }
+/** A render's lattice group: the fixed part and its own window cache (lattice points [cx0, cx0 + cpw) × [cy0, cy0 + cph)). */
+interface Group extends GroupTables { cache: Int32Array | Float64Array; cx0: number; cy0: number; cpw: number; cph: number }
+/** Per input object: the tables, and the filled path's lattice material rings per group (created on first use), which depend on its `materialAt` and raster. */
+interface PreparedSignal { tables: SignalTables; rings: ({ width: number; material: Int16Array | Int32Array; rowId: Int32Array } | undefined)[] }
 const PREPARED = new WeakMap<DisplayViewExpectedSignalInput, PreparedSignal>();
-interface Group { fx: number; fy: number; members: { ix: number; iy: number; weight: number }[]; minIx: number; maxIx: number; minIy: number; maxIy: number;
-  cw: number; ch: number; neutral: Float64Array[]; spectral: Float64Array[][]; perNode: Float64Array[][]; cache: Int32Array | Float64Array; cx0: number; cy0: number; cpw: number; cph: number }
+
+/** Chart-material tables kept by content across input objects (#449), least recently used first. */
+export const EXPECTED_SIGNAL_TABLE_CACHE_SIZE = 4;
+const tableCache: { signature: Uint32Array; tables: SignalTables }[] = [];
+let tableBuilds = 0, tableHits = 0;
+
+/** Internal test hook: the kept table entries, and the tables built and found by content so far. */
+export function expectedSignalTableCacheState(): { size: number; builds: number; hits: number } { return { size: tableCache.length, builds: tableBuilds, hits: tableHits }; }
+/** Internal test hook: forgets the tables kept by content (inputs already prepared keep theirs). */
+export function clearExpectedSignalTableCache(): void { tableCache.length = 0; }
+
+/**
+ * Every number the tables read, with the lengths that delimit them, as the bits of doubles (so -0, NaN and every digit are kept
+ * apart): the spectral nodes, the three channel responses, the offsets, the kernel radius and taps, each material's reflectance or
+ * radiance, and the white radiance. Undefined for radiance scenes, whose tables are not kept by content.
+ */
+function tableSignature(input: DisplayViewExpectedSignalInput): Uint32Array | undefined {
+  const scene = input.scene;
+  if (scene.kind !== "materials") return undefined;
+  const values: number[] = [];
+  const push = (a: ArrayLike<number>): void => { values.push(a.length); for (let i = 0; i < a.length; i++) values.push(a[i]!); };
+  push(input.wavelengthsNm);
+  values.push(input.electronsPerRadiance.length);
+  for (const a of input.electronsPerRadiance) push(a);
+  values.push(input.offsets.length);
+  for (const o of input.offsets) values.push(o.x, o.y, o.weight);
+  if (input.kernels) { values.push(1, input.kernels.radius, input.kernels.perNode.length); for (const k of input.kernels.perNode) push(k); } else values.push(0);
+  values.push(scene.materials.length);
+  for (const m of scene.materials) if ("neutral" in m) values.push(0, m.neutral); else { values.push(1); push(m.radiance); }
+  push(scene.whiteRadiance);
+  return new Uint32Array(Float64Array.from(values).buffer);
+}
+
+function sameBits(a: Uint32Array, b: Uint32Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 function prepareSignal(input: DisplayViewExpectedSignalInput): PreparedSignal {
+  const signature = tableSignature(input);
+  let tables: SignalTables | undefined;
+  if (signature) {
+    const at = tableCache.findIndex((entry) => sameBits(entry.signature, signature));
+    if (at >= 0) { const [entry] = tableCache.splice(at, 1); tableCache.push(entry!); tables = entry!.tables; tableHits++; }
+  }
+  if (!tables) {
+    tables = buildTables(input);
+    tableBuilds++;
+    if (signature) { tableCache.push({ signature, tables }); while (tableCache.length > EXPECTED_SIGNAL_TABLE_CACHE_SIZE) tableCache.shift(); }
+  }
+  const prepared: PreparedSignal = { tables, rings: tables.groups.map(() => undefined) };
+  PREPARED.set(input, prepared);
+  return prepared;
+}
+
+function buildTables(input: DisplayViewExpectedSignalInput): SignalTables {
   const nodes = input.wavelengthsNm.length, R = input.kernels ? input.kernels.radius : 0, size = 2 * R + 1;
   const A = input.electronsPerRadiance, scene = input.scene, offsets = input.offsets;
   const kernelAt = (node: number, t: number): number => (input.kernels ? input.kernels.perNode[node]![t]! : 1);
@@ -117,15 +182,16 @@ function prepareSignal(input: DisplayViewExpectedSignalInput): PreparedSignal {
   const spectral: Float64Array[] = [];
   if (scene.kind === "materials") {
     reflectance = new Float64Array(scene.materials.length); spectralIndex = new Int32Array(scene.materials.length).fill(-1);
-    scene.materials.forEach((m, index) => { if ("neutral" in m) reflectance[index] = m.neutral; else { spectralIndex[index] = spectral.length; spectral.push(m.radiance); } });
+    // A copy of each spectral radiance: the tables may outlive the input and serve other inputs of the same content.
+    scene.materials.forEach((m, index) => { if ("neutral" in m) reflectance[index] = m.neutral; else { spectralIndex[index] = spectral.length; spectral.push(Float64Array.from(m.radiance)); } });
   }
   // Offsets grouped by fractional shift: offsets that differ by whole sites share one lattice.
   const frac = (v: number): number => { const f = v - Math.floor(v); return f > 1 - OFFSET_TOLERANCE || f < OFFSET_TOLERANCE ? 0 : f; };
-  const groups: Group[] = [];
+  const groups: GroupTables[] = [];
   for (const o of offsets) {
     const fx = frac(o.x), fy = frac(o.y), ix = Math.round(o.x - fx), iy = Math.round(o.y - fy);
     let group = groups.find((q) => Math.abs(q.fx - fx) <= OFFSET_TOLERANCE && Math.abs(q.fy - fy) <= OFFSET_TOLERANCE);
-    if (!group) { group = { fx, fy, members: [], minIx: ix, maxIx: ix, minIy: iy, maxIy: iy, cw: 0, ch: 0, neutral: [], spectral: [], perNode: [], cache: new Int32Array(0), cx0: 0, cy0: 0, cpw: 0, cph: 0 }; groups.push(group); }
+    if (!group) { group = { fx, fy, members: [], minIx: ix, maxIx: ix, minIy: iy, maxIy: iy, cw: 0, ch: 0, neutral: [], spectral: [], perNode: [] }; groups.push(group); }
     group.members.push({ ix, iy, weight: o.weight });
     group.minIx = Math.min(group.minIx, ix); group.maxIx = Math.max(group.maxIx, ix); group.minIy = Math.min(group.minIy, iy); group.maxIy = Math.max(group.maxIy, iy);
   }
@@ -164,9 +230,9 @@ function prepareSignal(input: DisplayViewExpectedSignalInput): PreparedSignal {
     }
     return sum;
   })) : [];
-  const prepared = { reflectance, spectralIndex, spectral, groups, neutralDirect, spectralDirect, uniformSite, rings: groups.map(() => undefined) };
-  PREPARED.set(input, prepared);
-  return prepared;
+  // Frozen records: a render copies each group before it gives it a window (see createDisplayViewExpectedSignal).
+  for (const group of groups) Object.freeze(group);
+  return Object.freeze({ reflectance, spectralIndex, spectral, groups, neutralDirect, spectralDirect, uniformSite });
 }
 
 /**
@@ -190,9 +256,10 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   const A = input.electronsPerRadiance, scene = input.scene, offsets = input.offsets, channelAt = input.channelAt;
   // The request's tables (materials, lattice groups, combined kernels, per-material sums) are the same for every render of a
   // prepared view, which passes the same input object: computed once per input. Each render gets its own groups' window caches.
+  // Chart-material tables are also shared by inputs of the same content (#449): each render gets its own groups' window state.
   const prepared = PREPARED.get(input) ?? prepareSignal(input);
-  const { reflectance, spectralIndex, spectral, neutralDirect, spectralDirect, uniformSite } = prepared;
-  const groups: Group[] = prepared.groups.map((group) => ({ ...group, cache: new Int32Array(0), cx0: 0, cy0: 0, cpw: 0, cph: 0 }));
+  const { reflectance, spectralIndex, spectral, neutralDirect, spectralDirect, uniformSite } = prepared.tables;
+  const groups: Group[] = prepared.tables.groups.map((group) => ({ ...group, cache: new Int32Array(0), cx0: 0, cy0: 0, cpw: 0, cph: 0 }));
   let lookups = 0;
   const point = new Float64Array(2);
   const materialSignalDirect = (m: number, c: number): number => {
@@ -284,7 +351,8 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     changeLeft: new Int32Array(0), changeUp: new Int32Array(0), v: new Float64Array(0) }));
   // Lattice rows of material indices per group, kept across windows (filled windows only): rows LATTICE_RING_ROWS apart share a
   // slot; columns from −LATTICE_RING_MARGIN. Int16 when every index fits (about 3 MB for four groups of a 6000-site row). A
-  // lattice point's material depends only on the input, so the rings are kept with its prepared tables, across renders.
+  // lattice point's material depends only on the input, so the rings are kept per input object, across its renders (not with
+  // the tables kept by content: they depend on `materialAt` and the raster).
   const ringWide = scene.kind === "materials" && scene.materials.length <= 32767;
   const rings = prepared.rings;
   function latticeRing(g: number): { width: number; material: Int16Array | Int32Array; rowId: Int32Array } {
