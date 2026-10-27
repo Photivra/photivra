@@ -7516,6 +7516,36 @@ const view = await simulateDisplayView({ scene: { preset: "slanted-edge" }, sens
 console.log(view.kind, view.view.scaleX, view.assumptions.find((a) => a.id === "view.definition")?.value);
 ```
 
+#### Sharing AHD correction states between workers
+
+With `output.demosaic: "ahd"`, low-signal display pixels read correction states that each realm (a page, a Web Worker)
+computes and keeps for itself. Two workers can split a part's states and exchange them instead of both computing all
+of them; the renders have the same bytes either way (see "AHD at low signal" in
+[DISPLAY_VIEW.md](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#ahd-at-low-signal)). Import only
+states whose key a prepared view reported. The two handles below run in one script for the example; in an app each
+runs in its own worker, and the arrays travel with `postMessage(set, [set.gridKeys.buffer, set.values.buffer])`.
+
+```ts
+import { serializeDisplayViewCorrectionStates, bindDisplayViewCorrectionStates, prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
+
+const request: SimulateCaptureOptions = { scene: { preset: "uniform", reflectance: 0.18 }, exposure: { iso: 1600, shutterSeconds: 1 / 2000 },
+  sensor: { pixelPitchMicrometers: 1.4 }, output: { width: 200, height: 150, demosaic: "ahd" } };
+const part = { width: 20, height: 15, region: { x: 0, y: 0, width: 10, height: 8 } };
+// Each worker prepares the same request; the key says which states it reads.
+const workerA = await prepareDisplayView(request), workerB = await prepareDisplayView(request);
+console.log(workerA.correctionKey() === workerB.correctionKey());
+// Worker A finds the states the part needs (no image, no state computed) and gives half to each worker.
+const { gridKeys } = await workerA.collectCorrectionStates(part);
+const half = Math.ceil(gridKeys.length / 2);
+const fromA = await workerA.computeCorrectionStates(gridKeys.slice(0, half));
+const fromB = await workerB.computeCorrectionStates(gridKeys.slice(half));
+// Each worker imports the other's share (in one realm, as here, the second import adds nothing new).
+console.log(bindDisplayViewCorrectionStates([fromB]), bindDisplayViewCorrectionStates([fromA]));
+// Either worker now renders the part without computing a state; a new worker can start from an export.
+const view = await workerA.render(part);
+console.log(view.diagnostics.ahdCorrectedPixelCount, serializeDisplayViewCorrectionStates().map((set) => set.gridKeys.length));
+```
+
 ### Facade 2.0 options: output, demosaic, optics and motion
 
 Each 2.0 option is opt-in and uses an existing public contract. Without them, the facade's output is
