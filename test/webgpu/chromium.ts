@@ -75,10 +75,13 @@ export function findChromium(): string | null {
 }
 
 function contentType(path: string): string {
-  return path.endsWith(".js") ? "text/javascript" : path.endsWith(".html") ? "text/html" : "application/octet-stream";
+  return path.endsWith(".js") || path.endsWith(".mjs") ? "text/javascript" : path.endsWith(".html") ? "text/html" : "application/octet-stream";
 }
 
-/** Loopback server: `.js` requests for missing files are answered with the transpiled sibling `.ts`. */
+/**
+ * Loopback server of `src/`, `test/`, the build (`dist/`) and `scripts/lib/` (the #480 acceptance harness's page module, which
+ * runs the built engine): `.js` requests for missing files are answered with the transpiled sibling `.ts`.
+ */
 function serve(root: string): Promise<{ server: Server; origin: string }> {
   const cache = new Map<string, string>();
   const server = createServer((request, response) => {
@@ -88,7 +91,7 @@ function serve(root: string): Promise<{ server: Server; origin: string }> {
       return;
     }
     const path = normalize(join(root, decodeURIComponent(url.pathname)));
-    if (!path.startsWith(root + sep) || !/^\/(src|test)\//u.test(url.pathname)) { response.writeHead(404).end(); return; }
+    if (!path.startsWith(root + sep) || !/^\/(src|test|dist|scripts\/lib)\//u.test(url.pathname)) { response.writeHead(404).end(); return; }
     try {
       if (existsSync(path)) { response.writeHead(200, { "content-type": contentType(path) }).end(readFileSync(path)); return; }
       const source = path.replace(/\.js$/u, ".ts");

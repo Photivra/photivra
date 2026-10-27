@@ -2,7 +2,10 @@
 import { describe, expect, it } from "vitest";
 import { cielabOfXyz, deltaE2000 } from "../src/color/color-difference.ts";
 import { resolveRgbColorSpace } from "../src/color/rgb-color-spaces.ts";
-import { DEFAULT_THRESHOLDS, createAcceptanceMetrics, differenceImage8, judge, srgbCode8, summarize } from "../scripts/lib/display-view-acceptance.mjs";
+import { DEFAULT_THRESHOLDS, createAcceptanceMetrics, differenceImage8, gpuRenderProblem, judge, requestTransportProblem, srgbCode8, summarize } from "../scripts/lib/display-view-acceptance.mjs";
+import { APP_CHART, appRequestOptions, standInLabelLayer } from "../scripts/lib/display-view-app-request.mjs";
+import { labelLayer } from "./helpers/chart-composite-fixtures.ts";
+import * as engine from "../src/index.ts";
 
 const srgb = resolveRgbColorSpace("srgb").value;
 const { labOfLinearSrgb, deltaEOfLinearSrgb, compareExpectedImages } = createAcceptanceMetrics({ deltaE2000, cielabOfXyz, srgb });
@@ -106,5 +109,51 @@ describe("display-view acceptance reduction (scripts/lib/display-view-acceptance
     expect(summarize([{ id: 0, metrics: passMetrics }, { id: 1, metrics: passMetrics }])).toMatchObject({ pass: true, failing: [] });
     expect(summarize([{ id: 0, metrics: passMetrics }, { id: 1, metrics: failMetrics }])).toMatchObject({ pass: false, failing: [1] });
     expect(summarize([]).pass).toBe(false);
+  });
+});
+
+describe("the GPU producer's guard and request (#480 against the GPU)", () => {
+  const gpu = { backend: "webgpu-f32", fallbackReason: null, arithmetic: "float32", errorBound: { kind: "relative-to-reference", relative: 1e-5, absolute: 0 },
+    conformance: { passed: true, cases: ["a"], failedCase: null }, adapter: { vendor: "v", architecture: "a", device: "", description: "" } };
+  it("accepts only a render labelled webgpu-f32 with no fallback, a passed self-check and a bound; with requireHardware, only a hardware adapter", () => {
+    expect(gpuRenderProblem({ execution: gpu, softwareAdapter: false })).toBeNull();
+    expect(gpuRenderProblem({ execution: gpu, softwareAdapter: true })).toBeNull();
+    expect(gpuRenderProblem({})).toMatch(/no execution record/u);
+    expect(gpuRenderProblem(undefined)).toMatch(/no execution record/u);
+    expect(gpuRenderProblem({ execution: { ...gpu, backend: "cpu-reference", fallbackReason: "unsupported-on-backend" } })).toMatch(/ran cpu-reference, not webgpu-f32 \(fallback reason unsupported-on-backend\)/u);
+    expect(gpuRenderProblem({ execution: { ...gpu, fallbackReason: "device-lost" } })).toMatch(/fallback reason device-lost/u);
+    expect(gpuRenderProblem({ execution: { ...gpu, arithmetic: "float64" } })).toMatch(/arithmetic is float64/u);
+    expect(gpuRenderProblem({ execution: { ...gpu, conformance: null } })).toMatch(/self-check did not pass/u);
+    expect(gpuRenderProblem({ execution: { ...gpu, conformance: { passed: false, cases: ["a"], failedCase: "a" } } })).toMatch(/\(case a\)/u);
+    expect(gpuRenderProblem({ execution: { ...gpu, errorBound: null } })).toMatch(/no error bound/u);
+    expect(gpuRenderProblem({ execution: gpu, softwareAdapter: true }, { requireHardware: true })).toMatch(/software adapter/u);
+    expect(gpuRenderProblem({ execution: gpu, softwareAdapter: null }, { requireHardware: true })).toMatch(/no adapter information/u);
+    expect(gpuRenderProblem({ execution: gpu, softwareAdapter: false }, { requireHardware: true })).toBeNull();
+  });
+  it("finds what JSON cannot carry to the browser page: a caller scene function, a typed array, a non-finite number", () => {
+    expect(requestTransportProblem({ a: [1, { b: "x" }], c: null, d: true })).toBeNull();
+    expect(requestTransportProblem({ scene: { kind: "material-function", materialAt: () => 0 } })).toMatch(/options\.scene\.materialAt is a function.*material-layers/u);
+    expect(requestTransportProblem({ list: [0, new Float64Array(2)] })).toMatch(/options\.list\[1\] is a typed array/u);
+    expect(requestTransportProblem({ x: Number.NaN })).toMatch(/options\.x is NaN/u);
+  });
+  it("the stand-in label layer is the engine fixtures' label layer, and the material-layers request is plain data", () => {
+    for (const aspect of [2 / 3, 1352 / 2028, 0.75]) expect(standInLabelLayer(aspect)).toEqual(labelLayer(aspect));
+    const view = { width: 2028, height: 1352 };
+    for (const options of ["speed", "quality"]) {
+      const request = appRequestOptions(engine, { options, fNumber: 8 }, { view, sceneId: "acceptance:app", scene: "material-layers" });
+      expect(requestTransportProblem(request)).toBeNull();
+      expect(JSON.parse(JSON.stringify(request))).toEqual(request);
+      expect(request.scene).toEqual({ kind: "material-layers", sceneId: "acceptance:app", chart: APP_CHART, layers: [standInLabelLayer(1352 / 2028)] });
+      expect(engine.resolveChartMaterialLayers({ scene: request.scene, aspect: 1352 / 2028 }).layers).toHaveLength(1);
+      // The rest of the request is the app's shape, the same in both scene forms.
+      const { scene: _layers, ...rest } = request, { scene: _function, ...functionRest } = appRequestOptions(engine, { options, fNumber: 8 }, { view });
+      void _layers; void _function;
+      expect(rest).toEqual(functionRest);
+      expect(rest.output).toMatchObject({ width: 6000, height: 4000, ...(options === "quality" ? { demosaic: "ahd" } : {}) });
+    }
+    // The default form is still #480's caller function (the benchmark's request is unchanged).
+    expect(appRequestOptions(engine, { options: "speed", fNumber: 8 }).scene.kind).toBe("material-function");
+    expect(requestTransportProblem(appRequestOptions(engine, { options: "speed", fNumber: 8 }))).toMatch(/materialAt is a function/u);
+    expect(() => appRequestOptions(engine, { options: "speed", fNumber: 8 }, { scene: "other" })).toThrow(/Unknown scene form/u);
   });
 });

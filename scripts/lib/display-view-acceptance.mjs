@@ -95,3 +95,36 @@ export function summarize(records, thresholds = DEFAULT_THRESHOLDS) {
   const judged = records.map((r) => ({ ...r, verdict: judge(r.metrics, thresholds) }));
   return { cases: judged, pass: judged.length > 0 && judged.every((r) => r.verdict.pass), failing: judged.filter((r) => !r.verdict.pass).map((r) => r.id) };
 }
+
+/**
+ * Why a candidate render does not count as a GPU render, or null when it does: the guard of `--gpu` (#480), so that a run
+ * whose GPU did not render fails loudly instead of comparing the CPU with itself. `render` is the producer's result; its
+ * `execution` is the render's `diagnostics.fast.execution` (`DisplayViewExecution`) and `softwareAdapter` whether the browser
+ * reported a software adapter (SwiftShader). With `requireHardware` a software adapter is a failure too.
+ */
+export function gpuRenderProblem(render, { requireHardware = false } = {}) {
+  const execution = render?.execution;
+  if (!execution || typeof execution !== "object") return "the candidate reported no execution record, so nothing shows that the GPU rendered the view.";
+  if (execution.backend !== "webgpu-f32") return `the candidate ran ${String(execution.backend)}, not webgpu-f32` + (execution.fallbackReason ? ` (fallback reason ${execution.fallbackReason})` : "") + ".";
+  if (execution.fallbackReason !== null && execution.fallbackReason !== undefined) return `the candidate's render carries the fallback reason ${execution.fallbackReason}.`;
+  if (execution.arithmetic !== "float32") return `the candidate's arithmetic is ${String(execution.arithmetic)}, not float32.`;
+  if (!execution.conformance || execution.conformance.passed !== true) return "the device's run-time conformance self-check did not pass" + (execution.conformance?.failedCase ? ` (case ${execution.conformance.failedCase})` : "") + ".";
+  if (!execution.errorBound) return "the candidate's GPU render reported no error bound.";
+  if (requireHardware && render.softwareAdapter !== false) return `a hardware adapter was required, but the browser reported ${render.softwareAdapter === true ? "a software adapter" : "no adapter information"} (${JSON.stringify(execution.adapter)}).`;
+  return null;
+}
+
+/**
+ * Why a request cannot be sent to the browser page of the GPU producer, or null: the page receives it as JSON, so it must hold
+ * no function (a caller scene function, which the GPU renderer refuses anyway: give the scene as `material-layers`).
+ */
+export function requestTransportProblem(options, path = "options") {
+  if (typeof options === "function") return `${path} is a function; the GPU producer needs the request as data (give the scene as material-layers, not a caller scene function).`;
+  if (options === null || typeof options !== "object") {
+    if (typeof options === "number" && !Number.isFinite(options)) return `${path} is ${options}, which JSON cannot carry.`;
+    return typeof options === "bigint" || typeof options === "symbol" ? `${path} is a ${typeof options}, which JSON cannot carry.` : null;
+  }
+  if (ArrayBuffer.isView(options)) return `${path} is a typed array, which this transport does not carry.`;
+  for (const [key, value] of Object.entries(options)) { const problem = requestTransportProblem(value, Array.isArray(options) ? `${path}[${key}]` : `${path}.${key}`); if (problem) return problem; }
+  return null;
+}
