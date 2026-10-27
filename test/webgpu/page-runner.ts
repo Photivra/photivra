@@ -3,12 +3,12 @@
  * Browser half of `npm run test:webgpu`: runs the `webgpu-f32` backend (and, for timing only, the CPU
  * reference) on payloads built by the Node driver. All comparison against the reference happens in Node.
  */
-import { createImageKernelAccelerator, ImageKernelExecutionError, type ImageKernelAccelerator, type IrradianceConvolutionInput,
+import { calculateChartRadianceBatch, createImageKernelAccelerator, ImageKernelExecutionError, type ImageKernelAccelerator, type IrradianceConvolutionInput,
   type NativeCaptureSdrInput, type NativeCaptureSdrProvider, type NativeCaptureSdrTile, type NativeCaptureSdrTileRequest,
   type NativeRawDevelopmentInput, type PackedSensorRawInput, type TemporalExposureSumInput, type ChartRadianceBatchInput } from "../../src/index.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
-interface RunRequest<T> { input: T; maximumBandBytes?: number; timeCpu?: boolean; repeat?: number }
+interface RunRequest<T> { input: T; maximumBandBytes?: number; timeCpu?: boolean; repeat?: number; reference?: boolean }
 
 export async function simulateSensor(payload: string): Promise<string> {
   const request = decodeTransport<RunRequest<PackedSensorRawInput>>(payload);
@@ -21,7 +21,9 @@ export async function simulateSensor(payload: string): Promise<string> {
 export async function chartRadiance(payload: string): Promise<string> {
   const request = decodeTransport<RunRequest<ChartRadianceBatchInput>>(payload);
   const gpu = await timed("webgpu-f32", request.maximumBandBytes, request.repeat ?? 1, a => a.evaluateChartRadiance(request.input));
-  return encodeTransport({ values: gpu.result.values, execution: gpu.result.execution, hostRecomputedQueryIndices: gpu.result.hostRecomputedQueryIndices });
+  // The float64 reference of this realm, on request: flagged points are recomputed here, with this realm's Math functions.
+  const reference = request.reference ? calculateChartRadianceBatch(request.input).values : null;
+  return encodeTransport({ values: gpu.result.values, execution: gpu.result.execution, hostRecomputedQueryIndices: gpu.result.hostRecomputedQueryIndices, reference });
 }
 
 export async function sumTemporal(payload: string): Promise<string> {
