@@ -46,8 +46,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface ChartRadianceBatchInput {
   schemaVersion: typeof CHART_RADIANCE_BATCH_SCHEMA_VERSION;
-  /** An engine chart preset (caller scene functions are not supported here). */
-  scene: ChartScene;
+  /** An engine chart preset, or (#477) a declared `material-layers` scene: a chart under shape-mask layers. Caller scene functions are not supported here. */
+  scene: ChartScene | ChartMaterialLayerScene;
   illuminant: CaptureIlluminant;
   illuminanceLux: number;
   /** Frame height / width. */
@@ -74,7 +74,12 @@ Validated plan with the resolved chart, illuminant and irradiance scale. Arrays 
 
 ```ts
 export interface ChartRadianceBatchPlan {
+  /** The resolved chart; with a `material-layers` scene, the chart under the layers. */
   chart: ResolvedChartScene;
+  /** The resolved layers of a `material-layers` scene, or null for a chart preset. */
+  layers: ResolvedChartMaterialLayers | null;
+  /** Every material a query can resolve to: the chart's, then each layer's background and ink. */
+  materials: ResolvedChartScene["materials"];
   illuminant: ResolvedCaptureIlluminant;
   irradianceScale: number;
   queryCount: number;

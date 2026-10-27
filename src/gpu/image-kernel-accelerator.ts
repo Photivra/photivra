@@ -38,6 +38,7 @@ import { calculateTemporalExposureSumPlan, type TemporalExposureSumInput, type T
 import { sumTemporalExposureOnCpu, sumTemporalExposureOnGpu } from "./temporal-sum-gpu.js";
 import type { ChartRadianceBatchInput, ChartRadianceBatchPlan } from "../facade/chart-radiance-batch.js";
 import { evaluateChartRadianceOnCpu, evaluateChartRadianceOnGpu } from "./chart-radiance-gpu.js";
+import { ChartSceneUploads } from "./chart-composite-gpu.js";
 
 export interface ChartRadianceResult {
   plan: ChartRadianceBatchPlan;
@@ -217,6 +218,8 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
   runtime: WebGpuRuntime | null, bandBytes: number): ImageKernelAccelerator {
   let disposed = false, busy = false;
   const pipelines = new Map<string, Promise<GPUComputePipeline>>();
+  // #477: a scene's chart records are uploaded once and reused by later calls (a prepared view's parts).
+  const chartUploads = runtime ? new ChartSceneUploads(runtime) : null;
   const backend: ImageKernelBackend = runtime ? "webgpu-f32" : "cpu-reference";
   function state(): ImageKernelAcceleratorState { return disposed ? "disposed" : runtime?.isLost() ? "lost" : "ready"; }
   function pipeline(gpu: WebGpuRuntime, label: string, code: string, signal: AbortSignal): Promise<GPUComputePipeline> {
@@ -307,13 +310,16 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
       const run = runOptions(options);
       return operate(run.signal, async (abort) => {
         if (!runtime) return evaluateChartRadianceOnCpu(input, abort, run.yieldControl, cpuLabel());
-        return evaluateChartRadianceOnGpu(runtime, bandBytes, input, abort, run.yieldControl, (label, code) => pipeline(runtime, label, code, abort.signal));
+        // #477: the chart stage consults the realm's switch on every call; off, the reference runs and the label says so.
+        if (!getWebGpuEnabled()) return evaluateChartRadianceOnCpu(input, abort, run.yieldControl, cpuExecution(requested, "webgpu-disabled"));
+        return evaluateChartRadianceOnGpu(runtime, bandBytes, input, abort, run.yieldControl, (label, code) => pipeline(runtime, label, code, abort.signal), chartUploads!);
       });
     },
     dispose(): void {
       if (disposed) return;
       disposed = true;
       pipelines.clear();
+      chartUploads?.release();
       runtime?.destroy();
     }
   };

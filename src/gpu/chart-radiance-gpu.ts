@@ -13,6 +13,7 @@ import { ImageKernelExecutionError, webGpuExecution, type ImageKernelExecution }
 import type { ChartRadianceResult } from "./image-kernel-accelerator.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, linearDispatch, runComputePass, type WebGpuRuntime } from "./webgpu-runtime.js";
 import { CHART_PRESET_CODE, CHART_RADIANCE_WGSL, CHART_WORKGROUP_SIZE } from "./wgsl-chart-kernel.js";
+import { evaluateChartCompositeOnGpu, type ChartSceneUploads } from "./chart-composite-gpu.js";
 
 type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
 type YieldControl = ((signal: AbortSignal) => Promise<void>) | undefined;
@@ -42,15 +43,14 @@ export async function evaluateChartRadianceOnCpu(input: ChartRadianceBatchInput,
 }
 
 /**
- * The preset code of a chart the WGSL kernel classifies, or undefined. The kernel covers the eight 2.0 presets
- * (a Siemens star only with the bar profile). The 2.3 elements and composites run on `cpu-reference`: their
- * continuous profiles need WGSL sin/cos/atan2 whose accuracy bounds would flag a large share of points for host
- * recomputation, and dead leaves, bar groups and composites need per-element tables not yet written or measured
- * on a device. @internal
+ * The preset code of a chart the preset kernel (wgsl-chart-kernel.ts) classifies, or undefined. That kernel covers
+ * the eight 2.0 presets as plain charts (a Siemens star only with the bar profile). Everything else, the 2.3
+ * elements, the sine star, `composite` charts and `material-layers` scenes, runs on the composite kernel (#477,
+ * chart-composite-gpu.ts). @internal
  */
 export function chartGpuPresetCode(plan: ChartRadianceBatchPlan): number | undefined {
   const preset = plan.chart.preset;
-  if (!Object.prototype.hasOwnProperty.call(CHART_PRESET_CODE, preset) || plan.chart.parameters.profile === "sine") return undefined;
+  if (plan.layers || !Object.prototype.hasOwnProperty.call(CHART_PRESET_CODE, preset) || plan.chart.parameters.profile === "sine") return undefined;
   return CHART_PRESET_CODE[preset as keyof typeof CHART_PRESET_CODE];
 }
 
@@ -112,13 +112,10 @@ function materialTable(plan: ChartRadianceBatchPlan): Float32Array<ArrayBuffer> 
 }
 
 export async function evaluateChartRadianceOnGpu(runtime: WebGpuRuntime, bandBytes: number, input: ChartRadianceBatchInput, abort: AbortController,
-  yieldControl: YieldControl, pipelines: PipelineSource): Promise<ChartRadianceResult> {
+  yieldControl: YieldControl, pipelines: PipelineSource, uploads: ChartSceneUploads): Promise<ChartRadianceResult> {
   const plan = calculateChartRadianceBatchPlan(input), points = input.points.slice(), indices = input.wavelengthIndices?.slice();
   const presetCode = chartGpuPresetCode(plan);
-  if (presetCode === undefined) {
-    throw new ImageKernelExecutionError("unsupported-on-backend", "webgpu-f32 classifies the eight 2.0 chart presets (Siemens star with the bar profile); use cpu-reference for " +
-      plan.chart.preset + (plan.chart.parameters.profile === "sine" ? " (sine profile)" : "") + ".");
-  }
+  if (presetCode === undefined) return evaluateChartCompositeOnGpu(runtime, bandBytes, plan, input.scene, points, indices, abort, yieldControl, pipelines, uploads);
   for (let i = 0; i < points.length; i++) {
     if (Math.abs(points[i]!) > CHART_GPU_MAXIMUM_COORDINATE) throw new ImageKernelExecutionError("unsupported-float32-domain", "Chart points beyond 2^20 frame units are outside the float32 domain.");
   }

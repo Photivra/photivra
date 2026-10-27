@@ -19,6 +19,11 @@ import { calculateChartRadianceBatch, calculateEnvironmentSensorPhotoSignal, cal
   mapEnvironmentDirectionsToChartPoints, resolveLensPsfConvolutionKernels, simulateCapture, type ChartRadianceBatchInput, type ChartScene,
   type IrradianceConvolutionInput, type LensSampledPsfProfile, type SceneRadianceEvaluationRequest, type SceneRadianceEvaluationResult } from "../../src/index.js";
 import { gaussianPsfProfile } from "./lens-psf-kernel-fixture.js";
+import { CHART_PRESET_SCENES } from "./chart-radiance-fixtures.js";
+import { allElementsComposite } from "./chart-composite-fixtures.js";
+
+/** The rollout's scenes: every built-in preset, and (#477) the all-elements composite on the composite kernel. */
+export const ROLLOUT_SCENES: readonly [string, ChartScene][] = [...CHART_PRESET_SCENES, ["composite", allElementsComposite()]];
 
 export const ROLLOUT_FRAME = Object.freeze({ width: 192, height: 128, pitchMicrometers: 6, spectralStepNanometers: 40, patch: 8 });
 const EVIDENCE = [{ sourceOrigin: "photivra", sourceReference: "test:webgpu-rollout", reuseStatus: "photivra-owned" }];
@@ -196,5 +201,7 @@ export const ROLLOUT_PINNED_METHOD_ERROR: Readonly<Record<string, Readonly<Recor
   "grey-ramp": { "exact-centre": 0.024, "exact-off-axis": 0.017, "subsite-off-axis": 0.016 },
   checkerboard: { "exact-centre": 0.025, "exact-off-axis": 0.018, "subsite-off-axis": 0.016 },
   "point-grid": { "exact-centre": 0.027, "exact-off-axis": 0.013, "subsite-off-axis": 0.18 },
-  patches: { "exact-centre": 0.025, "exact-off-axis": 0.018, "subsite-off-axis": 0.021 }
+  patches: { "exact-centre": 0.025, "exact-off-axis": 0.018, "subsite-off-axis": 0.021 },
+  // #477: the all-elements composite; the centre tile lies on its bar star's centre and the off-axis tiles on the bar groups.
+  composite: { "exact-centre": 0.29, "exact-off-axis": 0.018, "subsite-off-axis": 0.22 }
 });

@@ -9,6 +9,8 @@ import { SDR_COUNTER, SDR_TONE_MODE } from "../../src/gpu/wgsl-kernels.js";
 import { emulateChart, emulateSensor, emulateTemporalSum, nearestArithmetic, type EmulationArithmetic } from "./fake-webgpu-stages.js";
 
 const f = Math.fround;
+// #477: the composite chart kernel and its probe are emulated in their own module.
+import { emulateComposite } from "./fake-webgpu-composite.js";
 
 export interface FakeGpuControls {
   /** Buffers created / destroyed so far. */
@@ -222,7 +224,7 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: Em
     emulateChart(u32(0), f32(0), f32(1), f32(2), f32(3), u32(4), f32(5), u32(6), arithmetic);
   } else if (label === "photivra-temporal-sum") {
     emulateTemporalSum(u32(0), f32(1), buffers.get(2)!.data, f32(3), f32(4));
-  } else {
+  } else if (!emulateComposite(label, (b) => buffers.get(b)!.data)) {
     throw new Error(`No emulator for ${label}`);
   }
 }

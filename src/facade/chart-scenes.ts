@@ -329,6 +329,40 @@ const MATERIAL_INPUTS = new WeakMap<ResolvedChartScene, readonly unknown[]>();
 export function chartMaterialInputs(chart: ResolvedChartScene): readonly unknown[] {
   return MATERIAL_INPUTS.get(chart) ?? chart.materials.map(() => undefined);
 }
+
+/** One group of a `bar-groups` chart in its own frame units (internal). */
+export interface ChartBarGroupGeometry { lineWidthsPerPictureHeight: number; lineWidth: number; cell: { u0: number; u1: number }; verticalBars: ChartRectangle;
+  horizontalBars: ChartRectangle; label?: { text: string; u0: number; v0: number; height: number } }
+/**
+ * Internal (not exported from the package): the float64 constants and tables a resolved chart's `materialAt` decides
+ * with, so another evaluator (the `webgpu-f32` chart stage, #477) can classify points with the same geometry. Every
+ * value is the one the closure holds; nothing is recomputed. `composite` lists its resolved background and elements.
+ */
+export type ChartGeometry =
+  | { kind: "uniform" }
+  | { kind: "slanted-edge"; c: number; s: number }
+  | { kind: "siemens-star"; profile: "bar" | "sine"; cycles: number; r: number; dark: number; light: number; background: number }
+  | { kind: "step-wedge"; steps: number }
+  | { kind: "checkerboard"; size: number }
+  | { kind: "point-grid"; columns: number; rows: number; cellW: number; cellH: number; radius: number; centers: readonly { u: number; v: number }[] }
+  | { kind: "patches"; columns: number; rows: number; count: number; gap: number; cellW: number; cellH: number; backgroundIndex: number }
+  | { kind: "dead-leaves"; u0: number; v0: number; cell: number; nx: number; ny: number; head: Int32Array; next: Int32Array; entryDisk: Int32Array; entries: number;
+      X: Float64Array; Y: Float64Array; R2: Float64Array; level: Uint16Array; diskCount: number; mean: number }
+  | { kind: "bar-groups"; groups: readonly ChartBarGroupGeometry[] }
+  | { kind: "hyperbolic-wedge"; orientation: "horizontal" | "vertical"; lines: number; ph: number; lw0: number; lw1: number }
+  | { kind: "zone-plate"; r: number; k: number; dark: number; light: number }
+  | { kind: "slanted-squares"; columns: number; rows: number; cellW: number; cellH: number; c: number; s: number; half: number }
+  | { kind: "line-grid"; spacing: number; half: number }
+  | { kind: "fiducial"; r: number; inner: number; inverted: boolean }
+  | { kind: "composite"; background: ResolvedChartScene;
+      elements: readonly { chart: ResolvedChartScene; offset: number; cu: number; cv: number; hw: number; hh: number; scale: number; ellipse: boolean }[] };
+const GEOMETRY = new WeakMap<ResolvedChartScene, ChartGeometry>();
+/** Internal: the geometry of a chart resolved by {@link resolveChartScene} (see {@link ChartGeometry}). */
+export function chartGeometry(chart: ResolvedChartScene): ChartGeometry {
+  const geometry = GEOMETRY.get(chart);
+  if (!geometry) throw new InvalidConfigurationError("Not a chart resolved by resolveChartScene.");
+  return geometry;
+}
 /** Frame context of a chart being resolved: the picture height (in its own frame units) its LW/PH frequencies refer to. */
 /** `pow`: the portable power for the display view's step-wedge levels (passed in, so captures' bundles do not contain it). */
 interface ChartContext { pictureHeight: number; nested: boolean; pow?: (x: number, y: number) => number }
@@ -383,7 +417,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
   const get = (key: string): unknown => { if (record[key] === undefined) { if (key in defaults) defaulted.push(key); return defaults[key]; } return record[key]; };
   const neutral = (key: string): number => reflectance(get(key), key);
   const done = (parameters: Record<string, unknown>, materials: ResolvedChartScene["materials"], materialAt: (u: number, v: number) => number,
-    inputs?: readonly unknown[]): ResolvedChartScene => {
+    inputs: readonly unknown[] | undefined, geometry: ChartGeometry): ResolvedChartScene => {
     const chart: ResolvedChartScene = Object.freeze({ preset: preset as ChartScenePresetId, parameters: Object.freeze(parameters), defaultedParameters: Object.freeze(defaulted), aspect,
       materials: Object.freeze(materials), materialAt,
       reflectanceAt(u: number, v: number, nm: number): number {
@@ -394,19 +428,20 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         return value;
       } });
     if (inputs) MATERIAL_INPUTS.set(chart, Object.freeze([...inputs]));
+    GEOMETRY.set(chart, geometry);
     return chart;
   };
   switch (preset as ChartScenePresetId) {
     case "uniform": {
       const raw = get("reflectance"), m = resolveChartMaterial(raw, "reflectance");
-      return done({ reflectance: typeof raw === "number" ? raw : "caller-spectrum" }, [m], () => 0, [typeof raw === "number" ? undefined : raw]);
+      return done({ reflectance: typeof raw === "number" ? raw : "caller-spectrum" }, [m], () => 0, [typeof raw === "number" ? undefined : raw], { kind: "uniform" });
     }
     case "slanted-edge": {
       const angle = finiteIn(get("angleDegrees"), "angleDegrees", -45, 45, true), dark = neutral("darkReflectance"), light = neutral("lightReflectance");
       const t = angle * Math.PI / 180, c = Math.cos(t), s = Math.sin(t);
       // Edge through the frame centre along (sin t, cos t); the light side is to the right.
       return done({ angleDegrees: angle, darkReflectance: dark, lightReflectance: light },
-        [{ kind: "neutral", reflectance: dark }, { kind: "neutral", reflectance: light }], (u, v) => (u * c - v * s >= 0 ? 1 : 0));
+        [{ kind: "neutral", reflectance: dark }, { kind: "neutral", reflectance: light }], (u, v) => (u * c - v * s >= 0 ? 1 : 0), undefined, { kind: "slanted-edge", c, s });
     }
     case "siemens-star": {
       const cycles = integerIn(get("cycles"), "cycles", 2, 360), radius = finiteIn(get("radiusFraction"), "radiusFraction", 0, 1, false);
@@ -424,7 +459,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
           if (u * u + v * v > r * r) return CHART_CONTINUOUS_LEVELS;
           const phase = Math.atan2(v, u) / (2 * Math.PI) + 0.5;
           return continuousLevel(mid + amp * Math.sin(2 * Math.PI * cycles * phase), dark, light);
-        });
+        }, undefined, { kind: "siemens-star", profile: "sine", cycles, r, dark, light, background });
       }
       if (profile === "bar") parameters.profile = profile;
       return done(parameters,
@@ -432,7 +467,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
           if (u * u + v * v > r * r) return 2;
           const phase = Math.atan2(v, u) / (2 * Math.PI) + 0.5; // [0, 1]
           return Math.floor(phase * 2 * cycles) % 2 === 0 ? 1 : 0;
-        });
+        }, undefined, { kind: "siemens-star", profile: "bar", cycles, r, dark, light, background });
     }
     case "step-wedge": {
       const steps = integerIn(get("steps"), "steps", 2, 64), lo = neutral("minimumReflectance"), hi = neutral("maximumReflectance"), spacing = get("spacing");
@@ -441,7 +476,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
       const values = stepWedgeReflectances(steps, lo, hi, spacing, context.pow);
       return done({ steps, minimumReflectance: lo, maximumReflectance: hi, spacing, stepReflectances: values },
         values.map((reflectanceValue) => ({ kind: "neutral" as const, reflectance: reflectanceValue })),
-        (u) => Math.min(steps - 1, Math.max(0, Math.floor((u + 1) / 2 * steps))));
+        (u) => Math.min(steps - 1, Math.max(0, Math.floor((u + 1) / 2 * steps))), undefined, { kind: "step-wedge", steps });
     }
     case "grey-ramp": {
       const lo = neutral("minimumReflectance"), hi = neutral("maximumReflectance");
@@ -449,13 +484,13 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
       // A continuous ramp is stored as 1024 neutral levels. The step size (< 0.1 % of the range) is far below sensor noise.
       const levels = 1024, materials = Array.from({ length: levels }, (_, i) => ({ kind: "neutral" as const, reflectance: lo + (hi - lo) * (i + 0.5) / levels }));
       return done({ minimumReflectance: lo, maximumReflectance: hi, representation: "1024 equal neutral levels" }, materials,
-        (u) => Math.min(levels - 1, Math.max(0, Math.floor((u + 1) / 2 * levels))));
+        (u) => Math.min(levels - 1, Math.max(0, Math.floor((u + 1) / 2 * levels))), undefined, { kind: "step-wedge", steps: levels });
     }
     case "checkerboard": {
       const across = integerIn(get("squaresAcross"), "squaresAcross", 2, 256), dark = neutral("darkReflectance"), light = neutral("lightReflectance"), size = 2 / across;
       return done({ squaresAcross: across, darkReflectance: dark, lightReflectance: light },
         [{ kind: "neutral", reflectance: dark }, { kind: "neutral", reflectance: light }],
-        (u, v) => ((Math.floor((u + 1) / size) + Math.floor((aspect - v) / size)) % 2 === 0 ? 1 : 0));
+        (u, v) => ((Math.floor((u + 1) / size) + Math.floor((aspect - v) / size)) % 2 === 0 ? 1 : 0), undefined, { kind: "checkerboard", size });
     }
     case "point-grid": {
       const columns = integerIn(get("columns"), "columns", 1, 256), rows = integerIn(get("rows"), "rows", 1, 256);
@@ -467,7 +502,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
           const i = Math.min(columns - 1, Math.max(0, Math.floor((u + 1) / cellW))), j = Math.min(rows - 1, Math.max(0, Math.floor((aspect - v) / cellH)));
           const c = centers[j * columns + i]!;
           return (u - c.u) ** 2 + (v - c.v) ** 2 <= radius * radius ? 1 : 0;
-        });
+        }, undefined, { kind: "point-grid", columns, rows, cellW, cellH, radius, centers });
     }
     case "patches": {
       const list = record.patches;
@@ -498,7 +533,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         const index = j * columns + i, x = fx - i, y = fy - j;
         if (index >= list.length || x < gap / 2 || x > 1 - gap / 2 || y < gap / 2 || y > 1 - gap / 2) return backgroundIndex;
         return index;
-      }, inputs);
+      }, inputs, { kind: "patches", columns, rows, count: list.length, gap, cellW, cellH, backgroundIndex });
     }
     case "dead-leaves": {
       const rMin = finiteIn(get("radiusMinimum"), "radiusMinimum", DEAD_LEAVES_MINIMUM_RADIUS, 2), rMax = finiteIn(get("radiusMaximum"), "radiusMaximum", 0, 2, true);
@@ -507,7 +542,8 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
       if (hi < lo) throw new InvalidConfigurationError("Dead leaves need minimum ≤ maximum reflectance.");
       const leaves = generateDeadLeaves(rMin, rMax, seed, aspect);
       return done({ radiusMinimum: rMin, radiusMaximum: rMax, minimumReflectance: lo, maximumReflectance: hi, seed, diskCount: leaves.diskCount,
-        radiusDensity: "proportional-to-r^-3", representation: CHART_CONTINUOUS_LEVELS + " equal neutral levels" }, continuousMaterials(lo, hi), leaves.levelAt);
+        radiusDensity: "proportional-to-r^-3", representation: CHART_CONTINUOUS_LEVELS + " equal neutral levels" }, continuousMaterials(lo, hi), leaves.levelAt, undefined,
+        { kind: "dead-leaves", ...leaves.tables });
     }
     case "bar-groups": {
       const lws = get("lineWidthsPerPictureHeight");
@@ -525,7 +561,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
           return 1;
         }
         return 1;
-      });
+      }, undefined, { kind: "bar-groups", groups: layout });
     }
     case "hyperbolic-wedge": {
       const orientation = get("orientation");
@@ -544,7 +580,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
           const w = ph / (lw0 + (lw1 - lw0) * s), half = (2 * lines - 1) * w / 2;
           if (y < -half || y >= half) return 1;
           return Math.floor((y + half) / w) % 2 === 0 ? 0 : 1;
-        });
+        }, undefined, { kind: "hyperbolic-wedge", orientation, lines, ph, lw0, lw1 });
     }
     case "zone-plate": {
       const radius = finiteIn(get("radiusFraction"), "radiusFraction", 0, 1, false);
@@ -561,7 +597,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         const r2 = u * u + v * v;
         if (r2 > r * r) return CHART_CONTINUOUS_LEVELS;
         return continuousLevel(mid + amp * Math.cos(Math.PI * k * r2), dark, light);
-      });
+      }, undefined, { kind: "zone-plate", r, k, dark, light });
     }
     case "slanted-squares": {
       const columns = integerIn(get("columns"), "columns", 1, 64), rows = integerIn(get("rows"), "rows", 1, 64);
@@ -575,13 +611,14 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         const du = u - (-1 + (i + 0.5) * cellW), dv = v - (aspect - (j + 0.5) * cellH);
         const x = du * c - dv * s, y = du * s + dv * c;
         return Math.abs(x) <= half && Math.abs(y) <= half ? 0 : 1;
-      });
+      }, undefined, { kind: "slanted-squares", columns, rows, cellW, cellH, c, s, half });
     }
     case "line-grid": {
       const spacing = finiteIn(get("spacing"), "spacing", 0, 2, true), width = finiteIn(get("lineWidth"), "lineWidth", 0, spacing, true);
       const line = neutral("lineReflectance"), background = neutral("backgroundReflectance"), half = width / 2;
       return done({ spacing, lineWidth: width, lineReflectance: line, backgroundReflectance: background }, neutralMaterials([background, line]),
-        (u, v) => (Math.abs(u - spacing * Math.round(u / spacing)) <= half || Math.abs(v - spacing * Math.round(v / spacing)) <= half ? 1 : 0));
+        (u, v) => (Math.abs(u - spacing * Math.round(u / spacing)) <= half || Math.abs(v - spacing * Math.round(v / spacing)) <= half ? 1 : 0), undefined,
+        { kind: "line-grid", spacing, half });
     }
     case "fiducial": {
       const radius = finiteIn(get("radiusFraction"), "radiusFraction", 0, 1, false), ring = finiteIn(get("ringFraction"), "ringFraction", 0, 1, true);
@@ -594,7 +631,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
           if (r2 > r * r) return 2;
           if (r2 > inner * inner) return 0;
           return ((u >= 0) === (v >= 0)) !== inverted ? 0 : 1;
-        });
+        }, undefined, { kind: "fiducial", r, inner, inverted });
     }
     case "composite": {
       const list = record.elements;
@@ -630,7 +667,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
           return e.offset + e.chart.materialAt(du * e.scale, dv * e.scale);
         }
         return background.materialAt(u, v);
-      }, inputs);
+      }, inputs, { kind: "composite", background, elements: elements.map((e) => ({ chart: e.chart, offset: e.offset, cu: e.cu, cv: e.cv, hw: e.hw, hh: e.hh, scale: e.scale, ellipse: e.ellipse })) });
     }
   }
 }
@@ -648,7 +685,8 @@ const DEAD_LEAVES_MARGIN = 0.1;
  * the backward perfect simulation of the stationary model (Kendall and Thönnes 1999). Deterministic: the
  * engine's xorshift32 stream, and only correctly rounded operations (+ − × ÷ and √) on the drawn values.
  */
-function generateDeadLeaves(rMin: number, rMax: number, seed: number, aspect: number): { diskCount: number; levelAt(u: number, v: number): number } {
+function generateDeadLeaves(rMin: number, rMax: number, seed: number, aspect: number): { diskCount: number; levelAt(u: number, v: number): number;
+  tables: Omit<Extract<ChartGeometry, { kind: "dead-leaves" }>, "kind"> } {
   const u0 = -1 - DEAD_LEAVES_MARGIN, v0 = -aspect - DEAD_LEAVES_MARGIN, width = 2 + 2 * DEAD_LEAVES_MARGIN, height = 2 * aspect + 2 * DEAD_LEAVES_MARGIN;
   const cell = Math.max(rMin, Math.sqrt(width * height / DEAD_LEAVES_MAXIMUM_CELLS));
   const nx = Math.ceil(width / cell), ny = Math.ceil(height / cell), cells = nx * ny;
@@ -692,7 +730,7 @@ function generateDeadLeaves(rMin: number, rMax: number, seed: number, aspect: nu
     n++;
   }
   const mean = CHART_CONTINUOUS_LEVELS / 2;
-  return { diskCount: n, levelAt(u: number, v: number): number {
+  return { diskCount: n, tables: { u0, v0, cell, nx, ny, head, next, entryDisk, entries, X, Y, R2, level, diskCount: n, mean }, levelAt(u: number, v: number): number {
     const i = Math.floor((u - u0) / cell), j = Math.floor((v - v0) / cell);
     if (i < 0 || j < 0 || i >= nx || j >= ny) return mean;
     for (let e = head[j * nx + i]!; e >= 0; e = next[e]!) {
@@ -706,7 +744,7 @@ function generateDeadLeaves(rMin: number, rMax: number, seed: number, aspect: nu
 /** An axis-aligned rectangle in chart frame units: u0 ≤ u ≤ u1, v0 ≤ v ≤ v1. */
 export interface ChartRectangle { u0: number; v0: number; u1: number; v1: number }
 interface NumeralLabel { text: string; u0: number; v0: number; height: number }
-interface BarGroup { lineWidthsPerPictureHeight: number; lineWidth: number; cell: { u0: number; u1: number }; verticalBars: ChartRectangle; horizontalBars: ChartRectangle; label?: NumeralLabel }
+type BarGroup = ChartBarGroupGeometry;
 /**
  * Bar-group layout in the chart's own frame: G equal columns (80 % group, 20 % gap), rows from the top
  * 40 % vertical bars, 40 % horizontal bars, 20 % numerals (50 %/50 % without numerals), each row inset by
@@ -732,10 +770,11 @@ function barGroupLayout(list: readonly number[], numerals: boolean, aspect: numb
   });
 }
 /** Engine-drawn seven-segment numerals: a 0.6 × 1 cell per digit (baseline at 0, y up), stroke 0.16, advance 0.82. */
-const NUMERAL_WIDTH = 0.6, NUMERAL_ADVANCE = 0.82;
-const SEGMENTS: Readonly<Record<string, readonly [number, number, number, number]>> = Object.freeze({
+export const NUMERAL_WIDTH = 0.6, NUMERAL_ADVANCE = 0.82;
+/** Internal: segment rectangles [x0, y0, x1, y1] of the seven-segment numerals and the segments each digit lights. */
+export const SEGMENTS: Readonly<Record<string, readonly [number, number, number, number]>> = Object.freeze({
   a: [0.08, 0.84, 0.52, 1], b: [0.44, 0.5, 0.6, 1], c: [0.44, 0, 0.6, 0.5], d: [0.08, 0, 0.52, 0.16], e: [0, 0, 0.16, 0.5], f: [0, 0.5, 0.16, 1], g: [0.08, 0.42, 0.52, 0.58] });
-const DIGIT_SEGMENTS = ["abcdef", "bc", "abged", "abgcd", "fgbc", "afgcd", "afgedc", "abc", "abcdefg", "abcdfg"];
+export const DIGIT_SEGMENTS = ["abcdef", "bc", "abged", "abgcd", "fgbc", "afgcd", "afgedc", "abc", "abcdefg", "abcdfg"];
 function numeralInk(label: NumeralLabel, u: number, v: number): boolean {
   const x = (u - label.u0) / label.height, y = (v - label.v0) / label.height;
   if (y < 0 || y > 1 || x < 0) return false;

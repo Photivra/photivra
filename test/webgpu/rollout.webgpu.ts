@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Per-fixture rollout (#277): for every built-in chart preset, the method error of the `webgpu-f32`
+ * Per-fixture rollout (#277; #477 adds the all-elements composite): for every built-in chart preset, the method error of the `webgpu-f32`
  * image-formation path (chart radiance and spectral integration on the GPU, then the isoplanatic
  * convolution with kernels sampled from the lens PSF profile) against the per-site CPU engine, on sampled
  * tiles of a `simulateCapture` frame. These are accuracy numbers, not speed. See test/helpers/rollout-fixture.ts
@@ -13,9 +13,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { composeRelativeErrorBounds, type ImageKernelExecution, type ImageKernelRelativeErrorBound } from "../../src/index.js";
-import { CHART_PRESET_SCENES } from "../helpers/chart-radiance-fixtures.js";
 import { channelPlanes, cpuMethodTile, methodError, methodTile, perSiteTile, rolloutMethodInputs, rolloutPsfProfile, rolloutSetup,
-  ROLLOUT_TILES, ROLLOUT_PINNED_METHOD_ERROR } from "../helpers/rollout-fixture.js";
+  ROLLOUT_SCENES, ROLLOUT_TILES, ROLLOUT_PINNED_METHOD_ERROR } from "../helpers/rollout-fixture.js";
 import { adapterSkipReason, findChromium, isSoftwareAdapter, openBrowserPage, type BrowserPage, type WebGpuAdapterProbe } from "./chromium.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
@@ -48,7 +47,7 @@ afterAll(async () => {
 });
 
 describe("per-fixture rollout: webgpu-f32 image formation vs the per-site engine", () => {
-  it.each(CHART_PRESET_SCENES)("%s", async (name, scene) => {
+  it.each(ROLLOUT_SCENES)("%s", async (name, scene) => {
     if (guard()) return;
     const setup = await rolloutSetup(scene);
     for (const config of ROLLOUT_TILES) {
