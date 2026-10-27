@@ -21,7 +21,8 @@ import { InvalidScientificInputError } from "../core/validation.js";
 export type ImageKernelBackend = "cpu-reference" | "webgpu-f32";
 
 /** Why a requested WebGPU backend was not used (only with `fallback: "cpu-reference"`). */
-export type ImageKernelFallbackReason = "webgpu-unavailable" | "adapter-unavailable" | "device-request-failed" |
+/** Why a requested `webgpu-f32` backend ran the CPU reference instead. `webgpu-disabled`: `setWebGpuEnabled(false)` in this realm. */
+export type ImageKernelFallbackReason = "webgpu-unavailable" | "webgpu-disabled" | "adapter-unavailable" | "device-request-failed" |
   "insufficient-limits" | "unsupported-platform-endianness";
 
 /** Failure classes reported by {@link ImageKernelExecutionError}. */

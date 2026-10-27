@@ -1288,6 +1288,15 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND`](api/gpu-image-kernel-execution.md#webgpu_f32_transfer_absolute_bound) | Runtime |
 | [`WEBGPU_F32_UNIT_ROUNDOFF`](api/gpu-image-kernel-execution.md#webgpu_f32_unit_roundoff) | Runtime |
 
+## gpu/webgpu-switch.ts
+
+[Detailed contracts](api/gpu-webgpu-switch.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/gpu/webgpu-switch.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`getWebGpuEnabled`](api/gpu-webgpu-switch.md#getwebgpuenabled) | Runtime |
+| [`setWebGpuEnabled`](api/gpu-webgpu-switch.md#setwebgpuenabled) | Runtime |
+
 ## motion/camera-rotation.ts
 
 [Detailed contracts](api/motion-camera-rotation.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/motion/camera-rotation.ts)

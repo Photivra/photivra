@@ -130,20 +130,29 @@ describe("webgpu-f32 sensor stage vs float64 reference", () => {
 });
 
 describe("webgpu-f32 chart radiance vs float64 reference", () => {
+  // The GPU's flagged points are recomputed in the browser realm, so the comparison uses that realm's float64 reference.
+  // ECMAScript does not fix the last bit of Math.atan2, so a point placed exactly on a Siemens-star sector boundary can
+  // classify differently in Node and in the browser (#471); those realm differences are counted and must be boundary points.
   it.each(CHART_PRESET_SCENES)("%s: unflagged values are the reference rounded once; flagged points recomputed", async (name, scene) => {
     if (guard()) return;
     for (const mode of ["radiance", "spectral-integral"] as const) {
-      const input = chartBatchInput(scene, chartPoints(scene, 2 / 3, 60_000, name.length), mode), reference = calculateChartRadianceBatch(input).values;
-      const gpu = await call<{ values: Float32Array; execution: ImageKernelExecution; hostRecomputedQueryIndices: Uint32Array }>("chartRadiance", { input });
+      const input = chartBatchInput(scene, chartPoints(scene, 2 / 3, 60_000, name.length), mode), nodeReference = calculateChartRadianceBatch(input).values;
+      const gpu = await call<{ values: Float32Array; execution: ImageKernelExecution; hostRecomputedQueryIndices: Uint32Array; reference: Float64Array }>(
+        "chartRadiance", { input, reference: true });
+      const reference = gpu.reference, columns = reference.length / (input.points.length / 2);
       expect(gpu.execution.errorBound).toMatchObject({ kind: "relative-to-reference", relative: 2 ** -24 });
       let worst = 0;
+      const realmDifferences: number[] = [];
       for (let i = 0; i < reference.length; i++) {
         expect(gpu.values[i], `value ${i}`).toBe(Math.fround(reference[i]!));
         if (reference[i]! !== 0) worst = Math.max(worst, Math.abs(gpu.values[i]! - reference[i]!) / Math.abs(reference[i]!));
+        if (nodeReference[i] !== reference[i]) realmDifferences.push(Math.floor(i / columns));
       }
+      const recomputed = new Set(gpu.hostRecomputedQueryIndices);
+      for (const q of realmDifferences) expect(q >= 60_000 && recomputed.has(q), `query ${q} differs between realms but is not a flagged boundary point`).toBe(true);
       const random = Array.from(gpu.hostRecomputedQueryIndices).filter(i => i < 60_000).length;
       report.push({ stage: "chart-radiance", preset: name, mode, queries: input.points.length / 2, recomputed: gpu.hostRecomputedQueryIndices.length,
-        recomputedRandomPoints: random, measuredMaximumRelative: worst });
+        recomputedRandomPoints: random, measuredMaximumRelative: worst, realmDifferentQueries: new Set(realmDifferences).size });
     }
   });
 });

@@ -116,7 +116,9 @@ describe("root exports reject malformed input with domain errors (API review #4)
     // Parsers of a string, an array or raw bytes rather than a record.
     "parseColorimetricQuadratureNodes", "parseLensProjectionModel", "parseLosslessJpeg", "parseSpectralWavelengthBasis",
     // #447: the AHD correction states of the display view: no argument, and an array of { key, gridKeys, values } entries.
-    "serializeDisplayViewCorrectionStates", "bindDisplayViewCorrectionStates"
+    "serializeDisplayViewCorrectionStates", "bindDisplayViewCorrectionStates",
+    // #474: the realm's WebGPU switch: no argument, and one boolean.
+    "getWebGpuEnabled", "setWebGpuEnabled"
   ]);
   /*
    * 2.0.0: the parse*() record parsers and the functions that take a whole engine or versioned record

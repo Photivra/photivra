@@ -12,7 +12,8 @@ import { adcTransfer, type SensorReadoutConversionRegime } from "../sensor/raw-r
 import { ImageKernelExecutionError, webGpuExecution, type ImageKernelExecution } from "./image-kernel-execution.js";
 import type { AcceleratedPackedSensorRawResult } from "./image-kernel-accelerator.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, linearDispatch, runComputePass, type WebGpuRuntime } from "./webgpu-runtime.js";
-import { SENSOR_AUX, SENSOR_EXTRAS, SENSOR_MEAN_CATEGORY, SENSOR_OUTPUT, SENSOR_RAW_WGSL, SENSOR_SITE_WORDS, SENSOR_WORKGROUP_SIZE } from "./wgsl-sensor-kernel.js";
+import { SENSOR_AUX, SENSOR_EXTRAS, SENSOR_MEAN_CATEGORY, SENSOR_OUTPUT, SENSOR_PIECE_WORDS, SENSOR_RAW_WGSL, SENSOR_ROUNDING, SENSOR_SITE_WORDS,
+  SENSOR_WORKGROUP_SIZE } from "./wgsl-sensor-kernel.js";
 
 type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
 type YieldControl = ((signal: AbortSignal) => Promise<void>) | undefined;
@@ -25,7 +26,8 @@ export const SENSOR_GPU_MAXIMUM_MEAN = 2 ** 30;
 export const SENSOR_GPU_MAXIMUM_OFFSET_ELECTRONS = 2 ** 28;
 export const SENSOR_GPU_MAXIMUM_OFFSET_CODES = 2 ** 20;
 const CPU_RELATIVE = 2 ** -47;
-const U = 2 ** -24;
+/** One WGSL rounding, either direction (2^-23). */
+const E = SENSOR_ROUNDING;
 const POISSON_NORMAL_MINIMUM_MEAN = 1e9;
 
 function checkAbort(signal: AbortSignal): void {
@@ -71,6 +73,29 @@ export function twelveBitPieces(value: number): { pieces: number[]; residual: nu
 }
 
 /**
+ * A 12-bit piece as the kernel reads it: an integer mantissa m < 2^12, the exponent s and the exact scale 2^s,
+ * with piece = m·2^s exactly. A zero piece is (0, 0, 1).
+ * @internal
+ */
+export function pieceWords(piece: number): [mantissa: number, exponent: number, scale: number] {
+  if (piece === 0) return [0, 0, 1];
+  let e = Math.floor(Math.log2(piece));
+  if (piece / 2 ** e >= 2) e++;
+  if (piece / 2 ** e < 1) e--;
+  const s = e - 11, m = piece / 2 ** s;
+  if (!Number.isInteger(m) || m >= 4096 || s < -126 || s > 60) throw new ImageKernelExecutionError("unsupported-float32-domain", "A gain piece is outside the float32 sensor domain.");
+  return [m, s, 2 ** s];
+}
+
+/**
+ * Writes the four pieces of a positive gain-like value into the auxiliary table.
+ * @internal
+ */
+export function writePieces(aux: Float32Array, at: number, pieces: readonly number[]): void {
+  pieces.forEach((piece, j) => aux.set(pieceWords(piece), at + SENSOR_PIECE_WORDS * j));
+}
+
+/**
  * `L(k) − S(k)` for k < 256, where L is the reference's log k! (the summed logarithms of
  * `samplePoisson`'s logFactorial) and S(k) = (k + ½) ln k − k + ½ ln 2π.
  * @internal
@@ -105,23 +130,26 @@ export function sensorGpuConstants(plan: PackedSensorRawPlan): SensorConstants {
       plan.additionalChargeComponents.some(c => !(c.maximumExpectedElectrons < SENSOR_GPU_MAXIMUM_MEAN))) {
     throw unsupported("Expected electrons of 2^30 and above are outside the float32 sensor domain.");
   }
+  if (adc.digitalGain !== undefined && !(adc.digitalGain >= 2 ** -60 && adc.digitalGain <= 2 ** 60)) {
+    throw unsupported("Digital gain is outside the float32 sensor domain.");
+  }
   if (!(inverse >= 2 ** -60 && inverse <= 2 ** 60) || capacity * inverse > 2 ** 30 ||
       sigmas.some(s => s !== 0 && !(s >= 2 ** -100 && s <= 2 ** 100)) || 7 * sigmaSum > 2 ** 28 || 7 * sigmaSum * inverse > 2 ** 20) {
     throw unsupported("Conversion gain or read noise is outside the float32 sensor domain.");
   }
   const knots = adc.integralNonLinearity?.knots ?? [];
-  let slope = 0, offset = 0;
-  knots.forEach((k, i) => {
-    offset = Math.max(offset, Math.abs(k.offsetCodes));
-    if (i > 0) slope = Math.max(slope, Math.abs((k.offsetCodes - knots[i - 1]!.offsetCodes) / (k.code - knots[i - 1]!.code)));
-  });
-  const aux = new Float32Array(SENSOR_AUX.knots + 2 * knots.length);
+  // Segment slopes in float64 on the host, so the kernel's INL offset needs no division. Codes, offsets, slopes.
+  const slopes = knots.slice(1).map((k, i) => (k.offsetCodes - knots[i]!.offsetCodes) / (k.code - knots[i]!.code));
+  const slope = slopes.reduce((m, v) => Math.max(m, Math.abs(v)), 0), offset = knots.reduce((m, k) => Math.max(m, Math.abs(k.offsetCodes)), 0);
+  const knotMagnitude = knots.reduce((m, k) => Math.max(m, Math.abs(k.code)), 0);
+  const aux = new Float32Array(SENSOR_AUX.knots + 3 * knots.length);
   aux.set(stirlingRemainderTable(), SENSOR_AUX.stirlingRemainder);
   aux.set(sigmas, SENSOR_AUX.sigma);
   const inversePieces = twelveBitPieces(inverse), digital = adc.digitalGain === undefined ? null : twelveBitPieces(adc.digitalGain);
-  aux.set(inversePieces.pieces, SENSOR_AUX.inversePieces);
-  if (digital) aux.set(digital.pieces, SENSOR_AUX.digitalPieces);
+  writePieces(aux, SENSOR_AUX.inversePieces, inversePieces.pieces);
+  if (digital) writePieces(aux, SENSOR_AUX.digitalPieces, digital.pieces);
   knots.forEach((k, i) => { aux[SENSOR_AUX.knots + i] = k.code; aux[SENSOR_AUX.knots + knots.length + i] = k.offsetCodes; });
+  slopes.forEach((v, i) => { aux[SENSOR_AUX.knots + 2 * knots.length + i] = v; });
   // Pre-ADC-saturated sites all have the same rounded ADC input; computed once with the reference, before digital gain.
   const { digitalGain: _omitted, ...withoutDigital } = adc;
   void _omitted;
@@ -145,7 +173,7 @@ export function sensorGpuConstants(plan: PackedSensorRawPlan): SensorConstants {
   floats[16] = capacity - capacityFloor; floats[17] = threshold < 2 ** 30 ? threshold - thresholdFloor : 0;
   floats[18] = inverse; floats[19] = inversePieces.residual * (1 + 2 ** -20);
   floats[20] = adc.digitalGain ?? 1; floats[21] = digital ? digital.residual * (1 + 2 ** -20) : 0;
-  floats[22] = slope * (1 + 2 ** -20); floats[23] = offset;
+  floats[22] = slope * (1 + 2 ** -20); floats[23] = offset; floats[30] = knotMagnitude;
   const siteWords = SENSOR_SITE_WORDS + 2 * poissonComponents.length + (deterministic ? 2 : 0) + (pattern ? 4 : 0);
   words[24] = siteWords; words[25] = poissonComponents.length;
   words[26] = (deterministic ? SENSOR_EXTRAS.deterministic : 0) | (pattern ? SENSOR_EXTRAS.fixedPattern : 0);
@@ -157,8 +185,8 @@ function setFixedPatternSlack(params: ArrayBuffer, threshold: number, maximumOff
   const floats = new Float32Array(params);
   // The reference adds the offset in float64 and the host forms threshold − offset and offset/gain in float64.
   floats[28] = CPU_RELATIVE * (maximumOffset + Math.min(threshold, 2 ** 30)) * (1 + 2 ** -20);
-  // The offset fraction's float32 rounding, one more unit of |fp| across the ten fraction additions, and offset/gain's float64 rounding.
-  floats[29] = (12 * U + CPU_RELATIVE * maximumOffsetCodes) * (1 + 2 ** -20);
+  // The offset fraction's float32 rounding (its place in the fraction sum is counted by the kernel) and offset/gain's float64 rounding.
+  floats[29] = (E + CPU_RELATIVE * maximumOffsetCodes) * (1 + 2 ** -20);
 }
 
 /** Splits a value into a floor and its float32 fraction. */

@@ -473,6 +473,17 @@ What changed during validation (each found by this matrix and checked again on i
    now count.
 5. The clipped noise draw biased very noisy display pixels upward (+3.5 codes); its centre is now adjusted.
 
+## Preview acceptance
+
+`scripts/accept-display-view-gpu.mjs` (#480) is the acceptance harness of a future GPU display view (#478, #479): it renders
+the app's request (24 MP 6 µm, 2 × 2 box, caller material scene with the stand-in label; the five fixture charts at
+2028 × 1352 and 2800 × 1867, Speed and Quality) with a reference producer and a candidate producer and compares the two
+noise-free expected images per pixel in ΔE2000 (Sharma, Wu and Dalal 2005) and in units of the reference's noise σ, writes a
+difference image per case, and prints pass or fail against the thresholds of #473 (99 % within ΔE2000 1, none above 2.3, no
+pixel beyond 1 σ; parameters). Today both producers are this CPU display view, so the run is a self-check that must show exact
+equality ([record](validation/display-view-acceptance-self-check-2026-10-27/README.md)); `--candidate` selects another
+producer module. Options, metrics, timing mode and the record format: [WebGPU, Preview acceptance](WEBGPU.md#preview-acceptance).
+
 ## Cost
 
 Two regimes. Where a display pixel covers more than 25 real pixels (narrower than about a fifth of the frame's width), the
