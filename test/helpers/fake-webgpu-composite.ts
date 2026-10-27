@@ -1,12 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Float32 JavaScript emulation (Math.fround after every operation) of the composite chart kernel
- * (src/gpu/wgsl-chart-composite-kernel.ts) and its double-float32 probe, for the fake WebGPU device. A
- * line-by-line port: the same bound arithmetic, the same decisions, the same flags.
+ * Float32 JavaScript emulation of the composite chart kernel (src/gpu/wgsl-chart-composite-kernel.ts), its double-float32 probe and
+ * the display view's composite material module, for the fake WebGPU device. A line-by-line port: the same bound arithmetic, the
+ * same decisions, the same flags, for both product paths (Dekker's and the fma one).
+ *
+ * Every float32 operation runs on a `CompositeArithmetic` (2.11.0, the M5 Pro finding):
+ * - `nearest` (the default): every + − × rounds to nearest, in the written order, unfused; `fma` is fused (one rounding).
+ * - `fused-contraction`: what WGSL permits under "Reassociation and Fusion" ("an implementation may fuse operations if the
+ *   transformed expression is at least as accurate"), as a compiler does it after inlining: a multiplication whose rounded
+ *   result is an operand of an addition or a subtraction (through `let` bindings and function calls, that is in the dataflow) may
+ *   be evaluated together with it as one fused multiply-add, rounded once. A multiplication stays symbolic (`Prod`) until a
+ *   consumer rounds it: an addition or subtraction fuses it (per the policy: the first product operand, the second, or a seeded
+ *   random choice per site, including not fusing); every other consumer (abs, a comparison, a division, round, floor, a store)
+ *   takes the rounded product. `fma` is fused, or, with `fma: "unfused"`, an ordinary multiply and add (WGSL allows both, § fma).
+ * - `reassociation`: the algebraic simplification a fast-math compiler applies to the error-free transforms ((a + b) − a to b,
+ *   t − (t − a) to a), so TwoSum, Fast2Sum and Veltkamp's split lose their low parts; everything else rounds to nearest.
  */
 import { DIGIT_SEGMENTS, NUMERAL_ADVANCE, SEGMENTS } from "../../src/facade/chart-scenes.js";
-import { dwAdd, dwMul, dwSub, probeExpectation, type Dw } from "../../src/gpu/chart-composite-gpu.js";
-import { CHART_RECORD_STRIDE } from "../../src/gpu/wgsl-chart-composite-kernel.js";
+import { fmaF32, probeExpectation, type Dw } from "../../src/gpu/chart-composite-gpu.js";
+import { CHART_RECORD_STRIDE, type ChartCompositeProductPath } from "../../src/gpu/wgsl-chart-composite-kernel.js";
 import { DISPLAY_VIEW_LATTICE } from "../../src/gpu/display-view-composite-material-module.js";
 
 const f = Math.fround;
@@ -15,30 +27,136 @@ const SEGMENT_ORDER = "abcdefg";
 const SEGMENT_BOX = SEGMENT_ORDER.split("").map((s) => SEGMENTS[s]!.map((x) => f(Number(x.toFixed(2)))) as [number, number, number, number]);
 const DIGIT_MASK = DIGIT_SEGMENTS.map((segments) => segments.split("").reduce((mask, s) => mask | (1 << SEGMENT_ORDER.indexOf(s)), 0));
 
-interface B { v: number; e: number }
+/** How the emulated device evaluates the composite kernel's float32 arithmetic (see the module notes). */
+export type CompositeArithmetic =
+  | { kind: "nearest" }
+  | { kind: "fused-contraction"; choose?: "first" | "second" | { seed: number }; fma?: "fused" | "unfused" }
+  | { kind: "reassociation" };
+export const NEAREST_COMPOSITE_ARITHMETIC: CompositeArithmetic = Object.freeze({ kind: "nearest" });
+
+/** A product not yet rounded: what a fusing compiler can still add to with one rounding. */
+class Prod { constructor(readonly a: number, readonly b: number) {} }
+type V = number | Prod;
+interface Ops {
+  mul(a: number, b: number): V;
+  add(x: V, y: V): number;
+  sub(x: V, y: V): number;
+  neg(x: V): V;
+  /** The rounded value (a product rounds here). */
+  v(x: V): number;
+  fma(a: number, b: number, c: number): number;
+  readonly reassociate: boolean;
+}
+const round = (x: V): number => (x instanceof Prod ? f(x.a * x.b) : x);
+
+function opsOf(model: CompositeArithmetic): Ops {
+  if (model.kind !== "fused-contraction") {
+    return { mul: (a, b) => f(a * b), add: (x, y) => f(round(x) + round(y)), sub: (x, y) => f(round(x) - round(y)), neg: (x) => -round(x), v: round,
+      fma: fmaF32, reassociate: model.kind === "reassociation" };
+  }
+  const choose = model.choose ?? "first";
+  let s = typeof choose === "object" ? (choose.seed >>> 0 || 1) : 1;
+  const random = (): number => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 2 ** 32; };
+  /** 0: no fusion; 1: fuse the first operand's product; 2: the second's. */
+  const pick = (x: V, y: V): 0 | 1 | 2 => {
+    const px = x instanceof Prod, py = y instanceof Prod;
+    if (!px && !py) return 0;
+    if (choose === "first") return px ? 1 : 2;
+    if (choose === "second") return py ? 2 : 1;
+    const r = random();
+    if (r < 1 / 3) return 0;
+    if (px && py) return r < 2 / 3 ? 1 : 2;
+    return px ? 1 : 2;
+  };
+  return {
+    mul: (a, b) => new Prod(a, b),
+    add: (x, y): number => { const p = pick(x, y); return p === 1 ? fmaF32((x as Prod).a, (x as Prod).b, round(y)) : p === 2 ? fmaF32((y as Prod).a, (y as Prod).b, round(x)) : f(round(x) + round(y)); },
+    sub: (x, y): number => { const p = pick(x, y); return p === 1 ? fmaF32((x as Prod).a, (x as Prod).b, -round(y)) : p === 2 ? fmaF32(-(y as Prod).a, (y as Prod).b, round(x)) : f(round(x) - round(y)); },
+    // A negated product folds into a fused multiply-add as one (fneg of fmul).
+    neg: (x) => (x instanceof Prod ? new Prod(-x.a, x.b) : -x),
+    v: round,
+    fma: model.fma === "unfused" ? (a, b, c): number => f(f(a * b) + c) : fmaF32,
+    reassociate: false
+  };
+}
+
+/** A double word whose parts may still be unrounded products (Dekker's TwoProduct returns p = a·b). */
+type DV = readonly [V, V];
+
+/** The double-float32 building blocks of the kernel (COMMON_TEMPLATE) on an arithmetic. */
+function doubleWord(K: Ops, path: ChartCompositeProductPath): {
+  twoSum(a: V, b: V): Dw; quickTwoSum(a: V, b: V): Dw; twoProdDekker(a: number, b: number): DV; twoProdFma(a: number, b: number): DV;
+  dMulDekker(a: Dw, b: Dw): Dw; dMulFma(a: Dw, b: Dw): Dw; dAdd(a: Dw, b: Dw): Dw; dSub(a: Dw, b: Dw): Dw; dMul(a: Dw, b: Dw): Dw } {
+  const { add, sub, mul } = K;
+  const twoSum = (a: V, b: V): Dw => {
+    const s = add(a, b);
+    if (K.reassociate) return [s, 0];
+    const bb = sub(s, a);
+    return [s, add(sub(a, sub(s, bb)), sub(b, bb))];
+  };
+  const quickTwoSum = (a: V, b: V): Dw => { const s = add(a, b); return K.reassociate ? [s, 0] : [s, sub(b, sub(s, a))]; };
+  const split = (a: number): Dw => {
+    if (K.reassociate) return [a, 0];
+    const t = mul(4097, a), h = sub(t, sub(t, a));
+    return [h, sub(a, h)];
+  };
+  const twoProdDekker = (a: number, b: number): DV => {
+    const p = mul(a, b), sa = split(a), sb = split(b);
+    return [p, add(add(add(sub(mul(sa[0], sb[0]), p), mul(sa[0], sb[1])), mul(sa[1], sb[0])), mul(sa[1], sb[1]))];
+  };
+  const twoProdFma = (a: number, b: number): DV => { const p = mul(a, b); return [p, K.fma(a, b, -K.v(p))]; };
+  const dMulDekker = (a: Dw, b: Dw): Dw => {
+    const p = twoProdDekker(a[0], b[0]), t = add(mul(a[0], b[1]), mul(a[1], b[0])), l = add(p[1], t);
+    return quickTwoSum(p[0], l);
+  };
+  const dMulFma = (a: Dw, b: Dw): Dw => {
+    const t = add(mul(a[0], b[1]), mul(a[1], b[0])), s = K.fma(a[0], b[0], t);
+    return [s, add(K.fma(a[0], b[0], -s), t)];
+  };
+  const dAdd = (a: Dw, b: Dw): Dw => {
+    const s = twoSum(a[0], b[0]), t = twoSum(a[1], b[1]), c = add(s[1], t[0]), v = quickTwoSum(s[0], c), w = add(v[1], t[1]);
+    return quickTwoSum(v[0], w);
+  };
+  const dSub = (a: Dw, b: Dw): Dw => dAdd(a, [-b[0], -b[1]]);
+  return { twoSum, quickTwoSum, twoProdDekker, twoProdFma, dMulDekker, dMulFma, dAdd, dSub, dMul: path === "dekker" ? dMulDekker : dMulFma };
+}
 
 let corruptProbe = false;
 /** Makes the probe return zeros (a device that reassociates the double-float32 arithmetic) until turned off again. */
 export function setCompositeProbeCorruption(corrupt: boolean): void { corruptProbe = corrupt; }
 
-/** Dispatches the composite kernel or its probe by pipeline label; false for any other label. */
-export function emulateComposite(label: string, data: (binding: number) => ArrayBuffer): boolean {
+/** The product path of a composite kernel pipeline label, or null for another label. */
+function pathOfLabel(label: string): ChartCompositeProductPath | null {
+  return label === "photivra-chart-composite" ? "dekker" : label === "photivra-chart-composite-fma" ? "fma" : null;
+}
+
+/** Dispatches the composite kernel (either product path) or its probe by pipeline label; false for any other label. */
+export function emulateComposite(label: string, data: (binding: number) => ArrayBuffer, model: CompositeArithmetic = NEAREST_COMPOSITE_ARITHMETIC): boolean {
   const u32 = (b: number): Uint32Array => new Uint32Array(data(b)), f32 = (b: number): Float32Array => new Float32Array(data(b));
-  if (label === "photivra-chart-composite") { emulateCompositeChart(u32(0), f32(1), f32(2), f32(3), u32(4), u32(5), f32(6), u32(7)); return true; }
-  if (label === "photivra-chart-composite-probe") { emulateCompositeProbe(f32(0), f32(1)); if (corruptProbe) f32(1).fill(0); return true; }
+  const path = pathOfLabel(label);
+  if (path) { emulateCompositeChart(u32(0), f32(1), f32(2), f32(3), u32(4), u32(5), f32(6), u32(7), path, model); return true; }
+  if (label === "photivra-chart-composite-probe") { emulateCompositeProbe(f32(0), f32(1), model); if (corruptProbe) f32(1).fill(0); return true; }
   return false;
 }
 
-export function emulateCompositeProbe(input: Float32Array, output: Float32Array): void {
+/** The probe (CHART_COMPOSITE_PROBE_WGSL) on an arithmetic: eight floats per input. */
+export function emulateCompositeProbe(input: Float32Array, output: Float32Array, model: CompositeArithmetic = NEAREST_COMPOSITE_ARITHMETIC): void {
+  const K = opsOf(model), d = doubleWord(K, "dekker");
   for (let i = 0; i < input.length / 4; i++) {
-    const want = probeExpectation([input[4 * i]!, input[4 * i + 1]!, input[4 * i + 2]!, input[4 * i + 3]!]);
-    output.set(want, 4 * i);
+    const [x, y, z, w] = [input[4 * i]!, input[4 * i + 1]!, input[4 * i + 2]!, input[4 * i + 3]!];
+    const s = d.twoSum(x, y), m = d.twoProdDekker(x, y), a = d.dAdd([x, y], [z, w]), mf = d.twoProdFma(x, y);
+    const q = d.dMulDekker([x, y], [z, w]), qf = d.dMulFma([x, y], [z, w]);
+    output.set([s[1], K.v(m[1]), a[1], K.v(mf[1]), q[0], q[1], qf[0], qf[1]], 8 * i);
   }
+}
+/** The probe's output on an exact device (round to nearest, unfused, fused fma). */
+export function exactProbeOutput(inputs: readonly (readonly [number, number, number, number])[]): Float32Array {
+  return Float32Array.from(inputs.flatMap((row) => probeExpectation(row)));
 }
 
 export function emulateCompositeChart(p: Uint32Array, points: Float32Array, table: Float32Array, af: Float32Array, ai: Uint32Array, selectors: Uint32Array,
-  values: Float32Array, flags: Uint32Array): void {
-  const [count, columns, wavelengthMode] = [p[0]!, p[1]!, p[2]!], emulator = createCompositeMaterialEmulator(af, ai);
+  values: Float32Array, flags: Uint32Array, path: ChartCompositeProductPath = "dekker", model: CompositeArithmetic = NEAREST_COMPOSITE_ARITHMETIC): void {
+  const [count, columns, wavelengthMode] = [p[0]!, p[1]!, p[2]!], emulator = createCompositeMaterialEmulator(af, ai, path, model);
   for (let i = 0; i < count; i++) {
     emulator.reset();
     const m = emulator.material(points[4 * i]!, points[4 * i + 1]!, points[4 * i + 2]!, points[4 * i + 3]!);
@@ -48,35 +166,54 @@ export function emulateCompositeChart(p: Uint32Array, points: Float32Array, tabl
   }
 }
 
-/** The composite kernel's `material(p)` on its packed records, as a reusable emulator: a double-float32 point (hi, lo per axis) in, the material index out. */
-export interface CompositeMaterialEmulator { material(px: number, pxl: number, py: number, pyl: number): number; readonly flagged: boolean; reset(): void }
-export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Array): CompositeMaterialEmulator {
-  let flagged = false;
-  // --- bound arithmetic ---
-  const bds = (a: Dw, scale: number): B => ({ v: a[0], e: f(f(f(Math.abs(a[1]) + f(DW * f(f(Math.abs(a[0]) + Math.abs(a[1])) + scale))) + TINY)) });
+interface B { v: V; e: number }
+
+/** The kernel's bound arithmetic and decisions on an arithmetic, with the shared `flagged` state. */
+interface BoundOps {
+  bds(a: Dw, scale: number): B; bd(a: Dw): B; bc(c: number): B; bx(c: number): B; badd(a: B, b: B): B; bsub(a: B, b: B): B; bmul(a: B, b: B): B; bneg(a: B): B; babs(a: B): B;
+  bdiv(a: B, b: B): B; margin(x: B): number; ge0(x: B): boolean; ge(a: B, b: B): boolean; gt(a: B, b: B): boolean; lt(a: B, b: B): boolean; le(a: B, b: B): boolean;
+  bfloor(x: B, lo: number, hi: number): number;
+}
+function boundOps(K: Ops, flag: () => void): BoundOps {
+  const { add, sub, mul, v: r } = K;
+  const bds = (a: Dw, scale: number): B => ({ v: a[0], e: add(add(Math.abs(a[1]), mul(DW, add(add(Math.abs(a[0]), Math.abs(a[1])), scale))), TINY) });
   const bd = (a: Dw): B => bds(a, 0);
-  const bc = (c: number): B => ({ v: c, e: f(f(E * Math.abs(c)) + TINY) });
+  const bc = (c: number): B => ({ v: c, e: add(mul(E, Math.abs(c)), TINY) });
   const bx = (c: number): B => ({ v: c, e: 0 });
-  const badd = (a: B, b: B): B => { const v = f(a.v + b.v); return { v, e: f(f(a.e + b.e) + f(E * Math.abs(v))) }; };
-  const bsub = (a: B, b: B): B => { const v = f(a.v - b.v); return { v, e: f(f(a.e + b.e) + f(E * Math.abs(v))) }; };
-  const bmul = (a: B, b: B): B => { const v = f(a.v * b.v); return { v, e: f(f(f(f(Math.abs(a.v) * b.e) + f(Math.abs(b.v) * a.e)) + f(a.e * b.e)) + f(E * Math.abs(v))) }; };
-  const bneg = (a: B): B => ({ v: -a.v, e: a.e });
-  const babs = (a: B): B => ({ v: Math.abs(a.v), e: a.e });
+  const badd = (a: B, b: B): B => { const v = add(a.v, b.v); return { v, e: add(add(a.e, b.e), mul(E, Math.abs(v))) }; };
+  const bsub = (a: B, b: B): B => { const v = sub(a.v, b.v); return { v, e: add(add(a.e, b.e), mul(E, Math.abs(v))) }; };
+  const bmul = (a: B, b: B): B => {
+    const av = r(a.v), bv = r(b.v), v = mul(av, bv);
+    return { v, e: add(add(add(mul(Math.abs(av), b.e), mul(Math.abs(bv), a.e)), mul(a.e, b.e)), mul(E, Math.abs(r(v)))) };
+  };
+  const bneg = (a: B): B => ({ v: K.neg(a.v), e: a.e });
+  const babs = (a: B): B => ({ v: Math.abs(r(a.v)), e: a.e });
   const bdiv = (a: B, b: B): B => {
-    const v = f(a.v / b.v), d = f(Math.abs(b.v) - f(SAFETY * b.e));
-    if (!(d > 0)) { flagged = true; return { v, e: f(3e38) }; }
-    const e = f(f(f(a.e + f(f(f(Math.abs(a.v) + a.e) * b.e) / d)) / Math.abs(b.v)) + f(f(2.5 * E) * Math.abs(v)));
+    const av = r(a.v), bv = r(b.v), v = f(av / bv), d = sub(Math.abs(bv), mul(SAFETY, b.e));
+    if (!(d > 0)) { flag(); return { v, e: f(3e38) }; }
+    // WGSL: (a.e + (abs(a.v) + a.e) * b.e / d) / abs(b.v) + 5.0 * E * abs(v)  (5.0 * E is a constant expression).
+    const e = add(f(add(a.e, f(r(mul(add(Math.abs(av), a.e), b.e)) / d)) / Math.abs(bv)), mul(f(5 * E), Math.abs(v)));
     return { v, e };
   };
-  const margin = (x: B): number => f(f(SAFETY * x.e) + f(SLACK * f(Math.abs(x.v) + 1)));
-  const ge0 = (x: B): boolean => { if (!(Math.abs(x.v) > margin(x))) flagged = true; return x.v >= 0; };
+  const margin = (x: B): number => add(mul(SAFETY, x.e), mul(SLACK, add(Math.abs(r(x.v)), 1)));
+  const ge0 = (x: B): boolean => { const v = r(x.v); if (!(Math.abs(v) > margin(x))) flag(); return v >= 0; };
   const ge = (a: B, b: B): boolean => ge0(bsub(a, b)), gt = (a: B, b: B): boolean => !ge0(bsub(b, a)), lt = (a: B, b: B): boolean => !ge0(bsub(a, b)), le = (a: B, b: B): boolean => ge0(bsub(b, a));
   const bfloor = (x: B, lo: number, hi: number): number => {
-    const n = Math.floor(x.v), m = wgslRound(x.v), g = margin(x);
-    if (g >= 0.5) { flagged = true; return n; }
-    if (m >= lo && m <= hi && !(Math.abs(f(x.v - m)) > g)) flagged = true;
+    const xv = r(x.v), n = Math.floor(xv), m = wgslRound(xv), g = margin(x);
+    if (g >= 0.5) { flag(); return n; }
+    if (m >= lo && m <= hi && !(Math.abs(sub(x.v, m)) > g)) flag();
     return n;
   };
+  return { bds, bd, bc, bx, badd, bsub, bmul, bneg, babs, bdiv, margin, ge0, ge, gt, lt, le, bfloor };
+}
+
+/** The composite kernel's `material(p)` on its packed records, as a reusable emulator: a double-float32 point (hi, lo per axis) in, the material index out. */
+export interface CompositeMaterialEmulator { material(px: number, pxl: number, py: number, pyl: number): number; readonly flagged: boolean; reset(): void }
+export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Array, path: ChartCompositeProductPath = "dekker",
+  model: CompositeArithmetic = NEAREST_COMPOSITE_ARITHMETIC): CompositeMaterialEmulator {
+  let flagged = false;
+  const K = opsOf(model), r = K.v, { add, sub, mul } = K, D = doubleWord(K, path);
+  const { bds, bd, bc, bx, badd, bsub, bmul, bneg, babs, bdiv, margin, ge0, ge, gt, lt, le, bfloor } = boundOps(K, () => { flagged = true; });
   const parityEven = (i: number, j: number): boolean => (((i | 0) + (j | 0)) & 1) === 0;
   const toI32 = (x: number): number => Math.max(-2147483648, Math.min(2147483647, Math.trunc(x)));
   // --- Taylor cos / sin ---
@@ -87,17 +224,17 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
   };
   const bcosPoly = (y: B): B => {
     const q = horner([2.08767569878681e-9, -2.755731922398589e-7, 2.48015873015873e-5, -0.001388888888888889, 0.041666666666666664, -0.5, 1].map(f), bmul(y, y));
-    return { v: q.v, e: f(q.e + f(4e-13)) };
+    return { v: q.v, e: add(q.e, f(4e-13)) };
   };
   const bsinPoly = (z: B): B => {
     const q = horner([1.605904383682161e-10, -2.505210838544172e-8, 2.7557319223985893e-6, -0.0001984126984126984, 0.008333333333333333, -0.16666666666666666, 1].map(f), bmul(z, z));
     const s = bmul(q, z);
-    return { v: s.v, e: f(s.e + f(2e-14)) };
+    return { v: s.v, e: add(s.e, f(2e-14)) };
   };
   const bcos = (x: B): B => {
     let y = babs(x), negate = false;
-    if (y.v > HALF_PI) { y = bsub(bc(PI), y); negate = true; }
-    let c = y.v > QUARTER_PI ? bsinPoly(bsub(bc(HALF_PI), y)) : bcosPoly(y);
+    if (r(y.v) > HALF_PI) { y = bsub(bc(PI), y); negate = true; }
+    let c = r(y.v) > QUARTER_PI ? bsinPoly(bsub(bc(HALF_PI), y)) : bcosPoly(y);
     if (negate) c = bneg(c);
     return c;
   };
@@ -120,7 +257,7 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
   };
   const starCross = (dirs: number, k: number, x: Dw, y: Dw): B => {
     const o = dirs + 4 * k, cx: Dw = [af[o]!, af[o + 1]!], sx: Dw = [af[o + 2]!, af[o + 3]!];
-    return bds(dwSub(dwMul(cx, y), dwMul(sx, x)), f(Math.abs(f(cx[0] * y[0])) + Math.abs(f(sx[0] * x[0]))));
+    return bds(D.dSub(D.dMul(cx, y), D.dMul(sx, x)), add(Math.abs(r(mul(cx[0], y[0]))), Math.abs(r(mul(sx[0], x[0])))));
   };
   const mod = (a: number, n: number): number => ((a % n) + n) % n;
   const classify = (kind: number, ioff: number, foff: number, xd: Dw, yd: Dw): number => {
@@ -130,17 +267,17 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
       case 1: return ge0(bsub(bmul(u, bc(af[foff]!)), bmul(v, bc(af[foff + 1]!)))) ? 1 : 0;
       case 2: {
         const n = ai[ioff]!, dirs = ai[ioff + 1]!, levels = ai[ioff + 2]!, buckets = ai[ioff + 3]!, m = ai[ioff + 4]!, w = ai[ioff + 5]!;
-        const q = bd(dwAdd(dwMul(xd, xd), dwMul(yd, yd)));
+        const q = bd(D.dAdd(D.dMul(xd, xd), D.dMul(yd, yd)));
         if (gt(q, bc(af[foff]!))) return ai[ioff + 6]!;
         const a = f(Math.atan2(yd[0], xd[0]));
-        const j = Math.min(m - 1, Math.max(0, Math.floor(f(f(f(a + PI) * m) / f(2 * PI)))));
+        const j = Math.min(m - 1, Math.max(0, Math.floor(f(r(mul(add(a, PI), m)) / f(2 * PI)))));
         const k0 = ai[buckets + j]!;
         let lo = k0 - w, hi = k0 + w + 1;
         const clo = starCross(dirs, mod(lo, n), xd, yd), chi = starCross(dirs, mod(hi, n), xd, yd);
         if (!ge0(clo) || ge0(chi)) { flagged = true; return 0; }
         for (let step = 0; step < 32 && hi - lo > 1; step++) {
           const mid = Math.trunc((lo + hi) / 2), c = starCross(dirs, mod(mid, n), xd, yd);
-          if (c.v >= 0) lo = mid; else hi = mid;
+          if (r(c.v) >= 0) lo = mid; else hi = mid;
         }
         if (hi - lo > 1) flagged = true;
         const kl = mod(lo, n), kh = mod(hi, n);
@@ -203,18 +340,18 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
         let s: B, y: B;
         if (horizontal) { s = bmul(badd(u, bx(1)), bx(0.5)); y = v; } else { s = bdiv(badd(v, bc(af[foff]!)), bc(af[foff + 4]!)); y = u; }
         if (lt(s, bx(0)) || gt(s, bx(1))) return 1;
-        const w = bdiv(bc(af[foff + 1]!), badd(bc(af[foff + 2]!), bmul(bc(af[foff + 3]!), s))), half = bmul(w, bx(f(f(2 * lines - 1) * 0.5)));
+        const w = bdiv(bc(af[foff + 1]!), badd(bc(af[foff + 2]!), bmul(bc(af[foff + 3]!), s))), half = bmul(w, bx(f(r(mul(sub(mul(2, lines), 1), 0.5)))));
         if (lt(y, bneg(half)) || ge(y, half)) return 1;
         const n = bfloor(bdiv(badd(y, half), w), -3e38, 3e38);
         return parityEven(toI32(n), 0) ? 0 : 1;
       }
       case 11: {
-        const q = dwAdd(dwMul(xd, xd), dwMul(yd, yd));
+        const q = D.dAdd(D.dMul(xd, xd), D.dMul(yd, yd));
         if (gt(bd(q), bc(af[foff]!))) return 1024;
-        const psi = dwMul(q, [af[foff + 1]!, af[foff + 2]!]);
+        const psi = D.dMul(q, [af[foff + 1]!, af[foff + 2]!]);
         if (!(Math.abs(psi[0]) < 1048576)) { flagged = true; return 0; }
-        const n = f(2 * wgslRound(f(psi[0] * 0.5))), r = f(f(psi[0] - n) + psi[1]);
-        const phase: B = { v: r, e: f(f(f(DW * f(Math.abs(psi[0]) + Math.abs(psi[1]))) + f(E * Math.abs(r))) + TINY) };
+        const n = mul(2, wgslRound(r(mul(psi[0], 0.5)))), rr = add(sub(psi[0], n), psi[1]);
+        const phase: B = { v: rr, e: add(add(mul(DW, add(Math.abs(psi[0]), Math.abs(psi[1]))), mul(E, Math.abs(rr))), TINY) };
         const c = bcos(bmul(bc(PI), phase)), t = bmul(bx(512), badd(bx(1), c));
         return Math.min(1023, Math.max(0, bfloor(t, 1, 1023)));
       }
@@ -228,8 +365,8 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
         return le(babs(x), half) && le(babs(y), half) ? 0 : 1;
       }
       case 13: {
-        const spacing = bc(af[foff]!), half = bc(af[foff + 1]!);
-        const nu = wgslRound(f(u.v / spacing.v)), nv = wgslRound(f(v.v / spacing.v));
+        const spacing = bc(af[foff]!), half = bc(af[foff + 1]!), sv = r(spacing.v);
+        const nu = wgslRound(f(r(u.v) / sv)), nv = wgslRound(f(r(v.v) / sv));
         const du = babs(bsub(u, bmul(spacing, bx(nu)))), dv = babs(bsub(v, bmul(spacing, bx(nv))));
         return le(du, half) || le(dv, half) ? 1 : 0;
       }
@@ -245,7 +382,7 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
   };
   const shapeContains = (shape: number, x: B, y: B): boolean => {
     const kind = ai[shape]!, data = ai[shape + 1]!, edges = ai[shape + 2]!, mx = margin(x), my = margin(y);
-    if (f(x.v + mx) < af[data]! || f(x.v - mx) > af[data + 2]! || f(y.v + my) < af[data + 1]! || f(y.v - my) > af[data + 3]!) return false;
+    if (add(x.v, mx) < af[data]! || sub(x.v, mx) > af[data + 2]! || add(y.v, my) < af[data + 1]! || sub(y.v, my) > af[data + 3]!) return false;
     if (kind === 1) {
       const dx = bsub(x, bc(af[data + 4]!)), dy = bsub(y, bc(af[data + 5]!)), d2 = badd(bmul(dx, dx), bmul(dy, dy));
       return ge(d2, bc(af[data + 6]!)) && le(d2, bc(af[data + 7]!));
@@ -269,7 +406,7 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
       const u0 = bc(af[fo]!), v0 = bc(af[fo + 1]!), u1 = bc(af[fo + 2]!), v1 = bc(af[fo + 3]!);
       if (lt(u, u0) || gt(u, u1) || lt(v, v0) || gt(v, v1)) continue;
       const x = bmul(bsub(u, u0), bc(af[fo + 4]!)), y = bmul(bsub(v1, v), bc(af[fo + 5]!)), cellsX = ai[h]!, cellsY = ai[h + 1]!;
-      const i = Math.min(cellsX - 1, Math.max(0, Math.floor(f(x.v / af[fo + 6]!)))), j = Math.min(cellsY - 1, Math.max(0, Math.floor(f(y.v / af[fo + 7]!))));
+      const i = Math.min(cellsX - 1, Math.max(0, Math.floor(f(r(x.v) / af[fo + 6]!)))), j = Math.min(cellsY - 1, Math.max(0, Math.floor(f(r(y.v) / af[fo + 7]!))));
       const cell = j * cellsX + i, start = ai[ai[h + 2]! + cell]!, end = ai[ai[h + 2]! + cell + 1]!;
       for (let e = start; e < end; e++) {
         const shape = ai[h + 4]! + CHART_RECORD_STRIDE.shape * ai[ai[h + 3]! + e]!;
@@ -281,12 +418,12 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
     for (let i = elements; i > 0; i--) {
       const h = he + CHART_RECORD_STRIDE.element * (i - 1), kind = ai[h]!, offset = ai[h + 1]!, ioff = ai[h + 2]!, foff = ai[h + 3]!, placement = ai[h + 4]!;
       if (placement === 0) return offset + classify(kind, ioff, foff + CHART_RECORD_STRIDE.placementFloats, ud, vd);
-      const du = dwSub(ud, [af[foff]!, af[foff + 1]!]), dv = dwSub(vd, [af[foff + 2]!, af[foff + 3]!]), hw = bc(af[foff + 4]!), hh = bc(af[foff + 5]!);
-      const bu = bds(du, f(Math.abs(ud[0]) + Math.abs(af[foff]!))), bv = bds(dv, f(Math.abs(vd[0]) + Math.abs(af[foff + 2]!)));
+      const du = D.dSub(ud, [af[foff]!, af[foff + 1]!]), dv = D.dSub(vd, [af[foff + 2]!, af[foff + 3]!]), hw = bc(af[foff + 4]!), hh = bc(af[foff + 5]!);
+      const bu = bds(du, add(Math.abs(ud[0]), Math.abs(af[foff]!))), bv = bds(dv, add(Math.abs(vd[0]), Math.abs(af[foff + 2]!)));
       if (lt(bu, bneg(hw)) || gt(bu, hw) || lt(bv, bneg(hh)) || gt(bv, hh)) continue;
       if (placement === 2) { const a = bdiv(bu, hw), b = bdiv(bv, hh); if (gt(badd(bmul(a, a), bmul(b, b)), bx(1))) continue; }
       const scale: Dw = [af[foff + 6]!, af[foff + 7]!];
-      return offset + classify(kind, ioff, foff + CHART_RECORD_STRIDE.placementFloats, dwMul(du, scale), dwMul(dv, scale));
+      return offset + classify(kind, ioff, foff + CHART_RECORD_STRIDE.placementFloats, D.dMul(du, scale), D.dMul(dv, scale));
     }
     flagged = true;
     return 0;
@@ -299,38 +436,30 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
  * lattice recovery of the exact query point from the kernel's float32 point (p / scale_hi, the nearest offset lattice, the point
  * re-formed in double-float32), the fixed-size chart's placement, then the composite kernel's `material`. Line by line the WGSL.
  */
-export function createCompositeDisplayViewMaterialEmulator(latticeWords: Uint32Array, latticeFloats: Float32Array, offsets: Float32Array, af: Float32Array, ai: Uint32Array):
-  { material(u: number, v: number): number; readonly flagged: boolean; reset(): void } {
-  const inner = createCompositeMaterialEmulator(af, ai);
+export function createCompositeDisplayViewMaterialEmulator(latticeWords: Uint32Array, latticeFloats: Float32Array, offsets: Float32Array, af: Float32Array, ai: Uint32Array,
+  path: ChartCompositeProductPath = "dekker", model: CompositeArithmetic = NEAREST_COMPOSITE_ARITHMETIC): { material(u: number, v: number): number; readonly flagged: boolean; reset(): void } {
+  const inner = createCompositeMaterialEmulator(af, ai, path, model);
   const L = DISPLAY_VIEW_LATTICE, count = latticeWords[L.offsets]!, placed = latticeWords[L.placed] !== 0, surround = latticeWords[L.surround]!, tolerance = latticeFloats[L.tolerance]!;
   const scaleU: Dw = [latticeFloats[L.scaleUHi]!, latticeFloats[L.scaleULo]!], scaleV: Dw = [latticeFloats[L.scaleVHi]!, latticeFloats[L.scaleVLo]!];
   const k: Dw = [latticeFloats[L.chartKHi]!, latticeFloats[L.chartKLo]!], aspect = latticeFloats[L.chartAspect]!;
   let uncertain = false;
+  const K = opsOf(model), D = doubleWord(K, path), { bd, bc, bx, babs, le } = boundOps(K, () => { uncertain = true; });
   const latticePoint = (p: number, scale: Dw, axis: 0 | 1): Dw => {
     const rough = f(p / scale[0]);
     let best = f(3e38), site = 0, cHi = 0, cLo = 0;
     for (let o = 0; o < count; o++) {
-      const hi = offsets[4 * o + 2 * axis]!, lo = offsets[4 * o + 2 * axis + 1]!, d = f(rough - hi), n = wgslRound(d), r = Math.abs(f(d - n));
+      const hi = offsets[4 * o + 2 * axis]!, lo = offsets[4 * o + 2 * axis + 1]!, d = K.sub(rough, hi), n = wgslRound(d), r = Math.abs(K.sub(d, n));
       if (r < best) { best = r; site = n; cHi = hi; cLo = lo; }
     }
     if (!(best <= tolerance)) uncertain = true;
-    return dwMul(dwAdd([site, 0], [cHi, cLo]), scale);
-  };
-  // The bound arithmetic of the in-chart test, as the module's `le(babs(bd(u)), ...)` (the inner emulator's own helpers are private; these mirror the WGSL).
-  const bd = (a: Dw): { v: number; e: number } => ({ v: a[0], e: f(f(f(Math.abs(a[1]) + f(DW * f(Math.abs(a[0]) + Math.abs(a[1])))) + TINY)) });
-  const bc = (c: number): { v: number; e: number } => ({ v: c, e: f(f(E * Math.abs(c)) + TINY) });
-  const le = (a: { v: number; e: number }, b: { v: number; e: number }): boolean => {
-    const v = f(b.v - a.v), e = f(f(a.e + b.e) + f(E * Math.abs(v))), margin = f(f(SAFETY * e) + f(SLACK * f(Math.abs(v) + 1)));
-    if (!(Math.abs(v) > margin)) uncertain = true;
-    return v >= 0;
+    return D.dMul(D.dAdd([site, 0], [cHi, cLo]), scale);
   };
   return {
     material(pu: number, pv: number): number {
       let u = latticePoint(pu, scaleU, 0), v = latticePoint(pv, scaleV, 1);
       if (placed) {
-        u = dwMul(u, k); v = dwMul(v, k);
-        const bu = bd(u), bv = bd(v);
-        if (!(le({ v: Math.abs(bu.v), e: bu.e }, { v: 1, e: 0 }) && le({ v: Math.abs(bv.v), e: bv.e }, bc(aspect)))) return surround;
+        u = D.dMul(u, k); v = D.dMul(v, k);
+        if (!(le(babs(bd(u)), bx(1)) && le(babs(bd(v)), bc(aspect)))) return surround;
       }
       return inner.material(u[0], u[1], v[0], v[1]);
     },

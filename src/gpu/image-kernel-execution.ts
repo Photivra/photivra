@@ -86,6 +86,47 @@ export interface ImageKernelAdapterDescription {
   description: string;
 }
 
+/**
+ * A component of the composite chart kernel's double-float32 probe (see {@link ChartCompositeProbeRecord}). The first four are the
+ * outputs of the probe before 2.11.0: `two-sum` is TwoSum's low part (`s.l`), `two-product` Dekker's TwoProduct low part (`m.l`),
+ * `double-word-add` the double-word sum's low part (`a.l`), `double-word-multiply` the Dekker double-word product (`q.h`, `q.l`).
+ */
+export type ChartCompositeProbeComponent = "two-sum" | "two-product" | "double-word-add" | "double-word-multiply" | "fma-two-product" | "fma-double-word-multiply";
+
+/** One probe output that differs from its expected value: the component, the probe input's index, and the float32 bits (hex). */
+export interface ChartCompositeProbeMismatch {
+  component: ChartCompositeProbeComponent;
+  input: number;
+  got: string;
+  want: string;
+}
+
+/**
+ * The composite chart kernel's device probe (docs/WEBGPU.md, "Scene radiance on the GPU"): how the device evaluated the kernel's
+ * double-float32 building blocks, and which product path the kernel was compiled with. Diagnostic; it never changes a result.
+ *
+ * - `deviceClass`: `exact` (the written order, round to nearest); `contracted` (only the Dekker product paths differ, consistent
+ *   with a multiply and an add fused into one rounding); `reassociated` (a sum path differs and every differing sum low part is
+ *   zero, the value an algebraic simplification of (a + b) − a to b gives); `other` (anything else, such as a sum path that differs
+ *   with non-zero low parts, as a rounding not to nearest gives, or a non-finite output).
+ * - `productPath`: `dekker` when the Dekker path passes, else `fma` when the fma path passes (which needs a fused `fma`), else null
+ *   (the device is refused for composite charts, the 2.3 elements and material-layers scenes).
+ * - `fmaFused`: whether every fma TwoProduct low part was exact (a fused `fma`; WGSL also allows an unfused one).
+ */
+export interface ChartCompositeProbeRecord {
+  deviceClass: "exact" | "contracted" | "reassociated" | "other";
+  productPath: "dekker" | "fma" | null;
+  fmaFused: boolean;
+  /** Probe inputs, each checked on every component. */
+  inputs: number;
+  /** Differing outputs per component. */
+  mismatchCounts: Readonly<Record<ChartCompositeProbeComponent, number>>;
+  /** The indices of the probe inputs (`PROBE_INPUTS`) whose output differs, per component. */
+  mismatchedInputs: Readonly<Record<ChartCompositeProbeComponent, readonly number[]>>;
+  /** The first differing outputs (at most eight), in component order. */
+  mismatches: readonly ChartCompositeProbeMismatch[];
+}
+
 /** Label attached to every accelerated result. */
 export interface ImageKernelExecution {
   backend: ImageKernelBackend;

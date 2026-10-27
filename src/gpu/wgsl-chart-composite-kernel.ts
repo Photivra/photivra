@@ -25,10 +25,26 @@
  * bounds for basic building blocks of double-word arithmetic", ACM TOMS 44(2), 2017, free author copy on
  * HAL: each operation is within a few u² relative), with a declared bound of 2^-40 relative per result.
  * These algorithms need the written evaluation order and round-to-nearest `+ − ×`, and WGSL lets an
- * implementation reassociate (§ "Reassociation and Fusion") or round in either direction; the host
- * therefore probes the compiled pipeline before using it (`CHART_COMPOSITE_PROBE_WGSL`) with inputs whose
- * low parts are non-zero and whose sums and products round up or down to the nearest float32, and refuses
- * the stage on a device whose results differ from the round-to-nearest evaluation in the written order.
+ * implementation reassociate and fuse (W3C WGSL § 15.7.5 "Reassociation and Fusion": "An implementation may fuse
+ * operations if the transformed expression is at least as accurate as the original formulation"), round in either
+ * direction (§ 15.7.4), and evaluate `fma` unfused (§ 15.7.2, § 17.5.32). WGSL has no way to forbid a fusion, so
+ * the host probes the compiled building blocks before using them (`CHART_COMPOSITE_PROBE_WGSL`) with inputs whose
+ * low parts are non-zero and whose sums and products round up or down to the nearest float32.
+ *
+ * **Two product paths (2.11.0).** Dekker's TwoProduct and the final Fast2Sum of the double-word product depend on
+ * every rounded product being rounded before it is added: a fusion of `a*b - p`, of Veltkamp's `t - (t - a)` with
+ * t = 4097·a, or of `p.h + l` with p.h = a.h·b.h changes them (the last adds the product's error twice). The fma path
+ * (`two_prod_fma`, `d_mul_fma`) never adds a rounded product: TwoProduct is fma(a, b, −p) (exact for a fused fma;
+ * Joldes, Muller & Popescu 2017, Algorithm 2), and the double-word product forms its hi part as fma(a.h, b.h, t) and
+ * its error as fma(a.h, b.h, −s) + t, where only t = a.h·b.l + a.l·b.h, an ordinary bounded sum, may be fused. It
+ * is within 9u² (first order) of the exact product (docs/WEBGPU.md), inside the declared 2^-40. The probe runs both
+ * paths; the kernel is compiled with Dekker's when it passes (so an unfused device keeps its results bit for bit),
+ * else with the fma one when it passes, else the device is refused. TwoSum, Fast2Sum and the double-word sum hold no
+ * product and so cannot be fused; the zone plate's phase reduction subtracts 2·round(psi.h/2), an exact product, so
+ * a fusion leaves it unchanged; the star's cross products and the lattice-point recovery are double-word products
+ * and sums. The bound arithmetic stays valid under fusion: a fused multiply-add rounds once, so its result is
+ * within E·|v| of the exact value of the same expression, the term `+` already adds (the product's own E·|v| term
+ * is then a bound on a rounding that did not happen).
  *
  * **No `sin`, `cos` or `atan2` decides anything.** The zone plate reduces its phase to [−1, 1] cycles
  * exactly (Sterbenz) and evaluates cos by quadrant reduction and a Taylor polynomial in bound arithmetic
@@ -55,7 +71,7 @@ const SEGMENT_ORDER = "abcdefg";
 const segmentRows = SEGMENT_ORDER.split("").map((s) => `vec4<f32>(${SEGMENTS[s]!.map((x) => x.toFixed(2)).join(", ")})`).join(", ");
 const digitMasks = DIGIT_SEGMENTS.map((segments) => segments.split("").reduce((mask, s) => mask | (1 << SEGMENT_ORDER.indexOf(s)), 0)).map((m) => m + "u").join(", ");
 
-const COMMON = /* wgsl */ `
+const COMMON_TEMPLATE = /* wgsl */ `
 const E: f32 = 1.1920928955078125e-7;
 const DW: f32 = 9.094947017729282e-13;
 const TINY: f32 = 7.52316384526264e-37;
@@ -73,11 +89,27 @@ var<private> flagged: bool;
 // --- double-float32 (evaluation order matters; the host probes it) ---
 fn two_sum(a: f32, b: f32) -> D { let s = a + b; let bb = s - a; let e = (a - (s - bb)) + (b - bb); return D(s, e); }
 fn quick_two_sum(a: f32, b: f32) -> D { let s = a + b; let e = b - (s - a); return D(s, e); }
+// The Dekker product path: Veltkamp's split and Dekker's TwoProduct, exact only when every + - x is evaluated unfused as written.
 fn split(a: f32) -> D { let t = 4097.0 * a; let h = t - (t - a); return D(h, a - h); }
-fn two_prod(a: f32, b: f32) -> D {
+fn two_prod_dekker(a: f32, b: f32) -> D {
   let p = a * b; let sa = split(a); let sb = split(b);
   let e = ((sa.h * sb.h - p) + sa.h * sb.l + sa.l * sb.h) + sa.l * sb.l;
   return D(p, e);
+}
+fn d_mul_dekker(a: D, b: D) -> D {
+  let p = two_prod_dekker(a.h, b.h);
+  let t = a.h * b.l + a.l * b.h;
+  let l = p.l + t;
+  return quick_two_sum(p.h, l);
+}
+// The fma product path, for a device whose fma is fused (the probe checks it): TwoProduct as fma(a, b, -p), and a double-word
+// product in which no rounded product is an operand of an addition (the hi part is fma(a.h, b.h, t), its error fma(a.h, b.h, -s)),
+// so a contraction of a*b + c into one rounding cannot change it; only t, an ordinary bounded sum, may be contracted.
+fn two_prod_fma(a: f32, b: f32) -> D { let p = a * b; return D(p, fma(a, b, -p)); }
+fn d_mul_fma(a: D, b: D) -> D {
+  let t = a.h * b.l + a.l * b.h;
+  let s = fma(a.h, b.h, t);
+  return D(s, fma(a.h, b.h, -s) + t);
 }
 fn d_add(a: D, b: D) -> D {
   let s = two_sum(a.h, b.h); let t = two_sum(a.l, b.l);
@@ -86,12 +118,7 @@ fn d_add(a: D, b: D) -> D {
 }
 fn d_neg(a: D) -> D { return D(-a.h, -a.l); }
 fn d_sub(a: D, b: D) -> D { return d_add(a, d_neg(b)); }
-fn d_mul(a: D, b: D) -> D {
-  let p = two_prod(a.h, b.h);
-  let t = a.h * b.l + a.l * b.h;
-  let l = p.l + t;
-  return quick_two_sum(p.h, l);
-}
+fn d_mul(a: D, b: D) -> D { return d_mul_PRODUCT_PATH(a, b); }
 // A double-float32 result as a bounded value: its high part, with the low part and the declared 2^-40 error, relative to the
 // result and to \`scale\`, the magnitude of the operands it was formed from (a difference of nearly equal terms keeps their error).
 fn bds(a: D, scale: f32) -> B { return B(a.h, abs(a.l) + DW * (abs(a.h) + abs(a.l) + scale) + TINY); }
@@ -130,7 +157,13 @@ fn bfloor(x: B, lo: f32, hi: f32) -> f32 {
 fn parity_even(i: i32, j: i32) -> bool { return ((i + j) & 1) == 0; }
 `;
 
-export const CHART_COMPOSITE_WGSL = /* wgsl */ `${COMMON}
+/** The product path of the double-float32 arithmetic: Dekker's (unfused evaluation as written) or the fma one (a fused `fma`). */
+export type ChartCompositeProductPath = "dekker" | "fma";
+const commonWgsl = (path: ChartCompositeProductPath): string => COMMON_TEMPLATE.replace("d_mul_PRODUCT_PATH", "d_mul_" + path);
+
+/** The composite kernel compiled with one product path (`d_mul`): the probe's choice for the device. */
+export function chartCompositeWgsl(path: ChartCompositeProductPath): string {
+  return /* wgsl */ `${commonWgsl(path)}
 struct Params { count: u32, columns: u32, wavelength_mode: u32, pad0: u32 };
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var<storage, read> points: array<vec4<f32>>;
@@ -438,13 +471,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   flags[i] = select(0u, 1u, flagged);
 }
 `;
+}
+/** The composite kernel with the Dekker product path (unchanged since #477). */
+export const CHART_COMPOSITE_WGSL = chartCompositeWgsl("dekker");
 
 /**
- * Probe of the double-float32 building blocks on the compiled device: for each input pair it writes the low
- * parts of two_sum, two_prod, d_add and d_mul. The host compares them with the exact values (which a
- * reassociated or fused evaluation would not reproduce) before the composite kernel is used.
+ * Probe of the double-float32 building blocks on the compiled device, both product paths: for each input (x, y, z, w) it writes
+ * TwoSum(x, y), the Dekker and the fma TwoProduct(x, y) low parts, the double-word sum (x, y) + (z, w) low part, and both paths'
+ * double-word products (x, y)·(z, w), hi and lo. The host (`classifyChartCompositeProbe`) compares them with the exact values and
+ * with the round-to-nearest evaluation in the written order, names the components that differ, classifies the device and picks
+ * the product path the composite kernel is compiled with. The functions are the kernel's own (`COMMON_TEMPLATE`).
  */
-export const CHART_COMPOSITE_PROBE_WGSL = /* wgsl */ `${COMMON}
+export const CHART_COMPOSITE_PROBE_WGSL = /* wgsl */ `${commonWgsl("dekker")}
 @group(0) @binding(0) var<storage, read> input: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> output: array<vec4<f32>>;
 @compute @workgroup_size(1)
@@ -453,11 +491,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (i >= arrayLength(&input)) { return; }
   let p = input[i];
   let s = two_sum(p.x, p.y);
-  let m = two_prod(p.x, p.y);
+  let m = two_prod_dekker(p.x, p.y);
   let a = d_add(D(p.x, p.y), D(p.z, p.w));
-  let q = d_mul(D(p.x, p.y), D(p.z, p.w));
-  output[i] = vec4<f32>(s.l, m.l, a.l, q.l);
+  let mf = two_prod_fma(p.x, p.y);
+  let q = d_mul_dekker(D(p.x, p.y), D(p.z, p.w));
+  let qf = d_mul_fma(D(p.x, p.y), D(p.z, p.w));
+  output[2u * i] = vec4<f32>(s.l, m.l, a.l, mf.l);
+  output[2u * i + 1u] = vec4<f32>(q.h, q.l, qf.h, qf.l);
 }
 `;
+/** Floats the probe writes per input (two vec4). */
+export const CHART_COMPOSITE_PROBE_OUTPUTS = 8;
 export const CHART_COMPOSITE_PROBE_LABEL = "photivra-chart-composite-probe";
-export const CHART_COMPOSITE_LABEL = "photivra-chart-composite";
+/** Pipeline label of the composite kernel per product path (the pipeline caches key on it). */
+export function chartCompositeLabel(path: ChartCompositeProductPath): string { return path === "dekker" ? "photivra-chart-composite" : "photivra-chart-composite-fma"; }
+export const CHART_COMPOSITE_LABEL = chartCompositeLabel("dekker");

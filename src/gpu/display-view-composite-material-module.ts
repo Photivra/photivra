@@ -32,9 +32,10 @@
  * arithmetic (flagging points within their bound of its edge); the surround is the materials table's last entry.
  */
 import { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF } from "./image-kernel-execution.js";
-import { CHART_COMPOSITE_WGSL } from "./wgsl-chart-composite-kernel.js";
+import { chartCompositeWgsl, type ChartCompositeProductPath } from "./wgsl-chart-composite-kernel.js";
 import { chartGpuPresetCode } from "./chart-radiance-gpu.js";
 import { dwSplit, packChartScene, probeChartCompositeDevice, type PackedChartScene } from "./chart-composite-gpu.js";
+import type { ChartCompositeProbeRecord } from "./image-kernel-execution.js";
 import { chartPresetMaterialModule } from "./display-view-chart-material-module.js";
 import type { ChartRadianceBatchPlan } from "../facade/chart-radiance-batch.js";
 import type { ResolvedChartScene } from "../facade/chart-scenes.js";
@@ -49,8 +50,10 @@ type PipelineSource = (label: string, code: string) => Promise<GPUComputePipelin
 
 /** One WGSL rounding of + − × in either direction (E = 2⁻²³). */
 const E = 2 * WEBGPU_F32_UNIT_ROUNDOFF;
-/** The module's id in the pipeline cache (one shader for every composite scene; the scene is data). */
+/** The module's id in the pipeline cache (one shader per product path for every composite scene; the scene is data): the Dekker path's. */
 export const CHART_COMPOSITE_MATERIAL_MODULE_ID = "chart-composite";
+/** The module's id per product path (the fma path's shader is a different pipeline). */
+export function chartCompositeMaterialModuleId(path: ChartCompositeProductPath): string { return path === "dekker" ? CHART_COMPOSITE_MATERIAL_MODULE_ID : CHART_COMPOSITE_MATERIAL_MODULE_ID + "-fma"; }
 /** Scenes whose records stay uploaded per renderer (the composite kernel keeps the same number per accelerator). */
 const KEPT_SCENES = 4;
 /** The corner check of the query-point model against the reference's own query points, relative to |p| + 1 (inside the composite kernel's 10⁻¹⁴ slack). */
@@ -62,10 +65,11 @@ export const DISPLAY_VIEW_LATTICE = Object.freeze({ scaleUHi: 0, scaleULo: 1, sc
 /**
  * The composite kernel's classification (`material(p: vec4<f32>)` with its bound arithmetic, double-float32, cos polynomial,
  * elements and layers) renamed for the display-view kernel, its records bound at @group(1), and the lattice recovery that
- * defines `material_at(p: vec2<f32>)` (see the module comment). The constants E and SLACK come from the kernel's preamble.
+ * defines `material_at(p: vec2<f32>)` (see the module comment). The constants E and SLACK come from the kernel's preamble. `path`
+ * is the double-word product path the device's probe chose (default Dekker's).
  */
-export function chartCompositeMaterialWgsl(): string {
-  const source = CHART_COMPOSITE_WGSL;
+export function chartCompositeMaterialWgsl(path: ChartCompositeProductPath = "dekker"): string {
+  const source = chartCompositeWgsl(path);
   const commonStart = source.indexOf("const DW: f32"), commonEnd = source.indexOf("struct Params"), bodyStart = source.indexOf("const SEGMENT_BOX"), bodyEnd = source.indexOf("@compute");
   if (commonStart < 0 || commonEnd < commonStart || bodyStart < commonEnd || bodyEnd < bodyStart) throw new ImageKernelExecutionError("gpu-validation", "The composite chart kernel's material functions were not found.");
   const rename = (code: string): string => code.replace(/^const SLACK: f32 = [^\n]*\n/mu, "").replace(/\bflagged\b/gu, "material_uncertain").replace(/\bmargin\(/gu, "bmargin(");
@@ -199,8 +203,9 @@ export interface DisplayViewMaterialModules {
 
 export function createDisplayViewMaterialModules(runtime: WebGpuRuntime, pipelines: PipelineSource): DisplayViewMaterialModules {
   const presets = new WeakMap<ResolvedChartScene, DisplayViewGpuMaterialModule>(), uploads: UploadedRecords[] = [];
-  let probed: Promise<void> | null = null, wgsl: string | null = null;
-  const probe = (signal: AbortSignal): Promise<void> => {
+  let probed: Promise<ChartCompositeProbeRecord> | null = null;
+  const wgsl = new Map<ChartCompositeProductPath, string>();
+  const probe = (signal: AbortSignal): Promise<ChartCompositeProbeRecord> => {
     probed ??= probeChartCompositeDevice(runtime, pipelines, signal).catch((error: unknown) => { probed = null; throw error; });
     return probed;
   };
@@ -227,10 +232,11 @@ export function createDisplayViewMaterialModules(runtime: WebGpuRuntime, pipelin
         if (!module) { module = chartPresetMaterialModule(scene.chart); presets.set(scene.chart, module); }
         return module;
       }
-      await probe(signal);
+      const record = await probe(signal), path = record.productPath ?? "dekker";
       const lattice = displayViewLatticeConstants(signalInput, placement, scene.materials.length), uploaded = records(scene);
-      wgsl ??= chartCompositeMaterialWgsl();
-      return { id: CHART_COMPOSITE_MATERIAL_MODULE_ID, wgsl, bindings: [
+      let code = wgsl.get(path);
+      if (code === undefined) { code = chartCompositeMaterialWgsl(path); wgsl.set(path, code); }
+      return { id: chartCompositeMaterialModuleId(path), wgsl: code, compositeProbe: record, bindings: [
         { binding: 0, kind: "storage", buffer: uploaded.af }, { binding: 1, kind: "storage", buffer: uploaded.ai },
         { binding: 2, kind: "uniform", data: new Uint8Array(lattice.params) }, { binding: 3, kind: "storage", data: lattice.offsets }] };
     },

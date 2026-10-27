@@ -17,6 +17,12 @@ export interface DisplayViewExecution extends Omit<ImageKernelExecution, "fallba
   fallbackReason: DisplayViewGpuFallbackReason | null;
   adapter: ImageKernelAdapterDescription | null;
   conformance: DisplayViewGpuConformance | null;
+  /**
+   * 2.11: the composite chart kernel's device probe when this render needed it (composite charts, the 2.3 elements and
+   * `material-layers` scenes): the device class and the product path the kernel ran with, or, on a refusal (`fallbackReason`
+   * `unsupported-on-backend`), why. Null when the render did not run the probe (the 2.0 presets, `gpu: "off"`).
+   */
+  compositeProbe: ChartCompositeProbeRecord | null;
 }
 ```
 

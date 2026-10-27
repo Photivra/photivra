@@ -25,7 +25,7 @@ import { chartPresetMaterialModule } from "./display-view-chart-material-module.
 import { encodeSrgbComponentPortable } from "../color/srgb-transfer.js";
 import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, samplePortableStandardNormal } from "../sensor/stochastic-seed.js";
 import { createHostYieldGate } from "../capture/host-yield-cadence.js";
-import { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, webGpuExecution, type ImageKernelExecution, type ImageKernelRelativeErrorBound } from "./image-kernel-execution.js";
+import { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, webGpuExecution, type ChartCompositeProbeRecord, type ImageKernelExecution, type ImageKernelRelativeErrorBound } from "./image-kernel-execution.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, createComputePipeline, linearDispatch, runComputePass, type WebGpuRuntime } from "./webgpu-runtime.js";
 import { DISPLAY_VIEW_AUX, DISPLAY_VIEW_GEOMETRY_STRIDE, DISPLAY_VIEW_GPU_MAXIMUM_OFFSETS, DISPLAY_VIEW_GPU_MAXIMUM_PIXELS_PER_AXIS,
   DISPLAY_VIEW_OUTPUT_FLOATS, DISPLAY_VIEW_PARAM_WORDS, DISPLAY_VIEW_REINHARD_MEAN_U, DISPLAY_VIEW_REINHARD_VARIANCE_U, DISPLAY_VIEW_WORKGROUP_SIZE,
@@ -74,6 +74,8 @@ export interface DisplayViewGpuMaterialModule {
   /** Names the module in the pipeline cache; two modules with different `wgsl` need different ids. */
   readonly id: string;
   readonly wgsl: string;
+  /** The composite module's device probe record (the product path it chose); absent for the chart-preset module. */
+  readonly compositeProbe?: ChartCompositeProbeRecord;
   readonly bindings: readonly ({ binding: number; kind: "uniform" | "storage"; data: ArrayBufferView<ArrayBuffer>; buffer?: undefined } |
     { binding: number; kind: "uniform" | "storage"; buffer: GPUBuffer; data?: undefined })[];
 }
@@ -479,7 +481,7 @@ export function createDisplayViewSpeedGpuRenderer(runtime: WebGpuRuntime, option
         const result = await renderDisplayViewSpeedOnGpu(runtime, bandBytes, { setup, signalInput: setup.gpu.signalInput, material }, abort, options.yieldControl, source);
         return { samples: result.samples, expected: result.expected, noiseStd: result.noiseStd, sampleCount: result.sampleCount, siteCount: result.siteCount, detailPixelCount: result.detailPixelCount,
           uniformPixelCount: result.uniformPixelCount, ahdCorrectedPixelCount: result.ahdCorrectedPixelCount, estimation: result.estimation, errorBound: result.expectedValueBound,
-          diagnosticUncertaintySampleCount: result.execution.diagnosticUncertaintySampleCount };
+          diagnosticUncertaintySampleCount: result.execution.diagnosticUncertaintySampleCount, ...(material.compositeProbe ? { compositeProbe: material.compositeProbe } : {}) };
       } finally { signal?.removeEventListener("abort", onAbort); }
     },
     dispose(): void { modules.release(); }
