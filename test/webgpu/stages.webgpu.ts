@@ -7,6 +7,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
+import { writeFileSync } from "node:fs";
 import { chartBatchInput, chartPoints, CHART_PRESET_SCENES } from "../helpers/chart-radiance-fixtures.js";
 import { allElementsComposite, compositeBatchInput, COMPOSITE_ELEMENTS, elementRect, FIXTURE_ASPECT, labelLayer, layeredScene, singleElementComposite, VIEW_SIZES,
   viewPoints } from "../helpers/chart-composite-fixtures.js";
@@ -45,6 +46,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await page?.close();
   if (report.length) console.info(`[test:webgpu stages] ${JSON.stringify(report, null, 1)}`);
+  if (report.length && process.env.PHOTIVRA_REPORT_FILE) writeFileSync(process.env.PHOTIVRA_REPORT_FILE, JSON.stringify(report, null, 1));
 });
 
 interface SensorResult { codes: Uint16Array; diagnostics: PackedSensorRawDiagnostics; execution: ImageKernelExecution; flaggedSiteIndices: Uint32Array }
@@ -162,17 +164,35 @@ describe("webgpu-f32 chart radiance vs float64 reference", () => {
 });
 
 /** Runs both query modes of a composite-kernel scene: every value is the reference rounded once; returns the flagged fraction of the first `counted` points. */
-async function conformComposite(scene: Parameters<typeof compositeBatchInput>[0], points: Float64Array, counted: number): Promise<{ flaggedFraction: number; recomputed: number }> {
-  let fraction = 0, recomputed = 0;
+interface CompositeRun { values: Float32Array; execution: ImageKernelExecution; hostRecomputedQueryIndices: Uint32Array; reference: Float64Array }
+/**
+ * Every value is the browser realm's reference rounded once (flagged points were recomputed there); every unflagged value is also
+ * Node's reference rounded once. The two realms' references differ only at flagged points (V8's Math.atan2 last bit at a point within
+ * float64 rounding of a sector boundary, #471); those are counted, never hidden.
+ */
+function checkComposite(gpu: CompositeRun, nodeReference: Float64Array, columns: number, mode: string): number {
+  const flagged = new Set(gpu.hostRecomputedQueryIndices);
+  let realmDisagreements = 0;
+  for (let i = 0; i < nodeReference.length; i++) {
+    if (gpu.values[i] !== Math.fround(gpu.reference[i]!)) expect.fail(`value ${i} in ${mode}: ${gpu.values[i]} vs the realm's ${gpu.reference[i]}`);
+    if (gpu.reference[i] !== nodeReference[i]) {
+      realmDisagreements++;
+      expect(flagged.has(Math.floor(i / columns)), `query ${Math.floor(i / columns)} differs between realms but is not flagged`).toBe(true);
+    }
+  }
+  return realmDisagreements;
+}
+async function conformComposite(scene: Parameters<typeof compositeBatchInput>[0], points: Float64Array, counted: number): Promise<{ flaggedFraction: number; recomputed: number; realmDisagreements: number }> {
+  let fraction = 0, recomputed = 0, realmDisagreements = 0;
   for (const mode of ["radiance", "spectral-integral"] as const) {
     const input = compositeBatchInput(scene, points, mode), reference = calculateChartRadianceBatch(input).values;
-    const gpu = await call<{ values: Float32Array; execution: ImageKernelExecution; hostRecomputedQueryIndices: Uint32Array }>("chartRadiance", { input });
+    const gpu = await call<CompositeRun>("chartRadiance", { input, reference: true });
     expect(gpu.execution.errorBound).toMatchObject({ kind: "relative-to-reference", relative: 2 ** -24 });
-    for (let i = 0; i < reference.length; i++) if (gpu.values[i] !== Math.fround(reference[i]!)) expect.fail(`value ${i} in ${mode}: ${gpu.values[i]} vs ${reference[i]}`);
+    realmDisagreements += checkComposite(gpu, reference, input.channelWeights?.length ?? 1, mode);
     fraction = Math.max(fraction, Array.from(gpu.hostRecomputedQueryIndices).filter(q => q < counted).length / counted);
     recomputed = gpu.hostRecomputedQueryIndices.length;
   }
-  return { flaggedFraction: fraction, recomputed };
+  return { flaggedFraction: fraction, recomputed, realmDisagreements };
 }
 
 describe("webgpu-f32 composite chart kernel vs float64 reference (#477)", () => {
@@ -189,8 +209,8 @@ describe("webgpu-f32 composite chart kernel vs float64 reference (#477)", () => 
     if (guard()) return;
     const scene = allElementsComposite(), points = viewPoints(FIXTURE_ASPECT, VIEW_SIZES.app, 3, undefined, 20_000, 7);
     const input = compositeBatchInput(scene, points, "radiance"), reference = calculateChartRadianceBatch(input).values;
-    const gpu = await call<{ values: Float32Array; hostRecomputedQueryIndices: Uint32Array }>("chartRadiance", { input });
-    for (let i = 0; i < reference.length; i++) if (gpu.values[i] !== Math.fround(reference[i]!)) expect.fail(`value ${i}: ${gpu.values[i]} vs ${reference[i]}`);
+    const gpu = await call<CompositeRun>("chartRadiance", { input, reference: true });
+    const realmDisagreements = checkComposite(gpu, reference, 1, "radiance");
     const g = chartGeometry(resolveChartScene({ scene, aspect: FIXTURE_ASPECT }));
     if (g.kind !== "composite") throw new Error("composite expected");
     const owner = (u: number, v: number): number => {
@@ -206,7 +226,7 @@ describe("webgpu-f32 composite chart kernel vs float64 reference (#477)", () => 
     for (let q = 0; q < points.length / 2; q++) { const o = owner(points[2 * q]!, points[2 * q + 1]!); total.set(o, (total.get(o) ?? 0) + 1); }
     for (const q of gpu.hostRecomputedQueryIndices) { const o = owner(points[2 * q]!, points[2 * q + 1]!); flaggedBy.set(o, (flaggedBy.get(o) ?? 0) + 1); }
     const rows = [...total.entries()].map(([o, n]) => ({ element: o < 0 ? "background" : COMPOSITE_ELEMENTS[o]![0], points: n, flaggedFraction: (flaggedBy.get(o) ?? 0) / n }));
-    report.push({ stage: "chart-composite", composite: "all-elements", queries: points.length / 2, rows });
+    report.push({ stage: "chart-composite", composite: "all-elements", queries: points.length / 2, realmDisagreements, rows });
     for (const row of rows) expect(row.flaggedFraction, row.element).toBeLessThanOrEqual(0.01);
   });
   it("a material-layers scene: the label layer at the 2028 × 1352 view and the composite under it", async () => {

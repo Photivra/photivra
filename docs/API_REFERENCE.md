@@ -1102,6 +1102,24 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ExposureProgramLineProfile`](api/exposure-program-line.md#exposureprogramlineprofile) | Type |
 | [`parseExposureProgramLineProfile`](api/exposure-program-line.md#parseexposureprogramlineprofile) | Runtime |
 
+## facade/chart-material-layers.ts
+
+[Detailed contracts](api/facade-chart-material-layers.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-material-layers.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`CHART_MASK_INDEX_GRAIN`](api/facade-chart-material-layers.md#chart_mask_index_grain) | Runtime |
+| [`CHART_MATERIAL_LAYER_LIMITS`](api/facade-chart-material-layers.md#chart_material_layer_limits) | Runtime |
+| [`ChartMaskAnnulus`](api/facade-chart-material-layers.md#chartmaskannulus) | Type |
+| [`ChartMaskLayer`](api/facade-chart-material-layers.md#chartmasklayer) | Type |
+| [`ChartMaskPolygon`](api/facade-chart-material-layers.md#chartmaskpolygon) | Type |
+| [`ChartMaskShape`](api/facade-chart-material-layers.md#chartmaskshape) | Type |
+| [`ChartMaterialLayerScene`](api/facade-chart-material-layers.md#chartmateriallayerscene) | Type |
+| [`resolveChartMaterialLayers`](api/facade-chart-material-layers.md#resolvechartmateriallayers) | Runtime |
+| [`ResolvedChartMaskLayer`](api/facade-chart-material-layers.md#resolvedchartmasklayer) | Type |
+| [`ResolvedChartMaskShape`](api/facade-chart-material-layers.md#resolvedchartmaskshape) | Type |
+| [`ResolvedChartMaterialLayers`](api/facade-chart-material-layers.md#resolvedchartmateriallayers) | Type |
+
 ## facade/chart-radiance-batch.ts
 
 [Detailed contracts](api/facade-chart-radiance-batch.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-radiance-batch.ts)

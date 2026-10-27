@@ -92,8 +92,10 @@ fn d_mul(a: D, b: D) -> D {
   let l = p.l + t;
   return quick_two_sum(p.h, l);
 }
-// A double-float32 result as a bounded value: its high part, with the low part and the declared 2^-40 relative error as the bound.
-fn bd(a: D) -> B { return B(a.h, abs(a.l) + DW * (abs(a.h) + abs(a.l)) + TINY); }
+// A double-float32 result as a bounded value: its high part, with the low part and the declared 2^-40 error, relative to the
+// result and to \`scale\`, the magnitude of the operands it was formed from (a difference of nearly equal terms keeps their error).
+fn bds(a: D, scale: f32) -> B { return B(a.h, abs(a.l) + DW * (abs(a.h) + abs(a.l) + scale) + TINY); }
+fn bd(a: D) -> B { return bds(a, 0.0); }
 
 // --- bound arithmetic ---
 fn bc(c: f32) -> B { return B(c, E * abs(c) + TINY); }
@@ -205,7 +207,7 @@ fn numeral_ink(u: B, v: B, lu0: f32, lv0: f32, h: f32, digits: u32) -> bool {
 fn star_cross(dirs: u32, k: u32, x: D, y: D) -> B {
   let o = dirs + 4u * k;
   let cx = D(af[o], af[o + 1u]); let sx = D(af[o + 2u], af[o + 3u]);
-  return bd(d_sub(d_mul(cx, y), d_mul(sx, x)));
+  return bds(d_sub(d_mul(cx, y), d_mul(sx, x)), abs(cx.h * y.h) + abs(sx.h * x.h));
 }
 
 fn classify(kind: u32, ioff: u32, foff: u32, xd: D, yd: D) -> u32 {
@@ -409,7 +411,7 @@ fn material(p: vec4<f32>) -> u32 {
     if (placement == ${CHART_PLACEMENT.frame}u) { return offset + classify(kind, ioff, foff + ${CHART_RECORD_STRIDE.placementFloats}u, ud, vd); }
     let du = d_sub(ud, D(af[foff], af[foff + 1u])); let dv = d_sub(vd, D(af[foff + 2u], af[foff + 3u]));
     let hw = bc(af[foff + 4u]); let hh = bc(af[foff + 5u]);
-    let bu = bd(du); let bv = bd(dv);
+    let bu = bds(du, abs(ud.h) + abs(af[foff])); let bv = bds(dv, abs(vd.h) + abs(af[foff + 2u]));
     if (lt(bu, bneg(hw)) || gt(bu, hw) || lt(bv, bneg(hh)) || gt(bv, hh)) { continue; }
     if (placement == ${CHART_PLACEMENT.ellipse}u) {
       let a = bdiv(bu, hw); let b = bdiv(bv, hh);

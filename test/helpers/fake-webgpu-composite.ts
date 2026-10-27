@@ -40,7 +40,8 @@ export function emulateCompositeChart(p: Uint32Array, points: Float32Array, tabl
   const [count, columns, wavelengthMode] = [p[0]!, p[1]!, p[2]!];
   let flagged!: boolean;
   // --- bound arithmetic ---
-  const bd = (a: Dw): B => ({ v: a[0], e: f(f(f(Math.abs(a[1]) + f(DW * f(Math.abs(a[0]) + Math.abs(a[1])))) + TINY)) });
+  const bds = (a: Dw, scale: number): B => ({ v: a[0], e: f(f(f(Math.abs(a[1]) + f(DW * f(f(Math.abs(a[0]) + Math.abs(a[1])) + scale))) + TINY)) });
+  const bd = (a: Dw): B => bds(a, 0);
   const bc = (c: number): B => ({ v: c, e: f(f(E * Math.abs(c)) + TINY) });
   const bx = (c: number): B => ({ v: c, e: 0 });
   const badd = (a: B, b: B): B => { const v = f(a.v + b.v); return { v, e: f(f(a.e + b.e) + f(E * Math.abs(v))) }; };
@@ -106,7 +107,7 @@ export function emulateCompositeChart(p: Uint32Array, points: Float32Array, tabl
   };
   const starCross = (dirs: number, k: number, x: Dw, y: Dw): B => {
     const o = dirs + 4 * k, cx: Dw = [af[o]!, af[o + 1]!], sx: Dw = [af[o + 2]!, af[o + 3]!];
-    return bd(dwSub(dwMul(cx, y), dwMul(sx, x)));
+    return bds(dwSub(dwMul(cx, y), dwMul(sx, x)), f(Math.abs(f(cx[0] * y[0])) + Math.abs(f(sx[0] * x[0]))));
   };
   const mod = (a: number, n: number): number => ((a % n) + n) % n;
   const classify = (kind: number, ioff: number, foff: number, xd: Dw, yd: Dw): number => {
@@ -268,7 +269,7 @@ export function emulateCompositeChart(p: Uint32Array, points: Float32Array, tabl
       const h = he + CHART_RECORD_STRIDE.element * (i - 1), kind = ai[h]!, offset = ai[h + 1]!, ioff = ai[h + 2]!, foff = ai[h + 3]!, placement = ai[h + 4]!;
       if (placement === 0) return offset + classify(kind, ioff, foff + CHART_RECORD_STRIDE.placementFloats, ud, vd);
       const du = dwSub(ud, [af[foff]!, af[foff + 1]!]), dv = dwSub(vd, [af[foff + 2]!, af[foff + 3]!]), hw = bc(af[foff + 4]!), hh = bc(af[foff + 5]!);
-      const bu = bd(du), bv = bd(dv);
+      const bu = bds(du, f(Math.abs(ud[0]) + Math.abs(af[foff]!))), bv = bds(dv, f(Math.abs(vd[0]) + Math.abs(af[foff + 2]!)));
       if (lt(bu, bneg(hw)) || gt(bu, hw) || lt(bv, bneg(hh)) || gt(bv, hh)) continue;
       if (placement === 2) { const a = bdiv(bu, hw), b = bdiv(bv, hh); if (gt(badd(bmul(a, a), bmul(b, b)), bx(1))) continue; }
       const scale: Dw = [af[foff + 6]!, af[foff + 7]!];

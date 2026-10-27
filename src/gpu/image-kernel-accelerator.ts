@@ -310,6 +310,8 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
       const run = runOptions(options);
       return operate(run.signal, async (abort) => {
         if (!runtime) return evaluateChartRadianceOnCpu(input, abort, run.yieldControl, cpuLabel());
+        // #477: the chart stage consults the realm's switch on every call; off, the reference runs and the label says so.
+        if (!getWebGpuEnabled()) return evaluateChartRadianceOnCpu(input, abort, run.yieldControl, cpuExecution(requested, "webgpu-disabled"));
         return evaluateChartRadianceOnGpu(runtime, bandBytes, input, abort, run.yieldControl, (label, code) => pipeline(runtime, label, code, abort.signal), chartUploads!);
       });
     },
