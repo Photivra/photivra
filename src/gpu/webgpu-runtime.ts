@@ -176,7 +176,7 @@ export function linearDispatch(invocations: number, workgroupSize: number, maxim
  * and out-of-memory errors are captured with error scopes and reported as domain errors.
  */
 export async function runComputePass(runtime: WebGpuRuntime, scope: GpuResourceScope, pipeline: GPUComputePipeline,
-  bindGroup: GPUBindGroup, workgroups: readonly [number, number], outputs: readonly { buffer: GPUBuffer; bytes: number }[],
+  bindGroup: GPUBindGroup | readonly GPUBindGroup[], workgroups: readonly [number, number], outputs: readonly { buffer: GPUBuffer; bytes: number }[],
   signal: AbortSignal | undefined): Promise<ArrayBuffer[]> {
   const device = runtime.device;
   device.pushErrorScope("out-of-memory");
@@ -186,7 +186,8 @@ export async function runComputePass(runtime: WebGpuRuntime, scope: GpuResourceS
   const encoder = device.createCommandEncoder({ label: "photivra-image-kernel" });
   const pass = encoder.beginComputePass();
   pass.setPipeline(pipeline);
-  pass.setBindGroup(0, bindGroup);
+  // One bind group at index 0, or several at indices 0, 1, … (the display-view kernel binds its material module at 1).
+  (Array.isArray(bindGroup) ? bindGroup as readonly GPUBindGroup[] : [bindGroup as GPUBindGroup]).forEach((group, index) => pass.setBindGroup(index, group));
   pass.dispatchWorkgroups(workgroups[0], workgroups[1]);
   pass.end();
   outputs.forEach(({ buffer }, i) => encoder.copyBufferToBuffer(buffer, 0, staging[i]!, 0, staging[i]!.size));

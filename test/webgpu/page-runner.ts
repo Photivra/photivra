@@ -7,6 +7,10 @@ import { calculateChartRadianceBatch, createImageKernelAccelerator, ImageKernelE
   type NativeCaptureSdrInput, type NativeCaptureSdrProvider, type NativeCaptureSdrTile, type NativeCaptureSdrTileRequest,
   type NativeRawDevelopmentInput, type PackedSensorRawInput, type TemporalExposureSumInput, type ChartRadianceBatchInput } from "../../src/index.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
+import { displayViewGpuFixture, renderOnGpu } from "../helpers/display-view-gpu-fixture.js";
+import { DISPLAY_VIEW_SPEED_CONFORMANCE_CASE } from "../../src/gpu/display-view-speed-gpu.js";
+import { acquireWebGpuRuntime, type WebGpuRuntime } from "../../src/gpu/webgpu-runtime.js";
+import type { SimulateCaptureOptions, SimulateDisplayViewOptions } from "../../src/index.js";
 
 interface RunRequest<T> { input: T; maximumBandBytes?: number; timeCpu?: boolean; repeat?: number; reference?: boolean }
 
@@ -154,4 +158,41 @@ export async function lifecycle(payload: string): Promise<Record<string, string>
   outcomes.state = a.state;
   outcomes.afterDispose = await a.renderNativeCaptureSdr(sdr, tiles).then(() => "resolved", describe);
   return outcomes;
+}
+
+async function runtime(): Promise<WebGpuRuntime> {
+  const acquired = await acquireWebGpuRuntime((navigator as Navigator & { gpu?: GPU }).gpu, undefined, undefined);
+  if ("failure" in acquired) throw new ImageKernelExecutionError(acquired.failure, acquired.message);
+  return acquired.runtime;
+}
+
+/**
+ * #478: the display view's Speed kernel on the device. The page renders the CPU reference too (its bytes, for the Node driver
+ * to check against its own), then the GPU render with the chart-preset material module; everything after the moments (noise
+ * draw, encode) runs on the host in float64 as in the CPU path.
+ */
+export async function displayViewSpeed(payload: string): Promise<string> {
+  const { options, view, maximumBandBytes, recomputeFlagged, repeat } = decodeTransport<{ options: SimulateCaptureOptions; view: SimulateDisplayViewOptions; maximumBandBytes?: number;
+    recomputeFlagged?: boolean; repeat?: number }>(payload);
+  const fixture = await displayViewGpuFixture(options, view), device = await runtime();
+  try {
+    let result: Awaited<ReturnType<typeof renderOnGpu>> | undefined, milliseconds = 0;
+    for (let i = 0; i < (repeat ?? 1); i++) {
+      const start = performance.now();
+      result = await renderOnGpu(device, fixture, maximumBandBytes, recomputeFlagged ?? true);
+      milliseconds = performance.now() - start;
+    }
+    const gpu = result!;
+    return encodeTransport({ cpu: { samples: fixture.cpu.samples, expected: fixture.cpu.expected, noiseStd: fixture.cpu.noiseStd },
+      gpu: { samples: gpu.samples, expected: gpu.expected, noiseStd: gpu.noiseStd, expectedValueBound: gpu.expectedValueBound, varianceBound: gpu.varianceBound,
+        expectedValueAbsoluteBound: gpu.expectedValueAbsoluteBound, varianceAbsoluteBound: gpu.varianceAbsoluteBound },
+      flaggedPixelIndices: gpu.flaggedPixelIndices, hostRecomputedPixelIndices: gpu.hostRecomputedPixelIndices, execution: gpu.execution, gpuMilliseconds: milliseconds });
+  } finally { device.destroy(); }
+}
+
+/** #478: the renderer's run-time self-check case on the device. */
+export async function displayViewConformance(): Promise<string> {
+  const device = await runtime();
+  try { return encodeTransport({ outcome: await DISPLAY_VIEW_SPEED_CONFORMANCE_CASE.run(device, undefined) }); }
+  finally { device.destroy(); }
 }

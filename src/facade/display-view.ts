@@ -47,7 +47,15 @@ export const DISPLAY_VIEW_AHD_STREAM_ID = 34 as const;
 
 export { createDisplayViewExpectedSignal, type DisplayViewExpectedSignal, type DisplayViewExpectedSignalInput, type DisplayViewQueryOffset,
   type DisplayViewScene } from "./expected-signal.js";
-import type { DisplayViewExpectedSignal } from "./expected-signal.js";
+import type { DisplayViewExpectedSignal, DisplayViewExpectedSignalInput } from "./expected-signal.js";
+import type { ResolvedChartScene } from "./chart-scenes.js";
+
+/**
+ * #478: what a GPU renderer needs beyond the CPU setup, which reads the scene only through `signal`: the expected signal's
+ * input (query offsets and points, the materials table, the channel responses) and the resolved chart (null for caller
+ * scenes), from which it builds its material lookup. The CPU renderer ignores it.
+ */
+export interface DisplayViewGpuSetup { signalInput: DisplayViewExpectedSignalInput; chart: ResolvedChartScene | null }
 // ---------------------------------------------------------------------------------------------------------------
 // Normal-distribution helpers.
 /** Standard normal density. */
@@ -191,6 +199,8 @@ export interface DisplayViewSetup {
   ahdCollect?: Set<number>;
   yieldControl(): Promise<void>;
   checkAbort(): void;
+  /** #478: the inputs a GPU renderer builds its scene lookup from (see {@link DisplayViewGpuSetup}); not read by `renderDisplayView`. */
+  gpu?: DisplayViewGpuSetup;
 }
 
 export interface DisplayViewRenderResult {
@@ -256,7 +266,7 @@ export function ahdCandidateKernels(phaseX: number, phaseY: number): DisplayView
 }
 
 /** 1-D overlaps of real output columns with one display column: first column index and the overlaps. */
-function overlaps(start: number, end: number, limit: number): { first: number; w: Float64Array } {
+export function overlaps(start: number, end: number, limit: number): { first: number; w: Float64Array } {
   const first = Math.floor(start), last = Math.min(limit - 1, Math.ceil(end) - 1), w = new Float64Array(last - first + 1);
   for (let k = first; k <= last; k++) w[k - first] = Math.min(end, k + 1) - Math.max(start, k);
   return { first, w };
@@ -1094,7 +1104,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
  * The centre c of a normal of variance v whose clip to [0, 1] has mean `target` (bisection; c = target when the noise does
  * not reach a bound, or when the target lies outside (0, 1)).
  */
-function clipCentre(target: number, v: number): number {
+export function clipCentre(target: number, v: number): number {
   if (!(v > 0) || !(target > 0 && target < 1)) return target;
   const s = Math.sqrt(v);
   if (target > 4 * s && 1 - target > 4 * s) return target;
@@ -1104,7 +1114,7 @@ function clipCentre(target: number, v: number): number {
   return (lo + hi) / 2;
 }
 /** Variance in linear light of rounding an sRGB-encoded value to steps of `step`: (dEOTF/de)²·step²/12 at the encoded mean. */
-function quantizationVariance(linear: number, step: number): number {
+export function quantizationVariance(linear: number, step: number): number {
   const e = encodeSrgbComponentPortable(linear < 0 ? 0 : linear > 1 ? 1 : linear), slope = e <= 0.04045 ? 1 / 12.92 : 2.4 / 1.055 * portablePow((e + 0.055) / 1.055, 1.4);
   return slope * slope * step * step / 12;
 }

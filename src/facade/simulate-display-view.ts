@@ -12,6 +12,7 @@ import { resolvePortableColorTemperatureWhiteBalance, type ResolvedWhiteBalanceS
 import { resolveCaptureColorModel } from "../color/capture-color.js";
 import { prepareSensorColorDevelopment } from "../color/sensor-color-development.js";
 import { buildExpectedSignalInput } from "./expected-signal-setup.js";
+import type { DisplayViewExpectedSignalInput } from "./expected-signal.js";
 import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolvePortableChartScene, type ChartScene } from "./chart-scenes.js";
 import { resolvePortableCaptureIlluminant, calculateIlluminantIrradianceScale } from "./scene-radiance.js";
@@ -144,16 +145,18 @@ export async function prepareDisplayView(options: SimulateCaptureOptions, prepar
  * deviations, for the validation scripts and tests.
  */
 export async function simulateDisplayViewWithInternals(options: SimulateCaptureOptions, view: SimulateDisplayViewOptions):
-  Promise<{ result: DisplayViewResult; internals: DisplayViewRenderResult; signal: DisplayViewExpectedSignal }> {
-  const internals: { value?: DisplayViewRenderResult; signal?: DisplayViewExpectedSignal } = {};
+  Promise<{ result: DisplayViewResult; internals: DisplayViewRenderResult; signal: DisplayViewExpectedSignal; setup: DisplayViewSetup; signalInput: DisplayViewExpectedSignalInput }> {
+  const internals: ViewInternals = {};
   const result = await runCapture(options, "display-view", view, (context) => renderDisplayViewResult(context, internals)) as DisplayViewResult;
-  return { result, internals: internals.value!, signal: internals.signal! };
+  return { result, internals: internals.value!, signal: internals.signal!, setup: internals.setup!, signalInput: internals.signalInput! };
 }
 
 /** AHD low-signal correction (display view): draws per flat-neighbourhood state, and the pixel noise (linear light) above which it applies. */
 const DISPLAY_VIEW_AHD_CORRECTION_DRAWS = 2048, DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD = 0.01;
 
-type ViewInternals = { value?: DisplayViewRenderResult; signal?: DisplayViewExpectedSignal };
+type ViewInternals = { value?: DisplayViewRenderResult; signal?: DisplayViewExpectedSignal;
+  /** #478: the render's setup and the expected signal's input, for the GPU display view's tests. */
+  setup?: DisplayViewSetup; signalInput?: DisplayViewExpectedSignalInput };
 /** What one render of a prepared view needs from its call: its start times, cancellation and yielding. */
 interface ViewRun { started: number; viewStarted: number; checkAbort: () => void; yieldControl: () => Promise<void>; signal?: AbortSignal | undefined }
 type RenderPreparedView = (view: ParsedDisplayView, run: ViewRun, viewInternals?: ViewInternals, gpu?: DisplayViewGpuSession | null) => Promise<DisplayViewResult>;
@@ -237,7 +240,7 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
     return { signal, setup: { frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
       region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
       ...(ahdCandidates && ahdCorrection ? { candidates: ahdCandidates, ahdCorrection } : {}), ...(ahdCollect ? { ahdCollect } : {}),
-      gains, clipLevel, matrix, toneCurve: viewToneCurve, yieldControl, checkAbort } };
+      gains, clipLevel, matrix, toneCurve: viewToneCurve, yieldControl, checkAbort, gpu: { signalInput, chart: viewChart ?? null } } };
   };
   const correction: DisplayViewCorrectionSetup | undefined = ahdCorrection ? { seed: noiseSeed, readout, gains, clipLevel, matrix, toneCurve: viewToneCurve, ahdCorrection } : undefined;
   const collect = async (v: ParsedDisplayView, run: ViewRun): Promise<Int32Array> => {
@@ -257,7 +260,7 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
     const cpu = (): Promise<DisplayViewRenderResult> => renderDisplayView(setup);
     const { rendered, execution }: { rendered: DisplayViewRenderResult; execution: DisplayViewExecution } = gpu ? await gpu.render(setup, run.signal, cpu)
       : { rendered: await cpu(), execution: cpuDisplayViewExecution("off", null, null, null) };
-    if (viewInternals) { viewInternals.value = rendered; viewInternals.signal = signal; }
+    if (viewInternals) { viewInternals.value = rendered; viewInternals.signal = signal; viewInternals.setup = setup; viewInternals.signalInput = signalInput; }
     const viewMs = clockMs() - viewStarted, scaleX = width / v.width, scaleY = height / v.height;
     assume("view.definition", "model", { resampling: "area-average-linear-light", width: v.width, height: v.height, frameWidth: width, frameHeight: height, scaleX, scaleY },
       "The image the full-resolution capture of this request would give after resizing to " + v.width + " × " + v.height + ": each display pixel is the area-weighted mean, in linear light (sRGB samples decoded with the sRGB EOTF), " +
