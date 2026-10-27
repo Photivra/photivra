@@ -21,9 +21,9 @@
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { getWebGpuEnabled } from "../gpu/webgpu-switch.js";
-import { acquireWebGpuRuntime, createComputePipeline, type WebGpuRuntime } from "../gpu/webgpu-runtime.js";
+import { acquireWebGpuRuntime, type WebGpuRuntime } from "../gpu/webgpu-runtime.js";
 import { ImageKernelExecutionError, WEBGPU_F32_LIMITATIONS, type ImageKernelAdapterDescription } from "../gpu/image-kernel-execution.js";
-import { acceleratorRuntime, convolveOnGpu } from "../gpu/image-kernel-accelerator.js";
+import { acceleratorRuntime, convolveIrradianceOnRuntime } from "../gpu/image-kernel-accelerator.js";
 import { calculateIrradianceConvolutionPlan, convolveIrradianceRows, type IrradianceConvolutionInput } from "../optics/irradiance-convolution.js";
 import type { DisplayViewRenderResult, DisplayViewSetup } from "./display-view.js";
 import { cpuDisplayViewExecution, displayViewGpuRendererFactory, type DisplayViewExecution, type DisplayViewGpuConformance, type DisplayViewGpuConformanceCase,
@@ -71,7 +71,7 @@ export async function openDisplayViewGpuSession(options: ParsedPrepareDisplayVie
   if (!factory) return fallBack(options, "unsupported-on-backend", "this version of the engine has no GPU display-view renderer (#478); no device was requested.");
   let runtime: WebGpuRuntime, owned = false;
   if (isAccelerator(options.gpuDevice)) {
-    const shared = acceleratorRuntime(options.gpuDevice);
+    const shared = acceleratorRuntime(options.gpuDevice) as WebGpuRuntime | null | undefined;
     if (shared === undefined) throw new InvalidConfigurationError("prepareDisplayView options.gpuDevice must be an accelerator created by createImageKernelAccelerator.");
     const accelerator = options.gpuDevice as { state: string; fallbackReason: DisplayViewGpuFallbackReason | null };
     if (accelerator.state === "disposed") throw new InvalidConfigurationError("prepareDisplayView options.gpuDevice is a disposed accelerator.");
@@ -128,12 +128,8 @@ function convolutionCase(id: string, width: number, height: number, radius: numb
       samples: seededSamples(width * height, seed), kernels };
     const plan = calculateIrradianceConvolutionPlan(input), reference = new Float64Array(width * height);
     convolveIrradianceRows(plan, input.samples, input.kernels, 0, height, reference);
-    const abort = new AbortController();
-    const onAbort = (): void => abort.abort();
-    signal?.addEventListener("abort", onAbort, { once: true });
-    try {
-      if (signal?.aborted) abort.abort();
-      const result = await convolveOnGpu(runtime, 1 << 20, plan, input, abort, undefined, (label, code) => createComputePipeline(runtime, label, code, abort.signal));
+    {
+      const result = await convolveIrradianceOnRuntime(runtime, input, signal);
       const bound = result.execution.errorBound;
       if (!bound || bound.kind !== "relative-to-reference") return "the convolution reported no relative bound.";
       let worst = 0, worstIndex = -1;
@@ -143,7 +139,7 @@ function convolutionCase(id: string, width: number, height: number, radius: numb
       }
       return worstIndex < 0 ? true : "sample " + worstIndex + " differs from the reference by " + Math.abs(result.values[worstIndex]! - reference[worstIndex]!) +
         ", more than the a-priori bound " + (bound.relative * reference[worstIndex]! + bound.absolute) + ".";
-    } finally { signal?.removeEventListener("abort", onAbort); }
+    }
   } };
 }
 /** The built-in cases, run on every device before its first display-view render: the existing convolution kernel on two small images. */

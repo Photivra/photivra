@@ -773,11 +773,11 @@ is the plumbing they slot into, and until they do every GPU request runs the CPU
 ```ts
 import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
 
-const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, output: { width: 6000, height: 4000 } };
+const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, sensor: { pixelPitchMicrometers: 4 }, output: { width: 600, height: 400 } };
 // "off" (the default) is the CPU reference, today's bytes. "auto": the GPU when a conforming device is available and
 // the request is supported, else the CPU, labelled. "require": fail instead of falling back.
 const prepared = await prepareDisplayView(request, { gpu: "auto" });
-const part = await prepared.render({ width: 2028, height: 1352, region: { x: 960, y: 640, width: 96, height: 96 } });
+const part = await prepared.render({ width: 200, height: 133, region: { x: 90, y: 60, width: 24, height: 24 } });
 const ran = part.diagnostics.fast.execution;
 console.log(ran.backend, ran.fallbackReason, ran.errorBound, ran.adapter?.description); // in Node: "cpu-reference" "unsupported-on-backend" null undefined
 prepared.dispose(); // releases a device the view acquired
@@ -835,7 +835,9 @@ listed) holds and an app can show "estimated on the GPU". `simulateDisplayView` 
 `requestedBackend: "cpu-reference"` and no fallback reason.
 
 **The renderer contract** (internal, `src/facade/display-view-gpu.ts`), which #478 implements: a factory
-`(runtime) => DisplayViewGpuRenderer` registered with `setDisplayViewGpuRendererFactory`, where a renderer has an `id`,
+`(runtime: DisplayViewGpuRuntimeHandle) => DisplayViewGpuRenderer` registered with `setDisplayViewGpuRendererFactory` (the handle
+is the engine's `WebGpuRuntime` seen through its WebGPU-free members, so no WebGPU type reaches the published declarations;
+a renderer in the engine casts it), where a renderer has an `id`,
 `supports(request)` (true, or a sentence saying why not), `render({ setup, signal })` returning the CPU renderer's result
 shape (samples, expected values, noise, counts, estimation) plus the a-priori `errorBound` of its values, and optional
 `conformanceCases`. A render must throw `ImageKernelExecutionError` with reason `device-lost` or `aborted` for those two

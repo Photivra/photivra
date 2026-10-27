@@ -194,11 +194,23 @@ export async function createImageKernelAccelerator(options: ImageKernelAccelerat
 /** The runtime behind each accelerator this module created (#481: a prepared display view shares an accelerator's device through it). */
 const RUNTIMES = new WeakMap<ImageKernelAccelerator, WebGpuRuntime | null>();
 /**
- * Internal (#481, not exported from the package): the WebGPU runtime of an accelerator created by {@link createImageKernelAccelerator}
- * (null for one on the CPU reference), or undefined when `value` is not such an accelerator.
+ * Internal (#481, not exported from the package): the WebGPU runtime (`WebGpuRuntime`, typed `unknown` here so no WebGPU type reaches
+ * the published declarations) of an accelerator created by {@link createImageKernelAccelerator}, null for one on the CPU
+ * reference, or undefined when `value` is not such an accelerator.
  */
-export function acceleratorRuntime(value: unknown): WebGpuRuntime | null | undefined {
+export function acceleratorRuntime(value: unknown): unknown {
   return typeof value === "object" && value !== null ? RUNTIMES.get(value as ImageKernelAccelerator) : undefined;
+}
+/**
+ * Internal (#481, not exported from the package): runs the `webgpu-f32` convolution on a runtime (`WebGpuRuntime`, passed as
+ * `unknown` to keep WebGPU types out of the published declarations), for the display view's run-time conformance self-check.
+ * Pipelines are compiled per call; `signal` aborts the run.
+ */
+export async function convolveIrradianceOnRuntime(runtime: unknown, input: IrradianceConvolutionInput, signal: AbortSignal | undefined): Promise<IrradianceConvolutionResult> {
+  const gpu = runtime as WebGpuRuntime, plan = calculateIrradianceConvolutionPlan(input), link = linkedAbort(signal);
+  try {
+    return await convolveOnGpu(gpu, 1 << 20, plan, input, link.controller, undefined, (label, code) => createComputePipeline(gpu, label, code, link.controller.signal));
+  } finally { link.dispose(); }
 }
 
 function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageKernelFallbackReason | null,
@@ -309,8 +321,7 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
   return accelerator;
 }
 
-/** A source of compiled compute pipelines by label (the accelerator caches them per device). @internal */
-export type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
+type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
 
 function checkAbort(abort: AbortController): void {
   if (abort.signal.aborted) throw abortedError();
@@ -339,11 +350,7 @@ async function convolveOnCpu(plan: IrradianceConvolutionPlan, input: IrradianceC
   return { plan, values, inputSum: sumOf(samples), outputSum: sumOf(values), execution };
 }
 
-/**
- * The `webgpu-f32` convolution on a runtime. Internal (not exported from the package); #481's display-view self-check runs it as a
- * conformance case on a device before the view's first GPU render.
- */
-export async function convolveOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: IrradianceConvolutionPlan, input: IrradianceConvolutionInput,
+async function convolveOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: IrradianceConvolutionPlan, input: IrradianceConvolutionInput,
   abort: AbortController, yieldControl: ImageKernelRunOptions["yieldControl"], pipelines: PipelineSource): Promise<IrradianceConvolutionResult> {
   const { width, height, kernelRadius: r, tapCount } = plan;
   const samples = new Float32Array(input.samples), kernels = new Float32Array(input.kernels), inputSum = sumOf(input.samples);

@@ -17,7 +17,6 @@
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import type { ImageKernelAdapterDescription, ImageKernelBackend, ImageKernelExecution, ImageKernelFallbackReason } from "../gpu/image-kernel-execution.js";
-import type { WebGpuRuntime } from "../gpu/webgpu-runtime.js";
 import type { DisplayViewRenderResult, DisplayViewSetup } from "./display-view.js";
 import type { SimulateCaptureFastReport } from "./simulate-capture.js";
 
@@ -112,6 +111,18 @@ export function cpuDisplayViewExecution(gpu: DisplayViewGpuMode, fallbackReason:
 // ---------------------------------------------------------------------------------------------------------------
 // The renderer contract (#478 implements it; until then the only implementation is a test fake).
 
+/**
+ * Internal (#481): the device a renderer or conformance case runs on. It is the engine's `WebGpuRuntime` object
+ * (`src/gpu/webgpu-runtime.ts`: `device`, `guard`, `destroy` and the rest), seen here through its WebGPU-free members only so
+ * that no WebGPU type reaches the published declarations (docs/WEBGPU.md); a renderer in the engine casts it to `WebGpuRuntime`.
+ */
+export interface DisplayViewGpuRuntimeHandle {
+  readonly adapter: ImageKernelAdapterDescription | null;
+  readonly maximumStorageBindingBytes: number;
+  readonly maximumWorkgroupsPerDimension: number;
+  isLost(): boolean;
+}
+
 /** What a prepared request asks of a GPU renderer (`supports`): the options that shape a render. */
 export interface DisplayViewGpuRequest {
   ahd: boolean;
@@ -131,7 +142,7 @@ export interface DisplayViewGpuRenderOutput extends DisplayViewRenderResult {
   diagnosticUncertaintySampleCount?: number;
 }
 /** A conformance case: returns `true` when the device agrees with the reference within the case's bound, or a sentence saying how it did not. */
-export interface DisplayViewGpuConformanceCase { id: string; run(runtime: WebGpuRuntime, signal: AbortSignal | undefined): Promise<true | string> }
+export interface DisplayViewGpuConformanceCase { id: string; run(runtime: DisplayViewGpuRuntimeHandle, signal: AbortSignal | undefined): Promise<true | string> }
 /**
  * Internal (#481): the contract a GPU display-view renderer fulfils (#478). One instance serves one device, created by the
  * registered factory for each prepared view that acquires or shares a device. `supports` says whether the renderer covers a
@@ -146,7 +157,7 @@ export interface DisplayViewGpuRenderer {
   render(part: DisplayViewGpuPart): Promise<DisplayViewGpuRenderOutput>;
   readonly conformanceCases?: readonly DisplayViewGpuConformanceCase[];
 }
-export type DisplayViewGpuRendererFactory = (runtime: WebGpuRuntime) => DisplayViewGpuRenderer;
+export type DisplayViewGpuRendererFactory = (runtime: DisplayViewGpuRuntimeHandle) => DisplayViewGpuRenderer;
 
 let rendererFactory: DisplayViewGpuRendererFactory | null = null;
 /**
