@@ -1794,6 +1794,8 @@ export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, 
   type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
 export { CHART_RADIANCE_BATCH_SCHEMA_VERSION, CHART_RADIANCE_BATCH_LIMITS, calculateChartRadianceBatchPlan, calculateChartRadianceBatch,
   mapEnvironmentDirectionsToChartPoints, type ChartRadianceBatchInput, type ChartRadianceBatchPlan } from "./facade/chart-radiance-batch.js";
+export { resolveChartMaterialLayers, CHART_MASK_INDEX_GRAIN, CHART_MATERIAL_LAYER_LIMITS, type ChartMaterialLayerScene, type ChartMaskLayer, type ChartMaskShape,
+  type ChartMaskPolygon, type ChartMaskAnnulus, type ResolvedChartMaterialLayers, type ResolvedChartMaskLayer, type ResolvedChartMaskShape } from "./facade/chart-material-layers.js";
 export { EXPORT_JPEG_ENCODER_ID } from "./capture/export-jpeg.js";
 export { DNG_IMPORT_SCHEMA_VERSION, DNG_IMPORT_LIMITS, parseDngRawImage } from "./capture/dng-import.js";
 export { NATIVE_RAW_DNG_SCHEMA_VERSION, serializeNativeRawDng, type SerializeNativeRawDngInput, type NativeRawDng, type NativeRawDngChannelNoise } from "./capture/native-raw-dng.js";

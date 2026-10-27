@@ -21,6 +21,7 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixel-limits.js";
 import { resolveChartScene, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
+import { resolveChartMaterialLayers, type ChartMaterialLayerScene, type ResolvedChartMaterialLayers } from "./chart-material-layers.js";
 import { buildPlanarSceneRadianceProvider, calculateIlluminantIrradianceScale, resolveCaptureIlluminant, tabulatedSpectrum, type CaptureIlluminant,
   type ResolvedCaptureIlluminant } from "./scene-radiance.js";
 
@@ -31,8 +32,8 @@ export const CHART_RADIANCE_BATCH_LIMITS = Object.freeze({ maximumQueries: 24_00
 
 export interface ChartRadianceBatchInput {
   schemaVersion: typeof CHART_RADIANCE_BATCH_SCHEMA_VERSION;
-  /** An engine chart preset (caller scene functions are not supported here). */
-  scene: ChartScene;
+  /** An engine chart preset, or (#477) a declared `material-layers` scene: a chart under shape-mask layers. Caller scene functions are not supported here. */
+  scene: ChartScene | ChartMaterialLayerScene;
   illuminant: CaptureIlluminant;
   illuminanceLux: number;
   /** Frame height / width. */
@@ -54,7 +55,12 @@ export interface ChartRadianceBatchInput {
 
 /** Validated plan with the resolved chart, illuminant and irradiance scale. Arrays are borrowed. */
 export interface ChartRadianceBatchPlan {
+  /** The resolved chart; with a `material-layers` scene, the chart under the layers. */
   chart: ResolvedChartScene;
+  /** The resolved layers of a `material-layers` scene, or null for a chart preset. */
+  layers: ResolvedChartMaterialLayers | null;
+  /** Every material a query can resolve to: the chart's, then each layer's background and ink. */
+  materials: ResolvedChartScene["materials"];
   illuminant: ResolvedCaptureIlluminant;
   irradianceScale: number;
   queryCount: number;
@@ -74,7 +80,11 @@ export function calculateChartRadianceBatchPlan(input: ChartRadianceBatchInput):
     "wavelengthIndices", "channelWeights", "maximumQueries"], "Invalid chart radiance batch input.");
   if (r.schemaVersion !== CHART_RADIANCE_BATCH_SCHEMA_VERSION) throw new InvalidConfigurationError("Unsupported chart radiance batch schema.");
   if (typeof r.aspect !== "number" || !(r.aspect > 0 && r.aspect <= Number.MAX_VALUE)) throw new InvalidConfigurationError("aspect must be positive.");
-  const chart = resolveChartScene({ scene: r.scene as ChartScene, aspect: r.aspect });
+  const sceneRecord = r.scene as Record<string, unknown> | null;
+  const layers = sceneRecord !== null && typeof sceneRecord === "object" && sceneRecord.kind === "material-layers"
+    ? resolveChartMaterialLayers({ scene: r.scene as ChartMaterialLayerScene, aspect: r.aspect }) : null;
+  const chart = layers ? layers.chart : resolveChartScene({ scene: r.scene as ChartScene, aspect: r.aspect });
+  const materials = layers ? layers.materials : chart.materials;
   const illuminant = resolveCaptureIlluminant(r.illuminant as CaptureIlluminant);
   const irradianceScale = calculateIlluminantIrradianceScale(illuminant.shape, r.illuminanceLux as number);
   const L = CHART_RADIANCE_BATCH_LIMITS, points = r.points;
@@ -101,18 +111,20 @@ export function calculateChartRadianceBatchPlan(input: ChartRadianceBatchInput):
     throw new InvalidConfigurationError("channelWeights must hold 1 to 4 rows of one finite weight per wavelength.");
   }
   // The provider's own radiance function: chart reflectance × scaled illuminant / π, in its float64 order.
-  const provider = buildPlanarSceneRadianceProvider({ scene: chart, sceneId: "chart-radiance-batch", providerProfileId: "chart-radiance-batch", illuminant,
+  const providerScene = layers ? { kind: "material-function" as const, sceneId: layers.sceneId, materials: layers.materials, materialInputs: layers.materialInputs,
+    materialAt: (point: { u: number; v: number }): number => layers.materialAt(point.u, point.v) } : chart;
+  const provider = buildPlanarSceneRadianceProvider({ scene: providerScene, sceneId: "chart-radiance-batch", providerProfileId: "chart-radiance-batch", illuminant,
     irradianceScale, geometry: { distanceM: 1, metresPerFrameUnit: 1 }, evidence: [], limitations: [] });
   const channelWeights = weights === undefined ? null : (weights as number[][]).map(row => Object.freeze([...row]));
   const nm = Object.freeze([...(wavelengths as number[])]);
   const shapeAt = tabulatedSpectrum(illuminant.shape);
   const materialRadiance = (material: number, wavelength: number): number => {
-    const m = chart.materials[material]!;
+    const m = materials[material]!;
     const reflectance = m.kind === "neutral" ? m.reflectance : m.spectrum.evaluate(wavelength);
     if (m.kind === "spectrum" && !(reflectance >= 0 && reflectance <= 1)) throw new InvalidConfigurationError("Chart reflectance spectrum left [0, 1].");
     return reflectance * irradianceScale * shapeAt(wavelength) / Math.PI;
   };
-  return Object.freeze({ chart, illuminant, irradianceScale, queryCount, columns: channelWeights === null ? 1 : channelWeights.length,
+  return Object.freeze({ chart, layers, materials, illuminant, irradianceScale, queryCount, columns: channelWeights === null ? 1 : channelWeights.length,
     mode: channelWeights === null ? "radiance" as const : "spectral-integral" as const, wavelengthsNanometers: nm, channelWeights, materialRadiance,
     queryValue(p: Float32Array | Float64Array, w: Uint8Array | Uint16Array | undefined, query: number, column: number): number {
       const u = p[2 * query]!, v = p[2 * query + 1]!;
