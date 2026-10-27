@@ -48,6 +48,14 @@ const MEAN_ROUNDINGS = 64;
 const VARIANCE_ROUNDINGS = 80;
 /** The reference's own float64 rounding of its chains, relative. */
 const CPU_RELATIVE = 2 ** -40;
+/**
+ * #496: the host's output quantization term q(m) = s(e)²·Δ²/12 (`quantizationVariance`, s the sRGB EOTF's slope at the encoded
+ * mean e) is evaluated at the GPU's mean, so it moves with the mean's error: dq/dm = 2·s′(e)·Δ²/12 (de/dm = 1/s), with
+ * s′(e) = (2.4/1.055)·(1.4/1.055)·((e + 0.055)/1.055)^0.4 ≤ 3.02 on [0, 1] and 0 on the linear segment and outside [0, 1];
+ * q is non-decreasing in m, with a jump of (s₊² − s₋²)·Δ²/12 ≤ 2.1·10⁻⁴·Δ²/12 at the segment join (linear m = 0.0031308).
+ * The Quality kernel's constants (#479).
+ */
+const QUANTIZATION_SLOPE = 6.04, QUANTIZATION_JOIN_JUMP = 2.1e-4, QUANTIZATION_JOIN = 0.0031308;
 /** Workgroups per band are limited by the output buffer: DISPLAY_VIEW_OUTPUT_FLOATS floats plus one flag word per display pixel. */
 const BYTES_PER_PIXEL = 4 * DISPLAY_VIEW_OUTPUT_FLOATS + 4;
 
@@ -263,6 +271,20 @@ export function finishDisplayViewPixel(moments: ArrayLike<number>, pixels: numbe
   noiseStd[o] = Math.sqrt(Math.max(0, v00)); noiseStd[o + 1] = Math.sqrt(Math.max(0, v11)); noiseStd[o + 2] = Math.sqrt(Math.max(0, v22));
 }
 
+/**
+ * #496: how far the host's quantization term Σ(w/A)²·q(m) of a display pixel can move when each component's mean carries the
+ * bound relative·|m| + absolute (see QUANTIZATION_SLOPE), the largest over the three components, doubled. Added to the pixel's
+ * absolute variance bound; it changes no computed value.
+ */
+export function displayViewSpeedQuantizationBound(moments: ArrayLike<number>, relative: number, absolute: number, pixels: number, step: number): number {
+  let largest = 0;
+  for (let c = 0; c < 3; c++) {
+    const m = moments[c]!, bound = relative * Math.abs(m) + absolute;
+    largest = Math.max(largest, QUANTIZATION_SLOPE * bound + (m - bound <= QUANTIZATION_JOIN && m + bound >= QUANTIZATION_JOIN ? QUANTIZATION_JOIN_JUMP : 0));
+  }
+  return MARGIN * pixels * largest * step * step / 12;
+}
+
 /** Renders one region of a Speed display view on the GPU (see the module comment). */
 export async function renderDisplayViewSpeedOnGpu(runtime: WebGpuRuntime, bandBytes: number, input: DisplayViewSpeedGpuInput, abort: AbortController,
   yieldControl: YieldControl, pipelines: PipelineSource): Promise<DisplayViewSpeedGpuResult> {
@@ -325,13 +347,13 @@ export async function renderDisplayViewSpeedOnGpu(runtime: WebGpuRuntime, bandBy
   const expected = new Float64Array(pixelCount * 3), noiseStd = new Float64Array(pixelCount * 3);
   const meanBound = new Float32Array(pixelCount), varianceBound = new Float32Array(pixelCount);
   let largestMean = 0, largestVariance = 0, sampleCount = 0, siteCount = 0;
-  const counts = new Int32Array(geometry.buffer);
+  const counts = new Int32Array(geometry.buffer), relative = displayViewSpeedGpuRelativeBounds(setup.toneCurve);
   for (let ry = 0, i = 0; ry < region.height; ry++) {
     const rowWw = rowSums[ry]!.ww, ny = counts[(region.width + ry) * stride + 1]!;
     for (let rx = 0; rx < region.width; rx++, i++) {
       const pixels = columnSums[rx]!.ww * rowWw / (area * area), vy = region.y + ry, vx = region.x + rx, o = i * DISPLAY_VIEW_OUTPUT_FLOATS;
       finishDisplayViewPixel(moments.subarray(o, o + 9), pixels, setup.seed, vy * setup.viewWidth + vx, step, maximum, samples, expected, noiseStd, i * 3);
-      meanBound[i] = MARGIN * moments[o + 9]!; varianceBound[i] = MARGIN * moments[o + 10]!;
+      meanBound[i] = MARGIN * moments[o + 9]!; varianceBound[i] = MARGIN * moments[o + 10]! + displayViewSpeedQuantizationBound(moments.subarray(o, o + 3), relative.mean, meanBound[i]!, pixels, step);
       largestMean = Math.max(largestMean, meanBound[i]!); largestVariance = Math.max(largestVariance, varianceBound[i]!);
       const nx = counts[rx * stride + 1]!;
       sampleCount += nx * ny; siteCount += (nx + 2) * (ny + 2);
@@ -350,7 +372,6 @@ export async function renderDisplayViewSpeedOnGpu(runtime: WebGpuRuntime, bandBy
       recomputed.push(i);
     }
   }
-  const relative = displayViewSpeedGpuRelativeBounds(setup.toneCurve);
   const expectedValueBound: ImageKernelRelativeErrorBound = { kind: "relative-to-reference", relative: relative.mean, absolute: largestMean };
   const uncertain = flagged.length - recomputed.length;
   return { samples, expected, noiseStd, sampleCount, siteCount, detailPixelCount: pixelCount, uniformPixelCount: 0, ahdCorrectedPixelCount: 0, estimation: "exact-area-mean",
