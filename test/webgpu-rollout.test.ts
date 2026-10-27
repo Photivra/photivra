@@ -7,15 +7,14 @@
 import { describe, expect, it } from "vitest";
 import { composeRelativeErrorBounds, createImageKernelAccelerator, type ImageKernelRelativeErrorBound } from "../src/index.js";
 import { createFakeGpu } from "./helpers/fake-webgpu.js";
-import { CHART_PRESET_SCENES } from "./helpers/chart-radiance-fixtures.js";
 import { channelPlanes, cpuMethodTile, methodError, methodTile, perSiteTile, rolloutMethodInputs, rolloutPsfProfile, rolloutSetup, ROLLOUT_PINNED_METHOD_ERROR,
-  ROLLOUT_TILES } from "./helpers/rollout-fixture.js";
+  ROLLOUT_SCENES, ROLLOUT_TILES } from "./helpers/rollout-fixture.js";
 
-const CASES = [["slanted-edge", "exact-centre"], ["siemens-star", "exact-centre"], ["point-grid", "exact-centre"], ["point-grid", "subsite-off-axis"]] as const;
+const CASES = [["slanted-edge", "exact-centre"], ["siemens-star", "exact-centre"], ["point-grid", "exact-centre"], ["point-grid", "subsite-off-axis"], ["composite", "exact-off-axis"]] as const;
 
 describe("per-fixture rollout (CI subset, fake device)", () => {
   it.each(CASES)("%s %s: GPU path within the arithmetic bound of the method; method error within its pinned value", async (name, id) => {
-    const scene = CHART_PRESET_SCENES.find(([n]) => n === name)![1], config = ROLLOUT_TILES.find(c => c.id === id)!, tile = config.tile;
+    const scene = ROLLOUT_SCENES.find(([n]) => n === name)![1], config = ROLLOUT_TILES.find(c => c.id === id)!, tile = config.tile;
     const setup = await rolloutSetup(scene), profile = rolloutPsfProfile(setup, config.psfPitchMicrometers, config.psfHalfWidth);
     const inputs = rolloutMethodInputs(setup, profile, tile);
     const a = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu: createFakeGpu().gpu });
