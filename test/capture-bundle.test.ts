@@ -34,8 +34,8 @@ describe("capture-only bundles", () => {
     expect(modules.has("facade/display-view.ts")).toBe(false);
     expect(modules.has("facade/simulate-display-view.ts")).toBe(false);
     // Captures use only these portable-math exports: the two of 2.5.0 and V8's three-argument hypot sequence of the
-    // capture's query arithmetic (#452).
-    expect([...(modules.get("core/portable-math.ts") ?? [])].sort()).toEqual(["equalWithinUlps", "hypot3", "portableHypot"]);
+    // capture's query arithmetic (#452), and the arcsine of the defocus disc kernel the capture applies for lens.defocus (#492).
+    expect([...(modules.get("core/portable-math.ts") ?? [])].sort()).toEqual(["equalWithinUlps", "hypot3", "portableAsin", "portableHypot"]);
   }, testTimeout(60_000));
 
   it("keep them when the display view is imported", async () => {

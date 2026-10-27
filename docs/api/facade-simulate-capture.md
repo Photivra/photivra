@@ -96,7 +96,7 @@ a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.tempor
 
 ```ts
 SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
-  "lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
+  "lens.diffraction", "lens.defocus", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const)
 ```
@@ -587,8 +587,10 @@ export interface SimulateCaptureResult {
      * `diffraction` (the object-space convolution of `lens.diffraction`; part of `raw` and `whiteBalance`), `demosaic`
      * (the AHD demosaic; part of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond
      * resolution where the host has `performance.now()`. Timings vary from run to run and never enter any digest or output byte.
+     * #492: `defocus`, the object-space convolution of `lens.defocus` out of focus (with `lens.diffraction` the combined
+     * kernel's convolution, reported here instead of under `diffraction`).
      */
-    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; demosaic?: number; encode?: number };
+    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; defocus?: number; demosaic?: number; encode?: number };
     /**
      * 2.1: the opt-in options that changed the work of this run, in a fixed order (see `SIMULATE_CAPTURE_COST_OPTIONS`).
      * Empty for a capture with every default. With `timingsMs` it lets an application measure each option's cost on

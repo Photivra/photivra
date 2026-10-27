@@ -1552,6 +1552,8 @@ console.log(components.value.composition.status); // "not-composed"
 
 The foundation deliberately **does not combine** geometric defocus and circular diffraction into a synthetic PSF, MTF, convolution kernel, combined blur radius or "lens sharpness" score.
 
+This foundation API is separate from the capture facade. With `lens.defocus` and `lens.diffraction` together, `simulateCapture` convolves each spectral node's diffraction kernel with the geometric defocus disc (#492). That is a labelled approximation, and it has its own `lens.defocus` assumption. See [Optics](QUICK_START.md#optics).
+
 It already records field position, even though the current defocus and Airy diagnostics do not vary across the field. Future field-curvature, pupil-clipping, bokeh and aberration contributions can then use the same context without reinterpreting existing outputs.
 
 The spectral basis is explicitly monochromatic (one wavelength) for the Airy diagnostic. This does not create a spectral lens or sensor-colour model.
@@ -7619,6 +7621,25 @@ const barrel = await simulateCapture({
   output: { width: 8, height: 8 }
 });
 console.log(barrel.request.siteInput(0).environment.lensFieldMapping?.distortion.kind);
+```
+
+`lens.defocus: { model: "geometric-disc" }` (#492) renders defocus of the flat scene plane when
+`lens.focusDistanceM` differs from `subjectDistanceM`. The thin-lens blur circle becomes a uniform disc on the site
+lattice, and the capture convolves the scene radiance with it, which is a geometric approximation. With
+`lens.diffraction`, each spectral node's diffraction kernel is convolved with the disc, which is a further
+approximation. The `lens.defocus` assumption records the diameter in µm and in sites, the kernel radius and the
+execution. `simulateDisplayView` does not render it yet. See [Optics](QUICK_START.md#optics).
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const blurred = await simulateCapture({
+  scene: { preset: "slanted-edge" },
+  subjectDistanceM: 2,
+  lens: { focalLengthMm: 50, fNumber: 4, focusDistanceM: 1.8, defocus: { model: "geometric-disc" } },
+  output: { width: 16, height: 12 }
+});
+console.log(blurred.assumptions.find((a) => a.id === "lens.defocus")?.value); // diameterSites ≈ 5.95, kernelRadiusSites 3
 ```
 
 `motion.angularVelocityRadPerSec` rotates the camera during the exposure (8 time midpoints by
