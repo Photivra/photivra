@@ -323,6 +323,15 @@ export interface SimulateCaptureOptions {
      * the longest spectral node, capped at 32 sites. Not combinable with `psf` or `pupilSampling`. Default off.
      */
     diffraction?: SimulateCaptureLensDiffraction;
+    /**
+     * Opt-in (#492): defocus of the flat scene plane when `focusDistanceM` differs from the subject distance, as a
+     * geometric disc (`model: "geometric-disc"`): the thin-lens blur circle of an ideal uniform circular pupil
+     * (`calculateDefocusCircle`), an approximation. The blur diameter is recorded in the `lens.defocus` assumption.
+     * Rendering the blur is not available yet: a request that would need a non-zero disc fails with a "not yet
+     * supported" error; in focus the result is that of the same request without the option, plus the assumption.
+     * Not combinable with `pupilSampling` or `psf`. Default off.
+     */
+    defocus?: { model: "geometric-disc" };
   };
   exposure?: {
     /** Default "manual". */

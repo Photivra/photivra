@@ -90,6 +90,7 @@ import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
 import { registerDiffractionPsfKey } from "../optics/site-diffraction-kernel.js";
+import { requireDefocusDiscKernelRadius, resolveDefocusDisc } from "../optics/defocus-disc-kernel.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
 import { resolveGenericPrimeLens, type GenericPrimeLens } from "../equipment/generic-prime-lenses.js";
 import { calculateChannelElectronsPerRadiance } from "./channel-response.js";
@@ -221,6 +222,15 @@ export interface SimulateCaptureOptions {
      * the longest spectral node, capped at 32 sites. Not combinable with `psf` or `pupilSampling`. Default off.
      */
     diffraction?: SimulateCaptureLensDiffraction;
+    /**
+     * Opt-in (#492): defocus of the flat scene plane when `focusDistanceM` differs from the subject distance, as a
+     * geometric disc (`model: "geometric-disc"`): the thin-lens blur circle of an ideal uniform circular pupil
+     * (`calculateDefocusCircle`), an approximation. The blur diameter is recorded in the `lens.defocus` assumption.
+     * Rendering the blur is not available yet: a request that would need a non-zero disc fails with a "not yet
+     * supported" error; in focus the result is that of the same request without the option, plus the assumption.
+     * Not combinable with `pupilSampling` or `psf`. Default off.
+     */
+    defocus?: { model: "geometric-disc" };
   };
   exposure?: {
     /** Default "manual". */
@@ -1145,6 +1155,39 @@ export function parseDisplayViewOption(value: unknown, frameWidth: number, frame
   return { width, height, samplesPerAxis, bitDepth: format === "srgb-8" ? 8 : 16, format: format as "srgb-8" | "srgb-16", ...(region ? { region } : {}) };
 }
 
+/**
+ * `lens.defocus` (#492, step 1): resolves the geometric defocus disc at the resolved f-number on the site pitch and
+ * records it. In focus (c = 0) no kernel exists and nothing else changes. Until the capture and the display view apply
+ * the kernel, a request that needs one fails rather than render without the blur; the ideal reference, which has no
+ * camera effects, only records it.
+ */
+function resolveDefocusOption(input: { run: "capture" | "ideal-reference" | "display-view" | "dng-from-parts"; assume: DisplayViewRunContext["assume"];
+  focalLengthMm: number; fNumber: number; focusDistanceM: number; subjectDistanceM: number; pitch: number }): void {
+  const { run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch } = input;
+  const disc = resolveDefocusDisc({ focalLengthMm, aperture: fNumber, focusDistanceM, subjectDistanceM, pitchMicrometers: pitch });
+  const size = disc.diameterMicrometers + " µm (" + disc.diameterSites + " sites of " + pitch + " µm)";
+  let radius: number;
+  try { radius = requireDefocusDiscKernelRadius(disc.diameterSites); } catch (error) { fail("lens.defocus: the blur circle is " + size + ". " + (error as Error).message); }
+  const value = { model: "geometric-disc", scientificStatus: "approximation", diameterMicrometers: disc.diameterMicrometers, diameterSites: disc.diameterSites,
+    kernelRadiusSites: disc.diameterSites === 0 ? null : radius, fNumber, focusDistanceM, subjectDistanceM, samplePitchMicrometers: pitch,
+    defocusCircleModel: { id: "thin-lens-defocus-circle", version: "1.1.0" } };
+  const model = "Geometric defocus of the flat scene plane (an approximation): the thin-lens blur circle of an ideal uniform circular pupil, " +
+    "c = f²·|s − d| / (N·d·(s − f)) (calculateDefocusCircle 1.1.0), as a uniform disc sampled on the site lattice (exact disc area in each site's cell). " +
+    "No diffraction of the defocused wave, aberrations or pupil vignetting. ";
+  if (disc.diameterSites === 0) {
+    assume("lens.defocus", "model", value, model + "In focus (lens.focusDistanceM equals subjectDistanceM): the disc has zero diameter, so no defocus kernel is applied.");
+    return;
+  }
+  if (run === "ideal-reference") {
+    assume("lens.defocus", "model", value, model + "Resolved but not applied: the ideal reference has no camera effects.");
+    return;
+  }
+  fail((run === "display-view" ? "simulateDisplayView" : "simulateCapture") + " does not yet support lens.defocus out of focus: the geometric blur circle here is " + size +
+    " (kernel radius " + radius + " sites), and rendering it arrives in a later release (#492). The engine does not render the request without the blur. " +
+    (run === "display-view" ? "Set lens.focusDistanceM equal to subjectDistanceM, or omit lens.defocus." :
+      "Set lens.focusDistanceM equal to subjectDistanceM, omit lens.defocus, or use lens.pupilSampling (ray-sampled defocus) instead."));
+}
+
 /** Internal: passed as the view of a "display-view" run to resolve the request without a view (`prepareDisplayView`, #387). */
 export const DISPLAY_VIEW_WITHOUT_VIEW: unique symbol = Symbol("display view without view");
 /**
@@ -1180,7 +1223,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const body = preset.body, lens = preset.lens;
 
   // Lens
-  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf", "diffraction", "prime"]);
+  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf", "diffraction", "prime", "defocus"]);
   // Generic prime (2.3): resolved on the simulated frame's size, which the output and sensor sections validate again below.
   let prime: GenericPrimeLens | undefined;
   if (lensOptions.prime !== undefined) {
@@ -1209,8 +1252,9 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   if (prime && (subjectDistanceM < prime.minimumFocusDistanceM || focusDistanceM < prime.minimumFocusDistanceM))
     fail("The " + prime.lensId + " focuses no closer than " + prime.minimumFocusDistanceM + " m (max(0.10 m, f·(1 + 1/0.15))); subjectDistanceM and lens.focusDistanceM must be at least that.");
   let pupil: { radialSamples: number; angularSamples: number } | undefined;
-  if (lensOptions.pupilSampling === undefined) assume("lens.pupilSampling", "default", null,
-    "No pupil sampling: each scene query follows the central (chief) ray, so defocus and depth of field are not rendered. Enable lens.pupilSampling for an ideal circular pupil.");
+  if (lensOptions.pupilSampling === undefined) assume("lens.pupilSampling", "default", null, lensOptions.defocus === undefined ?
+    "No pupil sampling: each scene query follows the central (chief) ray, so defocus and depth of field are not rendered. Enable lens.pupilSampling for an ideal circular pupil." :
+    "No pupil sampling: each scene query follows the central (chief) ray; defocus of the scene plane is the lens.defocus option's (see the lens.defocus assumption).");
   else {
     const p = allowKeys(lensOptions.pupilSampling, "lens.pupilSampling", ["radialSamples", "angularSamples"]);
     // The environment pupil contract admits 4..64 azimuthal midpoints and at most 256 rays.
@@ -1257,6 +1301,15 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     }
     if (lensPsf) fail("lens.diffraction cannot be combined with lens.psf: diffraction would be counted twice.");
     if (pupil) fail("lens.diffraction cannot be combined with lens.pupilSampling: the environment contract does not mix a sampled PSF with pupil rays.");
+  }
+  // Defocus (#492): validated here, resolved once the f-number is.
+  let defocusModel: "geometric-disc" | undefined;
+  if (lensOptions.defocus !== undefined) {
+    const record = allowKeys(lensOptions.defocus, "lens.defocus", ["model"]);
+    if (record.model !== "geometric-disc") fail("lens.defocus.model must be \"geometric-disc\".");
+    if (pupil) fail("lens.defocus cannot be combined with lens.pupilSampling: the pupil rays already render defocus, so it would be counted twice.");
+    if (lensPsf) fail("lens.defocus cannot be combined with lens.psf: a caller PSF declares its own defocus, so it could be counted twice.");
+    defocusModel = "geometric-disc";
   }
 
   // Motion (2.0): constant camera rotation and the shutter type.
@@ -1602,6 +1655,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   fNumber = resolution.resolvedSettings.aperture ?? fNumber;
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
+  if (defocusModel !== undefined) resolveDefocusOption({ run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch });
 
   // Sensor readout for the ISO setting. Standard output sensitivity S = 10/H (CIPA DC-004 §3.2) is defined at the
   // output, independent of pixel size, while the collected charge is proportional to the sensitive-aperture area
