@@ -148,10 +148,14 @@ with K_λ the diffraction kernel (a unit tap without `lens.diffraction`).
   pixels is widened by the combined radius, so a pixel that the blur reaches from an edge outside it is sampled as detail.
 - **Prepared views** build the combined kernels and the tables once per prepared request, as they do the diffraction
   kernels, so regions of one prepared view are byte-identical to the whole view.
-- **Limit:** the combined radius R_defocus + R_diff may be at most 64 sites
-  (`SIMULATE_DISPLAY_VIEW_MAXIMUM_KERNEL_RADIUS_SITES`). That is the disc kernel's own cap and the 64 columns the
-  lattice rings keep beyond the raster edges. Past it the view fails with an `InvalidConfigurationError` that names
-  both radii; the kernel is never clipped. The cost grows with the square of the radius
+- **The same kernels as the capture.** The capture's object-space convolution (#492, step 2a) builds each node's kernel
+  the same way (`siteDiffractionKernel`, then `convolveSiteKernels` of `src/optics/defocus-disc-kernel.ts`), so view
+  and capture use the same bits.
+- **Limits:** the disc's radius is capped at 64 sites (`DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES`), the diffraction
+  kernel's at 32, so the combined radius is at most 96 sites, as in the capture. A larger disc fails with an
+  `InvalidConfigurationError` naming the cap and the radius it needed; the kernel is never clipped. Lattice points
+  more than 64 columns beyond the raster edges, which a combined radius above 64 reaches, are looked up directly
+  instead of from the lattice rings: the same values, at a higher cost. The cost grows with the square of the radius
   ([Cost, defocus](#defocus-1)).
 - **In focus** (c = 0), or without the option, nothing changes: the view is byte-identical to the request without it,
   and every display-view hash lock holds.
@@ -170,7 +174,7 @@ with K_λ the diffraction kernel (a unit tap without `lens.diffraction`).
   - An edge slanted by 5°: the lattice counts each kernel cell the edge crosses on the side of its centre. The
     difference stays within the summed weight of the crossed cells times the display swing: 14 % of that bound at
     f/2.8 (disc radius 9.6 sites) and 57 % at f/16 (1.68 sites), at 1:1.
-- *Against the capture's model.* The capture's defocus (#492, step 2a) is a convolution of the radiance on the site
+- *Against the capture.* The capture's defocus (#492, step 2a) is a convolution of the radiance on the site
   lattice. So the reference is the in-focus view (validated against the capture above and by the #480 harness) of the
   same scene blurred beforehand by D on the lattice, in plain JavaScript, at the same focus distance (the same framing,
   exposure and diffraction kernels). The cases are focus at 0.8× and 1.25× the 2 m subject distance; f/2.8, f/8 and
@@ -184,8 +188,11 @@ with K_λ the diffraction kernel (a unit tap without `lens.diffraction`).
   - Disc diameters run from 2.7 sites (6 µm, f/16, 1.25×) to 77.5 sites (1.4 µm, f/2.8, 0.8×). Combined Quality
     radii run up to 45 sites.
   - The test runs six of the cases.
-  Once the capture renders the option, the script's `--capture` and the test also compare the capture with the option
-  against the capture of the pre-blurred scene at the same noise seed; until then they record that the capture refuses it.
+  The test and the script's `--capture` also compare the capture with the option against the capture of the
+  pre-blurred scene at the same noise seed: in 8 cases (both pitches, f/2.8 to f/16, Speed and Quality; 96 × 64
+  blocks) every RAW code was identical. A rerun of those 8 cases after merging step 2a gave the same view numbers as the
+  table run. This closes the chain: the view with the option equals
+  the view of the pre-blurred scene, which matches its capture (#480), which equals the capture with the option.
 
 ### Monte Carlo estimator and its error
 
@@ -641,8 +648,8 @@ lattice group (four groups for the 2 × 2 box). Sites whose whole window reads o
 so the cost is in the parts with edges. It grows about as R². Speed's median per-pixel cost is 1.0–1.3× that of the sharp
 view at R = 4 (f/8) and 32–45× at R = 60 (f/2.8), with medians and ranges as in the table.
 
-The limit stays at 64 sites, the disc's own cap: a larger blur fails rather than render slowly or be clipped. At
-radii of 30 sites and above, a 96 × 96 part takes seconds on one thread. A faster path (separable sums for the disc's
+The disc's cap of 64 sites (set from the capture's cost, step 2a) applies: a larger blur fails rather than render
+slowly or be clipped. At radii of 30 sites and above, a 96 × 96 part takes seconds on one thread. A faster path (separable sums for the disc's
 rows, or an FFT) is not part of this step; it would be justified by these measurements, and the GPU gather of #492 is
 the planned route for interactive use.
 
@@ -1003,7 +1010,7 @@ model:
   rotation (`motion.angularVelocityRadPerSec`): they move the queries off the site lattice or change the
   radiance-to-irradiance factor between sites (for defocus use `lens.defocus`, which stays on the lattice:
   [Defocus](#defocus));
-- `lens.defocus` with a combined kernel radius (defocus plus diffraction) above 64 sites;
+- `lens.defocus` with a disc radius above 64 sites (as the capture refuses it);
 - `output.whiteBalance: "auto"`: the capture measures it from its noisy full-resolution RAW (use
   `"scene-illuminant"` or a fixed white balance, as for region tiles);
 - luminance tone curves (`extended-reinhard-luminance`, `naka-rushton-luminance`) and

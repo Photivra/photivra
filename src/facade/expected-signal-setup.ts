@@ -10,12 +10,14 @@
  * kernel). With diffraction node λ takes K_λ ∗ D, the full 2-D convolution of the diffraction kernel with the disc (radius
  * R_diff + R_defocus): a labelled approximation, since the defocused wave's PSF is not the in-focus Airy pattern convolved
  * with a geometric disc. The convolution is linear, so Σ_t (K_λ ∗ D)(t)·L(p − t) is the diffracted radiance blurred by D, the
- * order the capture's object-space convolutions apply them in.
+ * order the capture's object-space convolutions apply them in. The kernels are built as the capture builds them
+ * (`siteDiffractionKernel`, then `convolveSiteKernels`), so the two have the same bits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import type { resolveLensPsfConvolutionKernels } from "../optics/lens-psf-kernels.js";
 import { siteDiffractionKernel } from "../optics/site-diffraction-kernel.js";
+import { convolveSiteKernels } from "../optics/defocus-disc-kernel.js";
 import { resolveProjectionDistanceMm } from "../motion/camera-rotation.js";
 import { hypot3 } from "../core/portable-math.js";
 import type { DisplayViewExpectedSignalInput, DisplayViewScene } from "./display-view.js";
@@ -99,22 +101,3 @@ export function buildExpectedSignalInput(input: ExpectedSignalSetupInput): { off
     electronsPerRadiance: input.perNode, offsets, ...(kernels ? { kernels } : { queryPoint }), scene, channelAt: channelIndex } };
 }
 
-/**
- * The full 2-D convolution of two square row-major site kernels, a of radius ra and b of radius rb: radius ra + rb,
- * (a ∗ b)(t) = Σ_s a(s)·b(t − s), accumulated in a fixed order (a's taps row by row, then b's), so the result is the same bits
- * in every engine. Zero taps of either kernel (the disc's corners) add nothing and are skipped.
- */
-export function convolveSiteKernels(a: Float64Array, ra: number, b: Float64Array, rb: number): Float64Array {
-  const wa = 2 * ra + 1, wb = 2 * rb + 1, w = wa + wb - 1;
-  if (a.length !== wa * wa || b.length !== wb * wb) throw new InvalidConfigurationError("Site kernels must be (2R + 1)² taps.");
-  const out = new Float64Array(w * w);
-  for (let ay = 0; ay < wa; ay++) for (let ax = 0; ax < wa; ax++) {
-    const va = a[ay * wa + ax]!;
-    if (va === 0) continue;
-    for (let by = 0; by < wb; by++) {
-      const row = (ay + by) * w + ax;
-      for (let bx = 0; bx < wb; bx++) { const vb = b[by * wb + bx]!; if (vb !== 0) out[row + bx] = out[row + bx]! + va * vb; }
-    }
-  }
-  return out;
-}

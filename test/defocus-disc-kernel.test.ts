@@ -132,7 +132,7 @@ describe("geometric defocus disc on the site lattice (#492)", () => {
     expect(defocusDiscKernelRadius(0)).toBe(0);
   });
 
-  it("refuses a radius above the provisional cap, naming the cap and the radius asked for, and malformed diameters", () => {
+  it("refuses a radius above the cap, naming the cap and the radius asked for, and malformed diameters", () => {
     const largest = 2 * DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES + 1;
     expect(kernel(largest).radius).toBe(DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES);
     expect(requireDefocusDiscKernelRadius(largest)).toBe(DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES);

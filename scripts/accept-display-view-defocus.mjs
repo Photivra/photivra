@@ -10,9 +10,9 @@
  * above 2.3, no expected value moved by more than its own noise σ. It also prints the largest difference in 8-bit codes
  * (0 means no difference image can show structure) and the render times.
  *
- * Once `simulateCapture` renders `lens.defocus` (#492, step 2a), `--capture` also renders the capture of each case's
- * block (`output.region`) both ways at the same noise seed and reports the fraction of identical RAW codes and the
- * largest code difference; until then it reports that the capture refuses the option.
+ * `--capture` also renders the capture (#492, step 2a) of each case's block (`output.region`) both ways at the same
+ * noise seed and reports the fraction of identical RAW codes and the largest code difference (on a build whose capture
+ * refuses `lens.defocus`, it reports the refusal).
  *
  *   node scripts/accept-display-view-defocus.mjs [--cases 0,1,...] [--scales 1,4,8] [--block 192x128] [--capture]
  *

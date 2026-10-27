@@ -15,12 +15,11 @@
 import { describe, expect, it } from "vitest";
 import { cielabOfXyz, deltaE2000 } from "../src/color/color-difference.ts";
 import { resolveRgbColorSpace } from "../src/color/rgb-color-spaces.ts";
-import { convolveSiteKernels } from "../src/facade/expected-signal-setup.ts";
 import { setDisplayViewGpuRendererFactory } from "../src/facade/display-view-gpu.ts";
-import { simulateDisplayViewWithInternals, SIMULATE_DISPLAY_VIEW_MAXIMUM_KERNEL_RADIUS_SITES } from "../src/facade/simulate-display-view.ts";
+import { simulateDisplayViewWithInternals } from "../src/facade/simulate-display-view.ts";
 import { registerDisplayViewSpeedGpuRenderer } from "../src/gpu/display-view-speed-gpu.ts";
-import { createDefocusDiscSiteKernel } from "../src/optics/defocus-disc-kernel.ts";
-import { InvalidConfigurationError, prepareDisplayView, simulateCapture, simulateDisplayView } from "../src/index.ts";
+import { convolveSiteKernels, createDefocusDiscSiteKernel } from "../src/optics/defocus-disc-kernel.ts";
+import { prepareDisplayView, simulateCapture, simulateDisplayView } from "../src/index.ts";
 import { createAcceptanceMetrics, judge } from "../scripts/lib/display-view-acceptance.mjs";
 import { DEFOCUS_CASES, defocusCaseRequests } from "../scripts/lib/display-view-defocus-cases.mjs";
 import { createFakeGpu } from "./helpers/fake-webgpu.ts";
@@ -110,25 +109,23 @@ describe("display view with lens.defocus (#492 step 2b)", () => {
   }, scaledTimeout(240_000));
 
   /*
-   * Runs once simulateCapture renders lens.defocus (#492 step 2a): the capture of the sharp scene with the option and the
-   * capture of the scene blurred beforehand, at the same noise seed, must give the same RAW (the same expected electrons
-   * to rounding, so the same draws). Until then the capture refuses the option, which this test checks instead.
+   * The capture (#492 step 2a) applies the same per-node kernels as an object-space convolution, so the capture of the
+   * sharp scene with the option and the capture of the scene blurred beforehand, at the same noise seed, give the same
+   * RAW (the same expected electrons to rounding, so the same draws). With the display-view comparison above this closes
+   * the chain: view with the option = view of the pre-blurred scene ≈ capture of it (#480) = capture with the option.
    */
-  it("compares the defocused capture with the capture of the scene blurred beforehand, once the capture renders the option", async () => {
+  it("the defocused capture equals the capture of the scene blurred beforehand, at the same seed", async () => {
     const c = DEFOCUS_CASES.find((x) => x.pitch === "6" && x.fNumber === 8 && x.focusFactor === 0.8 && !x.quality);
     const requests = defocusCaseRequests(c, { k: 1, block: { width: 32, height: 24 } });
     const region = { x: requests.view.region.x, y: requests.view.region.y, width: 32, height: 24 };
     const withRegion = (options) => ({ ...options, output: { ...options.output, region } });
-    let capture;
-    try { capture = await simulateCapture(withRegion(requests.candidate)); } catch (error) {
-      expect(error.message).toMatch(/simulateCapture does not yet support lens\.defocus out of focus/u);
-      return;
-    }
+    const capture = await simulateCapture(withRegion(requests.candidate));
     const view = await simulateDisplayView(requests.candidate, requests.view);
     const kernel = createDefocusDiscSiteKernel(recorded(view, "lens.defocus").diameterSites);
     const reference = await simulateCapture(withRegion(requests.referenceFor(kernel)));
     let same = 0, largest = 0;
     for (let i = 0; i < capture.raw.codes.length; i++) { const d = Math.abs(capture.raw.codes[i] - reference.raw.codes[i]); if (d === 0) same++; largest = Math.max(largest, d); }
+    // Measured: every code identical here and in 8 cases of scripts/accept-display-view-defocus.mjs --capture.
     expect(same / capture.raw.codes.length).toBeGreaterThanOrEqual(0.999);
     expect(largest).toBeLessThanOrEqual(1);
   }, scaledTimeout(120_000));
@@ -167,7 +164,7 @@ describe("display view with lens.defocus (#492 step 2b)", () => {
     let centre = 0;
     for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) centre += a[(y + 1) * 3 + x + 1] * b[(-y + 2) * 5 + -x + 2];
     expect(ab[3 * 7 + 3]).toBeCloseTo(centre, 15);
-    expect(() => convolveSiteKernels(a, 2, b, 2)).toThrow(InvalidConfigurationError);
+    expect(() => convolveSiteKernels(a, 2, b, 2)).toThrow(/\(2R \+ 1\)²/u);
     // In the view: the expected-signal input carries one kernel per node of radius R_diff + R_defocus, each summing to that node's diffraction kernel's sum.
     const options = { scene: { preset: "slanted-edge" }, subjectDistanceM: 2, lens: { focalLengthMm: 50, fNumber: 8, focusDistanceM: 1.6, diffraction: "circular-aperture" },
       output: { width: 64, height: 48 } };
@@ -189,22 +186,35 @@ describe("display view with lens.defocus (#492 step 2b)", () => {
     expect(recorded(speed.result, "view.defocus")).toMatchObject({ kernel: "disc", diffractionKernelRadiusSites: null });
   }, scaledTimeout(60_000));
 
-  it("refuses a combined kernel radius past the display view's limit, naming both radii, and never clips", async () => {
-    // 50 mm f/8, subject 2 m, focus 1.2 m on 1.4 µm sites: a disc of about 93 sites, radius 46; diffraction asked at 32 sites: 78 > 64.
-    const options = { scene: { preset: "slanted-edge" }, subjectDistanceM: 2, sensor: { pixelPitchMicrometers: 1.4 },
-      lens: { focalLengthMm: 50, fNumber: 8, focusDistanceM: 1.2, defocus: DEFOCUS, diffraction: { kind: "circular-aperture", kernelRadiusSamples: 32 } }, output: { width: 64, height: 48 } };
-    const failure = simulateDisplayView(options, { width: 32, height: 24 });
-    await expect(failure).rejects.toThrow(InvalidConfigurationError);
-    await expect(simulateDisplayView(options, { width: 32, height: 24 })).rejects.toThrow(
-      new RegExp("needs a combined kernel radius of \\d+ sites \\(defocus \\d+ \\+ diffraction 32\\); the display view's limit is " + SIMULATE_DISPLAY_VIEW_MAXIMUM_KERNEL_RADIUS_SITES + " sites", "u"));
-    await expect(prepareDisplayView(options)).rejects.toThrow(/combined kernel radius/u);
-    // The same disc without diffraction is within the limit and renders.
-    const alone = await simulateDisplayView({ ...options, lens: { focalLengthMm: 50, fNumber: 8, focusDistanceM: 1.2, defocus: DEFOCUS } }, { width: 32, height: 24 });
-    expect(recorded(alone, "view.defocus").kernelRadiusSites).toBeLessThanOrEqual(SIMULATE_DISPLAY_VIEW_MAXIMUM_KERNEL_RADIUS_SITES);
+  /*
+   * The combined radius may exceed the 64 columns the lattice rings keep beyond the raster (those points are looked up
+   * directly): up to 32 + 64 = 96 sites, the two caps, as in the capture. Checked against the pre-blurred reference and
+   * for region identity at a combined radius above 64; a disc past its own cap fails as in the capture.
+   */
+  it("takes a combined kernel radius above 64 sites, and refuses a disc past its own cap", async () => {
+    const c = { pitch: "1.4", fNumber: 8, focusFactor: 0.6, quality: true };
+    const requests = defocusCaseRequests(c, { k: 2, block: { width: 24, height: 16 } });
+    const candidate = { ...requests.candidate, lens: { ...requests.candidate.lens, diffraction: { kind: "circular-aperture", kernelRadiusSamples: 32 } } };
+    const view = await simulateDisplayViewWithInternals(candidate, requests.view);
+    const radii = recorded(view.result, "view.defocus");
+    expect(radii.diffractionKernelRadiusSites).toBe(32);
+    expect(radii.kernelRadiusSites).toBeGreaterThan(64);
+    const reference = requests.referenceFor(createDefocusDiscSiteKernel(recorded(view.result, "lens.defocus").diameterSites));
+    const expected = await simulateDisplayViewWithInternals({ ...reference, lens: { ...reference.lens, diffraction: { kind: "circular-aperture", kernelRadiusSamples: 32 } } }, requests.view);
+    const { width, height } = requests.view.region;
+    const m = compareExpectedImages({ width, height, reference: expected.internals.expected, candidate: view.internals.expected, referenceNoiseStd: expected.internals.noiseStd });
+    expect(m.maxDeltaE).toBeLessThan(1e-6);
+    const prepared = await prepareDisplayView(candidate);
+    try {
+      const whole = await prepared.render(requests.view);
+      const part = await prepared.render({ ...requests.view, region: { ...requests.view.region, width: 5, height: 3 } });
+      for (let y = 0; y < 3; y++) for (let x = 0; x < 5; x++) for (let ch = 0; ch < 3; ch++) expect(part.image.samples[(y * 5 + x) * 3 + ch]).toBe(whole.image.samples[(y * width + x) * 3 + ch]);
+      expect(Array.from(whole.image.samples)).toEqual(Array.from(view.result.image.samples));
+    } finally { prepared.dispose(); }
     // A disc past the kernel's own cap fails as in the capture.
-    await expect(simulateDisplayView({ ...options, lens: { focalLengthMm: 50, fNumber: 4, focusDistanceM: 0.5, defocus: DEFOCUS } }, { width: 32, height: 24 }))
+    await expect(simulateDisplayView({ ...requests.candidate, lens: { prime: 300, fNumber: 2.8, focusDistanceM: 0.9, defocus: DEFOCUS } }, requests.view))
       .rejects.toThrow(/lens\.defocus: the blur circle is .* the limit is 64 sites/u);
-  }, scaledTimeout(60_000));
+  }, scaledTimeout(240_000));
 
   /*
    * The GPU Speed renderer has no defocus gather yet (#492's GPU step; the prepare-time refusal is PR #495's). With the
