@@ -71,6 +71,8 @@ export interface ImageKernelAccelerator {
   readonly backend: ImageKernelBackend;
   readonly requestedBackend: ImageKernelBackend;
   readonly fallbackReason: ImageKernelFallbackReason | null;
+  /** #481: the adapter of a `webgpu-f32` accelerator's device (null for `cpu-reference`, or when the browser gives no `GPUAdapter.info`). */
+  readonly adapter: ImageKernelAdapterDescription | null;
   readonly state: ImageKernelAcceleratorState;
   renderNativeCaptureSdr(input: NativeCaptureSdrInput, provider: NativeCaptureSdrProvider, options?: ImageKernelRunOptions): Promise<AcceleratedNativeCaptureSdrOutput>;
   /** Takes ownership of `input.raw` exactly like `createNativeRawDevelopmentTask` (the caller's arrays are detached). */

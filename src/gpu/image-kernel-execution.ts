@@ -25,9 +25,12 @@ export type ImageKernelBackend = "cpu-reference" | "webgpu-f32";
 export type ImageKernelFallbackReason = "webgpu-unavailable" | "webgpu-disabled" | "adapter-unavailable" | "device-request-failed" |
   "insufficient-limits" | "unsupported-platform-endianness";
 
-/** Failure classes reported by {@link ImageKernelExecutionError}. */
+/**
+ * Failure classes reported by {@link ImageKernelExecutionError}. `conformance-failed` (#481): a device failed the display view's
+ * run-time self-check with `gpu: "require"`.
+ */
 export type ImageKernelFailureReason = ImageKernelFallbackReason | "device-lost" | "out-of-memory" | "gpu-validation" |
-  "aborted" | "disposed" | "busy" | "unsupported-on-backend" | "unsupported-float32-domain" | "indeterminate-float32-classification";
+  "aborted" | "disposed" | "busy" | "unsupported-on-backend" | "unsupported-float32-domain" | "indeterminate-float32-classification" | "conformance-failed";
 
 /** Domain error for getting and running a backend. Input validation still throws the engine's existing errors. */
 export class ImageKernelExecutionError extends Error {
@@ -70,6 +73,17 @@ export interface ImageKernelSeededRealizationBound {
   flaggedSiteCount: number;
   noiseModel: { id: string; version: string };
   seedSchedule: string;
+}
+
+/**
+ * #481: the WebGPU adapter a device came from, as `GPUAdapter.info` describes it (W3C WebGPU, `GPUAdapterInfo`): each field
+ * is the browser's string, or empty when the browser withholds it. Diagnostic only; it never changes a result.
+ */
+export interface ImageKernelAdapterDescription {
+  vendor: string;
+  architecture: string;
+  device: string;
+  description: string;
 }
 
 /** Label attached to every accelerated result. */

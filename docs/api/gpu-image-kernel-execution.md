@@ -17,6 +17,20 @@ export function composeRelativeErrorBounds(first: ImageKernelRelativeErrorBound,
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
+## ImageKernelAdapterDescription
+
+#481: the WebGPU adapter a device came from, as `GPUAdapter.info` describes it (W3C WebGPU, `GPUAdapterInfo`): each field
+is the browser's string, or empty when the browser withholds it. Diagnostic only; it never changes a result.
+
+```ts
+export interface ImageKernelAdapterDescription {
+  vendor: string;
+  architecture: string;
+  device: string;
+  description: string;
+}
+```
+
 ## ImageKernelBackend
 
 Requested or actual execution backend.
@@ -92,11 +106,12 @@ export class ImageKernelExecutionError extends Error {
 
 ## ImageKernelFailureReason
 
-Failure classes reported by {@link ImageKernelExecutionError}.
+Failure classes reported by {@link ImageKernelExecutionError}. `conformance-failed` (#481): a device failed the display view's
+run-time self-check with `gpu: "require"`.
 
 ```ts
 export type ImageKernelFailureReason = ImageKernelFallbackReason | "device-lost" | "out-of-memory" | "gpu-validation" |
-  "aborted" | "disposed" | "busy" | "unsupported-on-backend" | "unsupported-float32-domain" | "indeterminate-float32-classification";
+  "aborted" | "disposed" | "busy" | "unsupported-on-backend" | "unsupported-float32-domain" | "indeterminate-float32-classification" | "conformance-failed";
 ```
 
 ## ImageKernelFallbackReason

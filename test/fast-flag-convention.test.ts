@@ -87,8 +87,11 @@ describe("exact-or-fast flag convention (#395)", () => {
     const exact = await simulateDisplayView(request(FORMS["lens.diffraction"].shorthand), view);
     const fast = await simulateDisplayView(request({ ...FORMS["lens.diffraction"].record(true) }), view);
     expect(samples(fast)).toEqual(samples(exact));
-    expect(exact.diagnostics.fast).toEqual({ requested: false, applied: { "lens.diffraction": false }, assurance: "engine-reference" });
-    expect(fast.diagnostics.fast).toEqual({ requested: true, applied: { "lens.diffraction": false }, assurance: "engine-reference" });
+    // #481: a display view's report also carries `execution`, where the render ran; the CPU reference here (simulateDisplayView has no GPU option).
+    const execution = { gpu: "off", backend: "cpu-reference", requestedBackend: "cpu-reference", fallbackReason: null, assurance: "engine-reference", fast: false };
+    expect(exact.diagnostics.fast).toMatchObject({ requested: false, applied: { "lens.diffraction": false }, assurance: "engine-reference", execution });
+    expect(fast.diagnostics.fast).toMatchObject({ requested: true, applied: { "lens.diffraction": false }, assurance: "engine-reference", execution });
+    expect(Object.keys(exact.diagnostics.fast).sort()).toEqual(["applied", "assurance", "execution", "requested"]);
   }, scaledTimeout(120_000));
 
   it("names every fast-capable option in docs/API_STYLE.md", () => {

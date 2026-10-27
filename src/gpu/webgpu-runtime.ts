@@ -6,7 +6,7 @@
  * cleanup. Not exported from the package root. WebGPU types never appear in the published type
  * declarations, so consumers do not need WebGPU typings.
  */
-import { ImageKernelExecutionError, type ImageKernelFallbackReason } from "./image-kernel-execution.js";
+import { ImageKernelExecutionError, type ImageKernelAdapterDescription, type ImageKernelFallbackReason } from "./image-kernel-execution.js";
 
 /** WebGPU spec constants (GPUBufferUsage, GPUMapMode), defined here so no global is needed at import time. */
 export const BUFFER_USAGE = Object.freeze({ MAP_READ: 0x0001, COPY_SRC: 0x0004, COPY_DST: 0x0008, UNIFORM: 0x0040, STORAGE: 0x0080 });
@@ -19,6 +19,8 @@ export const WEBGPU_REQUESTED_STORAGE_BINDING_BYTES = 1024 * 1024 * 1024;
 
 export interface WebGpuRuntime {
   readonly device: GPUDevice;
+  /** #481: the adapter's `info`, or null when the implementation has none. */
+  readonly adapter: ImageKernelAdapterDescription | null;
   readonly maximumStorageBindingBytes: number;
   readonly maximumWorkgroupsPerDimension: number;
   /** Set once `device.lost` settles; every later wait rejects with `device-lost`. */
@@ -93,13 +95,21 @@ export async function acquireWebGpuRuntime(gpu: unknown, powerPreference: "low-p
       return { failure: "device-request-failed", message: "The WebGPU device request failed." };
     }
     if (signal?.aborted) { device.destroy(); throw abortedError(); }
-    return { runtime: createRuntime(device, storage) };
+    return { runtime: createRuntime(device, storage, describeAdapter(adapter)) };
   } finally {
     abort.cleanup();
   }
 }
 
-function createRuntime(device: GPUDevice, storage: number): WebGpuRuntime {
+/** `GPUAdapter.info` as plain strings (missing or non-string fields read as empty), or null when the adapter has no `info`. */
+function describeAdapter(adapter: GPUAdapter): ImageKernelAdapterDescription | null {
+  const info = (adapter as { info?: Partial<Record<keyof ImageKernelAdapterDescription, unknown>> | null }).info;
+  if (!info || typeof info !== "object") return null;
+  const text = (value: unknown): string => (typeof value === "string" ? value : "");
+  return { vendor: text(info.vendor), architecture: text(info.architecture), device: text(info.device), description: text(info.description) };
+}
+
+function createRuntime(device: GPUDevice, storage: number, adapter: ImageKernelAdapterDescription | null): WebGpuRuntime {
   let lost = false, destroyed = false;
   let rejectLost: (error: ImageKernelExecutionError) => void = () => undefined;
   const lostPromise = new Promise<never>((_, reject) => { rejectLost = reject; });
@@ -112,7 +122,7 @@ function createRuntime(device: GPUDevice, storage: number): WebGpuRuntime {
   device.onuncapturederror = (event: GPUUncapturedErrorEvent): void => { event.preventDefault(); };
   const maximumWorkgroupsPerDimension = device.limits.maxComputeWorkgroupsPerDimension;
   return {
-    device,
+    device, adapter,
     maximumStorageBindingBytes: Math.min(storage, device.limits.maxStorageBufferBindingSize, device.limits.maxBufferSize),
     maximumWorkgroupsPerDimension,
     isLost: (): boolean => lost,

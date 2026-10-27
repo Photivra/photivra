@@ -13,9 +13,17 @@ setup: use it to render one view in many regions, for example on each worker of 
 export interface PreparedDisplayView {
   /**
    * Renders a view of the prepared request. Renders may run concurrently; they share no state except read-only setup and the
-   * realm's AHD correction states, which never change a byte (docs/DISPLAY_VIEW.md, "AHD at low signal").
+   * realm's AHD correction states, which never change a byte (docs/DISPLAY_VIEW.md, "AHD at low signal"). With `gpu: "auto"`
+   * or `"require"` (#481) GPU renders of one prepared view run one at a time on its device, and `diagnostics.fast.execution`
+   * says whether the GPU or the CPU reference rendered the view, and why.
    */
   render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult>;
+  /**
+   * 2.11 (#481): releases the WebGPU device the view acquired (none with `gpu: "off"`, or when `gpuDevice` gave an accelerator,
+   * whose device its owner keeps). Later renders run the CPU reference labelled `fallbackReason: "disposed"` (`"auto"`) or fail
+   * with that reason (`"require"`). Idempotent.
+   */
+  dispose(): void;
   /**
    * 2.10 (#447): the key of this request's AHD low-signal correction states, or null when the request has no AHD
    * (`output.demosaic` other than "ahd"). Every input of the key is fixed when the request is prepared; two prepared views
@@ -57,8 +65,15 @@ responses through the environment chain, the diffraction kernels, readout moment
 about 0.3–1.3 s per call on a 24 MP request; a region costs only its own pixels. Errors in the request are raised here;
 errors in the view by `render`.
 
+2.11 (#481): `prepareOptions.gpu` chooses the renderer: `"off"` (default) is the CPU reference, today's bytes; `"auto"` renders
+on WebGPU when a conforming device is available and the request is supported, else on the CPU, labelled; `"require"` fails
+instead of falling back (`ImageKernelExecutionError`, acquisition failures here, later ones from `render`). `gpuDevice` is a
+WebGPU entry point or an `ImageKernelAccelerator` whose device the view shares; without it the engine acquires one device
+for the prepared view (the request's `signal` aborts the acquisition) and `dispose()` releases it. The realm's
+`setWebGpuEnabled(false)` vetoes both GPU modes (`webgpu-disabled`). See docs/DISPLAY_VIEW.md, "Rendering on the GPU".
+
 ```ts
-export async function prepareDisplayView(options: SimulateCaptureOptions): Promise<PreparedDisplayView>;
+export async function prepareDisplayView(options: SimulateCaptureOptions, prepareOptions?: PrepareDisplayViewOptions): Promise<PreparedDisplayView>;
 ```
 
 This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.
