@@ -29,7 +29,9 @@ for (const [key, value] of [["PHOTIVRA_WEBGPU_ADAPTER", "hardware"], ["PHOTIVRA_
 }
 console.info(`[webgpu:hardware] ${mode}: adapter=${env.PHOTIVRA_WEBGPU_FLAGS ? `flags "${env.PHOTIVRA_WEBGPU_FLAGS}"` : env.PHOTIVRA_WEBGPU_ADAPTER}, ` +
   `browser=${env.PHOTIVRA_WEBGPU_BROWSER ?? "auto-detected"}, headless=${env.PHOTIVRA_WEBGPU_HEADLESS === "0" ? "no" : "yes"}, ` +
-  `require hardware=${env.PHOTIVRA_WEBGPU_REQUIRE_HARDWARE}. The report prints the adapter; record it with the results.`);
+  `require hardware=${env.PHOTIVRA_WEBGPU_REQUIRE_HARDWARE}. The report prints the adapter; record it with the results` +
+  (mode === "bench" ? " in docs/WEBGPU_DEVICES.md. After the JSON report, one summary line per frame and stage gives GPU ms, CPU ms " +
+    "(with PHOTIVRA_WEBGPU_TIMING_CPU=1) and CPU ÷ GPU." : "."));
 const vitestPackage = createRequire(import.meta.url).resolve("vitest/package.json");
 const vitest = join(dirname(vitestPackage), "vitest.mjs");
 const child = spawn(process.execPath, [vitest, "run", "--config", configs[mode], ...process.argv.slice(3)], { stdio: "inherit", env });

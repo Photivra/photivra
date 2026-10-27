@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **WebGPU conformance suite in CI, a hardware record and per-stage timing summaries (#476, items 2–4).** Tooling and documentation only; no engine result changes.
+  - **CI:** a new workflow, `.github/workflows/webgpu.yml` (job `webgpu conformance (SwiftShader)`), runs `npm run test:webgpu` with `PHOTIVRA_WEBGPU_REQUIRED=1` in Playwright's Chromium (pinned `playwright@1.63.0`, Chromium build 1243, installed in the job; no npm dependency added) on Google SwiftShader. It runs on pull requests that change `src/gpu/`, `test/webgpu/`, `vitest.webgpu*.config.ts` or the workflow, on every push to `main` and on manual dispatch, so its cost stays bounded (about four minutes a run). It checks the kernels' arithmetic against the float64 reference; it measures no GPU speed.
+  - **Hardware record:** `docs/WEBGPU_DEVICES.md`, one row per hardware run (device, adapter, driver, browser, OS, engine commit, suite, result, timings file), seeded with the owner's Apple M5 Pro runs from #277 and #471 (6–24 MP timings of October 26 and 27, 2026, and the conformance run that passed 82 of 89 tests); the October 27 timing report is kept as `docs/validation/webgpu-devices/2026-10-27-m5-pro-bench.json`. `docs/WEBGPU.md` ("Running on hardware", "Timings at 6–24 MP", "Browser support and running the suite") and `docs/DEVELOPERS.md` link it.
+  - **Timing summaries:** `npm run bench:webgpu` and `npm run bench:webgpu:hardware` print, after the JSON report, one line per frame and stage with the GPU milliseconds, the CPU milliseconds (with `PHOTIVRA_WEBGPU_TIMING_CPU=1`) and their ratio CPU ÷ GPU (`test/webgpu/timing-summary.ts`, computed from the report; the measurements are unchanged). Tested in `test/webgpu-timing-summary.test.ts` against the values posted on #277. Both WebGPU Vitest configurations now use the verbose reporter, because Vitest 5's default reporter hides a passing test's console output, which is where the suites print the adapter, the measured maxima and these summaries.
+
 ## 2.10.0 — published October 27, 2026
 
 A minor release: one exact-or-fast flag for every slow option (no option has a fast method yet, so every result is still exact), export and import of the display view's AHD correction states so workers can share them, and faster display-view prepares and parts and faster Quality captures. Samples, RAW codes and files are the same as 2.9.0; captures and display views gain the `diagnostics.fast` report.

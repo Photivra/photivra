@@ -7,6 +7,9 @@ export default defineConfig({
     include: ["test/webgpu/**/*.timing.ts"],
     testTimeout: 7_200_000,
     hookTimeout: 120_000,
-    fileParallelism: false
+    fileParallelism: false,
+    // Vitest 5's default reporter shows a passing test's console output only in verbose mode; the suite's
+    // console output (the JSON report and the per-stage summary lines) is its record, so print it.
+    reporters: ["verbose"]
   }
 });
