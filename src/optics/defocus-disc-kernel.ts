@@ -39,9 +39,10 @@ import { calculateDefocusCircle } from "./depth-of-field.js";
 
 /**
  * Largest kernel radius in sites, R ≤ 64 (a 129 × 129 window, 16 641 taps per site; the diffraction kernels stop at 32).
- * PROVISIONAL: chosen so that the issue's 1.4 µm example (50 mm f/2.8, subject 2 m, focus 1.6 m: c ≈ 114 µm, R = 41)
- * fits. Direct convolution costs (2R + 1)² multiply-adds per site and spectral node, so the final value is set from the
- * cost measured when the capture and display view apply the kernel (#492, step 2).
+ * Set from the cost measured in the capture (#492, step 2a; docs/QUICK_START.md, "Optics"): the capture's time grows with
+ * R² at every site the disc sees an edge from, and a 0.7 MP Siemens star took 0.37 s in focus, 2.9 s at R = 32, 4.7 s at
+ * R = 41 and 11.6 s at R = 64 (Node, one thread). 64 keeps the issue's 1.4 µm example (50 mm f/2.8, subject 2 m, focus
+ * 1.6 m: R = 41) with room for larger blurs, at a cost the caller chooses and the docs state; past it the call fails.
  */
 export const DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES = 64;
 
@@ -72,7 +73,7 @@ export function requireDefocusDiscKernelRadius(diameterSites: number): number {
   const radius = defocusDiscKernelRadius(diameterSites);
   if (radius > DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES)
     throw new InvalidScientificInputError("The defocus disc of " + diameterSites + " sites needs a kernel radius of " + radius +
-      " sites; the limit is " + DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES + " sites (provisional, DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES).");
+      " sites; the limit is " + DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES + " sites (DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES).");
   return radius;
 }
 

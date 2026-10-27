@@ -59,7 +59,7 @@ describe("lens.defocus option (#492 step 1: parse and resolve; step 2a: the capt
     const c = calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM: 0.5, subjectDistanceM: 2 }).value.diameterMm * 1000;
     expect(defocusDiscKernelRadius(c / 6)).toBe(87);
     await expect(simulateCapture(withDefocus({ fNumber: 4, focusDistanceM: 0.5 }))).rejects.toThrow(
-      /lens\.defocus: the blur circle is 1041\.6\d* µm \(173\.6\d* sites of 6 µm\)\. The defocus disc of 173\.6\d* sites needs a kernel radius of 87 sites; the limit is 64 sites \(provisional/u);
+      /lens\.defocus: the blur circle is 1041\.6\d* µm \(173\.6\d* sites of 6 µm\)\. The defocus disc of 173\.6\d* sites needs a kernel radius of 87 sites; the limit is 64 sites \(DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES\)/u);
   });
 
   it("validates the record and refuses double counting with pupil sampling or a caller PSF", async () => {

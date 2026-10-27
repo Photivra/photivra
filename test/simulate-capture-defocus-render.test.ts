@@ -8,6 +8,11 @@ import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provid
 import { createDefocusDiscSiteKernel } from "../src/optics/defocus-disc-kernel.js";
 import { setTabulatedNativeRawEnabled } from "../src/capture/native-environment-tabulated.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
+import { labelLayer } from "./helpers/chart-composite-fixtures.js";
+
+/** A declared material-layers scene (#491, the app's chart form): a Siemens star under the label mask layer. */
+const layeredScene = (aspect: number): SimulateCaptureOptions["scene"] =>
+  ({ kind: "material-layers", sceneId: "test:defocus-layers", chart: { preset: "siemens-star", cycles: 16 }, layers: [labelLayer(aspect)] }) as SimulateCaptureOptions["scene"];
 
 /*
  * #492 step 2a: lens.defocus out of focus in the capture, as an object-space convolution of the scene radiance on the
@@ -69,6 +74,17 @@ describe("lens.defocus in the capture (#492 step 2a)", () => {
     expect(transitions(row(blurred))).toBeGreaterThanOrEqual(3);
   });
 
+  it("renders a material-layers scene as its callerScene, byte for byte, with defocus", async () => {
+    const { resolveChartMaterialLayers } = await import("../src/facade/chart-material-layers.js");
+    const scene = layeredScene(24 / 32), lens = { focalLengthMm: 50, fNumber: 4, focusDistanceM: 1.8, defocus };
+    const layered = await simulateCapture({ scene, subjectDistanceM: 2, lens, output: { width: 32, height: 24, format: "png" } });
+    const direct = await simulateCapture({ scene: resolveChartMaterialLayers({ scene: scene as never, aspect: 24 / 32 }).callerScene as never, subjectDistanceM: 2, lens,
+      output: { width: 32, height: 24, format: "png" } });
+    expect(defocusOf(layered).execution).toBe("object-space-convolution");
+    expect(layered.assumptions.some((a) => a.id === "raw.expectedSignal")).toBe(true);
+    expect(Buffer.from(layered.image.png!).equals(Buffer.from(direct.image.png!))).toBe(true);
+  }, scaledTimeout(60_000));
+
   it("is the same RAW on the tabulated path and the environment path (chart scenes)", async () => {
     for (const options of [
       { scene: { preset: "slanted-edge" }, subjectDistanceM: 2, output: { width: 16, height: 12 }, lens: { focalLengthMm: 50, fNumber: 4, focusDistanceM: 1.8, defocus } },
@@ -128,6 +144,9 @@ describe("lens.defocus parts, strips, regions and DNG parts equal the whole fram
     ["defocus with diffraction and the Quality filters", { scene: { preset: "siemens-star", cycles: 16 }, subjectDistanceM: 2,
       lens: { focalLengthMm: 50, fNumber: 11, focusDistanceM: 1.7, defocus, diffraction: "circular-aperture" },
       sensor: { antiAliasing: { kind: "four-spot" }, pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 32, height: 24, demosaic: "ahd" } }],
+    ["defocus with diffraction, a material-layers scene (the app's chart form, tabulated)", { scene: layeredScene(24 / 32), subjectDistanceM: 2,
+      lens: { focalLengthMm: 50, fNumber: 8, focusDistanceM: 1.7, defocus, diffraction: "circular-aperture" },
+      sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 32, height: 24 } }],
     ["defocus alone, caller reflectance function (environment path)", { scene: { kind: "reflectance-function", sceneId: "defocus-parts", evaluate: ({ u, v }: { u: number; v: number }): number =>
       (u + 0.3 * v > 0 ? 0.6 : 0.2) } as never, subjectDistanceM: 2, lens: { focalLengthMm: 50, fNumber: 4, focusDistanceM: 1.8, defocus }, output: { width: 32, height: 24 } }]
   ];

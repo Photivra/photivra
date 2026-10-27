@@ -551,11 +551,6 @@ export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * sosReferenceLu
  */
 /** 2.5: the largest accepted pixel pitch, µm (44 mm ÷ 48 pixels ≈ 917 µm, a whole full-frame or larger sensor at a small output). */
 const SIMULATE_CAPTURE_PIXEL_PITCH_MAXIMUM_MICROMETERS = 1000;
-/**
- * #492: largest combined kernel radius, in sites, of lens.defocus with lens.diffraction (diffraction radius + defocus radius).
- * PROVISIONAL until the cost measurement: the sum of the two caps (32 + 64).
- */
-const SIMULATE_CAPTURE_DEFOCUS_COMBINED_MAXIMUM_RADIUS_SITES = 96;
 /** Pitches above this, µm, are larger than any camera photosite: the capture is a downsized whole-frame view (assumption sensor.wholeFrameView). */
 const SIMULATE_CAPTURE_PHOTOSITE_PITCH_MAXIMUM_MICROMETERS = 100;
 const ISO_REFERENCE_APERTURE_AREA_SQUARE_MICROMETERS = DEFAULTS.pixelPitchMicrometers * DEFAULTS.pixelPitchMicrometers;
@@ -1967,9 +1962,9 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     if (diffraction) {
       const diffractionRadius = diffraction.kernelRadiusSamples, combined = new Map<number, Float64Array>(), profileWavelengths = diffraction.profile.axes.wavelengthNm;
       const radius = diffractionRadius + defocusKernel.radius;
-      if (radius > SIMULATE_CAPTURE_DEFOCUS_COMBINED_MAXIMUM_RADIUS_SITES) fail("lens.defocus with lens.diffraction needs a combined kernel radius of " + radius + " sites (diffraction " +
-        diffractionRadius + " + defocus " + defocusKernel.radius + "); the limit is " + SIMULATE_CAPTURE_DEFOCUS_COMBINED_MAXIMUM_RADIUS_SITES +
-        " sites. Bring lens.focusDistanceM closer to subjectDistanceM, or lower lens.diffraction.kernelRadiusSamples.");
+      // At most 32 + 64 = 96 sites (the two caps). Neither the expected-signal table nor the provider's own gather (diffraction-provider.ts)
+      // uses the public 32-site limit of calculateIrradianceConvolution; the combination costs at most about 0.1 s per spectral node
+      // (measured, docs/QUICK_START.md "Optics"), so no tighter limit applies.
       const psfConfiguration = diffractionPsf!.configuration.psf;
       defocusSiteKernels = { radius, wavelengthsNm: profileWavelengths, at(wavelengthNm: number): Float64Array {
         let kernel = combined.get(wavelengthNm);
