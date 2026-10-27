@@ -16,19 +16,24 @@ describe("Speed: the quantization term of the variance bound (#496)", () => {
     const means: number[] = [];
     for (let k = 0; k <= 12_000; k++) means.push(-0.1 + 1.2 * k / 12_000);
     for (let k = -50; k <= 50; k++) means.push(0.0031308 + k * 1e-6);
-    let largestRatio = 0;
+    // One assertion over all samples (about 580 000); asserting per sample was slow enough to time out on a loaded CI runner.
+    let largestRatio = 0, checked = 0;
+    const violations: string[] = [];
     for (const relative of [0, 1.5e-5, 1e-3]) for (const absolute of [0, 1e-7, 1e-5, 1e-3]) for (const m of means) {
       const bound = displayViewSpeedQuantizationBound([m, m, m], relative, absolute, pixels, step), delta = relative * Math.abs(m) + absolute;
       for (const t of [-1, -0.5, 0.5, 1]) {
         const change = pixels * Math.abs(quantizationVariance(m + t * delta, step) - quantizationVariance(m, step));
-        expect(change).toBeLessThanOrEqual(bound);
+        checked++;
+        if (!(change <= bound) && violations.length < 5) violations.push(`m=${m} relative=${relative} absolute=${absolute} t=${t}: change ${change} > bound ${bound}`);
         if (bound > 0) largestRatio = Math.max(largestRatio, change / bound);
       }
     }
+    expect(checked).toBe(12 * 4 * (12_001 + 101));
+    expect(violations).toEqual([]);
     // The slope constant 6.04 is the maximum of 2·s′(e) on [0, 1], reached at white; the margin is 2 (MARGIN).
     expect(largestRatio).toBeGreaterThan(0.4);
     expect(largestRatio).toBeLessThanOrEqual(0.5 + 1e-9);
-  });
+  }, 60_000);
   it("is the largest of the three components, linear in the mean's bound, zero for an exact mean away from the join", () => {
     expect(displayViewSpeedQuantizationBound([0.5, 0.5, 0.5], 0, 0, pixels, step)).toBe(0);
     const one = displayViewSpeedQuantizationBound([0.2, 0.2, 0.2], 0, 1e-6, pixels, step), two = displayViewSpeedQuantizationBound([0.2, 0.2, 0.2], 0, 2e-6, pixels, step);
