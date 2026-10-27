@@ -67,6 +67,21 @@ export interface DisplayViewExpectedSignal {
    * value without any work or lookup (#392).
    */
   readonly cachesSites: boolean;
+  /**
+   * Whether `markReads` is available in the current window: a filled window (chart materials with diffraction kernels),
+   * whose lookup count comes from the sites it computed. False otherwise: for windows without kernels (whose sites the
+   * direct ring already serves cheaply) and for the lazy window caches (radiance scenes with diffraction), whose count
+   * depends on the lattice points each computed site reads.
+   */
+  readonly marksReads: boolean;
+  /**
+   * Records `count` sites as read in the current window without computing them: site n at (xs[n], ys[n]) with value values[n]
+   * (as `site` returned it for that site) and uniform material materials[n] (as `uniformMaterial` reported it). Sites outside
+   * the window and sites the window already holds are skipped. For the window's lookup count and for later `site` calls this
+   * is the same as reading each site with `site`. Only valid while `marksReads` is true; it must do for a site the
+   * bookkeeping `site` does for a site the window's cache does not hold yet.
+   */
+  markReads(xs: Int32Array, ys: Int32Array, values: Float64Array, materials: Int32Array, count: number): void;
 }
 
 const OFFSET_TOLERANCE = 1e-9;
@@ -504,6 +519,18 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     get uniformMaterial(): number { return lastMaterial; },
     get tracksMaterial(): boolean { return ringOn; },
     get cachesSites(): boolean { return sw > 0; },
+    get marksReads(): boolean { return filled; },
+    markReads(xs: Int32Array, ys: Int32Array, values: Float64Array, materials: Int32Array, count: number): void {
+      for (let n = 0; n < count; n++) {
+        const i = xs[n]! - sx0, j = ys[n]! - sy0;
+        if (!(i >= 0 && j >= 0 && i < sw && j < sh)) continue;
+        const w = j * sw + i;
+        if (siteCache[w]! === siteCache[w]!) continue;
+        // As siteMiss for a site inside a filled window: the computed site is marked (windowLookups counts from the marks)
+        // and its material kept.
+        siteCache[w] = values[n]!; windowMaterial[w] = materials[n]!; markFilled(i, j);
+      }
+    },
     window(x0: number, y0: number, x1: number, y1: number): void {
       if (filled) lookups += windowLookups();
       filled = false; ringOn = false; outsideSites = []; filledCount = 0; rowMask.fill(0, 0, sh);
