@@ -4,6 +4,28 @@
 
 ### Added
 
+- **`lens.defocus: { model: "geometric-disc" }` and the geometric defocus disc on the site lattice (#492, step 1: the kernel and the option; no rendering yet).** No result changes without the option.
+  - **The kernel** (internal, `src/optics/defocus-disc-kernel.ts`):
+    - It takes the thin-lens blur circle c from `calculateDefocusCircle` and models it as a uniform disc of c/pitch sites.
+    - Each site's weight is the exact area of the disc inside the site's cell, divided by the disc's area. The area is a closed-form circle–rectangle area, found by inclusion–exclusion over the cell's corners.
+    - The weights are computed for one octant and mirrored, so the 8-fold symmetry holds bit for bit.
+    - The weights are renormalized in float64, and the centre weight is set so that the exact sum is 1 to its last bit.
+    - A disc inside one site gives the identity, and c = 0 gives no kernel.
+    - The radius cap `DEFOCUS_DISC_KERNEL_MAXIMUM_RADIUS_SITES` = 64 is provisional, pending the cost measured in step 2. Past it the call fails and names the cap and the radius asked for.
+  - **Portable arcsine:** `portableAsin` (internal, `src/core/portable-math.ts`) uses the Maclaurin series, with the half-angle identity above ½. It is within 2 ulps of `Math.asin` and bit-identical in every engine, so the weights are too.
+  - **The option:** `simulateCapture`, `simulateDisplayView` and `simulateIdealReference` accept `lens.defocus`.
+    - It resolves the disc at the resolved f-number and site pitch. The new `lens.defocus` assumption records the model, `scientificStatus: "approximation"`, the diameter in µm and in sites, and the kernel radius.
+    - In focus, the image is byte-identical to the same request without the option.
+    - Out of focus, the capture and the display view refuse the request with "does not yet support lens.defocus out of focus", naming the blur circle, rather than render it sharp. The ideal reference only records the disc.
+    - It is refused together with `lens.pupilSampling` or `lens.psf`, because defocus would be counted twice. It can be combined with `lens.diffraction`.
+    - With the option, the `lens.pupilSampling` default note points to it.
+  - **Tests:** `test/defocus-disc-kernel.test.ts` and `test/simulate-capture-defocus.test.ts`.
+    - A sampled straight edge (10 diameters from 0.3 to 128.9 sites, 4 angles, 4 offsets) is checked against the disc's closed-form edge-spread function, the circular-segment area fraction. The tolerance is the summed weight of the kernel cells the edge crosses, plus 1e-12.
+    - Measured: 2.2e-13 for an edge on cell boundaries. Elsewhere the error was 28–33 % of that bound, 0.0040 at 128.9 sites.
+    - Also tested: normalization, symmetry, the sub-site case, the cap, determinism (digest locks), the option's parse errors and refusals, and in-focus byte identity for the capture, display view and ideal reference.
+    - `test/portable-math.test.ts` covers `portableAsin`.
+  - Docs: `docs/QUICK_START.md` (inputs table and Optics).
+
 - **Display view on the GPU for composite charts, the 2.3 elements and declared `material-layers` scenes (#491): the composite chart kernel's material lookup joined to the Speed kernel.** No result changes with `gpu: "off"`, and no CPU byte changes anywhere (hash locks unchanged). `prepareDisplayView(request, { gpu: "auto" })` now renders on the GPU, labelled `webgpu-f32`, a request whose scene is a composite chart, a 2.3 element, the sine Siemens star, a fixed-size chart (`chartSize`) or a declared `material-layers` scene (a chart under shape-mask layers: the form for an application's printed label); caller scene functions stay refused (`unsupported-on-backend`).
   - **Scenes:** `simulateCapture`, `simulateDisplayView`, `prepareDisplayView` and `createPlanarSceneRadianceProvider` accept `scene: { kind: "material-layers", sceneId, chart, layers }` directly; it is evaluated as its `callerScene` (`resolveChartMaterialLayers`), so every result, digest and byte equals passing that `callerScene` (tested). `DisplayViewGpuRequest.scene` gains `"material-layers"`; `DisplayViewGpuSetup` gains `layers` and `placement` (internal).
   - **The module** (`src/gpu/display-view-composite-material-module.ts`): the composite kernel's `material()` with its bound arithmetic and double-float32 as the Speed kernel's `material_at`, the scene's packed records at `@group(1)`, uploaded once per renderer and reused across a view's parts (four scenes kept, released by the new `DisplayViewGpuRenderer.dispose` when the prepared view is disposed). It recovers the exact query point from the kernel's float32 point (the site lattice: p / g picks the offset and integer site, then (x + c)·g in double-float32 from float64 constants), so the chirp decisions see the reference's point to about 2⁻⁴⁶; the host admits only lattices the recovery decides unambiguously (model checked at the corners within 2⁻⁴⁸, offsets told apart mod one site). The composite kernel's bounds and SAFETY factor apply unchanged and the Speed kernel's point contract (≤ 2E + 10⁻¹⁴) holds; no Speed bound changes (the argument and the measured 5.6·10⁻¹⁶ distance of the reference's points from the lattice: docs/WEBGPU.md, "The composite material module (#491)"). The 2.0 presets filling the frame keep the preset module.

@@ -72,6 +72,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.distortion` | none | `{ kind: "radial", profile }` or `{ kind: "brown-conrady", profile }`. |
 | `lens.vignetting` | none | An `IlluminationVignettingProfile` (radial relative illumination). |
 | `lens.psf` | none | A `{ kind: "sampled-local", configuration }` sampled lens PSF, passed to the environment contract unchanged. |
+| `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). Rendering arrives in the next steps of #492: until then a request out of focus is refused as not yet supported. |
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
@@ -761,6 +762,36 @@ The optics options feed only what the environment site contract accepts:
     is sampled at its centre). It cannot be
     combined with `lens.psf` or `lens.pupilSampling`.
 
+- `lens.defocus: { model: "geometric-disc" }` (#492, in progress) models defocus of the flat scene plane when
+  `lens.focusDistanceM` differs from `subjectDistanceM`.
+  - The model is a geometric approximation for an ideal uniform circular pupil. Each in-focus image point spreads
+    into a uniform disc of diameter c = f²·|s − d| / (N·d·(s − f)) on the sensor (`calculateDefocusCircle`, thin-lens
+    model 1.1.0), at the resolved f-number. There is no diffraction of the defocused wave, no aberrations and no
+    pupil vignetting. The disc is the same at every wavelength, so defocus of a plane is one convolution.
+  - The engine samples the disc on the site lattice. Each site's weight is the exact area of the disc inside that
+    site's square cell, a closed-form circle–rectangle area, divided by the disc's area.
+    - The weights are computed with the engine's portable arithmetic, so they are bit-identical in every
+      JavaScript engine.
+    - Their exact sum is 1, to the last bit of the centre weight.
+    - A disc smaller than one site gives the identity.
+    - A test blurs a sampled straight edge with the kernel and compares it with the disc's closed-form
+      edge-spread function, the circular-segment area. They agree to rounding (2e-13) when the edge lies on cell
+      boundaries. Elsewhere they agree within the site sampling of the edge.
+  - The kernel radius is capped at 64 sites, a 129 × 129 window. This cap is provisional: it will be set from
+    the cost measured when the blur is applied. A larger blur is refused with an error that names the cap and the
+    radius needed; the disc is never clipped.
+  - **Rendering is not available yet.** Within #492, the capture, the display view and then the GPU apply the kernel
+    in the next steps.
+    - Today the option resolves the disc and records it in the `lens.defocus` assumption: the model, its
+      approximation status, and the diameter in µm and in sites.
+    - In focus (c = 0) no kernel is applied, and the image is byte-identical to the same request without the option.
+    - A request that would need a non-zero disc, even one smaller than a site, fails with an
+      `InvalidConfigurationError` saying that it is not yet supported. The engine does not show it sharp.
+    - The same applies to `simulateDisplayView`.
+    - `simulateIdealReference`, which has no camera effects, only records the disc.
+  - It cannot be combined with `lens.pupilSampling` (the rays already render defocus) or `lens.psf` (a caller PSF
+    declares its own defocus). It can be combined with `lens.diffraction`.
+
 ### Pixel aperture (2.3)
 
 By default each site samples the irradiance at its centre (`sensor.pixelAperture: "point"`). Scene
@@ -1358,8 +1389,8 @@ a 24 MP request, an 8 × 8 region took 6–40 ms through a prepared view instead
 
 **Not supported** (refused with an `InvalidConfigurationError`): `lens.pupilSampling`, `lens.projection`,
 `lens.distortion`, `lens.vignetting`, `lens.psf`, camera rotation, `output.whiteBalance: "auto"`, the luminance tone
-curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `onProgress` is not called;
-`signal` cancels.
+curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `lens.defocus` is accepted in
+focus and refused out of focus until its rendering arrives (#492). `onProgress` is not called; `signal` cancels.
 
 The result is labelled `kind: "display-view"` with a `label` for the user interface; it has no RAW, plan or file, and
 the `view.*` assumptions state the definition, the estimator, the noise model, the demosaic treatment and which capture

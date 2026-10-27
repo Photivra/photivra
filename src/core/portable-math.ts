@@ -389,3 +389,36 @@ export function portableSinTwoPi(u: number): number {
   const t = 4 * u, q = Math.round(t), r = (t - q) / 4, quadrant = ((q % 4) + 4) % 4;
   return quadrant === 0 ? sinTwoPiReduced(r) : quadrant === 1 ? cosTwoPiReduced(r) : quadrant === 2 ? -sinTwoPiReduced(r) : -cosTwoPiReduced(r);
 }
+/**
+ * Maclaurin coefficients of arcsin x = Σ a_n·x^(2n+1)/(2n + 1), a_n = (2n)!/(4^n·(n!)²), a_n = a_(n−1)·(2n − 1)/(2n)
+ * (the binomial series of 1/√(1 − t²) integrated term by term; NIST DLMF 4.24.1, free), for n = 1 … 24. Built from
+ * correctly rounded operations only, so the table is the same in every engine. For |x| ≤ ½ the first omitted term is
+ * below 2^-56·|x|.
+ */
+const ASIN_SERIES = /* @__PURE__ */ ((): Float64Array => {
+  const table = new Float64Array(24);
+  let a = 1;
+  for (let n = 1; n <= 24; n++) { a = a * (2 * n - 1) / (2 * n); table[n - 1] = a / (2 * n + 1); }
+  return table;
+})();
+/** π/2 = PIO2_HI + PIO2_LO (PIO2_HI the double nearest π/2, PIO2_LO the double nearest the remainder). */
+const PIO2_HI = 1.5707963267948966, PIO2_LO = 6.123233995736766e-17;
+/** arcsin x for |x| ≤ ½ (Horner on the table above). */
+function asinReduced(x: number): number {
+  const z = x * x;
+  let p = ASIN_SERIES[23]!;
+  for (let n = 22; n >= 0; n--) p = ASIN_SERIES[n]! + z * p;
+  return x + x * (z * p);
+}
+/**
+ * arcsin x in radians for x in [−1, 1], bit-identical in every JavaScript engine (within 2 ulps; `Math.asin` is
+ * implementation-approximated). Outside [−1, 1], or NaN → NaN. For |x| ≤ ½ the Maclaurin series; above,
+ * arcsin x = π/2 − 2·arcsin √((1 − x)/2) (the half-angle identity; 1 − x and the halving are exact there).
+ */
+export function portableAsin(x: number): number {
+  if (!(x >= -1 && x <= 1)) return NaN;
+  const ax = x < 0 ? -x : x;
+  if (ax <= 0.5) return asinReduced(x);
+  const result = (PIO2_HI - 2 * asinReduced(Math.sqrt((1 - ax) / 2))) + PIO2_LO;
+  return x < 0 ? -result : result;
+}
