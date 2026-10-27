@@ -323,7 +323,7 @@ The report line `[test:webgpu display-view]` lists the adapter, per fixture the 
 
 ## Display view (Quality) on the GPU
 
-The display view's Quality path (#479: the exact area mean with diffraction kernels, the anti-aliasing filter's spots, the AHD candidates and the low-signal correction; `docs/DISPLAY_VIEW.md`) has three WGSL kernels, `src/gpu/wgsl-display-view-quality-kernel.ts`, with their host side in `src/gpu/display-view-quality-gpu.ts`. They extend the Speed kernel: one renderer (`createDisplayViewGpuRenderer`, id `photivra-display-view`, registered by the GPU session module) runs the Speed kernel for the requests it covers and the Quality passes for everything else it supports (every engine chart and declared `material-layers` scene, through the material modules of #491; the identity or Reinhard tone curve, at most 64 query offsets; the exact area mean, footprints of at most 6 real pixels per axis, demosaic candidates within 3 sites with dyadic weights; never `lens.defocus` out of focus, below). One set of material modules serves both kernels per device, and `dispose()` releases the composite module's uploaded scene records. The float64 reference is `renderDisplayView` with `createDisplayViewExpectedSignal`.
+The display view's Quality path (#479: the exact area mean with diffraction kernels, the anti-aliasing filter's spots, the AHD candidates and the low-signal correction; `docs/DISPLAY_VIEW.md`) has three WGSL kernels, `src/gpu/wgsl-display-view-quality-kernel.ts`, with their host side in `src/gpu/display-view-quality-gpu.ts`. They extend the Speed kernel: one renderer (`createDisplayViewGpuRenderer`, id `photivra-display-view`, registered by the GPU session module) runs the Speed kernel for the requests it covers and the Quality passes for everything else it supports (every engine chart and declared `material-layers` scene, through the material modules of #491; the identity or Reinhard tone curve, at most 64 query offsets; the exact area mean, footprints of at most 6 real pixels per axis, demosaic candidates within 3 sites with dyadic weights; and `lens.defocus` out of focus, for Speed and Quality requests: [below](#defocus-on-the-gpu-492)). One set of material modules serves both kernels per device, and `dispose()` releases the composite module's uploaded scene records. The float64 reference is `renderDisplayView` with `createDisplayViewExpectedSignal`.
 
 **Three passes per band of display rows**, in float32:
 
@@ -346,6 +346,7 @@ The display view's Quality path (#479: the exact area mean with diffraction kern
 | a / b | (Δa + \|result\|·Δb)/\|b\| + 2.5E·\|result\| |
 | √v | min(Δv/(2√v), √Δv) + 4.5E·√v |
 | Site electrons Σ_t V + dark (T + 3 roundings of non-negative terms) | (T + 3)·E·e + the uncertain taps' spread |
+| Site electrons with the defocus disc (#492: factored table r_m·N_c(t), blocked sum over cw × ch rectangles of G groups) | (cw_max + ch_max + G + 3)·E·e + (1 + that)·the uncertain taps' spread + the sub-normal terms' mass ([derivation](#defocus-on-the-gpu-492)) |
 | Readout mean k·e, variance k²e + c₀, κ₃ = k³e | k·Δe + 2E·mean; k²·Δe + 4E·variance; k³·Δe + 5E·κ₃ |
 | Clipped normal min(Y, t), with g = min(Z, z), E[g] = −δ, ρ = Var(g), ρ_z = 2Q(z + δ) | mean: Φ·Δm + φ·Δs + CLIP_MEAN_U·E·s; variance: s·\|ρ_z\|·Δm + s·\|2ρ − zρ_z\|·Δs + CLIP_VARIANCE_U·E·v; slope Φ: (φ·Δm + \|z\|φ·Δs)/s + CLIP_SLOPE_U·E (CLIP_SLOPE_U = 200: z's 8E through zφ ≤ 0.24 plus the Abramowitz–Stegun 147E), at most 1 |
 | Clip to [0, 1] (both sides, a = −m/s, b = (1 − m)/s), ρ_a = 2Φ_a(a − E[g]), ρ_b = 2Q_b(b − E[g]) | mean: P(inside)·Δm + \|φ_a − φ_b\|·Δs + 2·CLIP_MEAN_U·E·s + Δshift; variance: s·\|ρ_a + ρ_b\|·Δm + s·\|2ρ − aρ_a − bρ_b\|·Δs + 2·CLIP_VARIANCE_U·E·v + 2·(Δshift·(\|E[Y]\| + \|shift\|) + \|shift\|·Δmean), capped by max(Var, X + ΔX) when shift > Δshift (the reference's Var = max(0, X − shift·(2E[Y] + shift)) then lies in [0, X_cpu]); slope: (\|φ_a − φ_b\|·Δm + \|aφ_a − bφ_b\|·Δs)/s + 2·CLIP_SLOPE_U·E |
@@ -401,9 +402,109 @@ The same numbers come from the float32 JavaScript emulation of the kernels (`tes
 
 **Composite and material-layers scenes (#491).** The frame-filling composite with every element under the label layer as a `material-layers` scene, with diffraction, the four-spot filter and AHD, and the same scene as a fixed-size chart with its surround (AHD without diffraction), render on the emulation within their bounds (48 × 36 regions, `test/display-view-quality-gpu.test.ts`), and the first on SwiftShader (a 64 × 48 region). Flagged pixels there follow #491's measurements (the 1024-level elements, the label's glyph edges met exactly by the lattice, the bar star's diagonals).
 
-**`lens.defocus` (#492).** Out of focus the CPU reference reads the defocus disc on the site lattice (#492 step 2b; its kernel joins the diffraction kernels in the expected signal's input). No GPU kernel gathers it yet (#492 step 2c), so the renderer's `supports()` refuses a request whose disc is non-zero (`DisplayViewGpuRequest.defocus`) with `unsupported-on-backend`: `gpu: "require"` fails when the view is prepared and `gpu: "auto"` renders the CPU reference with that reason, byte-identical to `gpu: "off"`. In focus the option changes nothing and the request renders on the GPU (tested).
+**`lens.defocus` (#492).** Out of focus the renderer gathers the defocus disc, or each node's diffraction kernel convolved with it, in this site pass, for Speed and Quality requests: [Defocus on the GPU](#defocus-on-the-gpu-492).
 
 **What remains.** The app's request given as `material-layers` (Photivra/apps#126); the stratified estimator and footprints above 6 real pixels per axis (`unsupported-on-backend`); the collect pass (`collectCorrectionStates`) stays on the CPU; the host finishing's 1.2 µs per display pixel (Speed, above); a Siemens star's exact-boundary lattice points flag the sites within the kernel radius of its diagonals (2 017 of 27 405 display pixels on the bar star, each recomputed on the CPU: 0.37 s of the render on this host).
+
+### Defocus on the GPU (#492)
+
+Out of focus, `lens.defocus` puts the geometric defocus disc into the expected signal's input as site kernels (#492 step 2b, `buildExpectedSignalInput`). Without diffraction every node takes the disc itself. With `lens.diffraction`, node λ takes its diffraction kernel convolved with the disc. The disc's radius is capped at 64 sites and the combined radius at 96 (`docs/DISPLAY_VIEW.md`, "Defocus"). The renderer gathers exactly these kernels, the reference's float64 values rounded once to float32, in the Quality site pass (step 2c). `supports()` accepts `DisplayViewGpuRequest.defocus` for every Speed and Quality request it otherwise covers.
+
+**Speed takes the Quality passes.** The Speed kernel has no gather. Out of focus the reference reads the scene on the lattice formula and has no `queryPoint`, so Speed's query arithmetic does not apply. Two designs were possible: add a lattice pass and a gather to the Speed kernel, or route a defocused Speed request through the Quality lattice and site passes. The second is the smaller correct change: the lattice, the gather, the composite module's lattice setup (`qualityMaterialSetup`) and the bounds already exist there. The Quality pixel pass then runs with one candidate per phase, the request's own bilinear kernels (the reference's `setup.demosaic`). The host finishing is the same function. The disc is the same at every node, and the table folds the nodes in advance, so the gather runs once per site, not per node. In-focus Speed stays on the Speed kernel, byte for byte (the renderer routes by `displayViewSpeedGpuUnsupportedReason`, which refuses site kernels).
+
+**The defocus site pass** (`DISPLAY_VIEW_QUALITY_SITES_BLOCKED_WGSL`, chosen when `setup.gpu.defocusRadius` > 0; in focus the tap-list pass runs unchanged):
+
+- **Factored table.** The reference forms a neutral material's value as reflectance[m] × the white's combined kernel N_c(t) (`createDisplayViewExpectedSignal`). The pass therefore uploads one neutral row per channel and one row per spectral material, 3·(1 + S)·T float32 values. Per material it uploads its row and its reflectance (1 for a spectral material). The device forms r_m·N_c(t). A table per material, as the in-focus pass uploads, would need M·3·T values: 134 MB for #491's composite (4 143 neutral materials) at radius 12, and 7 GB at radius 94.
+- **Blocked sum.** Every lattice group's taps form a dense cw × ch rectangle (cw = ch = 2R + 1 plus the group's member spread), so each site sums the taps of a row into a row partial, the rows into a group partial and the groups into the total. It reads no tap records: tap (dx, dy) of group g reads lattice offset (dx, dy) of the group's window, at table index first_g + dy·cw + dx.
+- **Lattice resolution on the host.** With a wide disc nearly every site reads some lattice point that the material module flags as uncertain (the composite's label glyphs and 1024-level elements, a star's diagonals). A flagged tap adds its value spread over all the scene's materials, and with the composite's reflectance range that put 95–100 % of its display pixels above the 2⁻¹⁰ limit, so they were recomputed on the CPU (measured on the emulation before this step was added). In a defocused render the host reads the lattice back after pass 1 and resolves each flagged point: it calls the expected signal's own `materialAt` at the reference's lattice point ((p + 0.5 + f_x − W/2)·g, −(q + 0.5 + f_y − H/2)·g, written as `createDisplayViewExpectedSignal`'s `latticeU`/`latticeV`). It uploads the corrected lattice. Sites then read the reference's materials exactly, and no fixture pixel is flagged (`latticePointsResolved`: 62 on the star block, 242–361 on the composite blocks). The readback is one lattice per band, (siteW + cw − 1)·(siteH + ch − 1)·4 bytes per group.
+- **Dispatch size.** A site gathers up to 150 544 taps (radius 96, four groups). The host splits a band's site pass into dispatches of whole workgroups of at most 2³⁰ taps (`DISPLAY_VIEW_QUALITY_SITE_TAPS_PER_DISPATCH`, `params.site_first`), so no single dispatch runs long enough for an operating system's GPU watchdog to reset it (Windows' default TDR delay is 2 s). This is a choice, not a measurement: 0.1 s at an assumed 10¹⁰ taps per second. At radius 94 it leaves about 7 100 sites (111 workgroups) per dispatch, fewer than a large GPU runs at once. The hardware run (#475) records the site pass's time and `siteDispatches`, and decides whether a gather split over several invocations per site is needed. In focus a band stays one dispatch. Splitting never changes a byte (tested).
+- **Device limits.** The pass uses no workgroup memory and binds six storage buffers and the uniform (the WebGPU default allows eight per stage). The table (3·(1 + S)·T·4 bytes: 1.7 MB for a neutral scene at radius 94) and every band buffer are checked against the device's storage binding limit. Past it the render throws `insufficient-limits` naming the table's size and the limit, and nothing is clipped. The GPU session treats `insufficient-limits` from a render like `unsupported-on-backend`: `gpu: "auto"` renders that part on the CPU, labelled, and `"require"` fails (tested).
+- **Self-check.** `display-view:quality:checkerboard-13x9-defocus-blocked` renders the engine's 6.3-site disc (radius 3) on the bilinear route with the blocked sum, split over 18 dispatches, against `renderDisplayView` within the bounds. It runs with the Speed and Quality cases before a device's first display-view render.
+
+**The bound of the defocused site electrons (derivation).** Every term is non-negative: the disc's and the site diffraction kernel's weights, the channel responses, the reflectances and the radiances are. A term's computed value is fl(r̂_m·N̂_c(t)), where r̂ and N̂ are host roundings to nearest of the float64 reflectance and combined value. That is at most u = 2⁻²⁴ relative each, the "float32 rounding of each weight" of the kernel. The product adds at most E = 2⁻²³. The sum of n non-negative terms in any order perturbs each term by at most n − 1 roundings (Higham, *Accuracy and Stability of Numerical Algorithms*, §4.2, as cited above). In the blocked order a term passes at most cw − 1 additions in its row, ch − 1 in its group, G − 1 in the total and one for the dark electrons. To first order:
+
+|ê − e| ≤ (2u + E + (cw + ch + G − 2)·E)·e ≤ (cw_max + ch_max + G + 3)·E·e = `site_gamma`·e.
+
+This is the in-focus row's (T + 3)·E with T replaced by the block lengths. The second-order factor 1/(1 − n·E) is below 1.0001 for n ≤ 400 and is covered by the host's doubling (`MARGIN`). At radius 94 with the four-spot filter (cw = ch = 190, G = 4), `site_gamma` = 387·E = 4.6 × 10⁻⁵: below the in-focus 400-tap term (4.8 × 10⁻⁵). The tap-list order would give (T + 3)·E = 1.7 × 10⁻² at T = 144 400, so **the bound does not widen with the defocus radius; it grows with the kernel's width**: 1.5 × 10⁻⁶ (radius 1) to 4.6 × 10⁻⁵ (radius 94) on the fixtures below. Two further terms:
+
+- **Flushed terms.** A device may flush a value below the float32 normal range 2⁻¹²⁶ to zero (WGSL allows it). The host adds `site_tiny`: Σ_t of the largest such term at tap t, rounded up and kept normal (0 on every fixture).
+- **Uncertainty.** After the lattice resolution no tap is uncertain. The pass still carries the spread term, as the in-focus pass does, scaled by 1 + `site_gamma` for its own blocked sum.
+
+Everything after the site electrons is the Quality pixel pass with its running bounds, unchanged.
+
+**Measured agreement**, per display pixel, against the CPU reference of the same view. Every component is inside its bound and every case meets the #480 thresholds (`scripts/lib/display-view-acceptance.mjs`: 99 % within ΔE2000 1, none above 2.3, |Δ|/σ ≤ 1). No pixel is flagged, and the corrected-pixel counts equal the CPU's. The fixtures (`test/helpers/display-view-defocus-gpu-fixtures.ts`) follow the CPU display view's defocus cases. The frames are a 24 MP full frame at 6 µm with the 50 mm-equivalent prime and a 12 MP sensor at 1.4 µm with the 300 mm-equivalent. The subject is at 2 m. Speed uses the 2 × 2 box; Quality adds diffraction, the four-spot filter and AHD. The scene is the slanted-edge chart (5°), or the composite under the label layer as a `material-layers` scene, or the bar Siemens star. Each case renders a block of the view at a third of the frame's size (3 real pixels per display pixel): 16 × 12 display pixels, 24 × 16 on the composite and the star, and 8 × 6 at the caps. "Bound used" is the largest |Δ| over its bound, for the expected value and the variance:
+
+| Case (kernel radius in sites) | Taps per site | Site sum bound (relative) | ΔE2000 max | \|Δ\|/σ max | Bound used: expected / variance | Samples differing (≤ 1 code) | Lattice points resolved |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 6 µm f/2.8 focus 0.8× Speed (R 10) | 1 764 | 5.8 × 10⁻⁶ | 5.0 × 10⁻⁵ | 7.4 × 10⁻⁵ | 1.00 % / 1.02 % | 0 of 576 | 0 |
+| 6 µm f/2.8 focus 0.8× Quality (R 12) | 2 704 | 7.0 × 10⁻⁶ | 2.9 × 10⁻⁵ | 4.9 × 10⁻⁵ | 0.28 % / 0.96 % | 0 of 576 | 0 |
+| 6 µm f/2.8 focus 1.25× Speed (R 8) | 1 156 | 4.9 × 10⁻⁶ | 3.3 × 10⁻⁵ | 5.5 × 10⁻⁵ | 0.84 % / 1.60 % | 0 of 576 | 0 |
+| 6 µm f/2.8 focus 1.25× Quality (R 10) | 1 936 | 6.1 × 10⁻⁶ | 4.3 × 10⁻⁵ | 7.6 × 10⁻⁵ | 0.28 % / 0.94 % | 0 of 576 | 0 |
+| 6 µm f/8 focus 0.8× Speed (R 3) | 196 | 2.5 × 10⁻⁶ | 3.8 × 10⁻⁵ | 5.8 × 10⁻⁵ | 1.18 % / 2.42 % | 0 of 576 | 0 |
+| 6 µm f/8 focus 0.8× Quality (R 7) | 1 024 | 4.6 × 10⁻⁶ | 4.0 × 10⁻⁵ | 6.6 × 10⁻⁵ | 0.50 % / 1.24 % | 0 of 576 | 0 |
+| 6 µm f/8 focus 1.25× Speed (R 3) | 196 | 2.5 × 10⁻⁶ | 3.8 × 10⁻⁵ | 6.0 × 10⁻⁵ | 1.32 % / 2.47 % | 0 of 576 | 0 |
+| 6 µm f/8 focus 1.25× Quality (R 7) | 1 024 | 4.6 × 10⁻⁶ | 2.5 × 10⁻⁵ | 6.7 × 10⁻⁵ | 0.33 % / 1.48 % | 0 of 576 | 0 |
+| 6 µm f/16 focus 0.8× Speed (R 2) | 100 | 2.0 × 10⁻⁶ | 1.8 × 10⁻⁵ | 3.9 × 10⁻⁵ | 1.13 % / 1.79 % | 0 of 576 | 0 |
+| 6 µm f/16 focus 0.8× Quality (R 9) | 1 600 | 5.6 × 10⁻⁶ | 3.5 × 10⁻⁵ | 5.4 × 10⁻⁵ | 0.29 % / 1.18 % | 0 of 576 | 0 |
+| 6 µm f/16 focus 1.25× Speed (R 1) | 36 | 1.5 × 10⁻⁶ | 3.1 × 10⁻⁵ | 6.4 × 10⁻⁵ | 2.00 % / 2.83 % | 0 of 576 | 0 |
+| 6 µm f/16 focus 1.25× Quality (R 8) | 1 296 | 5.1 × 10⁻⁶ | 2.6 × 10⁻⁵ | 5.5 × 10⁻⁵ | 0.29 % / 1.27 % | 0 of 576 | 0 |
+| 1.4 µm f/2.8 focus 0.8× Speed (R 39) | 24 964 | 2.0 × 10⁻⁵ | 7.4 × 10⁻⁵ | 3.2 × 10⁻⁵ | 0.52 % / 0.70 % | 0 of 576 | 0 |
+| 1.4 µm f/2.8 focus 0.8× Quality (R 45) | 33 856 | 2.3 × 10⁻⁵ | 6.9 × 10⁻⁵ | 2.6 × 10⁻⁵ | 0.17 % / 0.39 % | 0 of 576 | 0 |
+| 1.4 µm f/2.8 focus 1.25× Speed (R 31) | 15 876 | 1.6 × 10⁻⁵ | 7.6 × 10⁻⁵ | 2.7 × 10⁻⁵ | 0.74 % / 0.78 % | 0 of 576 | 0 |
+| 1.4 µm f/2.8 focus 1.25× Quality (R 37) | 23 104 | 1.9 × 10⁻⁵ | 7.6 × 10⁻⁵ | 2.5 × 10⁻⁵ | 0.24 % / 0.52 % | 0 of 576 | 0 |
+| 1.4 µm f/8 focus 0.8× Speed (R 14) | 3 364 | 7.7 × 10⁻⁶ | 6.1 × 10⁻⁵ | 2.2 × 10⁻⁵ | 0.78 % / 1.11 % | 0 of 576 | 0 |
+| 1.4 µm f/8 focus 0.8× Quality (R 29) | 14 400 | 1.5 × 10⁻⁵ | 4.0 × 10⁻⁵ | 1.5 × 10⁻⁵ | 0.20 % / 0.66 % | 1 of 576 | 0 |
+| 1.4 µm f/8 focus 1.25× Speed (R 11) | 2 116 | 6.3 × 10⁻⁶ | 3.6 × 10⁻⁵ | 1.5 × 10⁻⁵ | 0.79 % / 1.14 % | 0 of 576 | 0 |
+| 1.4 µm f/8 focus 1.25× Quality (R 26) | 11 664 | 1.4 × 10⁻⁵ | 5.6 × 10⁻⁵ (SwiftShader 5.8 × 10⁻⁵) | 1.8 × 10⁻⁵ | 0.18 % / 0.55 % (SwiftShader 0.20 % / 0.55 %) | 0 of 576 | 0 |
+| 1.4 µm f/16 focus 0.8× Speed (R 7) | 900 | 4.4 × 10⁻⁶ | 3.9 × 10⁻⁵ | 1.8 × 10⁻⁵ | 0.87 % / 1.01 % | 0 of 576 | 0 |
+| 1.4 µm f/16 focus 0.8× Quality (R 37) | 23 104 | 1.9 × 10⁻⁵ | 6.3 × 10⁻⁵ | 2.2 × 10⁻⁵ | 0.17 % / 0.54 % | 0 of 576 | 0 |
+| 1.4 µm f/16 focus 1.25× Speed (R 5) | 484 | 3.5 × 10⁻⁶ | 2.0 × 10⁻⁵ | 9.0 × 10⁻⁶ | 0.51 % / 1.45 % | 0 of 576 | 0 |
+| 1.4 µm f/16 focus 1.25× Quality (R 35) | 20 736 | 1.8 × 10⁻⁵ | 4.3 × 10⁻⁵ | 2.0 × 10⁻⁵ | 0.14 % / 0.49 % | 0 of 576 | 0 |
+| composite under the label layer (material-layers)  6 µm f/2.8 focus 0.8× Quality (R 12) | 2 704 | 7.0 × 10⁻⁶ | 6.1 × 10⁻⁵ | 1.2 × 10⁻⁴ | 0.31 % / 1.09 % | 0 of 1152 | 361 |
+| composite under the label layer (material-layers)  6 µm f/2.8 focus 0.8× Speed (R 10) | 1 764 | 5.8 × 10⁻⁶ | 7.0 × 10⁻⁵ | 1.0 × 10⁻⁴ | 0.95 % / 1.04 % | 0 of 1152 | 336 |
+| Siemens star (bar)  6 µm f/2.8 focus 0.8× Quality (R 12) | 2 704 | 7.0 × 10⁻⁶ | 6.5 × 10⁻⁵ | 1.4 × 10⁻⁴ | 0.35 % / 1.01 % (SwiftShader 0.35 % / 1.06 %) | 0 of 1152 | 62 |
+| disc at its cap  1.4 µm f/2.8 focus 0.71× Speed (R 64) | 66 564 | 3.2 × 10⁻⁵ | 1.7 × 10⁻⁴ | 4.5 × 10⁻⁵ | 0.71 % / 0.59 % | 0 of 144 | 0 |
+| combined near the cap  1.4 µm f/16 focus 0.31× Quality (R 94 = 63 + 31) | 144 400 | 4.6 × 10⁻⁵ | 4.5 × 10⁻⁵ | 1.8 × 10⁻⁵ | 0.07 % / 0.20 % | 0 of 144 | 0 |
+| composite under the label layer near the cap  1.4 µm (3:2 crop) f/16 focus 0.296× Quality (R 94) | 144 400 | 4.6 × 10⁻⁵ | 7.4 × 10⁻⁵ | 3.7 × 10⁻⁵ | 0.09 % / 0.16 % | 0 of 144 | 242 |
+
+The emulation (`test/display-view-defocus-gpu.test.ts`, every CI run) and SwiftShader (`test/webgpu/display-view.webgpu.ts`) give the same numbers to the digits shown, except three: the 1.4 µm f/8 focus 1.25× Quality case (ΔE2000 5.8 × 10⁻⁵ and 0.20 % of the expected-value bound on SwiftShader, against 5.6 × 10⁻⁵ and 0.18 %) and the star's variance bound used (1.06 % against 1.01 %): the emulation's built-ins (`exp`, `sqrt`) are correctly rounded, while SwiftShader's need only meet the WGSL accuracy table, so last digits can differ, as on #479's Reinhard fixture. One sample of the 30 fixtures' 17 712 differs from the CPU, by one code. No pixel is flagged on either: every material-uncertain lattice point is resolved on the host before the site pass.
+
+**Timing: SwiftShader is not GPU performance.** Per-stage wall-clock milliseconds on SwiftShader (Chromium headless, this 4-vCPU host shared with other work) are in the suite's report line (`softwareAdapterStageMilliseconds`, with `siteDispatches`). They are listed here for the record only:
+
+| Case | Display pixels | Lattice (with readback and resolution) | Sites (dispatches) | Pixels | Finishing | Render, including pipeline creation |
+| --- | --- | --- | --- | --- | --- | --- |
+| 6 µm f/2.8 focus 0.8× Speed (R 10) | 192 | 10 ms | 98 ms (1) | 21 ms | 0.4 ms | 2.6 s |
+| 6 µm f/2.8 focus 0.8× Quality (R 12) | 192 | 6 ms | 97 ms (1) | 25 ms | 0.3 ms | 2.6 s |
+| 6 µm f/2.8 focus 1.25× Speed (R 8) | 192 | 7 ms | 38 ms (1) | 12 ms | 0.3 ms | 2.7 s |
+| 6 µm f/2.8 focus 1.25× Quality (R 10) | 192 | 9 ms | 74 ms (1) | 38 ms | 0.3 ms | 2.9 s |
+| 6 µm f/8 focus 0.8× Speed (R 3) | 192 | 5 ms | 5 ms (1) | 11 ms | 0.4 ms | 2.7 s |
+| 6 µm f/8 focus 0.8× Quality (R 7) | 192 | 5 ms | 127 ms (1) | 40 ms | 0.4 ms | 2.9 s |
+| 6 µm f/8 focus 1.25× Speed (R 3) | 192 | 10 ms | 8 ms (1) | 12 ms | 0.3 ms | 2.5 s |
+| 6 µm f/8 focus 1.25× Quality (R 7) | 192 | 7 ms | 53 ms (1) | 33 ms | 0.4 ms | 2.9 s |
+| 6 µm f/16 focus 0.8× Speed (R 2) | 192 | 5 ms | 4 ms (1) | 142 ms | 0.3 ms | 3.0 s |
+| 6 µm f/16 focus 0.8× Quality (R 9) | 192 | 7 ms | 52 ms (1) | 32 ms | 0.3 ms | 2.6 s |
+| 6 µm f/16 focus 1.25× Speed (R 1) | 192 | 5 ms | 4 ms (1) | 60 ms | 0.3 ms | 2.7 s |
+| 6 µm f/16 focus 1.25× Quality (R 8) | 192 | 6 ms | 59 ms (1) | 28 ms | 0.3 ms | 2.8 s |
+| 1.4 µm f/2.8 focus 0.8× Speed (R 39) | 192 | 12 ms | 776 ms (1) | 12 ms | 0.3 ms | 3.4 s |
+| 1.4 µm f/2.8 focus 0.8× Quality (R 45) | 192 | 14 ms | 1206 ms (1) | 59 ms | 0.3 ms | 8.5 s |
+| 1.4 µm f/2.8 focus 1.25× Speed (R 31) | 192 | 13 ms | 443 ms (1) | 21 ms | 0.3 ms | 3.2 s |
+| 1.4 µm f/2.8 focus 1.25× Quality (R 37) | 192 | 16 ms | 648 ms (1) | 56 ms | 0.4 ms | 8.4 s |
+| 1.4 µm f/8 focus 0.8× Speed (R 14) | 192 | 7 ms | 71 ms (1) | 13 ms | 0.3 ms | 2.8 s |
+| 1.4 µm f/8 focus 0.8× Quality (R 29) | 192 | 16 ms | 446 ms (1) | 270 ms | 0.3 ms | 9.4 s |
+| 1.4 µm f/8 focus 1.25× Speed (R 11) | 192 | 6 ms | 64 ms (1) | 16 ms | 0.4 ms | 2.8 s |
+| 1.4 µm f/8 focus 1.25× Quality (R 26) | 192 | 12 ms | 383 ms (1) | 62 ms | 0.3 ms | 9.1 s |
+| 1.4 µm f/16 focus 0.8× Speed (R 7) | 192 | 4 ms | 19 ms (1) | 142 ms | 0.2 ms | 2.7 s |
+| 1.4 µm f/16 focus 0.8× Quality (R 37) | 192 | 14 ms | 709 ms (1) | 91 ms | 0.3 ms | 9.3 s |
+| 1.4 µm f/16 focus 1.25× Speed (R 5) | 192 | 12 ms | 143 ms (1) | 12 ms | 0.3 ms | 2.7 s |
+| 1.4 µm f/16 focus 1.25× Quality (R 35) | 192 | 16 ms | 584 ms (1) | 74 ms | 0.2 ms | 9.1 s |
+| composite under the label layer (material-layers), 6 µm f/2.8 focus 0.8× Quality (R 12) | 384 | 76 ms | 248 ms (1) | 52 ms | 0.6 ms | 5.5 s |
+| composite under the label layer (material-layers), 6 µm f/2.8 focus 0.8× Speed (R 10) | 384 | 129 ms | 107 ms (1) | 19 ms | 0.5 ms | 5.4 s |
+| Siemens star (bar), 6 µm f/2.8 focus 0.8× Quality (R 12) | 384 | 13 ms | 156 ms (1) | 45 ms | 0.6 ms | 3.0 s |
+| disc at its cap, 1.4 µm f/2.8 focus 0.71× Speed (R 64) | 48 | 18 ms | 401 ms (1) | 6 ms | 0.1 ms | 3.0 s |
+| combined near the cap, 1.4 µm f/16 focus 0.31× Quality (R 94 = 63 + 31) | 48 | 36 ms | 1122 ms (1) | 22 ms | 0.1 ms | 5.3 s |
+| composite under the label layer near the cap, 1.4 µm (3:2 crop) f/16 focus 0.296× Quality (R 94) | 48 | 582 ms | 904 ms (1) | 28 ms | 0.2 ms | 7.7 s |
+
+The hardware numbers are **TBD-TIMING (#475)**. The CPU display view's cost with defocus is in `docs/DISPLAY_VIEW.md` ("Cost", defocus): it grows about as R², to 0.68–0.86 ms per display pixel at radius 60–62 on one thread. The GPU site pass does the same per-tap work (T taps per site), so its hardware time per radius is the number #475 must record.
 
 ## Error bounds (a priori, reported per result)
 
