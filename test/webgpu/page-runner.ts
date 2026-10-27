@@ -7,8 +7,10 @@ import { calculateChartRadianceBatch, createImageKernelAccelerator, ImageKernelE
   type NativeCaptureSdrInput, type NativeCaptureSdrProvider, type NativeCaptureSdrTile, type NativeCaptureSdrTileRequest,
   type NativeRawDevelopmentInput, type PackedSensorRawInput, type TemporalExposureSumInput, type ChartRadianceBatchInput } from "../../src/index.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
-import { displayViewGpuFixture, renderOnGpu } from "../helpers/display-view-gpu-fixture.js";
+import { displayViewGpuFixture, renderOnGpu, renderOnGpuQuality, timeCpuStages } from "../helpers/display-view-gpu-fixture.js";
+import { clearDisplayViewCorrectionStates } from "../../src/facade/display-view.js";
 import { DISPLAY_VIEW_SPEED_CONFORMANCE_CASE } from "../../src/gpu/display-view-speed-gpu.js";
+import { DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE } from "../../src/gpu/display-view-quality-gpu.js";
 import { acquireWebGpuRuntime, type WebGpuRuntime } from "../../src/gpu/webgpu-runtime.js";
 import type { SimulateCaptureOptions, SimulateDisplayViewOptions } from "../../src/index.js";
 
@@ -194,5 +196,40 @@ export async function displayViewSpeed(payload: string): Promise<string> {
 export async function displayViewConformance(): Promise<string> {
   const device = await runtime();
   try { return encodeTransport({ outcome: await DISPLAY_VIEW_SPEED_CONFORMANCE_CASE.run(device, undefined) }); }
+  finally { device.destroy(); }
+}
+
+/**
+ * #479: the display view's Quality kernels on the device (diffraction, the four-spot filter, AHD and the low-signal correction),
+ * as `displayViewSpeed`: the page's own CPU reference, the GPU render, the per-stage wall-clock milliseconds of the last run.
+ */
+export async function displayViewQuality(payload: string): Promise<string> {
+  const { options, view, maximumBandBytes, recomputeFlagged, repeat, timeCpu } = decodeTransport<{ options: SimulateCaptureOptions; view: SimulateDisplayViewOptions; maximumBandBytes?: number;
+    recomputeFlagged?: boolean; repeat?: number; timeCpu?: boolean }>(payload);
+  const fixture = await displayViewGpuFixture(options, view), device = await runtime();
+  try {
+    // The CPU reference's stages in this realm, on request (#479's AHD placement); then the GPU render with the realm's correction
+    // states cleared, so its states stage computes the states it needs as a fresh worker would.
+    const cpuStages = timeCpu ? await timeCpuStages(fixture) : null;
+    clearDisplayViewCorrectionStates();
+    let result: Awaited<ReturnType<typeof renderOnGpuQuality>> | undefined, milliseconds = 0;
+    for (let i = 0; i < (repeat ?? 1); i++) {
+      const start = performance.now();
+      result = await renderOnGpuQuality(device, fixture, maximumBandBytes, recomputeFlagged ?? true);
+      milliseconds = performance.now() - start;
+    }
+    const gpu = result!;
+    return encodeTransport({ cpu: { samples: fixture.cpu.samples, expected: fixture.cpu.expected, noiseStd: fixture.cpu.noiseStd, ahdCorrectedPixelCount: fixture.cpu.ahdCorrectedPixelCount },
+      gpu: { samples: gpu.samples, expected: gpu.expected, noiseStd: gpu.noiseStd, expectedValueBound: gpu.expectedValueBound, varianceBound: gpu.varianceBound,
+        expectedValueAbsoluteBound: gpu.expectedValueAbsoluteBound, varianceAbsoluteBound: gpu.varianceAbsoluteBound },
+      flaggedPixelIndices: gpu.flaggedPixelIndices, hostRecomputedPixelIndices: gpu.hostRecomputedPixelIndices, execution: gpu.execution, gpuMilliseconds: milliseconds,
+      stageMilliseconds: gpu.stageMilliseconds, tapsPerSite: gpu.tapsPerSite, statesComputed: gpu.statesComputed, ahdCorrectedPixelCount: gpu.ahdCorrectedPixelCount, cpuStages });
+  } finally { device.destroy(); }
+}
+
+/** #479: the Quality self-check case on the device. */
+export async function displayViewQualityConformance(): Promise<string> {
+  const device = await runtime();
+  try { return encodeTransport({ outcome: await DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE.run(device, undefined) }); }
   finally { device.destroy(); }
 }
