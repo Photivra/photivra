@@ -777,11 +777,16 @@ example its diffraction kernels), while its samples were identical in every case
 ## Rendering on the GPU
 
 2.11 (#481) adds the engine API through which a prepared display view chooses between a WebGPU renderer and the CPU
-reference and labels which ran. The engine's renderer is the Speed kernel of #478 (the exact area mean without diffraction,
-bilinear, the chart presets; `docs/WEBGPU.md`, "Display view (Speed) on the GPU": its design, bounds and measured agreement),
-registered when the GPU session module loads; a request it does not cover (AHD, diffraction, a caller scene, a coarser view)
-runs the CPU reference labelled `unsupported-on-backend` (or fails with it). #479 builds the Quality kernel, #477 the composite
-chart's material lookup. Its speed-up over the CPU is not measured yet (#475).
+reference and labels which ran. The engine's renderer (registered when the GPU session module loads) runs the Speed kernel of
+#478 for requests without diffraction and AHD (the exact area mean, bilinear, the chart presets; `docs/WEBGPU.md`, "Display view
+(Speed) on the GPU") and the Quality kernels of #479 for the rest of what it covers: diffraction kernels, the anti-aliasing
+filter's spots, the AHD candidates and the low-signal correction, whose states are still computed on the CPU and uploaded as a
+table (`docs/WEBGPU.md`, "Display view (Quality) on the GPU": the three passes, the running bounds, the measured agreement and
+the AHD placement decision). A request it does not cover (a caller scene until #491's material module, a coarser view than the
+exact area mean, a footprint above 6 real pixels per axis) runs the CPU reference labelled `unsupported-on-backend` (or fails with
+it). A GPU render of the Quality options inherits the estimate's [known limits](#known-limit-quality-noise-at-small-footprints)
+(#379, and the star-centre AHD colour of #457): it agrees with the CPU reference within its bound, not with the real AHD capture
+any better than the reference does. The speed-up over the CPU is not measured yet (#475).
 
 ```ts
 import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
