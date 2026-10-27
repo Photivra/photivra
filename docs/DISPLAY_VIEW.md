@@ -611,6 +611,14 @@ same values with the same operations in the same order; none reassociates a floa
   rows comes from prefix and suffix ORs; and a window whose every site was computed counts its whole caches. The count
   is the same integer as before (a test compares it with the previous algorithm and with the definition on random
   windows); no image value is involved.
+- **The render loop's tables have one element kind each (#442).** The readout tables (gain, dark electrons, read
+  variance and its square root) and the homogeneity white are `Float64Array`s instead of plain arrays, the per-phase
+  candidate tables are flat arrays of typed arrays (index phase·2 + candidate, and ·3 + channel) instead of nested
+  arrays, and a site's window offset comes from two per-render integer tables instead of a modulo and a division per
+  read. They hold the same numbers and the loop does the same arithmetic on them in the same order; the change only
+  stops V8 from discarding the render loop's optimized code when its loads met another array shape. Measured on the
+  app-request shape (Node 24.21.0, one thread, three repeats, builds alternated, against #441): Quality part medians
+  148–156 → 143–151 ms, Speed 83–91 → 79–84 ms.
 
 **Proof of byte identity.** The display views of all 155 validation cases at their seeds (the requests of
 `validate-display-view.mjs`, Speed and Quality, three sensors) were hashed before and after (SHA-256 of the samples, of

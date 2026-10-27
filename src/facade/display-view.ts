@@ -37,6 +37,7 @@
 import { createDeterministicUniformStream, createPortableStandardNormalPairs, deriveNativeSiteStreamSeedUint32, fmix32, samplePortableStandardNormal } from "../sensor/stochastic-seed.js";
 import { encodeSrgbComponentPortable } from "../color/srgb-transfer.js";
 import { createPoissonSampler } from "../sensor/raw-readout.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { portableCbrt, portableCosTwoPi, portableExp, portableExp2, portableLog2, portablePow } from "../core/portable-math.js";
 
 /** Stream IDs of the display view's two seeded streams, distinct from the native charge (0) and read-noise (1) streams. */
@@ -321,9 +322,49 @@ const AHD_STATE_LIMIT = 1 << 16, AHD_SETUP_LIMIT = 4;
 interface CorrectionStates { index: Map<number, number>; values: Float64Array }
 const ahdStateCache = new Map<string, CorrectionStates>();
 /** Every input a correction state depends on besides its indices, as exact decimal text (JavaScript numbers round-trip). */
-function correctionKey(seed: number, correction: NonNullable<DisplayViewSetup["ahdCorrection"]>, perElectron: readonly number[], constantVariance: readonly number[],
+function correctionKey(seed: number, correction: NonNullable<DisplayViewSetup["ahdCorrection"]>, perElectron: ArrayLike<number> & Iterable<number>, constantVariance: ArrayLike<number> & Iterable<number>,
   gains: readonly number[], clipLevel: number, matrix: readonly (readonly number[])[], toneCurve: string): string {
   return [seed, correction.drawsPerState, ...perElectron, ...constantVariance, ...correction.labMatrix.flat(), ...gains, clipLevel, ...matrix.flat(), toneCurve].join(",");
+}
+/**
+ * Internal (exported for tests, #442): the window offset of each slot, slot (dy + reach)·(2·reach + 1) + dx + reach, as
+ * two integer tables: dx[slot] = (slot mod side) − reach and dy[slot] = ⌊slot / side⌋ − reach. The render loop reads them
+ * instead of taking a modulo and a division per site read; they are the same integers.
+ */
+export function displayViewSlotOffsets(reach: number): { dx: Int32Array; dy: Int32Array } {
+  const side = 2 * reach + 1, slotsCount = side * side;
+  return { dx: Int32Array.from({ length: slotsCount }, (_, slot) => (slot % side) - reach), dy: Int32Array.from({ length: slotsCount }, (_, slot) => ((slot / side) | 0) - reach) };
+}
+/** The per-phase candidate tables of a render, flat (#442): index phase·2 + candidate, and ·3 + channel for the slots and weights. */
+export interface DisplayViewCandidateTables {
+  /** Candidates per phase: 1 (bilinear) or 2 (AHD), the same for every phase. */
+  count: number;
+  denseAt: Float64Array[];
+  listAt: Int32Array[];
+  slotsAt: Int32Array[];
+  weightsAt: Float64Array[];
+}
+/**
+ * Internal (exported for tests, #442): the nested per-phase tables [phase][candidate] (and [channel]) as flat arrays holding
+ * the same typed arrays. Plain arrays of typed arrays with one element kind keep the render loop's keyed loads on one hidden
+ * class each, where the nested arrays (arrays of arrays of typed arrays) made V8 deoptimize the render loop. Every phase must
+ * have the same number of candidates, 1 or 2 (the record layout and the choice variance assume it), each with 3 channels.
+ */
+export function flatDisplayViewCandidateTables(slots: readonly (readonly (readonly Int32Array[])[])[], weights: readonly (readonly (readonly Float64Array[])[])[],
+  dense: readonly (readonly Float64Array[])[], list: readonly (readonly Int32Array[])[]): DisplayViewCandidateTables {
+  const count = slots[0]?.length ?? 0;
+  if (slots.length !== 4 || (count !== 1 && count !== 2)) throw new InvalidConfigurationError("display view: each of the 4 CFA phases needs 1 or 2 demosaic candidates.");
+  const denseAt: Float64Array[] = [], listAt: Int32Array[] = [], slotsAt: Int32Array[] = [], weightsAt: Float64Array[] = [];
+  for (let p = 0; p < 4; p++) {
+    if (slots[p]!.length !== count || weights[p]?.length !== count || dense[p]?.length !== count || list[p]?.length !== count)
+      throw new InvalidConfigurationError("display view: every CFA phase needs the same number of demosaic candidates.");
+    for (let d = 0; d < count; d++) {
+      if (slots[p]![d]!.length !== 3 || weights[p]![d]!.length !== 3) throw new InvalidConfigurationError("display view: each demosaic candidate needs a kernel per camera channel.");
+      denseAt[p * 2 + d] = dense[p]![d]!; listAt[p * 2 + d] = list[p]![d]!;
+      for (let c = 0; c < 3; c++) { slotsAt[(p * 2 + d) * 3 + c] = slots[p]![d]![c]!; weightsAt[(p * 2 + d) * 3 + c] = weights[p]![d]![c]!; }
+    }
+  }
+  return { count, denseAt, listAt, slotsAt, weightsAt };
 }
 /** Internal (exported for tests): the correction states kept across calls, and clearing them. */
 export function displayViewCorrectionStateCount(): number { let n = 0; for (const states of ahdStateCache.values()) n += states.index.size; return n; }
@@ -385,11 +426,13 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const columns = Array.from({ length: region.width }, (_, i) => axisSums((region.x + i) * sx, (region.x + i + 1) * sx, frameWidth, margin));
   const M = setup.matrix, m00 = M[0]![0]!, m01 = M[0]![1]!, m02 = M[0]![2]!, m10 = M[1]![0]!, m11 = M[1]![1]!, m12 = M[1]![2]!, m20 = M[2]![0]!, m21 = M[2]![1]!, m22 = M[2]![2]!;
   const g0 = setup.gains[0], g1 = setup.gains[1], g2 = setup.gains[2], L = setup.clipLevel, reinhard = setup.toneCurve === "positive-reinhard-per-channel";
-  const k = setup.readout.map((r) => r.perElectron), dark = setup.readout.map((r) => r.darkElectrons), c0 = setup.readout.map((r) => r.constantVariance);
+  // Small per-render tables as Float64Arrays (#442): the same doubles as plain arrays, with one element kind for the keyed loads.
+  const k = Float64Array.from(setup.readout, (r) => r.perElectron), dark = Float64Array.from(setup.readout, (r) => r.darkElectrons), c0 = Float64Array.from(setup.readout, (r) => r.constantVariance);
   // Site window: 3 × 3 for the bilinear kernels, 7 × 7 when AHD's candidates read up to 3 sites away. Slot (dy + r)·(2r + 1) + dx + r.
   const candidates = setup.candidates ?? setup.demosaic.map((phase) => [phase]);
   const reach = Math.max(1, ...candidates.flat(3).map((t) => Math.max(Math.abs(t.dx), Math.abs(t.dy)))), side = 2 * reach + 1, slotsCount = side * side;
   const slotOf = (t: DisplayViewKernelTap): number => (t.dy + reach) * side + t.dx + reach;
+  const { dx: slotDx, dy: slotDy } = displayViewSlotOffsets(reach);
   // Per phase: the bilinear kernels (for the site variance of each channel), the candidates, and the slots they read.
   const phaseSlots: Int32Array[][] = [], phaseWeights: Float64Array[][] = [], phaseW2: Float64Array[] = [], phaseList: Int32Array[] = [];
   const candidateSlots: Int32Array[][][] = [], candidateWeights: Float64Array[][][] = [], candidateDense: Float64Array[][] = [], candidateList: Int32Array[][] = [];
@@ -407,6 +450,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
     // ±0 at the other slots, which leaves a sum that starts at +0 unchanged, so the sums below skip them.
     candidateList[p] = candidateDense[p]!.map((dense) => phaseList[p]!.filter((slot) => dense[slot] !== 0 || dense[slotsCount + slot] !== 0 || dense[2 * slotsCount + slot] !== 0));
   }
+  // The same tables flat (phase·2 + candidate, ·3 + channel), read by the sample loop below.
+  const { count: candidateCount, denseAt, listAt, slotsAt, weightsAt } = flatDisplayViewCandidateTables(candidateSlots, candidateWeights, candidateDense, candidateList);
   const siteElectrons = new Float64Array(slotsCount), siteMean = new Float64Array(slotsCount), siteVar = new Float64Array(slotsCount), siteThird = new Float64Array(slotsCount), siteChannel = new Int32Array(slotsCount), clip = new Float64Array(3), B = new Float64Array(4), C = new Float64Array(9);
   const cm = new Float64Array(3), cv = new Float64Array(3), csv = new Float64Array(3), bm = new Float64Array(3), bv = new Float64Array(3), bs = new Float64Array(3);
   const hm = new Float64Array(3), hv = new Float64Array(3), hs = new Float64Array(3), an = new Float64Array(9);
@@ -433,7 +478,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   const ahdCorrection = setup.ahdCorrection, windowReach = ahdCorrection ? Math.max(reach, AHD_REACH) : reach;
   const correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE), cmAverage = new Float64Array(3);
   let correctedPixels = 0;
-  const readStd = c0.map((v) => Math.sqrt(v));
+  const readStd = Float64Array.from(c0, (v) => Math.sqrt(v));
   // The correction of a flat neighbourhood whose sites of channel c have normalized mean μ_c, on a logarithmic grid of states
   // (AHD_KEY_STEPS per octave from 2^-AHD_KEY_OCTAVES of white); each grid state is computed once with draws seeded by the state
   // alone, so it is the same in every display pixel and region, and a pixel interpolates trilinearly between the 8 states
@@ -486,7 +531,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
     }
     return interpolated;
   }
-  const lab = ahdCorrection?.labMatrix ?? [[1, 0, 0], [0, 1, 0], [0, 0, 1]], labWhite = lab.map((row) => row[0]! + row[1]! + row[2]!);
+  const lab = ahdCorrection?.labMatrix ?? [[1, 0, 0], [0, 1, 0], [0, 0, 1]], labWhite = Float64Array.from(lab, (row) => row[0]! + row[1]! + row[2]!);
   const l00 = lab[0]![0]!, l01 = lab[0]![1]!, l02 = lab[0]![2]!, l10 = lab[1]![0]!, l11 = lab[1]![1]!, l12 = lab[1]![2]!, l20 = lab[2]![0]!, l21 = lab[2]![1]!, l22 = lab[2]![2]!;
   const lw0 = labWhite[0]!, lw1 = labWhite[1]!, lw2 = labWhite[2]!;
   const gh = new Float64Array(49), gv = new Float64Array(49), cand = [new Float64Array(75), new Float64Array(75)], labs = [new Float64Array(75), new Float64Array(75)];
@@ -671,7 +716,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           for (let li = 0; li < list.length; li++) {
             const slot = list[li]!;
             siteCount++;
-            let sxs = x + (slot % side) - reach, sys = y + ((slot / side) | 0) - reach;
+            let sxs = x + slotDx[slot]!, sys = y + slotDy[slot]!;
             if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
             if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
             const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
@@ -707,7 +752,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           // Without the ring (coarse views, windows without diffraction kernels or with lazy caches): each site through the signal.
           const slot = list[li]!;
           siteCount++;
-          let sxs = x + (slot % side) - reach, sys = y + ((slot / side) | 0) - reach;
+          let sxs = x + slotDx[slot]!, sys = y + slotDy[slot]!;
           if (sxs < 0) sxs = -sxs; else if (sxs >= nativeWidth) sxs = 2 * nativeWidth - 2 - sxs;
           if (sys < 0) sys = -sys; else if (sys >= nativeHeight) sys = 2 * nativeHeight - 2 - sys;
           const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
@@ -728,7 +773,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           memo = sampleMemo.get(memoKey);
           if (memo && pk >= 0) { records.set(memo, pk * MEMO_SIZE); stamps[pk] = stamp; }
         }
-        const cs = candidateSlots[phase]!, cw = candidateWeights[phase]!, count = cs.length, share = 1 / count;
+        const count = candidateCount, share = 1 / count;
         if (memo) {
           for (let d = 0; d < count; d++) {
             for (let c = 0; c < 3; c++) {
@@ -775,14 +820,14 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         let e0 = 0, e1 = 0, e2 = 0;
         for (let d = 0; d < count; d++) {
           for (let c = 0; c < 3; c++) {
-            const sl = cs[d]![c]!, wt = cw[d]![c]!;
+            const sl = slotsAt[(phase * 2 + d) * 3 + c]!, wt = weightsAt[(phase * 2 + d) * 3 + c]!;
             let mean = 0;
             for (let t = 0; t < sl.length; t++) mean += wt[t]! * siteMean[sl[t]!]!;
             cm[c] = mean;
             cmAverage[c] = (d === 0 ? 0 : cmAverage[c]!) + mean * share;
           }
           // Covariance of channels i, j: Σ over the sites of w_i·w_j·Var(site), with the kernels as dense weights over the window.
-          const dense = candidateDense[phase]![d]!, list = candidateList[phase]![d]!;
+          const dense = denseAt[phase * 2 + d]!, list = listAt[phase * 2 + d]!;
           let v00 = 0, v01 = 0, v02 = 0, v11 = 0, v12 = 0, v22 = 0;
           for (let li = 0; li < list.length; li++) {
             const slot = list[li]!, v = siteVar[slot]!, w0 = dense[slot]!, w1 = dense[slotsCount + slot]!, w2 = dense[2 * slotsCount + slot]!;
@@ -807,7 +852,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             else if (reinhard) { reinhardMoments(mean, variance, clip); hm[comp] = clip[0]!; hv[comp] = clip[1]!; hs[comp] = clip[2]!; }
             else {
               // The component is a linear combination of the sites: κ₃ = Σ (Σ_c M·Γ_c·w_c,site)³·κ₃(site).
-              const dense = candidateDense[phase]![d]!, list = candidateList[phase]![d]!;
+              const dense = denseAt[phase * 2 + d]!, list = listAt[phase * 2 + d]!;
               let third = 0;
               for (let li = 0; li < list.length; li++) {
                 const slot = list[li]!, coefficient = r0m * bs[0]! * dense[slot]! + r1m * bs[1]! * dense[slotsCount + slot]! + r2m * bs[2]! * dense[2 * slotsCount + slot]!;
@@ -841,7 +886,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           // AHD's per-pixel choice between the candidates adds independent variance: with a noise-driven choice each pixel
           // deviates from the candidates' average by ±½(H − V), variance ¼·Var(H − V) (linear in the sites, at the last
           // candidate's slopes).
-          const dh = candidateDense[phase]![0]!, dv = candidateDense[phase]![1]!, list = phaseList[phase]!;
+          const dh = denseAt[phase * 2]!, dv = denseAt[phase * 2 + 1]!, list = phaseList[phase]!;
           let x0 = 0, x1 = 0, x2 = 0;
           for (let li = 0; li < list.length; li++) {
             const slot = list[li]!, d0 = bs[0]! * (dh[slot]! - dv[slot]!), d1 = bs[1]! * (dh[slotsCount + slot]! - dv[slotsCount + slot]!), d2 = bs[2]! * (dh[2 * slotsCount + slot]! - dv[2 * slotsCount + slot]!);
