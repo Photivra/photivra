@@ -26,7 +26,7 @@ import type { SdrRenderingProfile, SdrRenderingResult } from "../output/sdr-rend
 import { calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask, sdrOutputEncoding, validateNativeCaptureSdrTile, NATIVE_CAPTURE_SDR_LIMITS,
   type NativeCaptureSdrInput, type NativeCaptureSdrOutput, type NativeCaptureSdrProvider, type NativeCaptureSdrTileRequest } from "../output/native-capture-sdr.js";
 import { convolveIrradianceRows, calculateIrradianceConvolutionPlan, type IrradianceConvolutionInput, type IrradianceConvolutionPlan } from "../optics/irradiance-convolution.js";
-import { ImageKernelExecutionError, cpuExecution, float32Gamma, integerCodeBound, webGpuExecution,
+import { ImageKernelExecutionError, cpuExecution, float32Gamma, integerCodeBound, webGpuExecution, type ImageKernelAdapterDescription,
   type ImageKernelBackend, type ImageKernelExecution, type ImageKernelFallbackReason, type ImageKernelRelativeErrorBound } from "./image-kernel-execution.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, acquireWebGpuRuntime, createComputePipeline, linearDispatch, runComputePass,
   type WebGpuRuntime } from "./webgpu-runtime.js";
@@ -107,6 +107,8 @@ export interface ImageKernelAccelerator {
   readonly backend: ImageKernelBackend;
   readonly requestedBackend: ImageKernelBackend;
   readonly fallbackReason: ImageKernelFallbackReason | null;
+  /** #481: the adapter of a `webgpu-f32` accelerator's device (null for `cpu-reference`, or when the browser gives no `GPUAdapter.info`). */
+  readonly adapter: ImageKernelAdapterDescription | null;
   readonly state: ImageKernelAcceleratorState;
   renderNativeCaptureSdr(input: NativeCaptureSdrInput, provider: NativeCaptureSdrProvider, options?: ImageKernelRunOptions): Promise<AcceleratedNativeCaptureSdrOutput>;
   /** Takes ownership of `input.raw` exactly like `createNativeRawDevelopmentTask` (the caller's arrays are detached). */
@@ -189,6 +191,16 @@ export async function createImageKernelAccelerator(options: ImageKernelAccelerat
   return createAccelerator(requested, null, runtime, band);
 }
 
+/** The runtime behind each accelerator this module created (#481: a prepared display view shares an accelerator's device through it). */
+const RUNTIMES = new WeakMap<ImageKernelAccelerator, WebGpuRuntime | null>();
+/**
+ * Internal (#481, not exported from the package): the WebGPU runtime of an accelerator created by {@link createImageKernelAccelerator}
+ * (null for one on the CPU reference), or undefined when `value` is not such an accelerator.
+ */
+export function acceleratorRuntime(value: unknown): WebGpuRuntime | null | undefined {
+  return typeof value === "object" && value !== null ? RUNTIMES.get(value as ImageKernelAccelerator) : undefined;
+}
+
 function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageKernelFallbackReason | null,
   runtime: WebGpuRuntime | null, bandBytes: number): ImageKernelAccelerator {
   let disposed = false, busy = false;
@@ -225,8 +237,8 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
     }
   }
   const cpuLabel = (): ImageKernelExecution => cpuExecution(requested, fallbackReason);
-  return {
-    backend, requestedBackend: requested, fallbackReason,
+  const accelerator: ImageKernelAccelerator = {
+    backend, requestedBackend: requested, fallbackReason, adapter: runtime?.adapter ?? null,
     get state(): ImageKernelAcceleratorState { return state(); },
     async renderNativeCaptureSdr(input, provider, options): Promise<AcceleratedNativeCaptureSdrOutput> {
       const run = runOptions(options);
@@ -293,9 +305,12 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
       runtime?.destroy();
     }
   };
+  RUNTIMES.set(accelerator, runtime);
+  return accelerator;
 }
 
-type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
+/** A source of compiled compute pipelines by label (the accelerator caches them per device). @internal */
+export type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
 
 function checkAbort(abort: AbortController): void {
   if (abort.signal.aborted) throw abortedError();
@@ -324,7 +339,11 @@ async function convolveOnCpu(plan: IrradianceConvolutionPlan, input: IrradianceC
   return { plan, values, inputSum: sumOf(samples), outputSum: sumOf(values), execution };
 }
 
-async function convolveOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: IrradianceConvolutionPlan, input: IrradianceConvolutionInput,
+/**
+ * The `webgpu-f32` convolution on a runtime. Internal (not exported from the package); #481's display-view self-check runs it as a
+ * conformance case on a device before the view's first GPU render.
+ */
+export async function convolveOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: IrradianceConvolutionPlan, input: IrradianceConvolutionInput,
   abort: AbortController, yieldControl: ImageKernelRunOptions["yieldControl"], pipelines: PipelineSource): Promise<IrradianceConvolutionResult> {
   const { width, height, kernelRadius: r, tapCount } = plan;
   const samples = new Float32Array(input.samples), kernels = new Float32Array(input.kernels), inputSum = sumOf(input.samples);

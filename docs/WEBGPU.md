@@ -51,6 +51,27 @@ accelerator.dispose();
   - `dispose()` destroys the device. `state` reports `ready`, `lost` or `disposed`.
   - `maximumBandBytes` (at least 4 KiB, default min(64 MiB, the device limit)) bounds each band buffer. Each band's buffers, readback included, are destroyed before the next band, so peak GPU memory follows the band size, not the image size. Banding changes memory use only, never results. The conformance suite checks that banded and unbanded GPU output are identical.
 - The package stays dependency-free and browser-safe. WebGPU typings come from TypeScript's DOM library at build time, and no WebGPU type appears in the published declarations. In Node or any runtime without `navigator.gpu`, the backend reports `webgpu-unavailable`. You can pass a worker's `navigator.gpu` explicitly through `gpu`.
+- Every `webgpu-f32` accelerator reports its `adapter` (2.11, #481): the browser's `GPUAdapter.info` as `{ vendor, architecture, device, description }` (empty strings where the browser withholds them), or null without `info`. Diagnostic only.
+
+## The three GPU entry points
+
+The engine's GPU use has three entry points (owner's refinement of #481). Each is opt-in, each consults the realm's switch, each labels its result in the same words, and none is on by default. Captures and exports have no GPU option of their own.
+
+| Entry point | What asks for the GPU | What it may touch | How the result is labelled |
+| --- | --- | --- | --- |
+| **Accelerator** `createImageKernelAccelerator({ webgpu: true })` or `{ backend: "webgpu-f32", fallback }` | The caller, per accelerator | The six typed-array operations above, on inputs the caller gives | `result.execution` (`ImageKernelExecution`): `backend`, `requestedBackend`, `fallbackReason`, `arithmetic`, `assurance`, `fast`, `errorBound`, `limitations`; `accelerator.adapter` |
+| **Preview option** `prepareDisplayView(request, { gpu: "auto" \| "require", gpuDevice })` (2.11, #481) | The app, per prepared display view; default `"off"` | The display view's renders only (a GPU display-view renderer, #478, when one exists); never a capture | `diagnostics.fast.execution` (`DisplayViewExecution`): the same fields plus `gpu` (the mode), `adapter` and `conformance`; `diagnostics.fast.assurance` follows it; a GPU render adds the `view.execution` assumption |
+| **Fast flag** `fast: true` on a capture request, or an option's record `fast` (#395, 2.10) | The caller, per option | A listed option's fast method; no option has one yet (#482 would route `lens.diffraction` to the GPU convolution) | `diagnostics.fast = { requested, applied, assurance }` and a `fast.<path>` assumption per fast method that ran |
+
+**One vocabulary.** The preview option's `"auto"` is `backend: "webgpu-f32"` with `fallback: "cpu-reference"`; `"require"` is `fallback: "fail"`; `"off"` is `backend: "cpu-reference"`. `setWebGpuEnabled(false)` vetoes all three entry points before any adapter is requested: the accelerator and the preview option report `webgpu-disabled` (or throw it in fail or require mode). No environment variable reaches the engine; `PHOTIVRA_WEBGPU_*` are test-runner settings.
+
+**Preview option rules** (`docs/DISPLAY_VIEW.md`, "Rendering on the GPU", has the detail):
+
+- *Device.* One device per prepared view, shared by its parts. `gpuDevice` hands the view a device to share: a worker's `navigator.gpu` to acquire from, or an `ImageKernelAccelerator` whose device the view uses and leaves to its owner. Without it the engine acquires from `globalThis.navigator.gpu` and `prepared.dispose()` releases it. The request's `signal` aborts the acquisition; a render's `signal` aborts that render.
+- *Fallback (`"auto"`).* The accelerator's acquisition reasons (`webgpu-unavailable`, `webgpu-disabled`, `adapter-unavailable`, `device-request-failed`, `insufficient-limits`, `unsupported-platform-endianness`), plus `unsupported-on-backend` (no GPU display-view renderer in this version, or it does not support the request), `conformance-failed` (the device failed the run-time self-check), `device-lost` (the rest of the view runs on the CPU) and `disposed`. The CPU result is the reference, labelled `backend: "cpu-reference"`, `assurance: "engine-reference"`, with the reason and, when a device was involved, the adapter.
+- *Fail (`"require"`).* Each of those events throws `ImageKernelExecutionError` with that reason instead: acquisition failures from `prepareDisplayView`, later ones from `render`.
+- *Conformance at run time.* Before a device's first display-view render the view runs a short self-check once: the built-in cases run the `webgpu-f32` convolution kernel on two small seeded images and compare with the float64 reference within its a-priori bound; a renderer adds its own cases. A failure keeps the whole view on the CPU, and the label records the adapter, the cases and the one that failed.
+- *Single flight.* GPU renders of one prepared view run one at a time on its device; concurrent renders wait their turn rather than reject with `busy`.
 
 ## Stages
 

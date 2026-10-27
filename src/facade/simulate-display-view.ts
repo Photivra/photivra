@@ -22,6 +22,8 @@ import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, 
   SIMULATE_CAPTURE_FACADE_VERSION, DISPLAY_VIEW_WITHOUT_VIEW, allowKeys, parseDisplayViewOption, type DisplayViewResult, type DisplayViewRunContext, type ParsedDisplayView,
   type SimulateCaptureAssumption, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
 import { createHostYield } from "./host-yield.js";
+import { cpuDisplayViewExecution, parsePrepareDisplayViewOptions, type DisplayViewExecution, type DisplayViewGpuRequest, type PrepareDisplayViewOptions } from "./display-view-gpu.js";
+import type { DisplayViewGpuSession } from "./display-view-gpu-session.js";
 
 export { serializeDisplayViewCorrectionStates, bindDisplayViewCorrectionStates, type DisplayViewCorrectionStateKeys, type DisplayViewCorrectionStateSet } from "./display-view.js";
 
@@ -51,9 +53,17 @@ export interface PreparedDisplayViewRenderOptions {
 export interface PreparedDisplayView {
   /**
    * Renders a view of the prepared request. Renders may run concurrently; they share no state except read-only setup and the
-   * realm's AHD correction states, which never change a byte (docs/DISPLAY_VIEW.md, "AHD at low signal").
+   * realm's AHD correction states, which never change a byte (docs/DISPLAY_VIEW.md, "AHD at low signal"). With `gpu: "auto"`
+   * or `"require"` (#481) GPU renders of one prepared view run one at a time on its device, and `diagnostics.fast.execution`
+   * says whether the GPU or the CPU reference rendered the view, and why.
    */
   render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult>;
+  /**
+   * 2.11 (#481): releases the WebGPU device the view acquired (none with `gpu: "off"`, or when `gpuDevice` gave an accelerator,
+   * whose device its owner keeps). Later renders run the CPU reference labelled `fallbackReason: "disposed"` (`"auto"`) or fail
+   * with that reason (`"require"`). Idempotent.
+   */
+  dispose(): void;
   /**
    * 2.10 (#447): the key of this request's AHD low-signal correction states, or null when the request has no AHD
    * (`output.demosaic` other than "ahd"). Every input of the key is fixed when the request is prepared; two prepared views
@@ -80,14 +90,25 @@ export interface PreparedDisplayView {
  * responses through the environment chain, the diffraction kernels, readout moments, demosaic tables and colour matrix) costs
  * about 0.3–1.3 s per call on a 24 MP request; a region costs only its own pixels. Errors in the request are raised here;
  * errors in the view by `render`.
+ *
+ * 2.11 (#481): `prepareOptions.gpu` chooses the renderer: `"off"` (default) is the CPU reference, today's bytes; `"auto"` renders
+ * on WebGPU when a conforming device is available and the request is supported, else on the CPU, labelled; `"require"` fails
+ * instead of falling back (`ImageKernelExecutionError`, acquisition failures here, later ones from `render`). `gpuDevice` is a
+ * WebGPU entry point or an `ImageKernelAccelerator` whose device the view shares; without it the engine acquires one device
+ * for the prepared view (the request's `signal` aborts the acquisition) and `dispose()` releases it. The realm's
+ * `setWebGpuEnabled(false)` vetoes both GPU modes (`webgpu-disabled`). See docs/DISPLAY_VIEW.md, "Rendering on the GPU".
  * @see docs/QUICK_START.md, "Display view".
  */
-export async function prepareDisplayView(options: SimulateCaptureOptions): Promise<PreparedDisplayView> {
+export async function prepareDisplayView(options: SimulateCaptureOptions, prepareOptions?: PrepareDisplayViewOptions): Promise<PreparedDisplayView> {
+  const gpuOptions = parsePrepareDisplayViewOptions(prepareOptions);
   let frameWidth = 0, frameHeight = 0;
   const prepared = await runCapture(options, "display-view", DISPLAY_VIEW_WITHOUT_VIEW, (context) => {
     frameWidth = context.width; frameHeight = context.height;
     return Promise.resolve(prepareView(context));
   }) as PreparedViewParts;
+  // The GPU code is loaded only when a GPU mode asks for it, so bundles on the default stay without it.
+  const session: DisplayViewGpuSession | null = gpuOptions.gpu === "off" ? null :
+    await (await import("./display-view-gpu-session.js")).openDisplayViewGpuSession(gpuOptions, prepared.gpuRequest, (options as { signal?: AbortSignal }).signal);
   /** One call's start times, cancellation (its own signal) and yielding. */
   const runOf = (renderOptions: PreparedDisplayViewRenderOptions | undefined): ViewRun => {
     const started = Date.now(), viewStarted = clockMs();
@@ -95,7 +116,7 @@ export async function prepareDisplayView(options: SimulateCaptureOptions): Promi
     if (signal !== undefined && (typeof signal !== "object" || signal === null || typeof signal.aborted !== "boolean")) fail("signal must be an AbortSignal.");
     const checkAbort = (): void => { if (signal?.aborted) fail("simulateCapture aborted."); };
     checkAbort();
-    return { started, viewStarted, checkAbort, yieldControl: createHostYield().yieldControl };
+    return { started, viewStarted, checkAbort, yieldControl: createHostYield().yieldControl, signal };
   };
   const correctionOf = (caller: string): DisplayViewCorrectionSetup => prepared.correction ??
     fail(caller + ": the prepared request has no AHD low-signal correction (it applies with output.demosaic \"ahd\").");
@@ -103,8 +124,9 @@ export async function prepareDisplayView(options: SimulateCaptureOptions): Promi
     async render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult> {
       const run = runOf(renderOptions);
       const parsed = parseDisplayViewOption(view, frameWidth, frameHeight);
-      return await prepared.render(parsed, run);
+      return await prepared.render(parsed, run, undefined, session);
     },
+    dispose(): void { session?.dispose(); },
     correctionKey(): string | null { return prepared.correction ? displayViewCorrectionKey(prepared.correction) : null; },
     async collectCorrectionStates(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewCorrectionStateKeys> {
       const run = runOf(renderOptions), correction = correctionOf("collectCorrectionStates");
@@ -133,8 +155,8 @@ const DISPLAY_VIEW_AHD_CORRECTION_DRAWS = 2048, DISPLAY_VIEW_AHD_CORRECTION_THRE
 
 type ViewInternals = { value?: DisplayViewRenderResult; signal?: DisplayViewExpectedSignal };
 /** What one render of a prepared view needs from its call: its start times, cancellation and yielding. */
-interface ViewRun { started: number; viewStarted: number; checkAbort: () => void; yieldControl: () => Promise<void> }
-type RenderPreparedView = (view: ParsedDisplayView, run: ViewRun, viewInternals?: ViewInternals) => Promise<DisplayViewResult>;
+interface ViewRun { started: number; viewStarted: number; checkAbort: () => void; yieldControl: () => Promise<void>; signal?: AbortSignal | undefined }
+type RenderPreparedView = (view: ParsedDisplayView, run: ViewRun, viewInternals?: ViewInternals, gpu?: DisplayViewGpuSession | null) => Promise<DisplayViewResult>;
 /**
  * A prepared request: its render, its collect pass (#447: the grid keys of the correction states a view's region reads) and
  * the inputs of its correction states (undefined without AHD).
@@ -143,6 +165,8 @@ interface PreparedViewParts {
   render: RenderPreparedView;
   collect(view: ParsedDisplayView, run: ViewRun): Promise<Int32Array>;
   correction: DisplayViewCorrectionSetup | undefined;
+  /** #481: what a GPU renderer is asked to support. */
+  gpuRequest: DisplayViewGpuRequest;
 }
 
 /** Renders the display view of a resolved request (the last step of `runCapture` for "display-view"). */
@@ -221,13 +245,18 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
     await renderDisplayView(setupOf(v, v.region ?? { x: 0, y: 0, width: v.width, height: v.height }, run, keys).setup);
     return Int32Array.from(keys).sort();
   };
-  const render: RenderPreparedView = async (v, run, viewInternals) => {
+  const gpuRequest: DisplayViewGpuRequest = { ahd, diffraction: diffraction !== undefined, antiAliasing: antiAliasing !== undefined, boxSamples, toneCurve: viewToneCurve,
+    scene: chart ? "chart" : callerScene!.kind };
+  const render: RenderPreparedView = async (v, run, viewInternals, gpu) => {
     const { started, viewStarted } = run;
     const assumptions: SimulateCaptureAssumption[] = [...context.assumptions];
     const assume = (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string): void => { assumptions.push({ id, kind, value, explanation }); };
     const viewRegion = v.region ?? { x: 0, y: 0, width: v.width, height: v.height };
     const { setup, signal } = setupOf(v, viewRegion, run);
-    const rendered = await renderDisplayView(setup);
+    // #481: the GPU session renders on the device when it can, else through the CPU reference, and labels which ran.
+    const cpu = (): Promise<DisplayViewRenderResult> => renderDisplayView(setup);
+    const { rendered, execution }: { rendered: DisplayViewRenderResult; execution: DisplayViewExecution } = gpu ? await gpu.render(setup, run.signal, cpu)
+      : { rendered: await cpu(), execution: cpuDisplayViewExecution("off", null, null, null) };
     if (viewInternals) { viewInternals.value = rendered; viewInternals.signal = signal; }
     const viewMs = clockMs() - viewStarted, scaleX = width / v.width, scaleY = height / v.height;
     assume("view.definition", "model", { resampling: "area-average-linear-light", width: v.width, height: v.height, frameWidth: width, frameHeight: height, scaleX, scaleY },
@@ -263,6 +292,11 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
         "computed once per state of a logarithmic grid (8 steps per octave of the channel means) and interpolated trilinearly, a control variate with no per-pixel sampling noise; " +
         "the flat-neighbourhood state is an approximation at edges (docs/DISPLAY_VIEW.md, validation)." :
         "The bilinear demosaic's linear kernels, exactly.");
+    if (execution.backend === "webgpu-f32") {
+      assume("view.execution", "model", { backend: execution.backend, arithmetic: execution.arithmetic, errorBound: execution.errorBound, adapter: execution.adapter },
+        "Estimated on the GPU: this view was rendered by the WebGPU float32 display-view renderer, a labelled approximation of the float64 CPU reference within the a-priori " +
+        "error bound reported in diagnostics.fast.execution.errorBound; it is not bit-identical to the reference. The device passed the engine's run-time conformance check first.");
+    }
     assume("view.source", "model", { rendering: "srgb", format: v.format, ignoredCaptureOutput: ["format", "colorEncoding", "bitDepth", "gamutMapping", "jpegQuantizationStep", "dng", "metadata", "maximumPixels"].filter((k) => outputOptions[k] !== undefined) },
       "The view shows the capture's sRGB rendering (its tone curve, white balance and highlight mode); the capture's file-format options do not apply to it.");
     return Object.freeze({ kind: "display-view" as const, label: "Display view: the full-resolution capture resized to " + v.width + " × " + v.height + " (estimated); not a capture.",
@@ -274,12 +308,13 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
         illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
         framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },
       diagnostics: { sampleCount: rendered.sampleCount, siteEvaluations: rendered.siteCount, sceneLookups: signal.lookups, detailPixelCount: rendered.detailPixelCount,
-        uniformPixelCount: rendered.uniformPixelCount, ahdCorrectedPixelCount: rendered.ahdCorrectedPixelCount, timingsMs: { view: viewMs, total: Date.now() - started }, fast: context.fastReport },
+        uniformPixelCount: rendered.uniformPixelCount, ahdCorrectedPixelCount: rendered.ahdCorrectedPixelCount, timingsMs: { view: viewMs, total: Date.now() - started },
+        fast: Object.freeze({ ...context.fastReport, assurance: execution.backend === "webgpu-f32" ? "approximation-with-a-priori-bound" as const : context.fastReport.assurance, execution }) },
       provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion, evidence: [...FACADE_EVIDENCE, ...preset.evidence],
         composedContracts: ["calculateEnvironmentSensorPhotoSignal", "resolveSensorReadoutRegime", "calculateSiteEffectiveSaturationCode", ...(diffraction ? ["createDiffractionLimitedPsfProfile", "resolveLensPsfConvolutionKernels"] : []),
           ...(antiAliasing ? ["resolveAntiAliasingSpatialKernel"] : []), "prepareSensorColorDevelopment", "display view estimator"],
         limitations: ["Estimated display view of the full-resolution capture: its expected value is a stratified Monte Carlo estimate and its noise is drawn from the variance of the area mean, so it has the resized capture's statistics, not its exact pixels; not a capture and not a measurement."] },
       assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a))) });
   };
-  return { render, collect, correction };
+  return { render, collect, correction, gpuRequest };
 }

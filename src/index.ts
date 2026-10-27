@@ -1739,7 +1739,7 @@ export { TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION, TEMPORAL_EXPOSURE_SUM_LIMITS, cal
 export type { TemporalExposureSumInput, TemporalExposureSumNode, TemporalExposureSumPlan } from "./motion/temporal-exposure-sum.js";
 export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND, composeRelativeErrorBounds } from "./gpu/image-kernel-execution.js";
 export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureReason, ImageKernelExecution, ImageKernelCodeErrorBound,
-  ImageKernelRelativeErrorBound, ImageKernelSeededRealizationBound } from "./gpu/image-kernel-execution.js";
+  ImageKernelRelativeErrorBound, ImageKernelSeededRealizationBound, ImageKernelAdapterDescription } from "./gpu/image-kernel-execution.js";
 export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
 export { getWebGpuEnabled, setWebGpuEnabled } from "./gpu/webgpu-switch.js";
 export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,
@@ -1775,6 +1775,8 @@ export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_L
   SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS } from "./facade/simulate-capture.js";
 export { simulateDisplayView, prepareDisplayView, type PreparedDisplayView, type PreparedDisplayViewRenderOptions, serializeDisplayViewCorrectionStates, bindDisplayViewCorrectionStates,
   type DisplayViewCorrectionStateKeys, type DisplayViewCorrectionStateSet } from "./facade/simulate-display-view.js";
+export type { DisplayViewGpuMode, PrepareDisplayViewOptions, DisplayViewGpuFallbackReason, DisplayViewGpuConformance, DisplayViewExecution,
+  DisplayViewFastReport } from "./facade/display-view-gpu.js";
 export { type OutputTextMetadata } from "./output/text-metadata.js";
 export { GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM, GENERIC_PRIME_THIRD_STOP_F_NUMBERS, GENERIC_PRIME_MINIMUM_FOCUS, resolveGenericPrimeLens,
   calculateGenericPrimeMinimumFocusDistanceM, type GenericPrimeLens, type GenericPrimeEquivalentFocalLengthMm } from "./equipment/generic-prime-lenses.js";

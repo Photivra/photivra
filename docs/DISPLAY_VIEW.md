@@ -763,6 +763,97 @@ Bun/JavaScriptCore) those inputs, and with them the expected values and noise, d
 the six requests were identical there too. The capture's own floating-point results differ in the same browsers (for
 example its diffraction kernels), while its samples were identical in every case tested.
 
+## Rendering on the GPU
+
+2.11 (#481) adds the engine API through which a prepared display view chooses between a WebGPU renderer and the CPU
+reference and labels which ran. **No GPU display-view renderer exists yet** (#478 and #479 build the preview kernels); this
+is the plumbing they slot into, and until they do every GPU request runs the CPU reference labelled `unsupported-on-backend`
+(or fails with it) without requesting a device.
+
+```ts
+import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
+
+const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, output: { width: 6000, height: 4000 } };
+// "off" (the default) is the CPU reference, today's bytes. "auto": the GPU when a conforming device is available and
+// the request is supported, else the CPU, labelled. "require": fail instead of falling back.
+const prepared = await prepareDisplayView(request, { gpu: "auto" });
+const part = await prepared.render({ width: 2028, height: 1352, region: { x: 960, y: 640, width: 96, height: 96 } });
+const ran = part.diagnostics.fast.execution;
+console.log(ran.backend, ran.fallbackReason, ran.errorBound, ran.adapter?.description); // in Node: "cpu-reference" "unsupported-on-backend" null undefined
+prepared.dispose(); // releases a device the view acquired
+```
+
+**The option.** `prepareDisplayView(request, { gpu, gpuDevice })`:
+
+- `gpu: "off" | "auto" | "require"`, default `"off"`. The words are the accelerator's (`docs/WEBGPU.md`): `"auto"` is
+  `backend: "webgpu-f32"` with `fallback: "cpu-reference"`, `"require"` is `fallback: "fail"`, `"off"` is `backend: "cpu-reference"`.
+  With `"off"` every byte is as before; the hash locks of `test/display-view.test.ts` leave `diagnostics.fast` out and are unchanged.
+- `gpuDevice`: where the device comes from. A worker's `navigator.gpu` (the engine acquires a device from it), or an
+  `ImageKernelAccelerator` whose device the view shares and leaves to its owner (the app's design has one dedicated GPU
+  worker own one device for the page, Photivra/apps#126). Without it, and only with `"auto"` or `"require"`, the engine
+  acquires one device from `globalThis.navigator.gpu` for the prepared view. It is refused with `"off"`.
+- `simulateDisplayView` has no GPU option; it is the CPU reference.
+
+**Order of decisions** when the view is prepared, each a fallback reason for `"auto"` and an `ImageKernelExecutionError`
+with that reason for `"require"`:
+
+1. The realm's switch: `setWebGpuEnabled(false)` gives `webgpu-disabled`, and no adapter is requested.
+2. No GPU display-view renderer registered (this version): `unsupported-on-backend`, no adapter requested.
+3. The device: the handle's, or acquired with the accelerator's rules and reasons (`webgpu-unavailable`,
+   `adapter-unavailable`, `device-request-failed`, `insufficient-limits`, `unsupported-platform-endianness`). The request's
+   own `signal` aborts the acquisition. A disposed accelerator handle is a configuration error; one on the CPU reference
+   gives its own fallback reason (`webgpu-unavailable` when it has none).
+4. The renderer must support the request (AHD, diffraction, the anti-aliasing filter, the pixel aperture, the tone curve
+   and the scene kind): `unsupported-on-backend` otherwise, and a device the view acquired is released.
+
+**At render time**, one device per prepared view, shared by its parts:
+
+- *Conformance self-check.* Before the device's first display-view render, once per prepared view and single-flight (concurrent
+  first renders wait for the one check), a handful of conformance cases run on the device: the built-in cases run the existing
+  `webgpu-f32` convolution kernel on two small seeded images (16 × 12, radius 1; 32 × 24, radius 3 with 2 × 2 patches) and
+  compare every output with the float64 reference within the kernel's a-priori bound; the renderer's own cases follow (the hook
+  for #478's preview-kernel cases). A failed case, or a device error during a case, keeps the whole view on the CPU, labelled
+  `conformance-failed`, with the adapter, the case ids and the failing case recorded in `diagnostics.fast.execution.conformance`.
+- *Single flight.* GPU renders of one view run one at a time on its device; concurrent `render` calls queue rather than
+  reject with `busy`. CPU renders are unaffected.
+- *Device loss.* A render during which the device is lost falls back to the CPU for that render, and every later render of the
+  view runs on the CPU, labelled `device-lost`. With `"require"` that event is an error.
+- *Abort.* A render's `signal` aborts its GPU dispatch; the render rejects with the engine's abort error, as a CPU render does.
+- `dispose()` releases a device the view acquired (not one an accelerator handle shares). Later renders run on the CPU
+  labelled `disposed`, or fail with it.
+
+**The label.** `diagnostics.fast` (#395's report) gains `execution`, a `DisplayViewExecution`: `ImageKernelExecution`'s
+fields (`backend`, `requestedBackend`, `fallbackReason`, `arithmetic`, `assurance`, `fast`, `bitIdenticalToReference`,
+`errorBound`, `diagnosticsExact`, `diagnosticUncertaintySampleCount`, `limitations`) plus `gpu` (the mode), `adapter`
+(the device's `GPUAdapter.info`, recorded whenever a device was involved, also when the view then fell back) and
+`conformance` (the self-check once it has run). A CPU render, with or without a GPU request, keeps `backend: "cpu-reference"`,
+`assurance: "engine-reference"`, `fast: false` and `errorBound: null`; a fallback names its reason and, in `limitations`, a
+sentence saying why. A GPU render reports `backend: "webgpu-f32"`, `arithmetic: "float32"`, `fast: true`,
+`assurance: "approximation-with-a-priori-bound"`, its `errorBound`, the adapter, and `diagnostics.fast.assurance` follows it;
+it also adds the assumption `view.execution`, so the comparison rule (everything that differs between two results is
+listed) holds and an app can show "estimated on the GPU". `simulateDisplayView` and `gpu: "off"` report `gpu: "off"`,
+`requestedBackend: "cpu-reference"` and no fallback reason.
+
+**The renderer contract** (internal, `src/facade/display-view-gpu.ts`), which #478 implements: a factory
+`(runtime) => DisplayViewGpuRenderer` registered with `setDisplayViewGpuRendererFactory`, where a renderer has an `id`,
+`supports(request)` (true, or a sentence saying why not), `render({ setup, signal })` returning the CPU renderer's result
+shape (samples, expected values, noise, counts, estimation) plus the a-priori `errorBound` of its values, and optional
+`conformanceCases`. A render must throw `ImageKernelExecutionError` with reason `device-lost` or `aborted` for those two
+events, as the accelerator's operations do. The only implementation today is the test fake of
+`test/display-view-gpu-option.test.ts`, which returns the CPU result (or one perturbed sample) with a declared bound.
+
+**Evidence.** `test/display-view-gpu-option.test.ts`, with the accelerator tests' fake WebGPU device (a float32 emulation
+of the kernels) and the fake renderer: the option's validation; `"off"` and the default equal `simulateDisplayView` byte
+for byte and carry the CPU label; without a renderer `"auto"` falls back and `"require"` fails with
+`unsupported-on-backend` and no adapter is requested; the switch's veto; a GPU render's label, bound, adapter and passed
+self-check, the self-check running once (two dispatches, one per built-in case) and `dispose()` releasing the device;
+single flight under concurrent renders; a failed renderer case and a device that rejects the convolution kernel
+(`conformance-failed`, adapter recorded, not repeated; `"require"` throws); loss during a render and between renders;
+an unsupported request releasing the device; a missing adapter; the accelerator handle sharing its device without
+destroying it, a disposed one refused, a CPU one falling back; `globalThis.navigator.gpu` absent in Node; and a render's
+signal aborting a GPU render. No hardware run has been made through this API yet (#481's hardware evidence waits for #478's
+renderer and #480's harness); the host of this work has no GPU.
+
 ## Limits and refusals
 
 `simulateDisplayView` refuses, with an `InvalidConfigurationError` that names the option, the capture
