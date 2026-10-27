@@ -10,6 +10,8 @@ import { createChartMaterialEmulator, emulateChart, emulateSensor, emulateTempor
 import { emulateDisplayViewSpeed } from "./fake-webgpu-display-view.js";
 
 const f = Math.fround;
+// #477: the composite chart kernel and its probe are emulated in their own module.
+import { emulateComposite } from "./fake-webgpu-composite.js";
 
 export interface FakeGpuControls {
   /** Buffers created / destroyed so far. */
@@ -227,7 +229,7 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: Em
     // The chart-preset material module (group 1): its uniform at 100, its aux table at 101.
     const material = createChartMaterialEmulator(u32(100), f32(100), f32(101), 8, arithmetic);
     emulateDisplayViewSpeed(u32(0), f32(0), f32(1), f32(2), f32(3), f32(4), u32(5), material);
-  } else {
+  } else if (!emulateComposite(label, (b) => buffers.get(b)!.data)) {
     throw new Error(`No emulator for ${label}`);
   }
 }

@@ -1828,6 +1828,16 @@
       "kind": "runtime"
     },
     {
+      "name": "CHART_MASK_INDEX_GRAIN",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CHART_MATERIAL_LAYER_LIMITS",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CHART_RADIANCE_BATCH_LIMITS",
       "source": "src/facade/chart-radiance-batch.ts",
       "kind": "runtime"
@@ -1870,6 +1880,31 @@
     {
       "name": "ChartFraming",
       "source": "src/facade/subject-framing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartMaskAnnulus",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartMaskLayer",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartMaskPolygon",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartMaskShape",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartMaterialLayerScene",
+      "source": "src/facade/chart-material-layers.ts",
       "kind": "type"
     },
     {
@@ -6268,6 +6303,11 @@
       "kind": "type"
     },
     {
+      "name": "resolveChartMaterialLayers",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveChartScene",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
@@ -6340,6 +6380,21 @@
     {
       "name": "ResolvedCaptureModeTiming",
       "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedChartMaskLayer",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedChartMaskShape",
+      "source": "src/facade/chart-material-layers.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedChartMaterialLayers",
+      "source": "src/facade/chart-material-layers.ts",
       "kind": "type"
     },
     {

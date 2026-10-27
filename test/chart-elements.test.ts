@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { CHART_CONTINUOUS_LEVELS, CHART_SCENE_DEFAULTS, InvalidConfigurationError, ImageKernelExecutionError, calculateBarGroupTargets,
+import { CHART_CONTINUOUS_LEVELS, CHART_SCENE_DEFAULTS, InvalidConfigurationError, calculateBarGroupTargets,
   calculateChartRadianceBatch, calculateSlantedSquareEdges, createImageKernelAccelerator, resolveChartScene, simulateCapture,
   type ChartScene, type CompositeChartScene } from "../src/index.js";
 import { createFakeGpu } from "./helpers/fake-webgpu.js";
@@ -164,7 +164,7 @@ describe("composite charts (2.3)", () => {
     expect(a.assumptions.find((x) => x.id === "scene.background")?.value).toEqual({ preset: "uniform", parameters: { reflectance: 0.18 } });
   });
 
-  it("evaluates on cpu-reference and fails closed on webgpu-f32 for the 2.3 presets", async () => {
+  it("evaluates on cpu-reference and on webgpu-f32 (the composite kernel, #477) for the 2.3 presets, the sine star and composites", async () => {
     const points = new Float64Array([0, 0, 0.5, 0.2, -0.3, -0.1]);
     const input = (scene: ChartScene): Parameters<typeof calculateChartRadianceBatch>[0] => ({ schemaVersion: "0.1.0" as const, scene, illuminant: "cie-a" as const, illuminanceLux: 1000, aspect: 0.75, points,
       wavelengthsNanometers: [550], wavelengthIndices: new Uint8Array(3) });
@@ -174,9 +174,10 @@ describe("composite charts (2.3)", () => {
     const { gpu } = createFakeGpu({});
     const accelerator = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu });
     for (const scene of [composite, { preset: "zone-plate" }, { preset: "siemens-star", profile: "sine" }] as ChartScene[]) {
-      const error = await accelerator.evaluateChartRadiance(input(scene)).then(() => null, (e: unknown) => e);
-      expect(error).toBeInstanceOf(ImageKernelExecutionError);
-      expect((error as ImageKernelExecutionError).reason).toBe("unsupported-on-backend");
+      const result = await accelerator.evaluateChartRadiance(input(scene));
+      expect(result.execution.backend).toBe("webgpu-f32");
+      expect(Array.from(result.values)).toEqual(Array.from(calculateChartRadianceBatch(input(scene)).values, Math.fround));
     }
+    accelerator.dispose();
   });
 });
