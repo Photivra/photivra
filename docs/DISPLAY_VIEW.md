@@ -604,6 +604,13 @@ same values with the same operations in the same order; none reassociates a floa
   ring measured 2–4 % slower there) and radiance scenes with diffraction (lazy window caches) keep the per-read path.
   Measured on the app-request shape (Node 24.21.0, one thread, two runs of three repeats, builds alternated): Quality
   part medians 169–194 → 148–164 ms at f/8 and 177–187 → 154–164 ms at f/11; Speed, which does not use the ring, within ±3 %.
+- **The lookup count is computed once per group shape (#445).** `sceneLookups` counts, for each filled window, the
+  lattice points the per-pixel lazy caches would have looked up (a box dilation of the sites the window computed, per
+  lattice group). The count depends only on those sites and the group's rectangle and cache sizes, so groups of one shape
+  (the four lattice groups of four-spot anti-aliasing with the 2 × 2 box) share one count; the OR of a cache row's site
+  rows comes from prefix and suffix ORs; and a window whose every site was computed counts its whole caches. The count
+  is the same integer as before (a test compares it with the previous algorithm and with the definition on random
+  windows); no image value is involved.
 - **The render loop's tables have one element kind each (#442).** The readout tables (gain, dark electrons, read
   variance and its square root) and the homogeneity white are `Float64Array`s instead of plain arrays, the per-phase
   candidate tables are flat arrays of typed arrays (index phase·2 + candidate, and ·3 + channel) instead of nested
