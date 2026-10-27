@@ -7,6 +7,7 @@
 import { DIGIT_SEGMENTS, NUMERAL_ADVANCE, SEGMENTS } from "../../src/facade/chart-scenes.js";
 import { dwAdd, dwMul, dwSub, probeExpectation, type Dw } from "../../src/gpu/chart-composite-gpu.js";
 import { CHART_RECORD_STRIDE } from "../../src/gpu/wgsl-chart-composite-kernel.js";
+import { DISPLAY_VIEW_LATTICE } from "../../src/gpu/display-view-composite-material-module.js";
 
 const f = Math.fround;
 const E = f(2 ** -23), DW = f(2 ** -40), TINY = f(2 ** -120), SAFETY = 4, SLACK = f(1e-14), PI = f(3.14159265358979), HALF_PI = f(1.5707963267948966), QUARTER_PI = f(0.7853981633974483);
@@ -37,8 +38,20 @@ export function emulateCompositeProbe(input: Float32Array, output: Float32Array)
 
 export function emulateCompositeChart(p: Uint32Array, points: Float32Array, table: Float32Array, af: Float32Array, ai: Uint32Array, selectors: Uint32Array,
   values: Float32Array, flags: Uint32Array): void {
-  const [count, columns, wavelengthMode] = [p[0]!, p[1]!, p[2]!];
-  let flagged!: boolean;
+  const [count, columns, wavelengthMode] = [p[0]!, p[1]!, p[2]!], emulator = createCompositeMaterialEmulator(af, ai);
+  for (let i = 0; i < count; i++) {
+    emulator.reset();
+    const m = emulator.material(points[4 * i]!, points[4 * i + 1]!, points[4 * i + 2]!, points[4 * i + 3]!);
+    if (wavelengthMode !== 0) values[i] = table[m * columns + selectors[i]!]!;
+    else for (let c = 0; c < columns; c++) values[i * columns + c] = table[m * columns + c]!;
+    flags[i] = emulator.flagged ? 1 : 0;
+  }
+}
+
+/** The composite kernel's `material(p)` on its packed records, as a reusable emulator: a double-float32 point (hi, lo per axis) in, the material index out. */
+export interface CompositeMaterialEmulator { material(px: number, pxl: number, py: number, pyl: number): number; readonly flagged: boolean; reset(): void }
+export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Array): CompositeMaterialEmulator {
+  let flagged = false;
   // --- bound arithmetic ---
   const bds = (a: Dw, scale: number): B => ({ v: a[0], e: f(f(f(Math.abs(a[1]) + f(DW * f(f(Math.abs(a[0]) + Math.abs(a[1])) + scale))) + TINY)) });
   const bd = (a: Dw): B => bds(a, 0);
@@ -278,13 +291,52 @@ export function emulateCompositeChart(p: Uint32Array, points: Float32Array, tabl
     flagged = true;
     return 0;
   };
-  for (let i = 0; i < count; i++) {
-    flagged = false;
-    const m = material(points[4 * i]!, points[4 * i + 1]!, points[4 * i + 2]!, points[4 * i + 3]!);
-    if (wavelengthMode !== 0) values[i] = table[m * columns + selectors[i]!]!;
-    else for (let c = 0; c < columns; c++) values[i * columns + c] = table[m * columns + c]!;
-    flags[i] = flagged ? 1 : 0;
-  }
+  return { material, get flagged(): boolean { return flagged; }, reset(): void { flagged = false; } };
+}
+
+/**
+ * The display view's composite material module (#491, src/gpu/display-view-composite-material-module.ts) on the fake device: the
+ * lattice recovery of the exact query point from the kernel's float32 point (p / scale_hi, the nearest offset lattice, the point
+ * re-formed in double-float32), the fixed-size chart's placement, then the composite kernel's `material`. Line by line the WGSL.
+ */
+export function createCompositeDisplayViewMaterialEmulator(latticeWords: Uint32Array, latticeFloats: Float32Array, offsets: Float32Array, af: Float32Array, ai: Uint32Array):
+  { material(u: number, v: number): number; readonly flagged: boolean; reset(): void } {
+  const inner = createCompositeMaterialEmulator(af, ai);
+  const L = DISPLAY_VIEW_LATTICE, count = latticeWords[L.offsets]!, placed = latticeWords[L.placed] !== 0, surround = latticeWords[L.surround]!, tolerance = latticeFloats[L.tolerance]!;
+  const scaleU: Dw = [latticeFloats[L.scaleUHi]!, latticeFloats[L.scaleULo]!], scaleV: Dw = [latticeFloats[L.scaleVHi]!, latticeFloats[L.scaleVLo]!];
+  const k: Dw = [latticeFloats[L.chartKHi]!, latticeFloats[L.chartKLo]!], aspect = latticeFloats[L.chartAspect]!;
+  let uncertain = false;
+  const latticePoint = (p: number, scale: Dw, axis: 0 | 1): Dw => {
+    const rough = f(p / scale[0]);
+    let best = f(3e38), site = 0, cHi = 0, cLo = 0;
+    for (let o = 0; o < count; o++) {
+      const hi = offsets[4 * o + 2 * axis]!, lo = offsets[4 * o + 2 * axis + 1]!, d = f(rough - hi), n = wgslRound(d), r = Math.abs(f(d - n));
+      if (r < best) { best = r; site = n; cHi = hi; cLo = lo; }
+    }
+    if (!(best <= tolerance)) uncertain = true;
+    return dwMul(dwAdd([site, 0], [cHi, cLo]), scale);
+  };
+  // The bound arithmetic of the in-chart test, as the module's `le(babs(bd(u)), ...)` (the inner emulator's own helpers are private; these mirror the WGSL).
+  const bd = (a: Dw): { v: number; e: number } => ({ v: a[0], e: f(f(f(Math.abs(a[1]) + f(DW * f(Math.abs(a[0]) + Math.abs(a[1])))) + TINY)) });
+  const bc = (c: number): { v: number; e: number } => ({ v: c, e: f(f(E * Math.abs(c)) + TINY) });
+  const le = (a: { v: number; e: number }, b: { v: number; e: number }): boolean => {
+    const v = f(b.v - a.v), e = f(f(a.e + b.e) + f(E * Math.abs(v))), margin = f(f(SAFETY * e) + f(SLACK * f(Math.abs(v) + 1)));
+    if (!(Math.abs(v) > margin)) uncertain = true;
+    return v >= 0;
+  };
+  return {
+    material(pu: number, pv: number): number {
+      let u = latticePoint(pu, scaleU, 0), v = latticePoint(pv, scaleV, 1);
+      if (placed) {
+        u = dwMul(u, k); v = dwMul(v, k);
+        const bu = bd(u), bv = bd(v);
+        if (!(le({ v: Math.abs(bu.v), e: bu.e }, { v: 1, e: 0 }) && le({ v: Math.abs(bv.v), e: bv.e }, bc(aspect)))) return surround;
+      }
+      return inner.material(u[0], u[1], v[0], v[1]);
+    },
+    get flagged(): boolean { return uncertain || inner.flagged; },
+    reset(): void { uncertain = false; inner.reset(); }
+  };
 }
 
 /** WGSL `round`: the nearest integer, halves to even (Math.round takes halves up). */

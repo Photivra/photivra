@@ -11,7 +11,9 @@
  * - the device is the handle's (`gpuDevice`: an `ImageKernelAccelerator`'s device, shared and left to its owner, or a WebGPU
  *   entry point to acquire from), or acquired from `navigator.gpu` and owned by the session; the accelerator's acquisition
  *   reasons apply, and the request's `signal` aborts the acquisition;
- * - the renderer must support the request, else `unsupported-on-backend`;
+ * - the renderer must support the request, else `unsupported-on-backend`; a render the renderer refuses only when rendering
+ *   (`unsupported-on-backend` thrown by `render`: a coarse view, a device that fails the composite chart probe, #491) runs the
+ *   CPU reference for that render with the same label;
  * - before the first GPU render on the device a short conformance self-check runs once (single-flight): the built-in cases run
  *   the existing `webgpu-f32` convolution kernel against the float64 reference within its a-priori bound, then the renderer's own
  *   cases; a failure keeps the whole view on the CPU, labelled `conformance-failed`, with the adapter recorded;
@@ -214,6 +216,8 @@ function createSession(options: ParsedPrepareDisplayViewOptions, runtime: WebGpu
       catch (error) {
         if (lostError(error)) { lost = true; return fallback("device-lost", "the WebGPU device was lost during a render; the rest of the view runs on the CPU.", cpu); }
         setup.checkAbort();
+        if (error instanceof ImageKernelExecutionError && error.reason === "unsupported-on-backend")
+          return fallback("unsupported-on-backend", "the GPU display-view renderer \"" + renderer.id + "\" does not cover this render: " + error.message, cpu);
         throw error;
       }
       if (output === null) return this.render(setup, signal, cpu);
@@ -226,6 +230,7 @@ function createSession(options: ParsedPrepareDisplayViewOptions, runtime: WebGpu
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      renderer.dispose?.();
       if (owned) runtime.destroy();
     }
   };

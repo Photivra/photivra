@@ -778,10 +778,14 @@ example its diffraction kernels), while its samples were identical in every case
 
 2.11 (#481) adds the engine API through which a prepared display view chooses between a WebGPU renderer and the CPU
 reference and labels which ran. The engine's renderer is the Speed kernel of #478 (the exact area mean without diffraction,
-bilinear, the chart presets; `docs/WEBGPU.md`, "Display view (Speed) on the GPU": its design, bounds and measured agreement),
-registered when the GPU session module loads; a request it does not cover (AHD, diffraction, a caller scene, a coarser view)
-runs the CPU reference labelled `unsupported-on-backend` (or fails with it). #479 builds the Quality kernel, #477 the composite
-chart's material lookup. Its speed-up over the CPU is not measured yet (#475).
+bilinear; `docs/WEBGPU.md`, "Display view (Speed) on the GPU": its design, bounds and measured agreement), registered when the
+GPU session module loads. It renders every engine chart (the 2.0 presets, composite charts, the 2.3 elements, fixed-size charts)
+and, since #491, declared `material-layers` scenes: a chart under shape-mask layers, the form in which an application gives a
+printed label (`resolveChartMaterialLayers`; `scene: { kind: "material-layers", sceneId, chart, layers }` is accepted by
+`prepareDisplayView`, `simulateDisplayView` and `simulateCapture` directly and evaluated exactly as its `callerScene`, so a CPU
+render is byte-identical to the caller-scene form). A request it does not cover (AHD, diffraction, a caller scene function, a
+coarser view) runs the CPU reference labelled `unsupported-on-backend` (or fails with it). #479 builds the Quality kernel. Its
+speed-up over the CPU is not measured yet (#475).
 
 ```ts
 import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
@@ -817,7 +821,8 @@ with that reason for `"require"`:
    own `signal` aborts the acquisition. A disposed accelerator handle is a configuration error; one on the CPU reference
    gives its own fallback reason (`webgpu-unavailable` when it has none).
 4. The renderer must support the request (AHD, diffraction, the anti-aliasing filter, the pixel aperture, the tone curve
-   and the scene kind): `unsupported-on-backend` otherwise, and a device the view acquired is released.
+   and the scene kind: a chart or `material-layers`, not a caller function): `unsupported-on-backend` otherwise, and a device
+   the view acquired is released.
 
 **At render time**, one device per prepared view, shared by its parts:
 
@@ -829,10 +834,15 @@ with that reason for `"require"`:
   `conformance-failed`, with the adapter, the case ids and the failing case recorded in `diagnostics.fast.execution.conformance`.
 - *Single flight.* GPU renders of one view run one at a time on its device; concurrent `render` calls queue rather than
   reject with `busy`. CPU renders are unaffected.
+- *Refused at render time.* What only a render can tell (a view coarser than the exact area mean, a footprint above 6 real
+  pixels per axis, a device that fails the composite chart kernel's arithmetic probe, #491) makes the renderer throw
+  `unsupported-on-backend`; that render runs the CPU reference with that label, or fails under `"require"`, and the next
+  render asks the renderer again.
 - *Device loss.* A render during which the device is lost falls back to the CPU for that render, and every later render of the
   view runs on the CPU, labelled `device-lost`. With `"require"` that event is an error.
 - *Abort.* A render's `signal` aborts its GPU dispatch; the render rejects with the engine's abort error, as a CPU render does.
-- `dispose()` releases a device the view acquired (not one an accelerator handle shares). Later renders run on the CPU
+- `dispose()` releases a device the view acquired (not one an accelerator handle shares) and the scene records the renderer
+  uploaded for it. Later renders run on the CPU
   labelled `disposed`, or fail with it.
 
 **The label.** `diagnostics.fast` (#395's report) gains `execution`, a `DisplayViewExecution`: `ImageKernelExecution`'s

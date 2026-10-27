@@ -185,7 +185,7 @@ async function renderDisplayViewResult(context: DisplayViewRunContext, viewInter
  * signal caches, lookup count and assumptions), so its results are those of separate calls.
  */
 function prepareView(context: DisplayViewRunContext): PreparedViewParts {
-  const { ahd, antiAliasing, aspect, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, margin, mode, nativeHeight, nativeWidth, sourceSha256 } = context;
+  const { ahd, antiAliasing, aspect, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, margin, mode, nativeHeight, nativeWidth, sourceSha256 } = context;
   const kelvinInput = context.kelvinWhiteBalanceInput;
   const portableKelvinWhiteBalance = kelvinInput ? (): ResolvedWhiteBalanceState => resolvePortableColorTemperatureWhiteBalance(kelvinInput) : undefined;
   // The engine's illuminant formulas (Planckian, CIE A, daylight locus) evaluated with the portable power and e^x − 1, so
@@ -232,6 +232,8 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
   const ahdCorrection = ahd ? { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), drawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS,
     thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD * DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } : undefined;
   const ahdCandidates = ahd ? [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))) : undefined;
+  // #491: a fixed-size chart's placement for the GPU material lookup (the provider's chart-local units cu = u·m/h and the surround beyond the chart).
+  const placement = chartSize ? { chartUnitsPerFrameUnit: metresPerFrameUnit / (chartSize.widthM / 2), aspect: chartSize.heightM / chartSize.widthM } : null;
   /** The renderer's setup of one view (with `ahdCollect`, a collect pass), and its expected signal. */
   const setupOf = (v: ParsedDisplayView, viewRegion: { x: number; y: number; width: number; height: number }, { checkAbort, yieldControl }: ViewRun,
     ahdCollect?: Set<number>): { setup: DisplayViewSetup; signal: DisplayViewExpectedSignal } => {
@@ -240,7 +242,7 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
     return { signal, setup: { frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
       region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
       ...(ahdCandidates && ahdCorrection ? { candidates: ahdCandidates, ahdCorrection } : {}), ...(ahdCollect ? { ahdCollect } : {}),
-      gains, clipLevel, matrix, toneCurve: viewToneCurve, yieldControl, checkAbort, gpu: { signalInput, chart: viewChart ?? null } } };
+      gains, clipLevel, matrix, toneCurve: viewToneCurve, yieldControl, checkAbort, gpu: { signalInput, chart: viewChart ?? null, layers: materialLayers ?? null, placement } } };
   };
   const correction: DisplayViewCorrectionSetup | undefined = ahdCorrection ? { seed: noiseSeed, readout, gains, clipLevel, matrix, toneCurve: viewToneCurve, ahdCorrection } : undefined;
   const collect = async (v: ParsedDisplayView, run: ViewRun): Promise<Int32Array> => {
@@ -249,7 +251,7 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
     return Int32Array.from(keys).sort();
   };
   const gpuRequest: DisplayViewGpuRequest = { ahd, diffraction: diffraction !== undefined, antiAliasing: antiAliasing !== undefined, boxSamples, toneCurve: viewToneCurve,
-    scene: chart ? "chart" : callerScene!.kind };
+    scene: chart ? "chart" : materialLayers ? "material-layers" : callerScene!.kind };
   const render: RenderPreparedView = async (v, run, viewInternals, gpu) => {
     const { started, viewStarted } = run;
     const assumptions: SimulateCaptureAssumption[] = [...context.assumptions];

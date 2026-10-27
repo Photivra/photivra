@@ -11,7 +11,8 @@ import { emulateDisplayViewSpeed } from "./fake-webgpu-display-view.js";
 
 const f = Math.fround;
 // #477: the composite chart kernel and its probe are emulated in their own module.
-import { emulateComposite } from "./fake-webgpu-composite.js";
+import { createCompositeDisplayViewMaterialEmulator, emulateComposite } from "./fake-webgpu-composite.js";
+import { CHART_COMPOSITE_MATERIAL_MODULE_ID } from "../../src/gpu/display-view-composite-material-module.js";
 
 export interface FakeGpuControls {
   /** Buffers created / destroyed so far. */
@@ -225,6 +226,10 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: Em
     emulateChart(u32(0), f32(0), f32(1), f32(2), f32(3), u32(4), f32(5), u32(6), arithmetic);
   } else if (label === "photivra-temporal-sum") {
     emulateTemporalSum(u32(0), f32(1), buffers.get(2)!.data, f32(3), f32(4));
+  } else if (label === "photivra-display-view-speed:" + CHART_COMPOSITE_MATERIAL_MODULE_ID) {
+    // #491: the composite material module (group 1): the scene's float records at 100, integer records at 101, the lattice uniform at 102, the offsets at 103.
+    const material = createCompositeDisplayViewMaterialEmulator(u32(102), f32(102), f32(103), f32(100), u32(101));
+    emulateDisplayViewSpeed(u32(0), f32(0), f32(1), f32(2), f32(3), f32(4), u32(5), material);
   } else if (label.startsWith("photivra-display-view-speed:")) {
     // The chart-preset material module (group 1): its uniform at 100, its aux table at 101.
     const material = createChartMaterialEmulator(u32(100), f32(100), f32(101), 8, arithmetic);
