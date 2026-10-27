@@ -1257,6 +1257,83 @@ function requireEqual(
 }
 
 /**
+ * Internal (#453; not exported from the package): the request and result checks of
+ * {@link validateSceneRadianceEvaluationBindings} (the request against the three profiles, a surface target's material, and
+ * the result against the request), with its messages and order. The profile-to-profile checks before them depend only on the
+ * profiles; an engine caller that has run the full function once for these profile objects may run only this part for
+ * further requests and results.
+ */
+export function validateSceneRadianceRequestResultBindings(
+  providerProfile: ValidateSceneRadianceEvaluationBindingsInput["providerProfile"],
+  illuminationProfile: ValidateSceneRadianceEvaluationBindingsInput["illuminationProfile"],
+  materialResponseProfile: ValidateSceneRadianceEvaluationBindingsInput["materialResponseProfile"],
+  request: ValidateSceneRadianceEvaluationBindingsInput["request"],
+  result: ValidateSceneRadianceEvaluationBindingsInput["result"]
+): void {
+  requireEqual(
+    request.providerProfileId,
+    providerProfile.profileId,
+    "Request providerProfileId must match the supplied provider profile."
+  );
+  requireEqual(
+    request.sceneId,
+    providerProfile.sceneId,
+    "Request sceneId must match the supplied provider profile."
+  );
+  requireEqual(
+    request.illuminationProfileId,
+    illuminationProfile.profileId,
+    "Request illuminationProfileId must match the supplied illumination profile."
+  );
+  requireEqual(
+    request.materialResponseProfileId,
+    materialResponseProfile.profileId,
+    "Request materialResponseProfileId must match the supplied material-response profile."
+  );
+
+  if (request.target.kind === "surface-point") {
+    const target = request.target;
+    if (
+      !materialResponseProfile.materials.some(
+        (material) =>
+          material.materialResponseId ===
+          target.materialResponseId
+      )
+    ) {
+      throw new InvalidConfigurationError(
+        "Request surface target materialResponseId is not declared by the supplied material-response profile."
+      );
+    }
+  }
+
+  requireEqual(
+    result.sampleId,
+    request.sampleId,
+    "Result sampleId must match the request."
+  );
+  requireEqual(
+    result.providerProfileId,
+    request.providerProfileId,
+    "Result providerProfileId must match the request."
+  );
+  requireEqual(
+    result.sceneId,
+    request.sceneId,
+    "Result sceneId must match the request."
+  );
+  requireEqual(
+    result.wavelengthNanometers,
+    request.wavelengthNanometers,
+    "Result wavelengthNanometers must match the request exactly."
+  );
+  requireEqual(
+    result.wavelengthBasis,
+    request.wavelengthBasis,
+    "Result wavelengthBasis must match the request."
+  );
+}
+
+/**
  * Checks that a provider result matches its request and profile identities exactly.
  *
  * It never recomputes the radiance value, and never upgrades the provider's
@@ -1351,67 +1428,7 @@ export function validateSceneRadianceEvaluationBindings(
     "Provider material fidelity must match the supplied material-response profile."
   );
 
-  requireEqual(
-    request.providerProfileId,
-    providerProfile.profileId,
-    "Request providerProfileId must match the supplied provider profile."
-  );
-  requireEqual(
-    request.sceneId,
-    providerProfile.sceneId,
-    "Request sceneId must match the supplied provider profile."
-  );
-  requireEqual(
-    request.illuminationProfileId,
-    illuminationProfile.profileId,
-    "Request illuminationProfileId must match the supplied illumination profile."
-  );
-  requireEqual(
-    request.materialResponseProfileId,
-    materialResponseProfile.profileId,
-    "Request materialResponseProfileId must match the supplied material-response profile."
-  );
-
-  if (request.target.kind === "surface-point") {
-    const target = request.target;
-    if (
-      !materialResponseProfile.materials.some(
-        (material) =>
-          material.materialResponseId ===
-          target.materialResponseId
-      )
-    ) {
-      throw new InvalidConfigurationError(
-        "Request surface target materialResponseId is not declared by the supplied material-response profile."
-      );
-    }
-  }
-
-  requireEqual(
-    result.sampleId,
-    request.sampleId,
-    "Result sampleId must match the request."
-  );
-  requireEqual(
-    result.providerProfileId,
-    request.providerProfileId,
-    "Result providerProfileId must match the request."
-  );
-  requireEqual(
-    result.sceneId,
-    request.sceneId,
-    "Result sceneId must match the request."
-  );
-  requireEqual(
-    result.wavelengthNanometers,
-    request.wavelengthNanometers,
-    "Result wavelengthNanometers must match the request exactly."
-  );
-  requireEqual(
-    result.wavelengthBasis,
-    request.wavelengthBasis,
-    "Result wavelengthBasis must match the request."
-  );
+  validateSceneRadianceRequestResultBindings(providerProfile, illuminationProfile, materialResponseProfile, request, result);
 
   return {
     providerBindingsMatched: true,

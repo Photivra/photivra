@@ -1248,44 +1248,22 @@ function validateSceneIdentity(
 }
 
 /**
- * Applies the declared pupil acceptance and exactly one transmission or field-throughput path to
- * spectral scene radiance. Returns the irradiance before the sensor stack, with conservative
- * evidence.
- *
- * The optical bridge turns outgoing scene radiance (W/m²/sr/nm) into irradiance (W/m²/nm) arriving
- * at the front of the sensor stack.
- * - Circular paraxial acceptance is pi/(4*Nworking²). At finite focus with unit pupil magnification,
- *   the working f-number is N*(1+m).
- * - Spectral transmission and an effective working T-stop are alternative paths; use one.
- * - Field throughput is applied exactly once.
- * - Sensor response and PSF (point-spread function) blur happen later in the pipeline.
- * @param input - CalculateSceneRadianceToSensorIrradianceInput. See that type for coordinates, units and profile binding.
- * @returns CalculationResult<
-  SceneToSensorIrradianceResult
->. The result states its shape and scientific status; a successful call does not imply calibration.
- *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * The request-independent part of {@link calculateSceneRadianceToSensorIrradiance}: the profile, focal length, f-number,
+ * applicability, focus and working f-number checks and the paraxial acceptance, in the public function's order.
  */
-export function calculateSceneRadianceToSensorIrradiance(
-  input:
-    CalculateSceneRadianceToSensorIrradianceInput
-): CalculationResult<
-  SceneToSensorIrradianceResult
-> {
-  requireInputKeys(input, "calculateSceneRadianceToSensorIrradiance", ["sceneRadianceRequest", "sceneRadianceResult", "profile", "focalLengthMm", "nominalFNumber", "focus", "imagePointMm", "fieldThroughput", "frontOfLensFilters"]);
-  const request =
-    parseSceneRadianceEvaluationRequest(
-      input.sceneRadianceRequest
-    );
-  const sceneResult =
-    parseSceneRadianceEvaluationResult(
-      input.sceneRadianceResult
-    );
-  validateSceneIdentity(
-    request,
-    sceneResult
-  );
+interface PreparedSceneRadianceToSensorIrradiance {
+  profile: ReturnType<typeof parseSceneToSensorIrradianceProfile>;
+  focalLengthMm: number;
+  nominalFNumber: number;
+  working: ReturnType<typeof workingFNumber>;
+  workingFNumberValue: number;
+  geometricAcceptance: number;
+  transmission: ReturnType<typeof parseSceneToSensorIrradianceProfile>["transmission"];
+}
 
+function prepareSceneRadianceToSensorIrradiance(
+  input: Pick<CalculateSceneRadianceToSensorIrradianceInput, "profile" | "focalLengthMm" | "nominalFNumber" | "focus">
+): PreparedSceneRadianceToSensorIrradiance {
   const profile =
     parseSceneToSensorIrradianceProfile(
       input.profile
@@ -1360,7 +1338,39 @@ export function calculateSceneRadianceToSensorIrradiance(
 
   const transmission =
     profile.transmission;
+  return { profile, focalLengthMm, nominalFNumber, working, workingFNumberValue, geometricAcceptance, transmission };
+}
 
+interface AppliedSceneRadianceToSensorIrradiance {
+  spectralTransmissionFactor: number | null;
+  effectiveWorkingTStop: number | null;
+  tStopEquivalentTransmissionFactor: number | null;
+  effectiveAcceptance: number;
+  transmissionEvidence: readonly EvidenceProvenance[];
+  frontOfLensFilterCount: number;
+  frontOfLensFilterPolarizationModeled: boolean;
+  frontOfLensFilterTransmissionFactor: number;
+  frontOfLensFilterAttenuationStops: number;
+  frontOfLensFilterEvidence: readonly EvidenceProvenance[];
+  frontOfLensFilterLimitations: readonly string[];
+  fieldThroughputFactor: number;
+  sceneRadiance: number;
+  irradiance: number;
+}
+
+/**
+ * The per-query part of {@link calculateSceneRadianceToSensorIrradiance}, after the request and result are parsed and their
+ * identities matched: the wavelength-basis check, the transmission or T-stop path, the front-of-lens filters, the field
+ * throughput and the irradiance, with the same operations in the same order.
+ */
+function applySceneRadianceToSensorIrradiance(
+  prepared: PreparedSceneRadianceToSensorIrradiance,
+  input: Pick<CalculateSceneRadianceToSensorIrradianceInput, "imagePointMm" | "fieldThroughput"> &
+    { frontOfLensFilters?: readonly FrontOfLensFilterProfile[] | undefined },
+  request: SceneRadianceEvaluationRequest,
+  sceneResult: SceneRadianceEvaluationResult
+): AppliedSceneRadianceToSensorIrradiance {
+  const { workingFNumberValue, geometricAcceptance, transmission } = prepared;
   if (
     request.wavelengthBasis !==
     transmission.wavelengthBasis
@@ -1494,6 +1504,78 @@ export function calculateSceneRadianceToSensorIrradiance(
       "Sensor-plane spectral irradiance must remain finite and non-negative."
     );
   }
+
+  return { spectralTransmissionFactor, effectiveWorkingTStop, tStopEquivalentTransmissionFactor, effectiveAcceptance, transmissionEvidence,
+    frontOfLensFilterCount, frontOfLensFilterPolarizationModeled, frontOfLensFilterTransmissionFactor, frontOfLensFilterAttenuationStops,
+    frontOfLensFilterEvidence, frontOfLensFilterLimitations, fieldThroughputFactor, sceneRadiance, irradiance };
+}
+
+/**
+ * Internal (#453; not exported from the package): the sensor-plane spectral irradiance that
+ * {@link calculateSceneRadianceToSensorIrradiance} returns, for repeated queries of one optical state. This call runs the
+ * request-independent checks once (the public function's own code, in its order); each call of the returned function then
+ * runs the public function's per-query steps on an engine-built request and a result already parsed by the caller: the identity
+ * match, the wavelength-basis check, the transmission or T-stop path, the front-of-lens filters, the field throughput and
+ * the finite, non-negative irradiance, with the same operations, order and errors. It skips only the re-validation of the
+ * unchanged optical inputs, the re-parse of the request and result, and the result envelope.
+ */
+export function prepareSceneRadianceToSensorIrradianceValue(
+  optics: Pick<CalculateSceneRadianceToSensorIrradianceInput, "profile" | "focalLengthMm" | "nominalFNumber" | "focus" | "frontOfLensFilters">
+): (request: SceneRadianceEvaluationRequest, result: SceneRadianceEvaluationResult, imagePointMm: { x: number; y: number },
+    fieldThroughput: OpticalBridgeFieldThroughput) => number {
+  const prepared = prepareSceneRadianceToSensorIrradiance(optics);
+  const frontOfLensFilters = optics.frontOfLensFilters;
+  return (request, result, imagePointMm, fieldThroughput) => {
+    validateSceneIdentity(request, result);
+    return applySceneRadianceToSensorIrradiance(prepared, { imagePointMm, fieldThroughput, frontOfLensFilters }, request, result).irradiance;
+  };
+}
+
+/**
+ * Applies the declared pupil acceptance and exactly one transmission or field-throughput path to
+ * spectral scene radiance. Returns the irradiance before the sensor stack, with conservative
+ * evidence.
+ *
+ * The optical bridge turns outgoing scene radiance (W/m²/sr/nm) into irradiance (W/m²/nm) arriving
+ * at the front of the sensor stack.
+ * - Circular paraxial acceptance is pi/(4*Nworking²). At finite focus with unit pupil magnification,
+ *   the working f-number is N*(1+m).
+ * - Spectral transmission and an effective working T-stop are alternative paths; use one.
+ * - Field throughput is applied exactly once.
+ * - Sensor response and PSF (point-spread function) blur happen later in the pipeline.
+ * @param input - CalculateSceneRadianceToSensorIrradianceInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<
+  SceneToSensorIrradianceResult
+>. The result states its shape and scientific status; a successful call does not imply calibration.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
+export function calculateSceneRadianceToSensorIrradiance(
+  input:
+    CalculateSceneRadianceToSensorIrradianceInput
+): CalculationResult<
+  SceneToSensorIrradianceResult
+> {
+  requireInputKeys(input, "calculateSceneRadianceToSensorIrradiance", ["sceneRadianceRequest", "sceneRadianceResult", "profile", "focalLengthMm", "nominalFNumber", "focus", "imagePointMm", "fieldThroughput", "frontOfLensFilters"]);
+  const request =
+    parseSceneRadianceEvaluationRequest(
+      input.sceneRadianceRequest
+    );
+  const sceneResult =
+    parseSceneRadianceEvaluationResult(
+      input.sceneRadianceResult
+    );
+  validateSceneIdentity(
+    request,
+    sceneResult
+  );
+
+  const prepared = prepareSceneRadianceToSensorIrradiance(input);
+  const { profile, focalLengthMm, nominalFNumber, working, workingFNumberValue, geometricAcceptance, transmission } = prepared;
+  const { spectralTransmissionFactor, effectiveWorkingTStop, tStopEquivalentTransmissionFactor, effectiveAcceptance, transmissionEvidence,
+    frontOfLensFilterCount, frontOfLensFilterPolarizationModeled, frontOfLensFilterTransmissionFactor, frontOfLensFilterAttenuationStops,
+    frontOfLensFilterEvidence, frontOfLensFilterLimitations, fieldThroughputFactor, sceneRadiance, irradiance } =
+    applySceneRadianceToSensorIrradiance(prepared, input, request, sceneResult);
 
   const limitations = [
     ...profile.limitations,
