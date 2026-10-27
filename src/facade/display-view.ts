@@ -67,6 +67,11 @@ export interface DisplayViewGpuSetup {
    * chart's half width) and the chart's aspect; outside |cu| ≤ 1, |cv| ≤ aspect the material is the surround, the materials' last entry.
    */
   placement?: { chartUnitsPerFrameUnit: number; aspect: number } | null;
+  /**
+   * #492: the defocus disc's radius in sites when the expected signal's kernels carry it (`lens.defocus` out of focus); absent in
+   * focus. The GPU Quality site pass then sums each site's taps in blocks (src/gpu/display-view-quality-gpu.ts).
+   */
+  defocusRadius?: number;
 }
 // ---------------------------------------------------------------------------------------------------------------
 // Normal-distribution helpers.

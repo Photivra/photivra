@@ -14,7 +14,9 @@
  *    electrons Σ_t V_c(m_t, t) over the taps t of every group (the combined kernel values per material and channel, formed on
  *    the host in float64 as the reference forms them: Σ_members w·Σ_λ A_c(λ)·K_λ·L_m(λ); without diffraction the offset
  *    weights times the material's channel signal), plus the dark electrons; the readout moments (mean k·e, variance k²e + c₀,
- *    third cumulant k³e) and the clip at the white level; and each quantity's running absolute error bound.
+ *    third cumulant k³e) and the clip at the white level; and each quantity's running absolute error bound. With the defocus
+ *    disc (#492) the variant `DISPLAY_VIEW_QUALITY_SITES_BLOCKED_WGSL` reads a factored table (one neutral row, one row per
+ *    spectral material) and sums each group's dense tap rectangle in blocks, so its bound grows with the kernel's width.
  * 3. **Pixels** (`DISPLAY_VIEW_QUALITY_PIXELS_WGSL`): one invocation per display pixel of the band: for every real pixel of
  *    the footprint, the demosaic candidates (one bilinear, or AHD's two directional linear candidates, each with its full
  *    camera-channel covariance), white balance and the highlight clip, the colour matrix, the tone curve and the clip to
@@ -49,7 +51,7 @@ export const DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE = 64;
 export const DISPLAY_VIEW_QUALITY_MAXIMUM_PIXELS_PER_AXIS = 6;
 /** Uniform parameter words (see `Params`): 56 words, 224 bytes. */
 export const DISPLAY_VIEW_QUALITY_PARAM_WORDS = 56;
-/** Words per lattice-group record: lx0, ly0, lw, lh, lbase, pad, cu (f32), cv (f32). */
+/** Words per lattice-group record: lx0, ly0, lw, lh, lbase, first tap (the blocked site pass, #492), cu (f32), cv (f32). */
 export const DISPLAY_VIEW_QUALITY_GROUP_WORDS = 8;
 /** Words per tap record: group, dp offset, dq offset, pad. */
 export const DISPLAY_VIEW_QUALITY_TAP_WORDS = 4;
@@ -139,8 +141,8 @@ struct Params {
   g0: f32, g1: f32, g2: f32, scale_u: f32,
   m00: f32, m01: f32, m02: f32, m10: f32,
   m11: f32, m12: f32, m20: f32, m21: f32,
-  m22: f32, scale_v: f32, site_gamma: f32, pad_d: f32,
-  pad_e: f32, pad_f: f32, pad_g: f32, pad_h: f32,
+  m22: f32, scale_v: f32, site_gamma: f32, site_first: u32,
+  site_tiny: f32, pad_f: f32, pad_g: f32, pad_h: f32,
 };
 @group(0) @binding(0) var<uniform> params: Params;
 
@@ -338,23 +340,56 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
 `;
 
 /**
- * Pass 2: the expected electrons, readout moments and white clip of every native site of the band's window, with their bounds.
- * The site's electrons are Σ_t table[(m_t·3 + c)·T + t] + dark_c, every term non-negative and rounded once on the host, so the
- * sum carries (T + 3)·E relative (`params.site_gamma`, the host's value). An uncertain lattice point adds the tap's value spread
- * over the materials (`spread`, host float64) to the site's uncertainty, which enters its bounds, or flags the site when it
- * exceeds UNCERTAINTY_LIMIT of the electrons.
+ * The end of pass 2, shared by both site passes: from the site's electrons e and their absolute bound de, the readout moments
+ * (mean k·e, variance k²e + c₀, third cumulant k³e), the clip at the white level and their bounds, written to site i.
  */
-export const DISPLAY_VIEW_QUALITY_SITES_WGSL = /* wgsl */ `${COMMON_WGSL}
-@group(0) @binding(1) var<storage, read> groups: array<u32>;
-@group(0) @binding(2) var<storage, read> taps: array<u32>;
+const SITE_TAIL_WGSL = /* wgsl */ `
+fn write_site(i: u32, c: u32, e: f32, de: f32, flag: u32) {
+  let kc = k_of(c);
+  let mean = kc * e;
+  let variance = kc * kc * e + c0_of(c);
+  let third = kc * kc * kc * e;
+  var m = vec2<f32>(mean, kc * de + 2.0 * E * mean);
+  var v = vec2<f32>(variance, kc * kc * de + 4.0 * E * variance);
+  let gap = 1.0 - mean;
+  if (!(gap > 0.0 && gap * gap > params.reach2 * variance)) {
+    let clipped = upper_clip(m, v, 1.0);
+    m = clipped.mean; v = clipped.variance;
+  }
+  let o = i * SITE;
+  sites[o] = m.x; sites[o + 1u] = v.x; sites[o + 2u] = third;
+  sites[o + 3u] = m.y; sites[o + 4u] = v.y; sites[o + 5u] = kc * kc * kc * de + 5.0 * E * third;
+  sites[o + 6u] = bitcast<f32>(flag); sites[o + 7u] = e;
+}
+`;
+
+/**
+ * The bindings of the site passes (pass 2); the blocked pass reads no tap records, so it declares no binding 2 (an automatic
+ * layout leaves out a binding the entry point does not use, and the host binds it only for the tap-list pass).
+ */
+const siteBindingsWgsl = (tapRecords: boolean): string => /* wgsl */ `
+@group(0) @binding(1) var<storage, read> groups: array<u32>;${tapRecords ? `
+@group(0) @binding(2) var<storage, read> taps: array<u32>;` : ""}
 @group(0) @binding(3) var<storage, read> table: array<f32>;
 @group(0) @binding(4) var<storage, read> lattice: array<u32>;
 @group(0) @binding(5) var<storage, read_write> sites: array<f32>;
 @group(0) @binding(6) var<storage, read> spread: array<f32>;
+`;
+
+/**
+ * Pass 2: the expected electrons, readout moments and white clip of every native site of the band's window, with their bounds.
+ * The site's electrons are Σ_t table[(m_t·3 + c)·T + t] + dark_c, every term non-negative and rounded once on the host, so the
+ * sum carries (T + 3)·E relative (`params.site_gamma`, the host's value). An uncertain lattice point adds the tap's value spread
+ * over the materials (`spread`, host float64) to the site's uncertainty, which enters its bounds, or flags the site when it
+ * exceeds UNCERTAINTY_LIMIT of the electrons. One dispatch covers the `params.count` sites from `params.site_first` (#492: the
+ * host splits a band's sites over several dispatches so that no dispatch gathers more than its tap budget).
+ */
+export const DISPLAY_VIEW_QUALITY_SITES_WGSL = /* wgsl */ `${COMMON_WGSL}${siteBindingsWgsl(true)}${SITE_TAIL_WGSL}
 @compute @workgroup_size(${DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) wg: vec3<u32>) {
-  let i = gid.x + gid.y * wg.x * ${DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE}u;
-  if (i >= params.count) { return; }
+  let local = gid.x + gid.y * wg.x * ${DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE}u;
+  if (local >= params.count) { return; }
+  let i = params.site_first + local;
   let ii = i % params.site_w;
   let jj = i / params.site_w;
   let x = params.site_x0 + i32(ii);
@@ -374,21 +409,75 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   let e = sum + dark_of(c);
   let flag = select(0u, 1u, uncertainty > UNCERTAINTY_LIMIT * e);
   let de = params.site_gamma * e + uncertainty;
-  let kc = k_of(c);
-  let mean = kc * e;
-  let variance = kc * kc * e + c0_of(c);
-  let third = kc * kc * kc * e;
-  var m = vec2<f32>(mean, kc * de + 2.0 * E * mean);
-  var v = vec2<f32>(variance, kc * kc * de + 4.0 * E * variance);
-  let gap = 1.0 - mean;
-  if (!(gap > 0.0 && gap * gap > params.reach2 * variance)) {
-    let clipped = upper_clip(m, v, 1.0);
-    m = clipped.mean; v = clipped.variance;
+  write_site(i, c, e, de, flag);
+}
+`;
+
+/**
+ * Pass 2 with the defocus disc (#492): the same site electrons from a factored table, summed in blocks.
+ *
+ * - **Factored table.** A neutral material's value is its reflectance times the white's combined kernel (the reference forms it
+ *   so: reflectance[m]·neutral_c(t)), so the table holds one neutral row per channel and one row per spectral material, and
+ *   `materials` holds per material its row (0 for neutral, 1 + s for spectral material s) and its reflectance as float32 bits
+ *   (1 for a spectral material, an exact product). A scene of thousands of neutral materials (#491's composite: 4 143) then
+ *   needs 3·T values instead of 3·T per material.
+ * - **Blocked sum.** Every group's taps form a dense cw × ch rectangle (the combined kernel's window, row-major from the group's
+ *   first tap, `groups[g + 5]`), so a site sums each row of a group into a row partial, the rows into a group partial and the
+ *   groups into the total. No tap records are read: the tap's lattice offset within its group is its (dx, dy).
+ *
+ * Every term is non-negative and carries two host roundings (u each, u = E/2: the row value and the reflectance), one product
+ * (E) and at most cw + ch + G additions, plus the dark electrons' addition, so the electrons carry (cw_max + ch_max + G + 3)·E
+ * relative (`params.site_gamma`; recursive summation of the up to 4·(2·96 + 2)² = 150 544 taps of a combined radius of 96 would
+ * carry (T + 3)·E ≈ 1.8 % instead). The uncertainty, summed the same way, is scaled by 1 + site_gamma, and `params.site_tiny`
+ * (host float64, rounded up) bounds the terms below the float32 normal range, which a device may flush to zero.
+ */
+export const DISPLAY_VIEW_QUALITY_SITES_BLOCKED_WGSL = /* wgsl */ `${COMMON_WGSL}${siteBindingsWgsl(false)}
+@group(0) @binding(7) var<storage, read> materials: array<u32>;
+${SITE_TAIL_WGSL}
+@compute @workgroup_size(${DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE})
+fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) wg: vec3<u32>) {
+  let local = gid.x + gid.y * wg.x * ${DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE}u;
+  if (local >= params.count) { return; }
+  let i = params.site_first + local;
+  let ii = i % params.site_w;
+  let jj = i / params.site_w;
+  let x = params.site_x0 + i32(ii);
+  let y = params.site_y0 + i32(jj);
+  let c = channel_of(x, y);
+  let T = params.taps;
+  var sum = 0.0;
+  var uncertainty = 0.0;
+  for (var k = 0u; k < params.groups; k = k + 1u) {
+    let g = k * GROUP;
+    let lw = groups[g + 2u];
+    let cw = lw - params.site_w + 1u;
+    let ch = groups[g + 3u] - params.site_h + 1u;
+    let lattice0 = groups[g + 4u] + jj * lw + ii;
+    let tap0 = groups[g + 5u];
+    var group_sum = 0.0;
+    var group_uncertainty = 0.0;
+    for (var dy = 0u; dy < ch; dy = dy + 1u) {
+      let row = lattice0 + dy * lw;
+      let row_tap = tap0 + dy * cw;
+      var row_sum = 0.0;
+      var row_uncertainty = 0.0;
+      for (var dx = 0u; dx < cw; dx = dx + 1u) {
+        let raw = lattice[row + dx];
+        let t = row_tap + dx;
+        let m = 2u * (raw & 0x7fffffffu);
+        if ((raw >> 31u) != 0u) { row_uncertainty = row_uncertainty + spread[c * T + t]; }
+        row_sum = row_sum + bitcast<f32>(materials[m + 1u]) * table[(materials[m] * 3u + c) * T + t];
+      }
+      group_sum = group_sum + row_sum;
+      group_uncertainty = group_uncertainty + row_uncertainty;
+    }
+    sum = sum + group_sum;
+    uncertainty = uncertainty + group_uncertainty;
   }
-  let o = i * SITE;
-  sites[o] = m.x; sites[o + 1u] = v.x; sites[o + 2u] = third;
-  sites[o + 3u] = m.y; sites[o + 4u] = v.y; sites[o + 5u] = kc * kc * kc * de + 5.0 * E * third;
-  sites[o + 6u] = bitcast<f32>(flag); sites[o + 7u] = e;
+  let e = sum + dark_of(c);
+  let flag = select(0u, 1u, uncertainty > UNCERTAINTY_LIMIT * e);
+  let de = params.site_gamma * e + uncertainty * (1.0 + params.site_gamma) + params.site_tiny;
+  write_site(i, c, e, de, flag);
 }
 `;
 

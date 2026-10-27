@@ -10,7 +10,7 @@ import { decodeTransport, encodeTransport } from "./codec.js";
 import { displayViewGpuFixture, renderOnGpu, renderOnGpuQuality, timeCpuStages } from "../helpers/display-view-gpu-fixture.js";
 import { clearDisplayViewCorrectionStates } from "../../src/facade/display-view.js";
 import { DISPLAY_VIEW_SPEED_CONFORMANCE_CASE } from "../../src/gpu/display-view-speed-gpu.js";
-import { DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE } from "../../src/gpu/display-view-quality-gpu.js";
+import { DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE, DISPLAY_VIEW_QUALITY_DEFOCUS_CONFORMANCE_CASE } from "../../src/gpu/display-view-quality-gpu.js";
 import { acquireWebGpuRuntime, type WebGpuRuntime } from "../../src/gpu/webgpu-runtime.js";
 import type { SimulateCaptureOptions, SimulateDisplayViewOptions } from "../../src/index.js";
 
@@ -223,8 +223,16 @@ export async function displayViewQuality(payload: string): Promise<string> {
       gpu: { samples: gpu.samples, expected: gpu.expected, noiseStd: gpu.noiseStd, expectedValueBound: gpu.expectedValueBound, varianceBound: gpu.varianceBound,
         expectedValueAbsoluteBound: gpu.expectedValueAbsoluteBound, varianceAbsoluteBound: gpu.varianceAbsoluteBound },
       flaggedPixelIndices: gpu.flaggedPixelIndices, hostRecomputedPixelIndices: gpu.hostRecomputedPixelIndices, execution: gpu.execution, gpuMilliseconds: milliseconds,
-      stageMilliseconds: gpu.stageMilliseconds, tapsPerSite: gpu.tapsPerSite, statesComputed: gpu.statesComputed, ahdCorrectedPixelCount: gpu.ahdCorrectedPixelCount, cpuStages });
+      stageMilliseconds: gpu.stageMilliseconds, tapsPerSite: gpu.tapsPerSite, statesComputed: gpu.statesComputed, ahdCorrectedPixelCount: gpu.ahdCorrectedPixelCount, cpuStages,
+      blockedSum: gpu.blockedSum, siteSumRelativeBound: gpu.siteSumRelativeBound, latticePointsResolved: gpu.latticePointsResolved, pixelFlags: gpu.pixelFlags });
   } finally { device.destroy(); }
+}
+
+/** #492: the defocus self-check case (blocked site sum over several dispatches) on the device. */
+export async function displayViewQualityDefocusConformance(): Promise<string> {
+  const device = await runtime();
+  try { return encodeTransport({ outcome: await DISPLAY_VIEW_QUALITY_DEFOCUS_CONFORMANCE_CASE.run(device, undefined) }); }
+  finally { device.destroy(); }
 }
 
 /** #479: the Quality self-check case on the device. */
