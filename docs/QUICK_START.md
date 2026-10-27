@@ -1347,7 +1347,7 @@ console.log(tile.image.width, tile.diagnostics.timingsMs.view);
 `render(view)` returns what `simulateDisplayView(request, view)` returns, byte for byte (only `diagnostics.timingsMs`
 differ, and they cover the render only). A second argument `{ gpu: "auto" | "require", gpuDevice }` (2.11, #481) asks for
 the WebGPU renderer, with the CPU reference as the labelled fallback or as a failure; `diagnostics.fast.execution` names
-what ran (see [Rendering on the GPU](DISPLAY_VIEW.md#rendering-on-the-gpu)). Renders may run concurrently and share only read-only setup. The request's own
+what ran (see [Rendering on the GPU](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#rendering-on-the-gpu)). Renders may run concurrently and share only read-only setup. The request's own
 `signal` applies to preparing; give each render its own. Keep one prepared view per request in each worker: measured on
 a 24 MP request, an 8 × 8 region took 6–40 ms through a prepared view instead of 0.24–0.41 s as its own call (Speed).
 
