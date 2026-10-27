@@ -172,3 +172,29 @@ export function resolveDefocusDisc(input: { focalLengthMm: number; aperture: num
   const diameterSites = diameterMicrometers / pitchMicrometers;
   return { diameterMicrometers, diameterSites, kernelRadiusSites: defocusDiscKernelRadius(diameterSites) };
 }
+
+/**
+ * The full 2-D convolution of two square site kernels (row-major, radii `radiusA` and `radiusB`): a kernel of radius
+ * radiusA + radiusB with out(t) = Σ_s a(s)·b(t − s), each output summed over the taps of `a` in row-major order (zero taps
+ * of either kernel skipped, which adds exact zeros only). Used for lens.defocus with lens.diffraction (#492): each spectral
+ * node's diffraction kernel convolved with the defocus disc. That combination is an approximation: the defocused wave PSF
+ * of a circular pupil is not exactly the in-focus Airy pattern convolved with the geometric disc. Both inputs here are
+ * centred and non-negative, so the result is too; its sum is the product of the inputs' sums up to rounding.
+ */
+export function convolveSiteKernels(a: Float64Array, radiusA: number, b: Float64Array, radiusB: number): Float64Array {
+  const wa = 2 * radiusA + 1, wb = 2 * radiusB + 1, radius = radiusA + radiusB, width = 2 * radius + 1;
+  if (a.length !== wa * wa || b.length !== wb * wb) throw new InvalidScientificInputError("Site kernels must be (2R + 1)² taps.");
+  const out = new Float64Array(width * width);
+  // Non-zero taps of b, as (row, column, weight).
+  const bRows: number[] = [], bColumns: number[] = [], bWeights: number[] = [];
+  for (let j = 0; j < wb; j++) for (let i = 0; i < wb; i++) { const w = b[j * wb + i]!; if (w !== 0) { bRows.push(j); bColumns.push(i); bWeights.push(w); } }
+  for (let sj = 0; sj < wa; sj++) for (let si = 0; si < wa; si++) {
+    const w = a[sj * wa + si]!;
+    if (w === 0) continue;
+    for (let k = 0; k < bWeights.length; k++) {
+      const index = (sj + bRows[k]!) * width + si + bColumns[k]!;
+      out[index] = out[index]! + w * bWeights[k]!;
+    }
+  }
+  return out;
+}

@@ -9,7 +9,7 @@ import { InvalidConfigurationError, calculateDefocusCircle, simulateCapture, sim
 const base: SimulateCaptureOptions = { scene: { preset: "slanted-edge" }, output: { width: 8, height: 8 }, subjectDistanceM: 2 };
 const withDefocus = (lens: NonNullable<SimulateCaptureOptions["lens"]>): SimulateCaptureOptions => ({ ...base, lens: { ...lens, defocus: { model: "geometric-disc" } } });
 
-describe("lens.defocus option (#492 step 1: parse and resolve, no rendering yet)", () => {
+describe("lens.defocus option (#492 step 1: parse and resolve; step 2a: the capture renders it)", () => {
   it("in focus renders the same bytes as without the option and records a zero disc as an approximation", async () => {
     const plain = await simulateCapture({ ...base, lens: { fNumber: 4 } });
     const focused = await simulateCapture(withDefocus({ fNumber: 4 }));
@@ -33,20 +33,25 @@ describe("lens.defocus option (#492 step 1: parse and resolve, no rendering yet)
     expect(focused.exposure).toEqual(plain.exposure);
   });
 
-  it("refuses an out-of-focus request as not yet supported, naming the blur circle, instead of rendering it sharp", async () => {
+  it("renders an out-of-focus capture (step 2a), naming the blur circle in the assumption", async () => {
     const c = calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM: 1.8, subjectDistanceM: 2 }).value.diameterMm * 1000;
     const request = withDefocus({ fNumber: 4, focusDistanceM: 1.8 });
-    await expect(simulateCapture(request)).rejects.toThrow(InvalidConfigurationError);
-    await expect(simulateCapture(request)).rejects.toThrow(new RegExp("simulateCapture does not yet support lens\\.defocus out of focus: the geometric blur circle here is " +
-      String(c).replace(".", "\\.") + " µm \\(" + String(c / 6).replace(".", "\\.") + " sites of 6 µm\\) \\(kernel radius " + defocusDiscKernelRadius(c / 6) + " sites\\)", "u"));
+    const r = await simulateCapture(request);
+    expect(r.assumptions.find((a) => a.id === "lens.defocus")!.value).toMatchObject({ diameterMicrometers: c, diameterSites: c / 6,
+      kernelRadiusSites: defocusDiscKernelRadius(c / 6), execution: "object-space-convolution" });
     // The same resolution in the automatic modes (at the resolved f-number) and for a DNG.
-    await expect(simulateCapture({ ...withDefocus({ focusDistanceM: 1.8 }), exposure: { mode: "program" } })).rejects.toThrow(/does not yet support lens\.defocus/u);
-    await expect(simulateCapture({ ...request, output: { width: 8, height: 8, format: "dng" } })).rejects.toThrow(/does not yet support lens\.defocus/u);
-    // Even a disc smaller than one site is a kernel, so it is refused too.
-    await expect(simulateCapture(withDefocus({ fNumber: 16, focusDistanceM: 1.999 }))).rejects.toThrow(/kernel radius 0 sites/u);
+    const program = await simulateCapture({ ...withDefocus({ focusDistanceM: 1.8 }), exposure: { mode: "program" } });
+    expect((program.assumptions.find((a) => a.id === "lens.defocus")!.value as { fNumber: number }).fNumber).toBe(program.exposure.settings.fNumber);
+    const dng = await simulateCapture({ ...request, output: { width: 8, height: 8, format: "dng" } });
+    expect(Array.from(dng.raw.codes)).toEqual(Array.from(r.raw.codes));
+    // Even a disc smaller than one site is a kernel (radius 0, the identity), and it is applied.
+    const subSite = await simulateCapture(withDefocus({ fNumber: 16, focusDistanceM: 1.999 }));
+    expect(subSite.assumptions.find((a) => a.id === "lens.defocus")!.value).toMatchObject({ kernelRadiusSites: 0, execution: "object-space-convolution" });
+    expect(subSite.diagnostics.options).toEqual(["lens.defocus"]);
     // Without the option the same focus distance renders as before (no blur, labelled).
     const sharp = await simulateCapture({ ...base, lens: { fNumber: 4, focusDistanceM: 1.8 } });
     expect(sharp.assumptions.find((a) => a.id === "lens.pupilSampling")!.explanation).toMatch(/defocus and depth of field are not rendered/u);
+    expect(Array.from(sharp.raw.codes)).not.toEqual(Array.from(r.raw.codes));
   });
 
   it("fails past the kernel radius cap with the cap and the radius asked for", async () => {

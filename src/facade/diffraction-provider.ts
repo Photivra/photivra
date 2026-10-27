@@ -39,6 +39,13 @@
  *
  * A query that does not land on one of the lattices (within 1e-6 site) is refused rather than approximated: the
  * facade uses this path only when the lattice argument above holds. A query outside the window is refused too.
+ *
+ * Defocus (#492, `lens.defocus`): the same argument holds for any space-invariant kernel on the site lattice, so the facade
+ * passes `siteKernels` instead (the geometric defocus disc, or each node's diffraction kernel convolved with it). Their radius
+ * may exceed the public 32-site convolution limit, so this path does not call `calculateIrradianceConvolution`: it checks the
+ * samples and the kernel sums as that function does and gathers only the band's own values (`gatherInterior`), each summed
+ * over the taps in the same fixed order (v outer, u inner, ascending; zero taps skipped, which adds exact zeros only). It
+ * does not compute the 2R grid rows above and below a band that `calculateIrradianceConvolution` would also return (#419).
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -56,8 +63,14 @@ const LATTICE_TOLERANCE_SITES = 1e-6;
 
 export interface DiffractedPlanarProviderInput {
   base: PlanarSceneRadianceProvider;
-  /** The optical state of the sampled PSF, as for `resolveLensSampledPsf`, without field point and wavelength. */
-  psf: Omit<ResolveLensSampledPsfInput, "fieldPointMm" | "wavelengthNm">;
+  /** The optical state of the sampled PSF, as for `resolveLensSampledPsf`, without field point and wavelength. Unused with `siteKernels`. */
+  psf?: Omit<ResolveLensSampledPsfInput, "fieldPointMm" | "wavelengthNm">;
+  /**
+   * #492: the kernel of each spectral node on the site lattice, (2·kernelRadius + 1)² taps in row-major order, applied
+   * instead of the diffraction kernels of `psf` (the defocus disc, or each node's diffraction kernel convolved with it).
+   * Any radius; each kernel's sum may not exceed 1 + 2^-20.
+   */
+  siteKernels?: (wavelengthNm: number) => Float64Array;
   /** Spectral nodes the environment queries (the profile's wavelength nodes). */
   wavelengthsNm: readonly number[];
   kernelRadius: number;
@@ -106,7 +119,12 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
   if (!(lx0 < lx1 && ly0 < ly1)) throw new InvalidConfigurationError("Diffraction window must overlap the native raster.");
   const NW = lx1 - lx0;
   // One kernel per wavelength, on the site grid, from the engine's own tap-to-site mapping (field point 0, 0); kept across calls.
-  const kernels = wavelengthsNm.map((wavelengthNm) => siteDiffractionKernel(input.psf, wavelengthNm, pitch, R, "Diffraction kernels must sample the site pitch exactly."));
+  const siteKernels = input.siteKernels;
+  if (!siteKernels && !input.psf) throw new InvalidConfigurationError("The object-space convolution needs a PSF or site kernels.");
+  const kernels = wavelengthsNm.map((wavelengthNm) => siteKernels ? checkedSiteKernel(siteKernels(wavelengthNm), R) :
+    siteDiffractionKernel(input.psf!, wavelengthNm, pitch, R, "Diffraction kernels must sample the site pitch exactly."));
+  // #492: each site kernel's non-zero taps as grid offsets, in the gather's order.
+  const taps = siteKernels ? kernels.map((kernel) => kernelTaps(kernel, R, NW + 2 * R)) : [];
   const gridWidth = NW + 2 * R;
   const now = (): number => globalThis.performance?.now() ?? Date.now();
   const bands = new Map<number, Float64Array[][]>();
@@ -118,7 +136,7 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
     const y0 = ly0 + b * BAND_ROWS, rows = Math.min(BAND_ROWS, ly1 - y0), gridHeight = rows + 2 * R, size = gridWidth * gridHeight;
     // #453: the band's shifts × spectral nodes convolutions share one geometry, validated once (the first runs the full
     // calculateIrradianceConvolution; every later one still checks its samples and kernel).
-    const convolve = createIrradianceConvolutionRunner({ schemaVersion: "0.1.0", width: gridWidth, height: gridHeight, kernelRadius: R,
+    const convolve = siteKernels ? undefined : createIrradianceConvolutionRunner({ schemaVersion: "0.1.0", width: gridWidth, height: gridHeight, kernelRadius: R,
       patchWidth: gridWidth, patchHeight: gridHeight, boundary: "zero-outside-grid" });
     const values = shifts.map((shift) => {
       // The plane point of lattice grid sample (gx, gy) of this shift, the same expressions for both fills below.
@@ -151,6 +169,7 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
             for (let gx = 0, x = lx0; gx < gridWidth; gx++, x++) samples[gy * gridWidth + gx] = base.radianceAt(uOf(x), v, nm);
           }
         }
+        if (!convolve) return gatherInterior(samples, taps[w]!, gridWidth, NW, rows, R);
         const blurred = convolve(samples, kernels[w]!);
         const out = new Float64Array(NW * rows);
         for (let y = 0; y < rows; y++) out.set(blurred.subarray((y + R) * gridWidth + R, (y + R) * gridWidth + R + NW), y * NW);
@@ -214,4 +233,53 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
       throw new InvalidConfigurationError("Diffraction by object-space convolution does not take pupil rays.");
     }
   };
+}
+
+/** Largest kernel sum, and largest sample, the object-space convolution accepts (as `IRRADIANCE_CONVOLUTION_LIMITS`). */
+const MAXIMUM_KERNEL_SUM = 1 + 2 ** -20, MAXIMUM_SAMPLE = 2 ** 100;
+
+/** #492: a site kernel of radius R, checked as `calculateIrradianceConvolution` checks its kernels. */
+function checkedSiteKernel(kernel: Float64Array, R: number): Float64Array {
+  if (!(kernel instanceof Float64Array) || kernel.length !== (2 * R + 1) ** 2) throw new InvalidConfigurationError("Site kernels must be (2R + 1)² taps.");
+  let sum = 0;
+  for (let k = 0; k < kernel.length; k++) {
+    const w = kernel[k]!;
+    if (!(w >= 0 && w <= 1)) throw new InvalidConfigurationError("Site kernel weights must be finite numbers in [0, 1].");
+    sum += w;
+  }
+  if (sum > MAXIMUM_KERNEL_SUM) throw new InvalidConfigurationError("A PSF kernel may not create energy (sum exceeds 1).");
+  return kernel;
+}
+
+/** #492: the non-zero taps of a kernel as offsets into a grid of `gridWidth` columns (−v·gridWidth − u) and weights, v outer, u inner, ascending. */
+function kernelTaps(kernel: Float64Array, R: number, gridWidth: number): { offsets: Int32Array; weights: Float64Array } {
+  const offsets: number[] = [], weights: number[] = [];
+  for (let v = -R, t = 0; v <= R; v++) for (let u = -R; u <= R; u++, t++) {
+    const w = kernel[t]!;
+    if (w !== 0) { offsets.push(-v * gridWidth - u); weights.push(w); }
+  }
+  return { offsets: Int32Array.from(offsets), weights: Float64Array.from(weights) };
+}
+
+/**
+ * #492: out(x, y) = Σ_t K(t)·samples(x + R − t_u, y + R − t_v) for the band's own values only (x < width, y < rows): every tap of
+ * these lies inside the grid (it holds R extra samples on each side), so no boundary rule applies. Samples are checked as
+ * `calculateIrradianceConvolution` checks them.
+ */
+function gatherInterior(samples: Float64Array, taps: { offsets: Int32Array; weights: Float64Array }, gridWidth: number, width: number, rows: number, R: number): Float64Array {
+  for (let k = 0; k < samples.length; k++) {
+    const v = samples[k]!;
+    if (!(v >= 0 && v <= MAXIMUM_SAMPLE)) throw new InvalidConfigurationError("Irradiance samples must be finite, non-negative and within the declared magnitude.");
+  }
+  const { offsets, weights } = taps, count = weights.length, out = new Float64Array(width * rows);
+  for (let y = 0; y < rows; y++) {
+    const rowBase = (y + R) * gridWidth + R;
+    for (let x = 0; x < width; x++) {
+      const base = rowBase + x;
+      let sum = 0;
+      for (let k = 0; k < count; k++) sum += samples[base + offsets[k]!]! * weights[k]!;
+      out[y * width + x] = sum;
+    }
+  }
+  return out;
 }
