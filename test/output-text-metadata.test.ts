@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
 import { crc32 } from "node:zlib";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ENGINE_API_VERSION, InvalidConfigurationError, parseDngRawImage, serializeNativeRawDng, simulateCapture, simulateIdealReference,
   type OutputTextMetadata, type SimulateCaptureOptions } from "../src/index.js";
 import { addJpegTextMetadata, addPngTextMetadata, parseOutputTextMetadata } from "../src/output/text-metadata.js";
@@ -94,16 +94,21 @@ const withMetadata = (options: SimulateCaptureOptions, metadata: OutputTextMetad
 
 describe("output.metadata (2.4)", { timeout: 120_000 }, () => {
   it("leaves every encoded file byte-identical to 2.3.0 when no metadata is given", async () => {
-    // The DNG Software tag names the engine version ("Photivra <version>"), so it changes with every release.
-    // Write the 2.3.0 name back (same length, so no offset moves) and keep every other byte locked.
-    const current = Buffer.from("Photivra " + ENGINE_API_VERSION), locked = Buffer.from("Photivra 2.3.0");
-    expect(current.length).toBe(locked.length);
-    for (const c of V2_3_0_FILES) {
-      const image = c.reference ? (await simulateIdealReference(c.options)).image : (await simulateCapture(c.options)).image;
-      const bytes = Buffer.from((image as unknown as Record<string, Uint8Array>)[c.file]!);
-      for (let at = bytes.indexOf(current); at >= 0; at = bytes.indexOf(current, at + 1)) locked.copy(bytes, at);
-      expect(sha(bytes), c.name).toBe(c.sha256);
-    }
+    // The DNG Software tag names the engine version ("Photivra <version>"). A version of another length (2.10.0 against
+    // 2.3.0) moves every later DNG offset, so writing the 2.3.0 name back into the bytes cannot work. The files are made by
+    // a separate copy of the engine whose only change is ENGINE_API_VERSION = "2.3.0"; every other byte stays locked.
+    vi.resetModules();
+    vi.doMock("../src/core/version.js", () => ({ ENGINE_API_VERSION: "2.3.0" }));
+    try {
+      const locked: typeof import("../src/index.js") = await import("../src/index.js");
+      expect(locked.ENGINE_API_VERSION).toBe("2.3.0");
+      for (const c of V2_3_0_FILES) {
+        const image = c.reference ? (await locked.simulateIdealReference(c.options)).image : (await locked.simulateCapture(c.options)).image;
+        expect(sha(Buffer.from((image as unknown as Record<string, Uint8Array>)[c.file]!)), c.name).toBe(c.sha256);
+      }
+    } finally { vi.doUnmock("../src/core/version.js"); vi.resetModules(); }
+    const dng = (await simulateCapture(V2_3_0_FILES.find((c) => c.file === "dng")!.options)).image.dng!;
+    expect(Buffer.from(dng).includes(Buffer.from("Photivra " + ENGINE_API_VERSION + "\0"))).toBe(true);
     const plain = await simulateCapture(V2_3_0_FILES[0]!.options);
     expect(plain.assumptions.some((a) => a.id === "output.metadata")).toBe(false);
   });

@@ -1,6 +1,6 @@
 # Developer guide
 
-This is the entry point for **@photivra/engine 2.9.0**, root API contract **2.9.0**. 2.9.0 was published on October 26, 2026 ([2.9.0 release record](RELEASE_2_9_0.md)).
+This is the entry point for **@photivra/engine 2.10.0**, root API contract **2.10.0**. 2.10.0 was prepared on October 27, 2026; npm publishing runs only from the owner's `v2.10.0` tag, and the [2.10.0 release record](RELEASE_2_10_0.md) states whether that has happened.
 
 Repository `main` may later describe newer development. For the stable contract, use a published release's packaged docs or its exact tag. [Release notes and migration](RELEASE_1_3_0.md) explain why the package version and the root API version are now the same number.
 
@@ -10,13 +10,13 @@ The package does **not** supply a hosted API, a renderer, a UI, commercial camer
 
 ## Install and calculate
 
-Install with `npm install @photivra/engine@2.9.0`. The [2.9.0 release record](RELEASE_2_9_0.md) and the [changelog](../CHANGELOG.md) describe the current release.
+Install with `npm install @photivra/engine@2.10.0`. The [2.10.0 release record](RELEASE_2_10_0.md) and the [changelog](../CHANGELOG.md) describe the current release.
 
 ```ts
 import { calculateFieldOfView, ENGINE_API_VERSION } from "@photivra/engine";
 
 const horizontal = calculateFieldOfView({ focalLengthMm: 50, sensorDimensionMm: 36 });
-console.log(ENGINE_API_VERSION); // 2.9.0: matches the package version
+console.log(ENGINE_API_VERSION); // 2.10.0: matches the package version
 console.log(horizontal.value.degrees); // approximately 39.60, ideal infinity-focus geometry
 console.log(horizontal.provenance); // read assumptions/status with the value
 ```
