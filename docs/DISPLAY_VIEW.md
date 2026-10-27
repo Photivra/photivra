@@ -551,14 +551,43 @@ What changed during validation (each found by this matrix and checked again on i
 
 ## Preview acceptance
 
-`scripts/accept-display-view-gpu.mjs` (#480) is the acceptance harness of a future GPU display view (#478, #479): it renders
-the app's request (24 MP 6 µm, 2 × 2 box, caller material scene with the stand-in label; the five fixture charts at
-2028 × 1352 and 2800 × 1867, Speed and Quality) with a reference producer and a candidate producer and compares the two
-noise-free expected images per pixel in ΔE2000 (Sharma, Wu and Dalal 2005) and in units of the reference's noise σ, writes a
-difference image per case, and prints pass or fail against the thresholds of #473 (99 % within ΔE2000 1, none above 2.3, no
-pixel beyond 1 σ; parameters). Today both producers are this CPU display view, so the run is a self-check that must show exact
-equality ([record](validation/display-view-acceptance-self-check-2026-10-27/README.md)); `--candidate` selects another
-producer module. Options, metrics, timing mode and the record format: [WebGPU, Preview acceptance](WEBGPU.md#preview-acceptance).
+`scripts/accept-display-view-gpu.mjs` (#480) is the release gate of the GPU display view: it renders the app's request with
+the CPU display view (the reference) and a candidate, compares the two noise-free expected images per pixel in ΔE2000 (Sharma,
+Wu and Dalal 2005) and in units of the reference's noise σ, writes a difference image per case, and prints pass or fail against
+the thresholds of #473 (99 % within ΔE2000 1, none above 2.3, no pixel beyond 1 σ; parameters). With `--gpu` the candidate is
+the GPU: the request rendered in headless Chromium through `prepareDisplayView(request, { gpu: "require", gpuDevice })` on the
+built engine, so it covers both kernels (Speed, #478, and Quality, #479). Without it the candidate is this CPU display view
+again, a self-check that must show exact equality ([record](validation/display-view-acceptance-self-check-2026-10-27/README.md)).
+Options, metrics, the GPU producer and the record format: [WebGPU, Preview acceptance](WEBGPU.md#preview-acceptance).
+
+**The owner's run on a Mac** (Chrome installed; Node 22.18 or later), from the repository:
+
+```sh
+npm ci && npm run build && npm run accept:gpu:hardware -- --record display-view-acceptance-m5-pro-$(date +%Y-%m-%d)
+```
+
+- **What it runs:** 26 cases, one after the other, each in its own Node process with its own browser: the app's composite
+  chart, the same chart out of focus (`app-defocus`, Speed only) and the five fixture charts, at 2028 × 1352 and 2800 × 1867
+  from the 24 MP 6 µm frame, Speed and Quality. Each case renders the whole view on the GPU, then with the CPU reference in the same browser page (the
+  reference it is judged against) and in Node (17–46 s per CPU render on the 4-vCPU development host, #486). `--sizes 2028x1352`, `--charts app` or `--options speed` run a subset.
+- **What it prints:** the case list and the adapter mode first; per case a `done` line with the largest ΔE2000 and |Δ|/σ and
+  where the candidate ran (`webgpu-f32` on the adapter `GPUAdapter.info` reports, conformance self-check passed); then the
+  table of every case (fraction within ΔE2000 1, largest and mean ΔE2000, largest |Δ|/σ, largest difference in 8-bit codes,
+  identical pixels and samples, the two render times), one `pass` or `FAIL` line per threshold and case, the execution label
+  of every case, and the verdict line `PASS: …` or `FAIL: …`; the exit code is non-zero on a failure.
+- **Where the files go:** the difference PNGs (|Δ| in 8-bit codes × 16, black is no difference; "Difference image, not a
+  capture" in their text metadata) and `results.jsonl` in `./display-view-acceptance/` (`--out` changes it); with `--record`,
+  `docs/validation/<name>/README.md` and `results.jsonl` (`--record-images` copies the PNGs there too).
+- **How to read it:** the run passes when the verdict line says `PASS` and every case ran on the GPU. A case the GPU could
+  not render (no adapter, a software adapter when the hardware is required, a failed self-check, `unsupported-on-backend`, a
+  lost device) is an error and fails the run, with the engine's reason: the harness never compares the CPU with itself by
+  accident. The one exception is `app-defocus`: until the GPU renders `lens.defocus` (#492, step 2c) it is reported as an
+  **expected fallback** with the engine's reason and is not compared; once the GPU covers it, it is compared like the rest.
+  The "no structured difference at 1:1" check is the owner's look at the listed difference images; the script does not judge it.
+- **If the adapter is wrong:** `--hardware` sets `PHOTIVRA_WEBGPU_ADAPTER=hardware` and `PHOTIVRA_WEBGPU_REQUIRE_HARDWARE=1`, as
+  `npm run test:webgpu:hardware` does; a software adapter (SwiftShader) then fails every case. The suite's switches apply:
+  `PHOTIVRA_WEBGPU_HEADLESS=0` (a visible window), `PHOTIVRA_WEBGPU_BROWSER=/path/to/chrome`, `PHOTIVRA_WEBGPU_FLAGS="…"`
+  ([WebGPU, Running on hardware](WEBGPU.md#running-on-hardware)).
 
 ## Cost
 

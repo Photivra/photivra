@@ -122,7 +122,7 @@ export async function prepareDisplayView(options: SimulateCaptureOptions, prepar
   };
   const correctionOf = (caller: string): DisplayViewCorrectionSetup => prepared.correction ??
     fail(caller + ": the prepared request has no AHD low-signal correction (it applies with output.demosaic \"ahd\").");
-  return Object.freeze({
+  const handle: PreparedDisplayView = Object.freeze({
     async render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult> {
       const run = runOf(renderOptions);
       const parsed = parseDisplayViewOption(view, frameWidth, frameHeight);
@@ -140,6 +140,26 @@ export async function prepareDisplayView(options: SimulateCaptureOptions, prepar
       return await computeDisplayViewCorrectionStates({ ...correction, yieldControl: run.yieldControl, checkAbort: run.checkAbort }, gridKeys);
     }
   });
+  PREPARED_INTERNALS.set(handle, async (view, renderOptions) => {
+    const internals: ViewInternals = {};
+    const result = await prepared.render(parseDisplayViewOption(view, frameWidth, frameHeight), runOf(renderOptions), internals, session);
+    return { result, internals: internals.value! };
+  });
+  return handle;
+}
+/** The internal render of each prepared view (the same render as `render`, keeping its renderer's result). */
+const PREPARED_INTERNALS = new WeakMap<PreparedDisplayView, (view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions) =>
+  Promise<{ result: DisplayViewResult; internals: DisplayViewRenderResult }>>();
+/**
+ * Internal (not exported from the package): renders a view of a prepared view as `render` does (the same GPU session and labels)
+ * and also returns the renderer's noise-free expected linear values and noise standard deviations, whichever renderer ran (#480's
+ * GPU producer, `scripts/lib/display-view-gpu-page.mjs`).
+ */
+export async function renderPreparedDisplayViewWithInternals(prepared: PreparedDisplayView, view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions):
+  Promise<{ result: DisplayViewResult; internals: DisplayViewRenderResult }> {
+  const render = PREPARED_INTERNALS.get(prepared);
+  if (!render) fail("renderPreparedDisplayViewWithInternals needs a view returned by prepareDisplayView.");
+  return await render(view, renderOptions);
 }
 /**
  * Internal (not exported from the package): the display view plus its noise-free expected linear values and noise standard

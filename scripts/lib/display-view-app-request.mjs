@@ -3,8 +3,8 @@
 /**
  * The app's display-view request shape (#454), shared by `scripts/benchmark-display-view.mjs --app` and the preview
  * acceptance harness `scripts/accept-display-view-gpu.mjs` (#480): a 6 µm 6000 × 4000 sensor with the 2 × 2 box pixel
- * aperture, a caller material scene (an engine chart with a stand-in printed label), a device-pixel view rendered in
- * parts, centre first. `engine` is always the build's module (`dist/index.js`), passed in so a caller can time another build.
+ * aperture, an engine chart with a stand-in printed label (a caller material scene, or since the GPU producer of #480 a
+ * declared `material-layers` scene), a device-pixel view rendered in parts, centre first. `engine` is always the build's module (`dist/index.js`), passed in so a caller can time another build.
  */
 
 export const APP_VIEW = { width: 2028, height: 1352 };
@@ -37,16 +37,64 @@ export function labelInk(u, v) {
   return inRow > 0.2 && inRow < 0.8 && Math.floor(x * 40 + row) % 3 !== 0 ? 1 : 0;
 }
 
+/** A ring approximating a quadratic curve from (x0, y0) through control (x1, y1) to (x2, y2). */
+function curvedRing(x0, y0, x1, y1, x2, y2, pieces = 12) {
+  const ring = [];
+  for (let k = 0; k <= pieces; k++) { const t = k / pieces, s = 1 - t; ring.push(s * s * x0 + 2 * s * t * x1 + t * t * x2, s * s * y0 + 2 * s * t * y1 + t * t * y2); }
+  return ring;
+}
+/** Square-capped stroke rectangle of a segment, as a ring (one orientation for every segment). */
+function strokeRing(x0, y0, x1, y1, width) {
+  const h = width / 2, len = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / len * h, uy = (y1 - y0) / len * h;
+  return [x0 - ux - uy, y0 - uy + ux, x1 + ux - uy, y1 + uy + ux, x1 + ux + uy, y1 + uy - ux, x0 - ux + uy, y0 - uy - ux];
+}
+const reverseRing = (ring) => { const out = []; for (let k = ring.length - 2; k >= 0; k -= 2) out.push(ring[k], ring[k + 1]); return out; };
+
+/**
+ * A generic stand-in for a printed label as a declared shape-mask layer (#491's `material-layers`), engine-authored: no
+ * application's artwork. In a 320 × 80 unit box it holds a stroked frame-like glyph, a stroked ring (an annulus) and nine
+ * letter-like glyphs with two curved sides, a hole and an underline stroke, so it exercises every mask path the GPU's composite
+ * material module has (non-zero winding over several rings, holes, stroked rectangles, annuli). The layer is 0.44 frame units
+ * wide, 0.03 in from the frame's left and bottom edges, a dark plate (reflectance 0.05) printed in light ink (0.8). It is the
+ * label layer of the engine's composite fixtures (`labelLayer` in test/helpers/chart-composite-fixtures.ts; tested equal), the
+ * one the 2028 × 1352 emulation run of #491 used. An application's own label (its logo and text outlines) has other shapes
+ * and edge counts, so its per-lookup cost and flagged fraction differ.
+ */
+export function standInLabelLayer(aspect) {
+  const shapes = [];
+  shapes.push({ kind: "polygon", rings: [strokeRing(12, 12, 12, 68, 8), strokeRing(12, 12, 52, 12, 8), strokeRing(52, 12, 52, 40, 8), strokeRing(52, 40, 24, 40, 8)] });
+  shapes.push({ kind: "annulus", centerX: 36, centerY: 56, innerRadius: 7, outerRadius: 11 });
+  for (let g = 0; g < 9; g++) {
+    const x = 70 + 27 * g;
+    const outer = [x, 20, ...curvedRing(x + 18, 20, x + 26, 40, x + 18, 60).slice(2), x, 60, x + 4, 40];
+    const hole = [x + 6, 30, x + 6, 50, x + 14, 50, x + 16, 40, x + 14, 30];
+    shapes.push({ kind: "polygon", rings: [outer, reverseRing(hole)] });
+    shapes.push({ kind: "polygon", rings: [strokeRing(x + 2, 66, x + 20, 66, 3)] });
+  }
+  const width = 0.44, height = width * 80 / 320, u0 = -1 + 0.03, v0 = -aspect + 0.03;
+  return { kind: "shape-mask", rectangle: { u0, v0, u1: u0 + width, v1: v0 + height }, unitsWidth: 320, unitsHeight: 80, shapes, backgroundReflectance: 0.05, inkReflectance: 0.8 };
+}
+
 /**
  * The app-request options for a row (`{ options: "speed" | "quality", fNumber }`): `chart` is the chart scene the label is
  * laid over (default `APP_CHART`), `view` the display view whose aspect the chart takes (default `APP_VIEW`), `sceneId`
- * the material scene's id.
+ * the scene's id. `scene` chooses the scene's form:
+ *
+ * - `"material-function"` (the default; the benchmark's and #480's first form): a caller material scene, the chart with the
+ *   stand-in label `labelInk` tested in a function. The GPU renderer refuses caller functions (`unsupported-on-backend`).
+ * - `"material-layers"`: the form an application gives the GPU (#491): `{ kind: "material-layers", sceneId, chart, layers }`
+ *   with `standInLabelLayer`, plain data that a browser page can receive and the GPU's composite material module evaluates.
  */
-export function appRequestOptions(engine, row, { chart = APP_CHART, view = APP_VIEW, sceneId = "benchmark:app-request" } = {}) {
-  const aspect = view.height / view.width, resolved = engine.resolveChartScene({ scene: chart, aspect });
-  const materials = resolved.materials.map((m) => m.reflectance), background = materials.length, ink = materials.length + 1;
-  const scene = { kind: "material-function", sceneId, materials: [...materials, 0.85, 0.06],
-    materialAt: (p) => { const u = p.chartU ?? p.u, v = p.chartV ?? p.v, label = labelInk(u, v); return label < 0 ? resolved.materialAt(u, v) : label === 1 ? ink : background; } };
+export function appRequestOptions(engine, row, { chart = APP_CHART, view = APP_VIEW, sceneId = "benchmark:app-request", scene: form = "material-function" } = {}) {
+  const aspect = view.height / view.width;
+  let scene;
+  if (form === "material-layers") scene = { kind: "material-layers", sceneId, chart, layers: [standInLabelLayer(aspect)] };
+  else if (form === "material-function") {
+    const resolved = engine.resolveChartScene({ scene: chart, aspect });
+    const materials = resolved.materials.map((m) => m.reflectance), background = materials.length, ink = materials.length + 1;
+    scene = { kind: "material-function", sceneId, materials: [...materials, 0.85, 0.06],
+      materialAt: (p) => { const u = p.chartU ?? p.u, v = p.chartV ?? p.v, label = labelInk(u, v); return label < 0 ? resolved.materialAt(u, v) : label === 1 ? ink : background; } };
+  } else throw new Error(`Unknown scene form ${form}; "material-function" or "material-layers".`);
   const quality = row.options === "quality";
   return { scene, chartSize: { widthM: 0.42, heightM: Number((0.42 * aspect).toFixed(4)) }, subjectDistanceM: 0.63,
     lens: { prime: 50, fNumber: row.fNumber, ...(quality ? { diffraction: "circular-aperture" } : {}) },
