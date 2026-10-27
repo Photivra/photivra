@@ -1,0 +1,58 @@
+name: WebGPU conformance
+
+# The real-device WebGPU conformance suite (`npm run test:webgpu`: test/webgpu/*.webgpu.ts, 89 tests)
+# on Google SwiftShader, a Vulkan CPU implementation, in Playwright's Chromium headless. It checks
+# the WGSL kernels against the float64 reference within the bounds of docs/WEBGPU.md; it measures no
+# GPU speed. Spend rules as native-performance.yml: a pull request runs it only when the kernels,
+# the suite or its configuration change; every push to main runs it once; manual dispatch for the rest.
+# About 4 minutes a run (3 minutes of tests on a 4-core host plus the Chromium download).
+on:
+  pull_request:
+    paths:
+      - "src/gpu/**"
+      - "test/webgpu/**"
+      - "vitest.webgpu*.config.ts"
+      - ".github/workflows/webgpu.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: webgpu-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  webgpu-conformance:
+    name: webgpu conformance (SwiftShader)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "lts/*"
+      - name: Verify Node.js support policy
+        run: |
+          node --test .github/test-node-lts-policy.mjs
+          node .github/node-lts-policy.mjs
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Install Playwright's Chromium
+        # The suite adds no npm dependency: it drives Chromium over the DevTools protocol and finds
+        # Playwright's browser under ~/.cache/ms-playwright on its own (docs/WEBGPU.md, "Browser
+        # support and running the suite"). Playwright 1.63.0 installs Chromium build 1243 (Chrome
+        # for Testing 153.0.8010.12), the build the suite was run with in the development container.
+        # Bump the version here and in docs/WEBGPU.md together, after a local run on the new build.
+        run: npx --yes playwright@1.63.0 install --with-deps chromium
+      - name: WebGPU conformance suite on SwiftShader
+        # PHOTIVRA_WEBGPU_REQUIRED=1 fails instead of skipping when no browser or adapter is found.
+        env:
+          PHOTIVRA_WEBGPU_REQUIRED: "1"
+        run: npm run test:webgpu
