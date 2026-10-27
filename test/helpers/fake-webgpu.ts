@@ -6,7 +6,8 @@
  * Real-GPU conformance lives in test/webgpu (npm run test:webgpu).
  */
 import { SDR_COUNTER, SDR_TONE_MODE } from "../../src/gpu/wgsl-kernels.js";
-import { emulateChart, emulateSensor, emulateTemporalSum, nearestArithmetic, type EmulationArithmetic } from "./fake-webgpu-stages.js";
+import { createChartMaterialEmulator, emulateChart, emulateSensor, emulateTemporalSum, nearestArithmetic, type EmulationArithmetic } from "./fake-webgpu-stages.js";
+import { emulateDisplayViewSpeed } from "./fake-webgpu-display-view.js";
 
 const f = Math.fround;
 // #477: the composite chart kernel and its probe are emulated in their own module.
@@ -224,6 +225,10 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: Em
     emulateChart(u32(0), f32(0), f32(1), f32(2), f32(3), u32(4), f32(5), u32(6), arithmetic);
   } else if (label === "photivra-temporal-sum") {
     emulateTemporalSum(u32(0), f32(1), buffers.get(2)!.data, f32(3), f32(4));
+  } else if (label.startsWith("photivra-display-view-speed:")) {
+    // The chart-preset material module (group 1): its uniform at 100, its aux table at 101.
+    const material = createChartMaterialEmulator(u32(100), f32(100), f32(101), 8, arithmetic);
+    emulateDisplayViewSpeed(u32(0), f32(0), f32(1), f32(2), f32(3), f32(4), u32(5), material);
   } else if (!emulateComposite(label, (b) => buffers.get(b)!.data)) {
     throw new Error(`No emulator for ${label}`);
   }
@@ -257,12 +262,16 @@ export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; con
       const ops: (() => void)[] = [];
       return {
         beginComputePass: (): unknown => {
-          let pipeline: { label: string } | null = null, group: { entries: Entry[] } | null = null;
-          return { setPipeline: (p: { label: string }): void => { pipeline = p; }, setBindGroup: (_: number, g: { entries: Entry[] }): void => { group = g; },
+          let pipeline: { label: string } | null = null;
+          const groups = new Map<number, { entries: Entry[] }>();
+          return { setPipeline: (p: { label: string }): void => { pipeline = p; }, setBindGroup: (index: number, g: { entries: Entry[] }): void => { groups.set(index, g); },
             dispatchWorkgroups: (): void => { ops.push(() => {
               controls.dispatches++;
               controls.beforeDispatch?.(controls.dispatches);
-              emulate(pipeline!.label, new Map(group!.entries.map(e => [e.binding, e.resource.buffer])), options.arithmetic ?? nearestArithmetic);
+              // Group 0's bindings keep their numbers; group g's binding b is keyed 100·g + b.
+              const buffers = new Map<number, FakeBuffer>();
+              for (const [index, group] of groups) for (const e of group.entries) buffers.set(100 * index + e.binding, e.resource.buffer);
+              emulate(pipeline!.label, buffers, options.arithmetic ?? nearestArithmetic);
             }); }, end: (): void => {} };
         },
         copyBufferToBuffer: (src: FakeBuffer, so: number, dst: FakeBuffer, d0: number, size: number): void => {

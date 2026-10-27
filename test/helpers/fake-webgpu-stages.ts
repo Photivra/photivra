@@ -350,14 +350,19 @@ export function emulateTemporalSum(p: Uint32Array, source: Float32Array, nodeDat
   }
 }
 
-/** Mirrors CHART_RADIANCE_WGSL (wgsl-chart-kernel.ts) in float32. */
-export function emulateChart(p: Uint32Array, pf: Float32Array, points: Float32Array, table: Float32Array, aux: Float32Array, selectors: Uint32Array,
-  values: Float32Array, flags: Uint32Array, A: EmulationArithmetic = nearestArithmetic): void {
-  const [count, columns, preset, na, nb, nc, wavelengthMode] = Array.from(p.subarray(0, 7)) as number[];
+/** A float32 emulation of the chart kernel's material classification (`material()` of wgsl-chart-kernel.ts) with its `flagged` state. */
+export interface ChartMaterialEmulator { material(u: number, v: number): number; readonly flagged: boolean; reset(): void }
+/**
+ * Mirrors `material()` of CHART_RADIANCE_WGSL on an `EmulationArithmetic`, from the kernel's uniform words (preset and integer
+ * constants), floats (f0–f4) and aux table. `safety` is the kernel's SAFETY factor (4 in the chart kernel; 8 in the display view's
+ * material module, whose query points carry a second float32 rounding).
+ */
+export function createChartMaterialEmulator(p: Uint32Array, pf: Float32Array, aux: Float32Array, safety: number, A: EmulationArithmetic = nearestArithmetic): ChartMaterialEmulator {
+  const [preset, na, nb, nc] = Array.from(p.subarray(2, 6)) as number[];
   const [f0, f1, f2, f3, f4] = Array.from(pf.subarray(8, 13)) as number[];
-  const SAFETY = 4, SLACK = 1e-14;
+  const SAFETY = safety, SLACK = 1e-14;
   const { add, sub, mul } = A;
-  let flagged!: boolean;
+  let flagged = false;
   const check = (d: number, bound: number): void => { if (!(Math.abs(d) > SAFETY * bound)) flagged = true; };
   const checkInteger = (t: number, bound: number, lo: number, hi: number): void => {
     const n = Math.round(t);
@@ -425,11 +430,19 @@ export function emulateChart(p: Uint32Array, pf: Float32Array, points: Float32Ar
       }
     }
   };
+  return { material, get flagged(): boolean { return flagged; }, reset(): void { flagged = false; } };
+}
+
+/** Mirrors CHART_RADIANCE_WGSL (wgsl-chart-kernel.ts) in float32. */
+export function emulateChart(p: Uint32Array, pf: Float32Array, points: Float32Array, table: Float32Array, aux: Float32Array, selectors: Uint32Array,
+  values: Float32Array, flags: Uint32Array, A: EmulationArithmetic = nearestArithmetic): void {
+  const [count, columns, , , , , wavelengthMode] = Array.from(p.subarray(0, 7)) as number[];
+  const emulator = createChartMaterialEmulator(p, pf, aux, 4, A);
   for (let i = 0; i < count!; i++) {
-    flagged = false;
-    const m = material(points[2 * i]!, points[2 * i + 1]!);
+    emulator.reset();
+    const m = emulator.material(points[2 * i]!, points[2 * i + 1]!);
     if (wavelengthMode !== 0) values[i] = table[m * columns! + selectors[i]!]!;
     else for (let c = 0; c < columns!; c++) values[i * columns! + c] = table[m * columns! + c]!;
-    flags[i] = flagged ? 1 : 0;
+    flags[i] = emulator.flagged ? 1 : 0;
   }
 }

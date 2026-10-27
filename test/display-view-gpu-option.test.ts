@@ -81,6 +81,9 @@ describe("display view GPU option (#481)", () => {
   }, testTimeout(60_000));
 
   it("without a GPU display-view renderer, auto falls back without asking for a device and require fails: unsupported-on-backend", async () => {
+    // The engine registers its Speed renderer (#478) when the GPU session module loads; this case is the engine without one.
+    await import("../src/facade/display-view-gpu-session.js");
+    setDisplayViewGpuRendererFactory(null);
     const { gpu, controls } = createFakeGpu();
     const prepared = await prepareDisplayView(REQUEST, { gpu: "auto", gpuDevice: gpu });
     const result = await prepared.render(VIEW);
