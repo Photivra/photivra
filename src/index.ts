@@ -1741,6 +1741,7 @@ export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFE
 export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureReason, ImageKernelExecution, ImageKernelCodeErrorBound,
   ImageKernelRelativeErrorBound, ImageKernelSeededRealizationBound } from "./gpu/image-kernel-execution.js";
 export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
+export { getWebGpuEnabled, setWebGpuEnabled } from "./gpu/webgpu-switch.js";
 export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,
   AcceleratedNativeCaptureSdrOutput, AcceleratedNativeRawDevelopmentOutput, IrradianceConvolutionResult, AcceleratedPackedSensorRawResult,
   TemporalExposureSumResult, ChartRadianceResult } from "./gpu/image-kernel-accelerator.js";

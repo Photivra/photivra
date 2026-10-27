@@ -8,9 +8,11 @@
  *   Every result is labelled as a float32 approximation, with an error bound worked out in advance.
  * A requested WebGPU backend falls back to the CPU only if the caller chose
  * `fallback: "cpu-reference"`. The result label then names the backend that actually ran, and why.
- * See docs/WEBGPU.md.
+ * The simple form `{ webgpu: true | false }` chooses the backend with one boolean, and `setWebGpuEnabled(false)`
+ * (webgpu-switch.ts) keeps the whole realm on the CPU whatever callers ask. See docs/WEBGPU.md.
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { getWebGpuEnabled } from "./webgpu-switch.js";
 import { InvalidScientificResultError } from "../core/validation.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { createHostYieldGate } from "../capture/host-yield-cadence.js";
@@ -66,9 +68,14 @@ export interface TemporalExposureSumResult {
 }
 
 export interface ImageKernelAcceleratorOptions {
-  /** Requested backend. `cpu-reference` is the reference and never touches WebGPU. */
-  backend: ImageKernelBackend;
-  /** Required with `webgpu-f32`: use the CPU reference (labelled) or fail when WebGPU cannot be acquired. */
+  /**
+   * The one-boolean form. `true` is `backend: "webgpu-f32"` with `fallback: "cpu-reference"` unless `fallback` is given;
+   * `false` is `backend: "cpu-reference"`. Give `webgpu` or `backend`, not both.
+   */
+  webgpu?: boolean;
+  /** Requested backend. `cpu-reference` is the reference and never touches WebGPU. Required unless `webgpu` is given. */
+  backend?: ImageKernelBackend;
+  /** Required with `backend: "webgpu-f32"`: use the CPU reference (labelled) or fail when WebGPU cannot be acquired. */
   fallback?: "cpu-reference" | "fail";
   /** WebGPU entry point; defaults to `navigator.gpu`. Supply a worker's `navigator.gpu` explicitly if needed. */
   gpu?: unknown;
@@ -146,23 +153,35 @@ function linkedAbort(signal: AbortSignal | undefined): { controller: AbortContro
 
 /** Requests a backend. Never swaps backends silently: a fallback must be set in the options and is shown in every result label. */
 export async function createImageKernelAccelerator(options: ImageKernelAcceleratorOptions): Promise<ImageKernelAccelerator> {
-  const r = requireAllowlistedRecord(options, ["backend", "fallback", "gpu", "powerPreference", "maximumBandBytes", "signal"],
+  const r = requireAllowlistedRecord(options, ["webgpu", "backend", "fallback", "gpu", "powerPreference", "maximumBandBytes", "signal"],
     "Invalid image-kernel accelerator options.");
-  if ((r.backend !== "cpu-reference" && r.backend !== "webgpu-f32") ||
-      (r.backend === "webgpu-f32" && r.fallback !== "cpu-reference" && r.fallback !== "fail") ||
-      (r.backend === "cpu-reference" && r.fallback !== undefined) ||
+  if (r.webgpu !== undefined && (typeof r.webgpu !== "boolean" || r.backend !== undefined)) {
+    throw new InvalidConfigurationError("Invalid image-kernel accelerator options: webgpu must be a boolean, and excludes backend.");
+  }
+  // The boolean form resolves to the explicit form; everything below sees only backend and fallback.
+  const backend = r.webgpu === undefined ? r.backend : r.webgpu ? "webgpu-f32" : "cpu-reference";
+  const fallback = r.fallback ?? (r.webgpu === true ? "cpu-reference" : undefined);
+  if ((backend !== "cpu-reference" && backend !== "webgpu-f32") ||
+      (backend === "webgpu-f32" && fallback !== "cpu-reference" && fallback !== "fail") ||
+      (backend === "cpu-reference" && fallback !== undefined) ||
       (r.powerPreference !== undefined && r.powerPreference !== "low-power" && r.powerPreference !== "high-performance") ||
       (r.maximumBandBytes !== undefined && (typeof r.maximumBandBytes !== "number" || !Number.isSafeInteger(r.maximumBandBytes) ||
         r.maximumBandBytes < MINIMUM_BAND_BYTES)) ||
       (r.signal !== undefined && (typeof r.signal !== "object" || r.signal === null || typeof (r.signal as AbortSignal).aborted !== "boolean"))) {
     throw new InvalidConfigurationError("Invalid image-kernel accelerator options: backend, explicit WebGPU fallback, power preference or band size.");
   }
-  const requested = r.backend;
+  const requested = backend;
   if (requested === "cpu-reference") return createAccelerator(requested, null, null, DEFAULT_BAND_BYTES);
+  if (!getWebGpuEnabled()) {
+    // The realm's switch (setWebGpuEnabled(false)) is honoured before any adapter is requested.
+    const message = "WebGPU is switched off in this realm (setWebGpuEnabled(false)).";
+    if (fallback === "fail") throw new ImageKernelExecutionError("webgpu-disabled", message);
+    return createAccelerator(requested, "webgpu-disabled", null, DEFAULT_BAND_BYTES);
+  }
   const gpu = "gpu" in r ? r.gpu : (globalThis as { navigator?: { gpu?: unknown } }).navigator?.gpu;
   const acquired = await acquireWebGpuRuntime(gpu, options.powerPreference, options.signal);
   if ("failure" in acquired) {
-    if (r.fallback === "fail") throw new ImageKernelExecutionError(acquired.failure, acquired.message);
+    if (fallback === "fail") throw new ImageKernelExecutionError(acquired.failure, acquired.message);
     return createAccelerator(requested, acquired.failure, null, DEFAULT_BAND_BYTES);
   }
   const runtime = acquired.runtime;

@@ -27,6 +27,8 @@ export interface FakeGpuControls {
   /** Next popErrorScope for this filter returns an error object. */
   failNextScope: "validation" | "out-of-memory" | null;
   failPipeline: boolean;
+  /** How many times `requestAdapter` was called. */
+  adapterRequests: number;
   /** Called before each dispatch (e.g. to abort or lose the device mid-run). */
   beforeDispatch?: ((count: number) => void) | undefined;
 }
@@ -224,7 +226,7 @@ export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; con
   let loseDevice = (): void => undefined;
   let resolveDevice = (): void => undefined;
   const controls: FakeGpuControls = { created: 0, destroyed: 0, liveBytes: 0, peakLiveBytes: 0, deviceDestroyCalls: 0, dispatches: 0,
-    loseDevice: () => loseDevice(), resolveDevice: () => resolveDevice(), failNextScope: null, failPipeline: false };
+    loseDevice: () => loseDevice(), resolveDevice: () => resolveDevice(), failNextScope: null, failPipeline: false, adapterRequests: 0 };
   const storage = options.maxStorageBufferBindingSize ?? 128 * 1024 * 1024;
   const limits = { maxStorageBufferBindingSize: storage, maxBufferSize: storage, maxComputeWorkgroupsPerDimension: options.maxComputeWorkgroupsPerDimension ?? 65535 };
   const scopes: string[] = [];
@@ -272,6 +274,9 @@ export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; con
   (device.queue as { submit: (buffers: { run: () => void }[]) => void }).submit = (buffers): void => buffers.forEach(b => b.run());
   const adapter = { limits, requestDevice: (): Promise<unknown> => options.device === "throws" ? Promise.reject(new Error("no device"))
     : options.device === "deferred" ? new Promise(resolve => { resolveDevice = (): void => resolve(device); }) : Promise.resolve(device) };
-  const gpu = { requestAdapter: (): Promise<unknown> => options.adapter === "throws" ? Promise.reject(new Error("adapter")) : Promise.resolve(options.adapter === "none" ? null : adapter) };
+  const gpu = { requestAdapter: (): Promise<unknown> => {
+    controls.adapterRequests++;
+    return options.adapter === "throws" ? Promise.reject(new Error("adapter")) : Promise.resolve(options.adapter === "none" ? null : adapter);
+  } };
   return { gpu, controls };
 }

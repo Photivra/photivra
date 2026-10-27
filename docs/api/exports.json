@@ -3468,6 +3468,11 @@
       "kind": "runtime"
     },
     {
+      "name": "getWebGpuEnabled",
+      "source": "src/gpu/webgpu-switch.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "GlobalSensorReadoutTimingDeclaration",
       "source": "src/sensor/readout-timing.ts",
       "kind": "type"
@@ -7946,6 +7951,11 @@
       "name": "SetManualFocusStateInput",
       "source": "src/capture/focus-control.ts",
       "kind": "type"
+    },
+    {
+      "name": "setWebGpuEnabled",
+      "source": "src/gpu/webgpu-switch.ts",
+      "kind": "runtime"
     },
     {
       "name": "ShutterAngleRuleAssessment",

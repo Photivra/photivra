@@ -7300,18 +7300,19 @@ console.log(merged.raw.codes.length, merged.providerEvaluationCount);
 - By default they run on the float64 CPU reference.
 - If you opt in, they run on the `webgpu-f32` backend (WebGPU, 32-bit floats).
 - Every result's `execution` label names the backend that actually ran, any reason for falling back, and the error bound against the reference, stated in advance.
+- One boolean chooses: `{ webgpu: true }` asks for the GPU and runs the reference if it is missing; `{ webgpu: false }` is the reference. `setWebGpuEnabled(false)` turns the GPU off for the whole realm, whatever callers ask, and labels those results `webgpu-disabled`.
 
 See [WebGPU backend](https://github.com/Photivra/photivra/blob/main/docs/WEBGPU.md) for the bounds, the supported domain and the browser test.
 
 ```ts
-import { createImageKernelAccelerator, calculateIrradianceConvolution } from "@photivra/engine";
+import { createImageKernelAccelerator, calculateIrradianceConvolution, getWebGpuEnabled, setWebGpuEnabled } from "@photivra/engine";
 
 const width = 16, height = 8, kernelRadius = 1;
 const input = { schemaVersion: "0.1.0" as const, width, height, kernelRadius, patchWidth: width, patchHeight: height,
   boundary: "zero-outside-grid" as const, samples: new Float64Array(width * height).fill(2),
   kernels: Float64Array.from([0, .1, 0, .1, .6, .1, 0, .1, 0]) };
 
-const accelerator = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "cpu-reference" });
+const accelerator = await createImageKernelAccelerator({ webgpu: true }); // the same as { backend: "webgpu-f32", fallback: "cpu-reference" }
 const result = await accelerator.convolveIrradiance(input);
 // Without WebGPU (e.g. Node) this ran the reference and says so.
 console.log(result.execution.backend, result.execution.fallbackReason, result.execution.bitIdenticalToReference);
@@ -7319,6 +7320,13 @@ console.log(result.execution.backend, result.execution.fallbackReason, result.ex
 const reference = calculateIrradianceConvolution(input).values;
 console.log(result.execution.backend === "cpu-reference" ? result.values.every((v, i) => v === reference[i]) : result.execution.errorBound);
 accelerator.dispose();
+
+// The realm's switch: off, every request for the GPU runs the reference and says why.
+setWebGpuEnabled(false);
+const cpuOnly = await createImageKernelAccelerator({ webgpu: true });
+console.log(cpuOnly.backend, cpuOnly.fallbackReason, getWebGpuEnabled()); // "cpu-reference" "webgpu-disabled" false
+cpuOnly.dispose();
+setWebGpuEnabled(true);
 ```
 
 Two image-formation stages use the same accelerator:

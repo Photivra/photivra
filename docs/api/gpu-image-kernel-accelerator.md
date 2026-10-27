@@ -93,9 +93,14 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface ImageKernelAcceleratorOptions {
-  /** Requested backend. `cpu-reference` is the reference and never touches WebGPU. */
-  backend: ImageKernelBackend;
-  /** Required with `webgpu-f32`: use the CPU reference (labelled) or fail when WebGPU cannot be acquired. */
+  /**
+   * The one-boolean form. `true` is `backend: "webgpu-f32"` with `fallback: "cpu-reference"` unless `fallback` is given;
+   * `false` is `backend: "cpu-reference"`. Give `webgpu` or `backend`, not both.
+   */
+  webgpu?: boolean;
+  /** Requested backend. `cpu-reference` is the reference and never touches WebGPU. Required unless `webgpu` is given. */
+  backend?: ImageKernelBackend;
+  /** Required with `backend: "webgpu-f32"`: use the CPU reference (labelled) or fail when WebGPU cannot be acquired. */
   fallback?: "cpu-reference" | "fail";
   /** WebGPU entry point; defaults to `navigator.gpu`. Supply a worker's `navigator.gpu` explicitly if needed. */
   gpu?: unknown;
