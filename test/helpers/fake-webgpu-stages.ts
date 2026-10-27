@@ -1,15 +1,103 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Float32 JavaScript emulations (Math.fround after every operation; correctly rounded transcendentals) of
- * the sensor-stage and temporal-sum WGSL kernels, for the in-process fake WebGPU device. They mirror the
- * WGSL line by line; real-device conformance lives in test/webgpu.
+ * Float32 JavaScript emulations of the sensor-stage, temporal-sum and chart-radiance WGSL kernels, for the
+ * in-process fake WebGPU device. They mirror the WGSL line by line; real-device conformance lives in
+ * test/webgpu.
+ *
+ * The sensor and chart emulations run on an `EmulationArithmetic`. `nearestArithmetic` rounds every
+ * operation to nearest (Math.fround) with correctly rounded transcendentals. `adversarialArithmetic` models
+ * what the WGSL accuracy table permits (W3C WGSL, "Floating Point Accuracy" and "Reassociation and
+ * Fusion") in the least favourable way the model can express: every + − × and integer conversion rounds to
+ * a randomly chosen neighbour of the exact result (WGSL fixes no rounding direction), `/` is off by up to
+ * 2.5 ULP, `sqrt` by up to 4.5 ULP, `log` by up to 3 ULP (2^-21 absolute on [0.5, 2]), `exp` by up to
+ * (3 + 2|x|) ULP, and multi-term sums are added in a random order (reassociation). The sensor and chart
+ * tests show that no unflagged site or point changes under it.
  */
-import { SENSOR_AUX, SENSOR_EXTRAS, SENSOR_REALIZED_CLAMP, uniformThresholdInteger } from "../../src/gpu/wgsl-sensor-kernel.js";
+import { SENSOR_AUX, SENSOR_EXTRAS, SENSOR_NORMAL_ERROR, SENSOR_PIECE_WORDS, SENSOR_REALIZED_CLAMP, uniformThresholdInteger } from "../../src/gpu/wgsl-sensor-kernel.js";
 
 const f = Math.fround;
-const U = 2 ** -24, INV32 = f(2 ** -32), TWO_PI_INV32 = f(2 * Math.PI / 2 ** 32), MARGIN = 2, CPU_REL = f(2 ** -47);
+const E = 2 ** -23, INV32 = f(2 ** -32), TWO_PI_INV32 = f(2 * Math.PI / 2 ** 32), MARGIN = 2, CPU_REL = f(2 ** -47), LOG_ABS = 2 ** -21, Z_ERR = SENSOR_NORMAL_ERROR;
 const M07 = uniformThresholdInteger(0.07), M013 = uniformThresholdInteger(0.013);
 const SIN = [-1 / 6, 1 / 120, -1 / 5040, 1 / 362880, -1 / 39916800].map(f), COS = [-1 / 2, 1 / 24, -1 / 720, 1 / 40320, -1 / 3628800, 1 / 479001600].map(f);
+
+/** The float32 operations the kernels use, as the emulation evaluates them. */
+export interface EmulationArithmetic {
+  add(a: number, b: number): number;
+  sub(a: number, b: number): number;
+  mul(a: number, b: number): number;
+  div(a: number, b: number): number;
+  sqrt(x: number): number;
+  log(x: number): number;
+  exp(x: number): number;
+  /** u32 → f32 (or i32 → f32) conversion. */
+  convert(n: number): number;
+  /** The sum of several float32 terms, each addition rounded; the kernel's left-to-right order unless reassociated. */
+  sum(terms: readonly number[]): number;
+  /** Whether a reassociated variant of a split expression is taken this time (adversarial mode only). */
+  reassociate(): boolean;
+}
+
+/** Round to nearest after every operation; correctly rounded transcendentals (the kernel on an exact device). */
+export const nearestArithmetic: EmulationArithmetic = {
+  add: (a, b) => f(a + b), sub: (a, b) => f(a - b), mul: (a, b) => f(a * b), div: (a, b) => f(a / b),
+  sqrt: x => f(Math.sqrt(x)), log: x => f(Math.log(x)), exp: x => f(Math.exp(x)), convert: n => f(n),
+  sum: terms => terms.reduce((s, t) => f(s + t), 0), reassociate: () => false
+};
+
+const bitsView = new Float32Array(1), intView = new Int32Array(bitsView.buffer);
+/** The float32 `n` ULPs away from `x` (toward ±∞ for positive n, toward zero for negative n), for finite normal x. */
+export function moveUlps(x: number, n: number): number {
+  if (x === 0 || !Number.isFinite(x)) return x;
+  bitsView[0] = x;
+  intView[0] = intView[0]! + (x > 0 ? n : -n);
+  return bitsView[0]!;
+}
+/** The float32 neighbours of an exact (float64) value: the nearest and the one on the other side (equal when exact). */
+function neighbours(exact: number): [number, number] {
+  const nearest = f(exact);
+  if (nearest === exact || !Number.isFinite(nearest)) return [nearest, nearest];
+  bitsView[0] = nearest;
+  // Step one ULP toward the exact value's side.
+  intView[0] = intView[0]! + ((exact > nearest) === (nearest > 0) ? 1 : -1);
+  return [nearest, bitsView[0]!];
+}
+
+/**
+ * The adversarial arithmetic (see the module notes). Deterministic for a seed; `extreme` is the share of
+ * operations that take the largest allowed error instead of a uniformly drawn one.
+ */
+export function adversarialArithmetic(seed: number, extreme = 0.5): EmulationArithmetic {
+  let s = seed >>> 0 || 1;
+  const random = (): number => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 2 ** 32; };
+  const directed = (exact: number): number => { const [a, b] = neighbours(exact); return random() < 0.5 ? a : b; };
+  // Up to `ulps` ULPs beyond correct rounding (the correctly rounded value is already within 0.5 ULP), either direction.
+  const perturb = (nearest: number, ulps: number): number => {
+    const magnitude = random() < extreme ? ulps : Math.floor(random() * (ulps + 1));
+    return moveUlps(nearest, random() < 0.5 ? magnitude : -magnitude);
+  };
+  return {
+    add: (a, b) => directed(a + b), sub: (a, b) => directed(a - b), mul: (a, b) => directed(a * b),
+    div: (a, b) => perturb(f(a / b), 2),
+    sqrt: x => perturb(f(Math.sqrt(x)), 4),
+    log: (x): number => {
+      const nearest = f(Math.log(x));
+      if (x >= 0.5 && x <= 2) {
+        // Absolute 2^-21: nearest plus a random absolute offset that keeps the total below the bound.
+        const room = LOG_ABS - Math.abs(nearest - Math.log(x));
+        return f(nearest + (random() < 0.5 ? 1 : -1) * 0.9 * room * (random() < extreme ? 1 : random()));
+      }
+      return perturb(nearest, 2);
+    },
+    exp: x => perturb(f(Math.exp(x)), 2 + 2 * Math.floor(Math.abs(x))),
+    convert: n => directed(n),
+    sum: (terms): number => {
+      const order = terms.slice();
+      for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [order[i], order[j]] = [order[j]!, order[i]!]; }
+      return order.reduce((acc, t) => directed(acc + t), 0);
+    },
+    reassociate: () => random() < 0.5
+  };
+}
 
 function fmix(value: number): number {
   let h = value >>> 0;
@@ -25,94 +113,98 @@ function mixBlock(hash: number, block: number): number {
   return (Math.imul(h, 5) + 0xe6546b64) >>> 0;
 }
 
-export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Array, means: Uint32Array, meanFloats: Float32Array, aux: Float32Array, out: Uint32Array): void {
+export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Array, means: Uint32Array, meanFloats: Float32Array, aux: Float32Array, out: Uint32Array,
+  A: EmulationArithmetic = nearestArithmetic): void {
   const [count, row0, regionW, nativeW, regionX, regionY, seed, components, knots, digital, saturation, adcMax, capacityFloor, thresholdFloor, black] =
     Array.from(u32.subarray(0, 15)) as number[];
   const satQuantized = i32[15]!;
   const [capacityFrac, thresholdFrac, invGain, invResidual, digitalGain, digitalResidual, inlSlope, inlOffsetMax] = Array.from(pf.subarray(16, 24)) as number[];
   const [siteWords, poissonCount, extras] = Array.from(u32.subarray(24, 27)) as number[];
-  const fpnESlackParam = pf[28]!, fpnCSlackParam = pf[29]!, meanInts = new Int32Array(means.buffer, means.byteOffset, means.length);
+  const fpnESlackParam = pf[28]!, fpnCSlackParam = pf[29]!, inlKnot = pf[30]!, meanInts = new Int32Array(means.buffer, means.byteOffset, means.length);
   const CLAMP = SENSOR_REALIZED_CLAMP;
-  let state = 0, radius = 0, ip = 0, fp = 0, uncertain!: boolean;
+  const { add, sub, mul, div, convert } = A;
+  let state = 0, radius = 0, ip = 0, uncertain!: boolean;
+  // The fraction accumulator is kept as a list of terms so that the sum can be taken in any order.
+  let fpTerms: number[] = [];
   const start = (s: number): void => { state = fmix((s ^ 0x9e3779b9) >>> 0); if (state === 0) state = 0x6d2b79f5; };
   const next = (): number => { state = (state ^ (state << 13)) >>> 0; state = (state ^ (state >>> 17)) >>> 0; state = (state ^ (state << 5)) >>> 0; return state; };
-  const unit = (bits: number): number => f(f(f(bits) + .5) * INV32);
+  const unit = (bits: number): number => f(add(convert(bits), .5) * INV32);
   const check = (distance: number, margin: number): void => { if (Math.abs(distance) <= margin) uncertain = true; };
   const lnUnit = (bits: number): number => {
-    if (bits < 0x80000000) return f(Math.log(unit(bits)));
-    const w = f(f(f(0xffffffff - bits) + .5) * INV32), r = f(-w / f(2 - w)), r2 = f(r * r);
+    if (bits < 0x80000000) return A.log(unit(bits));
+    const w = f(add(convert(0xffffffff - bits), .5) * INV32), r = div(-w, sub(2, w)), r2 = mul(r, r);
     let p = f(1 / 23);
-    for (const n of [21, 19, 17, 15, 13, 11, 9, 7, 5, 3]) p = f(f(p * r2) + f(1 / n));
-    p = f(f(p * r2) + 1);
-    return f(f(2 * r) * p);
+    for (const n of [21, 19, 17, 15, 13, 11, 9, 7, 5, 3]) p = add(mul(p, r2), f(1 / n));
+    p = add(mul(p, r2), 1);
+    return mul(f(2 * r), p);
   };
   const cosUnit = (bits: number): number => {
     const octant = bits >>> 29, low = bits & 0x1fffffff, even = (octant & 1) === 0;
-    const g = even ? f(f(f(low) + .5) * TWO_PI_INV32) : f(f(f(0x1fffffff - low) + .5) * TWO_PI_INV32), g2 = f(g * g);
+    const g = even ? mul(add(convert(low), .5), TWO_PI_INV32) : mul(add(convert(0x1fffffff - low), .5), TWO_PI_INV32), g2 = mul(g, g);
     let c = COS[5]!;
-    for (const j of [4, 3, 2, 1, 0]) c = f(f(c * g2) + COS[j]!);
-    c = f(f(c * g2) + 1);
+    for (const j of [4, 3, 2, 1, 0]) c = add(mul(c, g2), COS[j]!);
+    c = add(mul(c, g2), 1);
     let s = SIN[4]!;
-    for (const j of [3, 2, 1, 0]) s = f(f(s * g2) + SIN[j]!);
-    s = f(g * f(f(s * g2) + 1));
+    for (const j of [3, 2, 1, 0]) s = add(mul(s, g2), SIN[j]!);
+    s = mul(g, add(mul(s, g2), 1));
     const cb = even ? c : s, sb = even ? s : c, q = octant >>> 1;
     return q === 0 ? cb : q === 1 ? -sb : q === 2 ? -cb : sb;
   };
-  const stdNormal = (): number => { const b1 = next(), b2 = next(); radius = f(Math.sqrt(f(-2 * lnUnit(b1)))); return f(radius * cosUnit(b2)); };
+  const stdNormal = (): number => { const b1 = next(), b2 = next(); radius = A.sqrt(f(-2 * lnUnit(b1))); return mul(radius, cosUnit(b2)); };
   const poissonSmall = (mean: number): number => {
-    const threshold = f(Math.exp(-mean));
+    const threshold = A.exp(-mean);
     let product = 1, n = 0;
     for (;;) {
       n++;
-      product = f(product * unit(next()));
-      check(f(product - threshold), MARGIN * (3 * n + 130) * U * Math.max(product, threshold));
+      product = mul(product, unit(next()));
+      check(sub(product, threshold), MARGIN * (3 * n + 4 + 3 * mean) * E * Math.max(product, threshold));
       if (!(product > threshold)) break;
       if (n >= 1000) { uncertain = true; break; }
     }
     return n - 1;
   };
   const log1pMinus = (t: number): number => {
-    const d = f(2 + t), s = f(t / d), s2 = f(s * s);
+    const d = add(2, t), s = div(t, d), s2 = mul(s, s);
     let p = f(1 / 25);
-    for (const n of [23, 21, 19, 17, 15, 13, 11, 9, 7, 5]) p = f(f(p * s2) + f(1 / n));
-    p = f(f(p * s2) + f(1 / 3));
-    return f(f(-f(t * t) / d) + f(f(f(2 * s) * s2) * p));
+    for (const n of [23, 21, 19, 17, 15, 13, 11, 9, 7, 5]) p = add(mul(p, s2), f(1 / n));
+    p = add(mul(p, s2), f(1 / 3));
+    return add(div(-mul(t, t), d), mul(mul(f(2 * s), s2), p));
   };
   const ptrs = (mi: number, mf: number): number => {
-    const mean = f(f(mi) + mf), sq = f(Math.sqrt(mean)), b = f(f(.931) + f(f(2.53) * sq)), a = f(f(-.059) + f(f(.02483) * b));
-    const invAlpha = f(f(1.1239) + f(f(1.1328) / f(b - f(3.4)))), vR = f(f(.9277) - f(f(3.6224) / f(b - 2))), lnMean = f(Math.log(mean));
+    const mean = add(convert(mi), mf), sq = A.sqrt(mean), b = add(f(.931), mul(f(2.53), sq)), a = add(f(-.059), mul(f(.02483), b));
+    const invAlpha = add(f(1.1239), div(f(1.1328), sub(b, f(3.4)))), vR = sub(f(.9277), div(f(3.6224), sub(b, 2))), lnMean = A.log(mean);
     for (let iteration = 0; iteration < 64; iteration++) {
       const su = next(), sv = next();
       let m = su, sign = -1;
       if (su >= 0x80000000) { m = 0xffffffff - su; sign = 1; }
       const us = unit(m), u = f(sign * unit(0x7fffffff - m)), v = unit(sv);
-      const scale = f(f(f(2 * a) / us) + b), t = f(scale * u), x = f(f(t + mf) + f(.43)), fl = Math.floor(x);
-      const ex = MARGIN * (Math.abs(t) * 40 * U + 2 * U * (Math.abs(t) + 1) + f(4.5e-16) * (Math.abs(t) + mean + 1));
-      if (f(x - fl) <= ex || f(f(fl + 1) - x) <= ex) uncertain = true;
+      const scale = add(div(f(2 * a), us), b), t = mul(scale, u), x = A.sum([t, mf, f(.43)]), fl = Math.floor(x);
+      const ex = MARGIN * (25 * E * Math.abs(t) + 4 * E + f(4.5e-16) * (Math.abs(t) + mean + 1));
+      if (sub(x, fl) <= ex || sub(add(fl, 1), x) <= ex) uncertain = true;
       if (fl <= -1073741824 || fl >= 1073741824) continue;
       const k = mi + fl;
       if (m >= M07) {
-        if (k >= 0) check(f(v - vR), MARGIN * (16 * U + 2 * U * v));
+        if (k >= 0) check(sub(v, vR), MARGIN * (7 * E + 2 * E * v));
         if (v <= vR && k >= 0) return k;
       }
       if (k < 0 || (m < M013 && sv > m)) continue;
-      const lhs = f(Math.log(f(f(v * invAlpha) / f(f(a / f(us * us)) + b))));
-      const dl = 60 * U + 2 ** -21 + 4 * U * Math.abs(lhs);
+      const lhs = A.log(div(mul(v, invAlpha), add(div(a, mul(us, us)), b)));
+      const dl = 32 * E + LOG_ABS + 3 * E * Math.abs(lhs);
       let rhs: number, dr: number;
-      if (k === 0) { rhs = -mean; dr = 2 * U * mean + CPU_REL * mean; } else {
-        const kf = f(k), dd = f(f(mi - k) + mf), t2 = f(dd / kf);
+      if (k === 0) { rhs = -mean; dr = 3 * E * mean + CPU_REL * mean; } else {
+        const kf = convert(k), dd = add(convert(mi - k), mf), t2 = div(dd, kf);
         let kg: number, dk: number;
-        if (Math.abs(t2) <= .5) { kg = f(kf * log1pMinus(t2)); dk = 20 * U * Math.abs(kg); } else {
-          const lr = f(Math.log(f(mean / kf)));
-          kg = f(f(kf * lr) - dd);
-          dk = kf * (8 * U + 2 ** -21 + 5 * U * Math.abs(lr)) + 3 * U * Math.abs(dd) + U * Math.abs(kg);
+        if (Math.abs(t2) <= .5) { kg = mul(kf, log1pMinus(t2)); dk = 25 * E * Math.abs(kg) + E; } else {
+          const lr = A.log(div(mean, kf));
+          kg = sub(mul(kf, lr), dd);
+          dk = kf * (6 * E + LOG_ABS + 5 * E * Math.abs(lr)) + 2 * E * Math.abs(dd) + E + E * Math.abs(kg);
         }
-        const lnk = f(Math.log(kf));
-        const corr = k < 256 ? aux[k]! : f(f(1 / f(12 * kf)) - f(1 / f(f(f(360 * kf) * kf) * kf)));
-        rhs = f(f(f(kg - f(.5 * lnk)) - f(0.5 * Math.log(2 * Math.PI))) - corr);
-        dr = dk + 2 ** -22 + 2 * U * lnk + U + .6 * U + 3 * U * (Math.abs(kg) + .5 * lnk + 1) + CPU_REL * (mean + kf * (Math.abs(lnMean) + lnk + 1));
+        const lnk = A.log(kf);
+        const corr = k < 256 ? aux[k]! : sub(div(1, mul(12, kf)), div(1, mul(mul(mul(360, kf), kf), kf)));
+        rhs = sub(sub(sub(kg, mul(.5, lnk)), f(0.5 * Math.log(2 * Math.PI))), corr);
+        dr = dk + 0.5 * LOG_ABS + 1.5 * E * lnk + 2 * E + 3 * E * (Math.abs(kg) + .5 * lnk + 1) + CPU_REL * (mean + kf * (Math.abs(lnMean) + lnk + 1));
       }
-      check(f(lhs - rhs), MARGIN * (dl + dr));
+      check(sub(lhs, rhs), MARGIN * (dl + dr));
       if (lhs <= rhs) return k;
     }
     uncertain = true;
@@ -121,25 +213,35 @@ export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Arra
   const poisson = (word: number, frac: number): number => {
     const category = word >>> 30, mi = word & 0x3fffffff;
     if (category === 0) return 0;
-    if (category === 1) return poissonSmall(f(f(mi) + frac));
+    if (category === 1) return poissonSmall(add(convert(mi), frac));
     if (category === 2) return ptrs(mi, frac);
-    const z = stdNormal(), y = f(f(f(f(Math.sqrt(f(f(mi) + frac))) * z) + frac) + .5);
+    const z = stdNormal(), y = add(add(mul(A.sqrt(add(convert(mi), frac)), z), frac), .5);
     return Math.max(0, mi + Math.floor(y));
   };
-  const accumulate = (value: number): void => { const fl = Math.floor(value); ip += fl; fp = f(fp + f(value - fl)); };
-  const scaled = (n: number, base: number): void => {
-    const hi = f(n >>> 12), lo = f(n & 0xfff);
-    for (let j = 0; j < 4; j++) { const piece = aux[base + j]!; accumulate(f(f(hi * piece) * 4096)); accumulate(f(lo * piece)); }
+  // Integer-arithmetic split of product·2^s (product < 2^24): the kernel's add_scaled.
+  const addScaled = (product: number, s: number, scale: number): void => {
+    if (product === 0) return;
+    if (s >= 0) { ip += product * 2 ** s; return; }
+    if (s <= -24) { fpTerms.push(f(product * scale)); return; }
+    ip += Math.floor(product / 2 ** -s);
+    fpTerms.push(f((product % 2 ** -s) * scale));
   };
-  const normalize = (): void => { const fl = Math.floor(fp); ip += fl; fp = f(fp - fl); };
+  const scaled = (n: number, base: number): void => {
+    const hi = n >>> 12, lo = n & 0xfff;
+    for (let j = 0; j < 4; j++) {
+      const m = aux[base + SENSOR_PIECE_WORDS * j]!, s = aux[base + SENSOR_PIECE_WORDS * j + 1]!, scale = aux[base + SENSOR_PIECE_WORDS * j + 2]!;
+      addScaled(hi * m, s + 12, f(scale * 4096)); addScaled(lo * m, s, scale);
+    }
+  };
+  // The fraction sum, then its normalization (floor split); returns the fraction.
+  const settle = (): number => { const total = A.sum(fpTerms); const fl = Math.floor(total); ip += fl; fpTerms = []; return sub(total, fl); };
   const inlOffset = (code: number): number => {
     const base = SENSOR_AUX.knots, n = knots!;
     if (code <= aux[base]!) return aux[base + n]!;
     if (code >= aux[base + n - 1]!) return aux[base + 2 * n - 1]!;
     let low = 0, high = n - 1;
     while (high - low > 1) { const middle = (low + high) >>> 1; if (aux[base + middle]! <= code) low = middle; else high = middle; }
-    const ac = aux[base + low]!, ao = aux[base + n + low]!;
-    return f(ao + f(f(f(code - ac) / f(aux[base + high]! - ac)) * f(aux[base + n + high]! - ao)));
+    return add(aux[base + n + low]!, mul(sub(code, aux[base + low]!), aux[base + 2 * n + low]!));
   };
   for (let i = 0; i < count!; i++) {
     const row = row0! + Math.floor(i / regionW!), index = ((regionY! + row) * nativeW! + regionX! + i % regionW!) >>> 0;
@@ -152,58 +254,72 @@ export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Arra
     let cursor = base + 4 + 2 * poissonCount!;
     const deterministic = (extras! & SENSOR_EXTRAS.deterministic) !== 0, pattern = (extras! & SENSOR_EXTRAS.fixedPattern) !== 0;
     let rFrac = 0, detSlack = 0;
-    if (deterministic) { realized = Math.min(realized + means[cursor]!, CLAMP); rFrac = meanFloats[cursor + 1]!; detSlack = U; cursor += 2; }
+    if (deterministic) { realized = Math.min(realized + means[cursor]!, CLAMP); rFrac = meanFloats[cursor + 1]!; detSlack = E; cursor += 2; }
     let tFloor = thresholdFloor!, tFrac = thresholdFrac!, fpnESlack = 0;
     if (pattern) { tFloor = meanInts[cursor]!; tFrac = meanFloats[cursor + 1]!; fpnESlack = fpnESlackParam; }
     start(fmix((mixBlock(mixBlock(mixBlock(0, seed!), index), 1) ^ 12) >>> 0));
-    let noise = 0, noiseBound = 0;
+    const noiseTerms: number[] = [];
+    let noiseBound = 0;
     for (let c = 0; c < components!; c++) {
       const sigma = aux[SENSOR_AUX.sigma + c]!;
-      if (sigma !== 0) { const z = stdNormal(); noise = f(noise + f(z * sigma)); noiseBound = noiseBound + sigma * radius * (28 + components!) * U; }
+      if (sigma !== 0) { const z = stdNormal(); noiseTerms.push(mul(z, sigma)); noiseBound = noiseBound + sigma * radius * (Z_ERR + 2 + components!) * E; }
     }
+    const noise = A.sum(noiseTerms);
     let flags = 0, aInt = realized, aFrac = rFrac;
     if (!deterministic) {
       if (realized > capacityFloor!) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
     } else {
-      const w = f(realized - capacityFloor!), dcap = f(w + f(rFrac - capacityFrac!));
-      check(dcap, MARGIN * (5 * U + U * Math.abs(w) + U * Math.abs(dcap) + CPU_REL * (realized + 1)));
+      const w = convert(realized - capacityFloor!), dcap = A.reassociate() ? A.sum([w, rFrac, -capacityFrac!]) : add(w, sub(rFrac, capacityFrac!));
+      check(dcap, MARGIN * (3 * E * Math.abs(w) + 6 * E + CPU_REL * (realized + 1)));
       if (dcap > 0) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
     }
-    const whole = f(aInt - tFloor), diff = f(f(whole + f(aFrac - tFrac)) + noise);
-    check(diff, MARGIN * (noiseBound + 3 * U + 2 * U * (Math.abs(whole) + Math.abs(noise) + 2) + CPU_REL * (aInt + Math.abs(noise)) + fpnESlack + detSlack));
+    const whole = convert(aInt - tFloor), diff = A.reassociate() ? A.sum([whole, aFrac, -tFrac, noise]) : add(add(whole, sub(aFrac, tFrac)), noise);
+    check(diff, MARGIN * (noiseBound + 4 * E * Math.abs(whole) + 3 * E * Math.abs(noise) + 8 * E + CPU_REL * (aInt + Math.abs(noise)) + fpnESlack + detSlack));
     let q: number;
     if (diff > 0) { flags |= 2; q = satQuantized; } else {
-      ip = black!; fp = 0;
+      ip = black!; fpTerms = [];
       let fpnCSlack = 0;
-      if (pattern) { ip += meanInts[cursor + 2]!; fp = meanFloats[cursor + 3]!; fpnCSlack = fpnCSlackParam; }
+      if (pattern) { ip += meanInts[cursor + 2]!; fpTerms.push(meanFloats[cursor + 3]!); fpnCSlack = fpnCSlackParam; }
       scaled(aInt, SENSOR_AUX.inversePieces);
-      const noiseCodes = f(noise * invGain!);
-      fp = f(f(fp + f(aFrac * invGain!)) + noiseCodes);
-      const aCodes = f(f(aInt) * invGain!);
-      let margin = MARGIN * (10 * U * (10 + Math.abs(noiseCodes)) + 4 * U * aFrac * invGain! + 3 * U * Math.abs(noiseCodes) + noiseBound * invGain! +
-        aInt * invResidual! + 2 * U + CPU_REL * (aCodes + Math.abs(noiseCodes) + black!) + fpnCSlack + detSlack * invGain!);
-      normalize();
+      const noiseCodes = mul(noise, invGain!), fracCodes = mul(aFrac, invGain!);
+      fpTerms.push(fracCodes, noiseCodes);
+      const aCodes = mul(convert(aInt), invGain!);
+      let margin = MARGIN * (13 * E * (13 + fracCodes + Math.abs(noiseCodes)) + 3 * E * fracCodes + 2 * E * Math.abs(noiseCodes) + noiseBound * invGain! +
+        aInt * invResidual! + CPU_REL * (aCodes + Math.abs(noiseCodes) + black!) + fpnCSlack + detSlack * invGain!);
+      let fp: number;
       if (knots! > 0) {
-        const ideal = f(f(ip) + fp), offset = inlOffset(ideal);
-        fp = f(fp + offset);
-        margin = margin * (1 + inlSlope!) + MARGIN * (inlSlope! * 2 * U * (Math.abs(ideal) + 1) + 8 * U * (inlOffsetMax! + 1) +
-          CPU_REL * (Math.abs(ideal) + inlOffsetMax!) * (1 + inlSlope!));
-        normalize();
-      }
-      if ((digital! & 4) === 0) check(f(fp - .5), margin);
+        if (A.reassociate()) {
+          // (S − floor S) + offset reassociated as (S + offset) − floor S: the offset is evaluated at the same ideal.
+          const total = A.sum(fpTerms), fl = Math.floor(total), ideal = add(convert(ip + fl), sub(total, fl)), offset = inlOffset(ideal);
+          ip += fl; fpTerms = [];
+          fp = sub(add(total, offset), fl);
+          margin = margin * (1 + inlSlope!) + MARGIN * (inlSlope! * 2 * E * (Math.abs(ideal) + 1 + inlKnot) + 11 * E * (inlOffsetMax! + 1) +
+            CPU_REL * (Math.abs(ideal) + inlOffsetMax!) * (1 + inlSlope!));
+        } else {
+          fp = settle();
+          const ideal = add(convert(ip), fp), offset = inlOffset(ideal);
+          fp = add(fp, offset);
+          margin = margin * (1 + inlSlope!) + MARGIN * (inlSlope! * 2 * E * (Math.abs(ideal) + 1 + inlKnot) + 11 * E * (inlOffsetMax! + 1) +
+            CPU_REL * (Math.abs(ideal) + inlOffsetMax!) * (1 + inlSlope!));
+        }
+        const fl = Math.floor(fp); ip += fl; fp = sub(fp, fl);
+      } else fp = settle();
+      if ((digital! & 4) === 0) check(sub(fp, .5), margin);
       q = ip + (fp >= .5 ? 1 : 0);
     }
     if ((digital! & 1) !== 0) {
-      const adc = Math.min(Math.max(q, 0), adcMax!), delta = adc - black!, estimate = f(f(delta) * digitalGain!);
+      const adc = Math.min(Math.max(q, 0), adcMax!), delta = adc - black!, estimate = mul(convert(delta), digitalGain!);
       if (estimate >= 16777216) q = 16777216;
       else if (estimate <= -16777216) q = -16777216;
       else {
-        ip = 0; fp = 0;
+        ip = 0; fpTerms = [];
         scaled(Math.abs(delta), SENSOR_AUX.digitalPieces);
-        if ((digital! & 2) === 0) check(f(f(fp - Math.floor(fp)) - .5), MARGIN * (40 * U * 9 + Math.abs(delta) * digitalResidual! + CPU_REL * (Math.abs(estimate) + black!)));
-        normalize();
+        const total = A.sum(fpTerms), fl = Math.floor(total);
+        if ((digital! & 2) === 0) check(sub(sub(total, fl), .5), MARGIN * (90 * E + Math.abs(delta) * digitalResidual! + CPU_REL * (Math.abs(estimate) + black!)));
+        ip += fl; fpTerms = [];
+        const fp = sub(total, fl);
         let wholePart = ip, fraction = fp;
-        if (delta < 0) { wholePart = -ip; if (fp > 0) { wholePart = -ip - 1; fraction = f(1 - fp); } }
+        if (delta < 0) { wholePart = -ip; if (fp > 0) { wholePart = -ip - 1; fraction = sub(1, fp); } }
         q = wholePart + black! + (fraction >= .5 ? 1 : 0);
       }
     }
@@ -236,78 +352,74 @@ export function emulateTemporalSum(p: Uint32Array, source: Float32Array, nodeDat
 
 /** Mirrors CHART_RADIANCE_WGSL (wgsl-chart-kernel.ts) in float32. */
 export function emulateChart(p: Uint32Array, pf: Float32Array, points: Float32Array, table: Float32Array, aux: Float32Array, selectors: Uint32Array,
-  values: Float32Array, flags: Uint32Array): void {
+  values: Float32Array, flags: Uint32Array, A: EmulationArithmetic = nearestArithmetic): void {
   const [count, columns, preset, na, nb, nc, wavelengthMode] = Array.from(p.subarray(0, 7)) as number[];
   const [f0, f1, f2, f3, f4] = Array.from(pf.subarray(8, 13)) as number[];
-  const SAFETY = 4, SLACK = 1e-14, PI = f(3.14159265358979);
+  const SAFETY = 4, SLACK = 1e-14;
+  const { add, sub, mul } = A;
   let flagged!: boolean;
   const check = (d: number, bound: number): void => { if (!(Math.abs(d) > SAFETY * bound)) flagged = true; };
   const checkInteger = (t: number, bound: number, lo: number, hi: number): void => {
     const n = Math.round(t);
     if (SAFETY * bound >= 0.5) { flagged = true; return; }
-    if (n >= lo && n <= hi) check(f(t - n), bound);
+    if (n >= lo && n <= hi) check(sub(t, n), bound);
   };
   const ssb = (a: number, b: number, s: number, scale: number, x: number, cr: number): number =>
-    U * ((Math.abs(a) + Math.abs(b) + Math.abs(s)) * Math.abs(scale) + (1 + cr) * Math.abs(x)) + SLACK * (Math.abs(x) + 1);
-  const cross = (u: number, v: number, k: number): number => f(f(v * aux[2 * k]!) - f(u * aux[2 * k + 1]!));
+    E * ((Math.abs(a) + Math.abs(b) + Math.abs(s)) * Math.abs(scale) + (1 + cr) * Math.abs(x)) + SLACK * (Math.abs(x) + 1);
+  const cross = (u: number, v: number, k: number): number => sub(mul(v, aux[2 * k]!), mul(u, aux[2 * k + 1]!));
   const crossBound = (u: number, v: number, k: number, d: number): number =>
-    U * (3 * Math.abs(f(v * aux[2 * k]!)) + 3 * Math.abs(f(u * aux[2 * k + 1]!)) + Math.abs(d)) + SLACK * (Math.abs(u) + Math.abs(v));
+    E * (3 * Math.abs(mul(v, aux[2 * k]!)) + 3 * Math.abs(mul(u, aux[2 * k + 1]!)) + Math.abs(d)) + SLACK * (Math.abs(u) + Math.abs(v));
   const material = (u: number, v: number): number => {
     switch (preset) {
       case 0: return 0;
       case 1: {
-        const a = f(u * f0!), b = f(v * f1!), d = f(a - b);
-        check(d, U * (3 * Math.abs(a) + 3 * Math.abs(b) + Math.abs(d)) + SLACK * (Math.abs(u) + Math.abs(v)));
+        const a = mul(u, f0!), b = mul(v, f1!), d = sub(a, b);
+        check(d, E * (3 * Math.abs(a) + 3 * Math.abs(b) + Math.abs(d)) + SLACK * (Math.abs(u) + Math.abs(v)));
         return d >= 0 ? 1 : 0;
       }
       case 2: {
-        const q = f(f(u * u) + f(v * v));
-        check(f(q - f0!), U * (4 * q + 2 * f0!) + SLACK * (q + f0!));
+        const q = add(mul(u, u), mul(v, v));
+        check(sub(q, f0!), E * (4 * q + 2 * f0!) + SLACK * (q + f0!));
         if (q > f0!) return 2;
-        const sectors = 2 * na!;
-        let k = Math.min(sectors - 1, Math.max(0, Math.floor(f(f(f(f(Math.atan2(v, u)) + PI) * na!) / PI))));
-        for (let step = 0; step < 4; step++) {
-          if (cross(u, v, k) < 0 && k > 0) { k--; continue; }
-          if (cross(u, v, k + 1) >= 0 && k + 1 < sectors) { k++; continue; }
-          break;
-        }
-        const lo = cross(u, v, k), hi = cross(u, v, k + 1);
+        let low = v >= 0 ? na! : 0, high = low + na!;
+        while (high - low > 1) { const middle = (low + high) >>> 1; if (cross(u, v, middle) >= 0) low = middle; else high = middle; }
+        const k = low, lo = cross(u, v, k), hi = cross(u, v, k + 1);
         if (lo < 0 || hi >= 0) flagged = true;
         check(lo, crossBound(u, v, k, lo));
         check(hi, crossBound(u, v, k + 1, hi));
         return k % 2 === 0 ? 1 : 0;
       }
       case 3: case 4: {
-        const s = f(u + 1), t = f(s * f0!);
+        const s = add(u, 1), t = mul(s, f0!);
         checkInteger(t, ssb(u, 1, s, f0!, t, 0), 1, na! - 1);
         return Math.min(na! - 1, Math.max(0, Math.floor(t)));
       }
       case 5: {
-        const s = f(u + 1), x = f(s * f0!), w = f(f1! - v), y = f(w * f0!);
+        const s = add(u, 1), x = mul(s, f0!), w = sub(f1!, v), y = mul(w, f0!);
         checkInteger(x, ssb(u, 1, s, f0!, x, 0), -3e38, 3e38);
         checkInteger(y, ssb(f1!, v, w, f0!, y, 0), -3e38, 3e38);
         return (Math.floor(x) + Math.floor(y)) % 2 === 0 ? 1 : 0;
       }
       case 6: {
-        const s = f(u + 1), x = f(s * f0!), w = f(f1! - v), y = f(w * f2!);
+        const s = add(u, 1), x = mul(s, f0!), w = sub(f1!, v), y = mul(w, f2!);
         checkInteger(x, ssb(u, 1, s, f0!, x, 0), 1, na! - 1);
         checkInteger(y, ssb(f1!, v, w, f2!, y, 1), 1, nb! - 1);
         const i = Math.min(na! - 1, Math.max(0, Math.floor(x))), j = Math.min(nb! - 1, Math.max(0, Math.floor(y))), c = j * na! + i;
-        const dx = f(u - aux[2 * c]!), dy = f(v - aux[2 * c + 1]!);
-        const ex = U * (Math.abs(u) + Math.abs(aux[2 * c]!) + Math.abs(dx)), ey = U * (Math.abs(v) + Math.abs(aux[2 * c + 1]!) + Math.abs(dy));
-        const d2 = f(f(dx * dx) + f(dy * dy));
-        check(f(d2 - f3!), 2 * (Math.abs(dx) * ex + Math.abs(dy) * ey) + ex * ex + ey * ey + U * (2 * d2 + f3!) + SLACK * (d2 + f3!));
+        const dx = sub(u, aux[2 * c]!), dy = sub(v, aux[2 * c + 1]!);
+        const ex = E * (Math.abs(u) + Math.abs(aux[2 * c]!) + Math.abs(dx)), ey = E * (Math.abs(v) + Math.abs(aux[2 * c + 1]!) + Math.abs(dy));
+        const d2 = add(mul(dx, dx), mul(dy, dy));
+        check(sub(d2, f3!), 2 * (Math.abs(dx) * ex + Math.abs(dy) * ey) + ex * ex + ey * ey + E * (2 * d2 + f3!) + SLACK * (d2 + f3!));
         return d2 <= f3! ? 1 : 0;
       }
       default: {
-        const s = f(u + 1), fx = f(s * f0!), w = f(f1! - v), fy = f(w * f2!);
+        const s = add(u, 1), fx = mul(s, f0!), w = sub(f1!, v), fy = mul(w, f2!);
         const bx = ssb(u, 1, s, f0!, fx, 0), by = ssb(f1!, v, w, f2!, fy, 1);
         checkInteger(fx, bx, -3e38, 3e38);
         checkInteger(fy, by, -3e38, 3e38);
         const ifx = Math.floor(fx), ify = Math.floor(fy);
         if (ifx < 0 || ify < 0 || ifx >= na! || ify >= nb!) return nc!;
-        const index = ify * na! + ifx, x = f(fx - ifx), y = f(fy - ify);
-        check(f(x - f3!), bx + U * f3!); check(f(x - f4!), bx + U * f4!); check(f(y - f3!), by + U * f3!); check(f(y - f4!), by + U * f4!);
+        const index = ify * na! + ifx, x = sub(fx, ifx), y = sub(fy, ify);
+        check(sub(x, f3!), bx + E * f3!); check(sub(x, f4!), bx + E * f4!); check(sub(y, f3!), by + E * f3!); check(sub(y, f4!), by + E * f4!);
         if (index >= nc! || x < f3! || x > f4! || y < f3! || y > f4!) return nc!;
         return index;
       }

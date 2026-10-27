@@ -7,15 +7,17 @@
  *
  * Every classification decision (half-plane, disk, sector, cell and gap boundaries) is evaluated with an
  * a-priori bound on how far the float32 decision value can be from the float64 reference value: the
- * point's float32 rounding, each float32 operation (u = 2^-24, correctly rounded + − ×), the float32
- * rounding of the constants and the reference's own float64 rounding. A point whose decision value lies
- * within four times its bound is flagged, and the host recomputes it with the reference. So every
- * unflagged point has exactly the reference's material, and its value is the reference value rounded
- * once to float32.
+ * point's float32 rounding, each float32 operation (E = 2^-23: one WGSL rounding of + − ×, in either
+ * direction, W3C WGSL "Floating Point Accuracy"), the float32 rounding of the constants and the
+ * reference's own float64 rounding. A point whose decision value lies within four times its bound is
+ * flagged, and the host recomputes it with the reference. So every unflagged point has exactly the
+ * reference's material, and its value is the reference value rounded once to float32.
  *
- * Siemens-star sectors are found from a rough `atan2` (any accuracy) and then decided exactly by the
- * signs of cross products with the sector boundary directions, so WGSL's 4096-ULP `atan2` bound does not
- * enter. See docs/WEBGPU.md, "Scene radiance on the GPU".
+ * Siemens-star sectors are decided only by the signs of cross products with the sector boundary
+ * directions (host float64 cos/sin, rounded once to float32): the sign of v chooses the half-plane, a
+ * binary search over that half-plane's boundaries finds the sector, and the two enclosing cross products
+ * carry the bound. The kernel calls no transcendental function, so neither the WGSL `atan2` bound nor the
+ * realm's float64 `Math.atan2` enters. See docs/WEBGPU.md, "Scene radiance on the GPU".
  */
 
 export const CHART_WORKGROUP_SIZE = 256;
@@ -24,10 +26,9 @@ export const CHART_PRESET_CODE = Object.freeze({ uniform: 0, "slanted-edge": 1, 
   "point-grid": 6, patches: 7 } as const);
 
 export const CHART_RADIANCE_WGSL = /* wgsl */ `
-const U: f32 = 5.9604644775390625e-8;
+const E: f32 = 1.1920928955078125e-7;
 const SAFETY: f32 = 4.0;
 const SLACK: f32 = 1e-14;
-const PI: f32 = 3.14159265358979;
 struct Params {
   count: u32, columns: u32, preset: u32, na: u32,
   nb: u32, nc: u32, wavelength_mode: u32, pad0: u32,
@@ -52,11 +53,11 @@ fn check_integer(t: f32, bound: f32, lo: f32, hi: f32) {
 }
 // x = (a + b) * scale, with the bound of its distance from the float64 reference value.
 fn scaled_sum_bound(a: f32, b: f32, s: f32, scale: f32, x: f32, constant_rounding: f32) -> f32 {
-  return U * ((abs(a) + abs(b) + abs(s)) * abs(scale) + (1.0 + constant_rounding) * abs(x)) + SLACK * (abs(x) + 1.0);
+  return E * ((abs(a) + abs(b) + abs(s)) * abs(scale) + (1.0 + constant_rounding) * abs(x)) + SLACK * (abs(x) + 1.0);
 }
 fn cross_d(u: f32, v: f32, k: u32) -> f32 { return v * aux[2u * k] - u * aux[2u * k + 1u]; }
 fn cross_bound(u: f32, v: f32, k: u32, d: f32) -> f32 {
-  return U * (3.0 * abs(v * aux[2u * k]) + 3.0 * abs(u * aux[2u * k + 1u]) + abs(d)) + SLACK * (abs(u) + abs(v));
+  return E * (3.0 * abs(v * aux[2u * k]) + 3.0 * abs(u * aux[2u * k + 1u]) + abs(d)) + SLACK * (abs(u) + abs(v));
 }
 fn material(p: vec2<f32>) -> u32 {
   let u = p.x;
@@ -68,22 +69,27 @@ fn material(p: vec2<f32>) -> u32 {
       let a = u * params.f0;
       let b = v * params.f1;
       let d = a - b;
-      check(d, U * (3.0 * abs(a) + 3.0 * abs(b) + abs(d)) + SLACK * (abs(u) + abs(v)));
+      check(d, E * (3.0 * abs(a) + 3.0 * abs(b) + abs(d)) + SLACK * (abs(u) + abs(v)));
       return select(0u, 1u, d >= 0.0);
     }
     case 2u: {
       let uu = u * u;
       let vv = v * v;
       let q = uu + vv;
-      check(q - params.f0, U * (4.0 * q + 2.0 * params.f0) + SLACK * (q + params.f0));
+      check(q - params.f0, E * (4.0 * q + 2.0 * params.f0) + SLACK * (q + params.f0));
       if (q > params.f0) { return 2u; }
-      let sectors = 2u * params.na;
-      var k = u32(clamp(floor((atan2(v, u) + PI) * f32(params.na) / PI), 0.0, f32(sectors - 1u)));
-      for (var step = 0u; step < 4u; step++) {
-        if (cross_d(u, v, k) < 0.0 && k > 0u) { k = k - 1u; continue; }
-        if (cross_d(u, v, k + 1u) >= 0.0 && k + 1u < sectors) { k = k + 1u; continue; }
-        break;
+      // Boundaries b_k = π(k/cycles − 1), k = 0 … 2·cycles. In the half-plane v ≥ 0 the angle lies in [0, π],
+      // between b_cycles and b_2cycles; for v < 0 in [−π, 0), between b_0 and b_cycles. Within one half-plane,
+      // sign(cross(k)) = sign(θ − b_k), so a binary search on the cross-product signs finds the sector. A point
+      // within the bound of a boundary (the u-axis and the ±π cut included) is caught by the two final checks.
+      var low = select(0u, params.na, v >= 0.0);
+      var high = low + params.na;
+      loop {
+        if (high - low <= 1u) { break; }
+        let middle = (low + high) >> 1u;
+        if (cross_d(u, v, middle) >= 0.0) { low = middle; } else { high = middle; }
       }
+      let k = low;
       let lo = cross_d(u, v, k);
       let hi = cross_d(u, v, k + 1u);
       if (lo < 0.0 || hi >= 0.0) { flagged = true; }
@@ -120,10 +126,10 @@ fn material(p: vec2<f32>) -> u32 {
       let c = j * params.na + i;
       let dx = u - aux[2u * c];
       let dy = v - aux[2u * c + 1u];
-      let ex = U * (abs(u) + abs(aux[2u * c]) + abs(dx));
-      let ey = U * (abs(v) + abs(aux[2u * c + 1u]) + abs(dy));
+      let ex = E * (abs(u) + abs(aux[2u * c]) + abs(dx));
+      let ey = E * (abs(v) + abs(aux[2u * c + 1u]) + abs(dy));
       let d2 = dx * dx + dy * dy;
-      check(d2 - params.f3, 2.0 * (abs(dx) * ex + abs(dy) * ey) + ex * ex + ey * ey + U * (2.0 * d2 + params.f3) + SLACK * (d2 + params.f3));
+      check(d2 - params.f3, 2.0 * (abs(dx) * ex + abs(dy) * ey) + ex * ex + ey * ey + E * (2.0 * d2 + params.f3) + SLACK * (d2 + params.f3));
       return select(0u, 1u, d2 <= params.f3);
     }
     default: {
@@ -142,10 +148,10 @@ fn material(p: vec2<f32>) -> u32 {
       let index = u32(ify) * params.na + u32(ifx);
       let x = fx - ifx;
       let y = fy - ify;
-      check(x - params.f3, bx + U * params.f3);
-      check(x - params.f4, bx + U * params.f4);
-      check(y - params.f3, by + U * params.f3);
-      check(y - params.f4, by + U * params.f4);
+      check(x - params.f3, bx + E * params.f3);
+      check(x - params.f4, bx + E * params.f4);
+      check(y - params.f3, by + E * params.f3);
+      check(y - params.f4, by + E * params.f4);
       if (index >= params.nc || x < params.f3 || x > params.f4 || y < params.f3 || y > params.f4) { return background; }
       return index;
     }
