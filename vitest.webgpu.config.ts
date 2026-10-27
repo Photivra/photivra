@@ -6,6 +6,9 @@ export default defineConfig({
     include: ["test/webgpu/**/*.webgpu.ts"],
     testTimeout: 600_000,
     hookTimeout: 120_000,
-    fileParallelism: false
+    fileParallelism: false,
+    // Vitest 5's default reporter shows a passing test's console output only in verbose mode; the suite's
+    // console output (the adapter and the measured maxima of every file) is its record, so print it.
+    reporters: ["verbose"]
   }
 });

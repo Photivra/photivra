@@ -7,7 +7,7 @@ Status: **2.0.0 development, optional and opt-in.**
 - Its results carry an error bound against the reference, worked out in advance (a priori); the luminance tone curves report a running bound, a fixed formula evaluated during the run. The [accuracy contract](#accuracy-contract) states each stage's bound and how the bounds compose. A conformance suite on a real WebGPU device tests them on fixed test images.
 - The [per-fixture rollout](#per-fixture-rollout-method-error) measures the image-formation method's error against the per-site engine for every built-in chart preset.
 
-It is the GPU image-formation path proposed in [#277](https://github.com/Photivra/photivra/issues/277) for the engine's chart scenes. **One hardware conformance run exists** (Apple M5 Pro, Metal, Chrome 155, [#471](https://github.com/Photivra/photivra/issues/471)): 82 of 89 tests passed; the 7 failures (sensor stage with non-unit gains, one Siemens-star boundary point) led to the arithmetic assumptions and margins below, and the re-run on that device is pending ([#475](https://github.com/Photivra/photivra/issues/475)). The development container has no GPU (see [Running on hardware](#running-on-hardware)).
+It is the GPU image-formation path proposed in [#277](https://github.com/Photivra/photivra/issues/277) for the engine's chart scenes. **One hardware conformance run exists** (Apple M5 Pro, Metal, Chrome 155, [#471](https://github.com/Photivra/photivra/issues/471)): 82 of 89 tests passed; the 7 failures (sensor stage with non-unit gains, one Siemens-star boundary point) led to the arithmetic assumptions and margins below, and the re-run on that device is pending ([#475](https://github.com/Photivra/photivra/issues/475)). Every hardware run, timings and conformance alike, is recorded in the [hardware record](WEBGPU_DEVICES.md). The development container has no GPU (see [Running on hardware](#running-on-hardware)).
 
 ## Contract
 
@@ -390,7 +390,7 @@ The browser test prints these numbers on each run. No SwiftShader timings are gi
 
 ## Timings at 6–24 MP
 
-**Hardware-GPU timings at 6–24 MP have not been measured.** The development container has no hardware GPU. The only hardware numbers so far are the 1024 × 768 stage timings of the M5 Pro conformance run in #471 (convolution r7 349 ms CPU / 7.6 ms GPU, SDR 19.2 / 15.5, RAW development 74.9 / 35.4), recorded in that issue. `npm run bench:webgpu:hardware` is the reproducible measurement for the owner to run on a desktop GPU (steps in [Running on hardware](#running-on-hardware)).
+**Hardware timings are recorded per device in the [hardware record](WEBGPU_DEVICES.md)**, with the adapter, browser, OS and engine commit of each run. One device, an Apple M5 Pro, has been measured so far: the 6–24 MP benchmark of October 26 and 27, 2026 ([#277](https://github.com/Photivra/photivra/issues/277)) and the 1024 × 768 stage timings of the conformance run in #471 (convolution r7 349 ms CPU / 7.6 ms GPU, SDR 19.2 / 15.5, RAW development 74.9 / 35.4). The development container has no hardware GPU, so no number below is a GPU measurement. `npm run bench:webgpu:hardware` is the reproducible measurement (steps in [Running on hardware](#running-on-hardware)); after its JSON report it prints one line per frame and stage with the GPU milliseconds, the CPU milliseconds (with `PHOTIVRA_WEBGPU_TIMING_CPU=1`) and their ratio CPU ÷ GPU, so a record row copies them without hand arithmetic.
 
 **Workload** (built inside the page, so no large payload crosses the DevTools socket): one 3:2 frame per size. 6 MP is 3000×2000, 12 MP is 4242×2828 and 24 MP is 6000×4000. Each frame goes through:
 
@@ -405,7 +405,7 @@ The browser test prints these numbers on each run. No SwiftShader timings are gi
 
 ## Running on hardware
 
-The conformance suite and the timing run are the two checks to make on a real GPU. The suite has been run once on hardware (#471, Apple M5 Pro); the re-run after the #471 changes is pending (#475). In this container, `npm run test:webgpu:hardware` was run only to confirm that it refuses SwiftShader.
+The conformance suite and the timing run are the two checks to make on a real GPU. Every hardware run goes into the [hardware record](WEBGPU_DEVICES.md) (device, adapter, driver, browser, OS, engine commit, result, timings file); so far one device, an Apple M5 Pro, has been run, and the re-run of the suite after the #471 changes is pending (#475). In this container, `npm run test:webgpu:hardware` was run only to confirm that it refuses SwiftShader.
 
 **Once:**
 
@@ -432,7 +432,9 @@ PHOTIVRA_WEBGPU_TIMING_OUT=webgpu-timings.json npm run bench:webgpu:hardware
 - Optional settings: `PHOTIVRA_WEBGPU_TIMING_MP=6,12,24` (the default sizes) and `PHOTIVRA_WEBGPU_TIMING_CPU=1` (also time the float64 CPU reference on the same inputs; this takes minutes at 24 MP).
 - On Windows `cmd`, set variables first: `set PHOTIVRA_WEBGPU_TIMING_OUT=webgpu-timings.json`, then `npm run bench:webgpu:hardware`.
 
-**Record** in #277 the JSON report (it includes the adapter vendor and architecture), the GPU model, driver version, browser version and OS. Only these runs can support a GPU speed claim. The suites never assert a speed.
+- After the JSON report, the run prints one summary line per frame and stage: GPU milliseconds, CPU milliseconds (when timed) and the ratio CPU ÷ GPU, formatted for the record.
+
+**Record** each run as a row of the [hardware record](WEBGPU_DEVICES.md) ("Adding a row" there), and post the same facts in the tracking issue (#277 for the capture path): the JSON report (it includes the adapter vendor and architecture), the GPU model, driver version, browser version, OS and engine commit. Only these runs can support a GPU speed claim. The suites never assert a speed.
 
 ## Preview acceptance
 
@@ -476,7 +478,7 @@ How the suite finds and launches a browser:
 - **Adapter policy:** each run reports the adapter and whether it is a software adapter. `PHOTIVRA_WEBGPU_REQUIRE_HARDWARE=1` turns a software adapter into a failure.
 - **No dependencies:** the driver talks to the browser over the DevTools protocol and serves `src/` transpiled over loopback. It adds no npm dependency.
 
-**CI.** The suite is not part of `ci.yml`. It passes reliably here with Playwright's Chromium 141. Whether ubuntu-latest's preinstalled Chrome exposes a SwiftShader WebGPU adapter headlessly has not been verified, so wiring it in is left as a follow-up. The in-process unit tests (`test/image-kernel-accelerator.test.ts`, `test/packed-sensor-raw.test.ts`, `test/packed-sensor-fixed-pattern.test.ts`, `test/temporal-exposure-sum.test.ts`, `test/webgpu-luminance-tone.test.ts`, `test/chart-radiance-batch.test.ts`, `test/lens-psf-kernels.test.ts`, `test/webgpu-rollout.test.ts`) run in every CI leg. They drive the complete host path (acquisition, banding, readback, counters, loss, error scopes, abort, dispose) against a float32 JavaScript emulation of the kernels.
+**CI.** The suite runs as its own workflow, [`webgpu.yml`](../.github/workflows/webgpu.yml) (job `webgpu conformance (SwiftShader)`), on `ubuntu-latest` with `PHOTIVRA_WEBGPU_REQUIRED=1` in Playwright's Chromium, installed in the job with `npx playwright@1.63.0 install --with-deps chromium` (Chromium build 1243, Chrome for Testing 153.0.8010.12; the suite adds no npm dependency, and the pin is bumped only after a local run on the new build). It runs on every pull request that changes `src/gpu/`, `test/webgpu/`, `vitest.webgpu*.config.ts` or the workflow, on every push to `main`, and on manual dispatch; a run takes about four minutes (the three suite files took 184 s on the 4-core development host). It is a software-adapter check of the kernels' arithmetic, not a GPU measurement; hardware runs are recorded in the [hardware record](WEBGPU_DEVICES.md). The in-process unit tests (`test/image-kernel-accelerator.test.ts`, `test/packed-sensor-raw.test.ts`, `test/packed-sensor-fixed-pattern.test.ts`, `test/temporal-exposure-sum.test.ts`, `test/webgpu-luminance-tone.test.ts`, `test/chart-radiance-batch.test.ts`, `test/lens-psf-kernels.test.ts`, `test/webgpu-rollout.test.ts`) run in every CI leg. They drive the complete host path (acquisition, banding, readback, counters, loss, error scopes, abort, dispose) against a float32 JavaScript emulation of the kernels.
 
 ## Limitations
 

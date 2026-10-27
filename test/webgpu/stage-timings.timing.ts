@@ -7,6 +7,9 @@
  * - PHOTIVRA_WEBGPU_TIMING_MP: comma-separated megapixel sizes (default "6,12,24"), 3:2 frames.
  * - PHOTIVRA_WEBGPU_TIMING_CPU=1: also time the float64 CPU reference (slow at 24 MP).
  * - PHOTIVRA_WEBGPU_TIMING_OUT: write the JSON report to this path.
+ *
+ * After the JSON it prints one summary line per frame and stage (GPU ms, CPU ms if timed, and CPU ÷ GPU) for
+ * the hardware record in docs/WEBGPU_DEVICES.md; the lines are computed from the report and change nothing.
  * - PHOTIVRA_WEBGPU_ADAPTER=hardware, PHOTIVRA_WEBGPU_FLAGS, PHOTIVRA_WEBGPU_BROWSER, PHOTIVRA_WEBGPU_HEADLESS=0: choose a
  *   hardware adapter; PHOTIVRA_WEBGPU_REQUIRE_HARDWARE=1 refuses a software adapter (see docs/WEBGPU.md, or
  *   `npm run bench:webgpu:hardware`).
@@ -20,6 +23,7 @@ import { fileURLToPath } from "node:url";
 import { readoutProfile } from "../helpers/sensor-stage-fixtures.js";
 import { adapterSkipReason, findChromium, isSoftwareAdapter, openBrowserPage, type BrowserPage, type WebGpuAdapterProbe } from "./chromium.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
+import { summarizeTimingReport, type TimingRunRecord } from "./timing-summary.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 let page: BrowserPage | null = null;
@@ -44,11 +48,11 @@ it("times the webgpu-f32 stages at 6–24 MP", async () => {
   const sizes = (process.env.PHOTIVRA_WEBGPU_TIMING_MP ?? "6,12,24").split(",").map(Number);
   const timeCpu = process.env.PHOTIVRA_WEBGPU_TIMING_CPU === "1";
   const readout = readoutProfile({ gain: 3.1, bitDepth: 14, black: 512, preAdc: 60_000, sigmas: [2.5] });
-  const runs: unknown[] = [];
+  const runs: TimingRunRecord[] = [];
   for (const megapixels of sizes) {
     const { width, height } = frameOf(megapixels);
     const payload = JSON.stringify(encodeTransport({ width, height, timeCpu, readoutProfile: readout }));
-    runs.push(decodeTransport(await page!.evaluate<string>(`import('/test/webgpu/page-runner.js').then(m => m.timeStages(${payload}))`)));
+    runs.push(decodeTransport<TimingRunRecord>(await page!.evaluate<string>(`import('/test/webgpu/page-runner.js').then(m => m.timeStages(${payload}))`)));
   }
   const software = isSoftwareAdapter(probe);
   const report = { measuredAt: new Date().toISOString(), node: process.version, platform: `${process.platform}/${process.arch}`, adapter: probe.adapter,
@@ -57,5 +61,6 @@ it("times the webgpu-f32 stages at 6–24 MP", async () => {
   const text = JSON.stringify(report, null, 1);
   if (process.env.PHOTIVRA_WEBGPU_TIMING_OUT) writeFileSync(process.env.PHOTIVRA_WEBGPU_TIMING_OUT, text + "\n");
   console.info(`[bench:webgpu] ${text}`);
+  for (const line of summarizeTimingReport(report)) console.info(`[bench:webgpu] ${line}`);
   expect(runs.length).toBe(sizes.length);
 });
