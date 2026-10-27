@@ -7524,6 +7524,27 @@ const view = await simulateDisplayView({ scene: { preset: "slanted-edge" }, sens
 console.log(view.kind, view.view.scaleX, view.assumptions.find((a) => a.id === "view.definition")?.value);
 ```
 
+#### Rendering a prepared view on the GPU (2.11, #481)
+
+`prepareDisplayView(request, { gpu })` chooses the renderer: `"off"` (the default) is the CPU reference, `"auto"` the GPU
+when a conforming device is available and the request is supported (else the CPU, labelled), `"require"` fails instead of
+falling back. `gpuDevice` hands the view a worker's `navigator.gpu` or an `ImageKernelAccelerator` whose device it shares.
+Every render says which path ran in `diagnostics.fast.execution`, in the accelerator's words. No GPU display-view renderer
+exists yet (#478), so today `"auto"` runs the CPU reference labelled `unsupported-on-backend` without requesting a device;
+see [Rendering on the GPU](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#rendering-on-the-gpu).
+
+```ts
+import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
+
+const request: SimulateCaptureOptions = { scene: { preset: "siemens-star" }, sensor: { pixelPitchMicrometers: 4 }, output: { width: 600, height: 400 } };
+const prepared = await prepareDisplayView(request, { gpu: "auto" }); // acquisition failures fall back; with "require" they throw here
+const tile = await prepared.render({ width: 300, height: 200, region: { x: 120, y: 80, width: 32, height: 32 } });
+const ran = tile.diagnostics.fast.execution;
+// "cpu-reference" when the reference ran (and why), "webgpu-f32" with its bound and adapter when the GPU did.
+console.log(ran.backend, ran.fallbackReason, ran.assurance, ran.errorBound, ran.adapter, tile.diagnostics.fast.assurance);
+prepared.dispose(); // releases a device the view acquired; a shared accelerator's device stays its owner's
+```
+
 #### Sharing AHD correction states between workers
 
 With `output.demosaic: "ahd"`, low-signal display pixels read correction states that each realm (a page, a Web Worker)

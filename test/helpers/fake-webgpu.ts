@@ -38,9 +38,13 @@ export interface FakeGpuOptions {
   device?: "throws" | "deferred";
   maxStorageBufferBindingSize?: number;
   maxComputeWorkgroupsPerDimension?: number;
+  /** The adapter's `info` (#481); `null` for an adapter without one. Default: a description that names the fake. */
+  adapterInfo?: { vendor: string; architecture: string; device: string; description: string } | null;
   /** How the sensor and chart emulations round (default: to nearest; see `adversarialArithmetic`). */
   arithmetic?: EmulationArithmetic;
 }
+/** The default `GPUAdapterInfo` of the fake adapter. */
+export const FAKE_ADAPTER_INFO = Object.freeze({ vendor: "photivra-test", architecture: "float32-emulation", device: "", description: "Fake WebGPU adapter (JavaScript float32 emulation)" });
 
 class FakeBuffer {
   data: ArrayBuffer;
@@ -274,7 +278,8 @@ export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; con
     destroy(): void { controls.deviceDestroyCalls++; loseDevice(); }
   };
   (device.queue as { submit: (buffers: { run: () => void }[]) => void }).submit = (buffers): void => buffers.forEach(b => b.run());
-  const adapter = { limits, requestDevice: (): Promise<unknown> => options.device === "throws" ? Promise.reject(new Error("no device"))
+  const info = options.adapterInfo === undefined ? FAKE_ADAPTER_INFO : options.adapterInfo;
+  const adapter = { limits, ...(info ? { info } : {}), requestDevice: (): Promise<unknown> => options.device === "throws" ? Promise.reject(new Error("no device"))
     : options.device === "deferred" ? new Promise(resolve => { resolveDevice = (): void => resolve(device); }) : Promise.resolve(device) };
   const gpu = { requestAdapter: (): Promise<unknown> => {
     controls.adapterRequests++;

@@ -2618,6 +2618,31 @@
       "kind": "type"
     },
     {
+      "name": "DisplayViewExecution",
+      "source": "src/facade/display-view-gpu.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DisplayViewFastReport",
+      "source": "src/facade/display-view-gpu.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DisplayViewGpuConformance",
+      "source": "src/facade/display-view-gpu.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DisplayViewGpuFallbackReason",
+      "source": "src/facade/display-view-gpu.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DisplayViewGpuMode",
+      "source": "src/facade/display-view-gpu.ts",
+      "kind": "type"
+    },
+    {
       "name": "DisplayViewResult",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
@@ -3660,6 +3685,11 @@
     {
       "name": "ImageKernelAcceleratorState",
       "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelAdapterDescription",
+      "source": "src/gpu/image-kernel-execution.ts",
       "kind": "type"
     },
     {
@@ -5441,6 +5471,11 @@
       "name": "prepareDisplayView",
       "source": "src/facade/simulate-display-view.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "PrepareDisplayViewOptions",
+      "source": "src/facade/display-view-gpu.ts",
+      "kind": "type"
     },
     {
       "name": "PreparedRgbGamutMapping",

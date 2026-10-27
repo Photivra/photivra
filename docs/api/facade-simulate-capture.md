@@ -31,8 +31,8 @@ export interface DisplayViewResult {
    */
   diagnostics: { sampleCount: number; siteEvaluations: number; sceneLookups: number; detailPixelCount: number; uniformPixelCount: number; ahdCorrectedPixelCount: number;
     timingsMs: { view: number; total: number };
-    /** #395: exact or fast, as requested and as run (see {@link SimulateCaptureFastReport}). */
-    fast: SimulateCaptureFastReport };
+    /** #395: exact or fast, as requested and as run; 2.11 (#481): plus `execution`, where the render ran (see {@link DisplayViewFastReport}). */
+    fast: DisplayViewFastReport };
   provenance: { scientificStatus: "approximation"; cameraPresetId: string; cameraPresetVersion: string; evidence: readonly EvidenceProvenance[];
     composedContracts: readonly string[]; limitations: readonly string[] };
   /** The capture request's assumptions, then `view.definition`, `view.estimation`, `view.noise`, `view.demosaic` and `view.source`. */

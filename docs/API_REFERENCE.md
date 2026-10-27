@@ -1157,6 +1157,19 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`UniformChartScene`](api/facade-chart-scenes.md#uniformchartscene) | Type |
 | [`ZonePlateChartScene`](api/facade-chart-scenes.md#zoneplatechartscene) | Type |
 
+## facade/display-view-gpu.ts
+
+[Detailed contracts](api/facade-display-view-gpu.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/display-view-gpu.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`DisplayViewExecution`](api/facade-display-view-gpu.md#displayviewexecution) | Type |
+| [`DisplayViewFastReport`](api/facade-display-view-gpu.md#displayviewfastreport) | Type |
+| [`DisplayViewGpuConformance`](api/facade-display-view-gpu.md#displayviewgpuconformance) | Type |
+| [`DisplayViewGpuFallbackReason`](api/facade-display-view-gpu.md#displayviewgpufallbackreason) | Type |
+| [`DisplayViewGpuMode`](api/facade-display-view-gpu.md#displayviewgpumode) | Type |
+| [`PrepareDisplayViewOptions`](api/facade-display-view-gpu.md#preparedisplayviewoptions) | Type |
+
 ## facade/display-view.ts
 
 [Detailed contracts](api/facade-display-view.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/display-view.ts)
@@ -1277,6 +1290,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | Export | Kind |
 | --- | --- |
 | [`composeRelativeErrorBounds`](api/gpu-image-kernel-execution.md#composerelativeerrorbounds) | Runtime |
+| [`ImageKernelAdapterDescription`](api/gpu-image-kernel-execution.md#imagekerneladapterdescription) | Type |
 | [`ImageKernelBackend`](api/gpu-image-kernel-execution.md#imagekernelbackend) | Type |
 | [`ImageKernelCodeErrorBound`](api/gpu-image-kernel-execution.md#imagekernelcodeerrorbound) | Type |
 | [`ImageKernelExecution`](api/gpu-image-kernel-execution.md#imagekernelexecution) | Type |
