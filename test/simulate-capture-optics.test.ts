@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { ENGINE_API_VERSION, InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, simulateCapture,
   type SimulateCaptureOptions } from "../src/index.js";
@@ -45,6 +45,20 @@ describe("simulateCapture lens.diffraction (2.1)", () => {
  * assumption and its `providerEvaluationCount` (verification calls plus scene lookups).
  */
 describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", () => {
+  // The DNG Software tag names the engine version ("Photivra <version>"). A version of another length (2.10.0 against
+  // 2.0.0) moves every later DNG offset, so writing the 2.0.0 name back into the bytes cannot work. These captures run on
+  // a separate copy of the engine whose only change is ENGINE_API_VERSION = "2.0.0"; every other byte stays locked.
+  let lockedEngine: { simulateCapture: typeof simulateCapture; ENGINE_API_VERSION: string };
+  beforeAll(async () => {
+    vi.resetModules();
+    vi.doMock("../src/core/version.js", () => ({ ENGINE_API_VERSION: "2.0.0" }));
+    lockedEngine = await import("../src/index.js");
+  });
+  afterAll(() => { vi.doUnmock("../src/core/version.js"); vi.resetModules(); });
+  it("the real engine's DNG Software tag names the current engine version", async () => {
+    const dng = (await simulateCapture({ scene: { preset: "point-grid" }, output: { width: 12, height: 12, format: "dng" }, exposure: { mode: "program" } })).image.dng!;
+    expect(Buffer.from(dng).includes(Buffer.from("Photivra " + ENGINE_API_VERSION + "\0"))).toBe(true);
+  });
   const cases: Record<string, [SimulateCaptureOptions, string, string]> = {
     edge: [{ scene: { preset: "slanted-edge" }, output: { width: 24, height: 16 } },
       "0cce9455f8a541eed2ebe6f652556d7ea0d10601f2a35f8529768311e8ec0acf", "7b1a17b64caf4b4f6cfcccabcee01bbc2224402681debb68626f17e61e13339a"],
@@ -64,15 +78,11 @@ describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", (
   const hex = (data: Buffer | string): string => createHash("sha256").update(data).digest("hex");
   for (const [name, [options, bytes, meta]] of Object.entries(cases)) {
     it(name, async () => {
-      const r = await simulateCapture(options);
+      expect(lockedEngine.ENGINE_API_VERSION).toBe("2.0.0");
+      const r = await lockedEngine.simulateCapture(options);
       const parts = [r.raw.codes, r.image.samples, r.image.jpeg, r.image.png, r.image.dng].filter((a) => a !== undefined)
         .map((a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength));
-      // The DNG Software tag names the engine version ("Photivra <version>"), so it changes with every release.
-      // Write the 2.0.0 name back (same length, so no offset moves) and keep every other byte locked.
-      const all = Buffer.concat(parts), current = Buffer.from("Photivra " + ENGINE_API_VERSION), locked = Buffer.from("Photivra 2.0.0");
-      expect(current.length).toBe(locked.length);
-      for (let at = all.indexOf(current); at >= 0; at = all.indexOf(current, at + 1)) locked.copy(all, at);
-      expect(hex(all)).toBe(bytes);
+      expect(hex(Buffer.concat(parts))).toBe(bytes);
       // diagnostics.options (2.1) and diagnostics.fast (#395), both additive, are checked below and left out of the 2.0.0 digest, like the timings.
       expect(hex(JSON.stringify({ a: r.assumptions, c: r.provenance.composedContracts, d: { ...r.diagnostics, timingsMs: 0, options: undefined, fast: undefined } }))).toBe(meta);
       expect(r.diagnostics.options).toEqual(expectedOptions[name]);

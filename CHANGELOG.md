@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2.10.0 — unreleased (prepared October 27, 2026)
+
+A minor release: one exact-or-fast flag for every slow option (no option has a fast method yet, so every result is still exact), export and import of the display view's AHD correction states so workers can share them, and faster display-view prepares and parts and faster Quality captures. Samples, RAW codes and files are the same as 2.9.0; captures and display views gain the `diagnostics.fast` report.
+- **New:** `fast`, `SIMULATE_CAPTURE_FAST_OPTIONS` and `diagnostics.fast` (#395, stage 2). `serializeDisplayViewCorrectionStates`, `bindDisplayViewCorrectionStates` and three `PreparedDisplayView` methods share the AHD correction states between workers (#447); no speed-up is claimed until the app measures it.
+- **Faster prepare** (Node, one thread): `prepareDisplayView` after an aperture change takes 54–67 ms instead of 378–430 ms in Quality (#443), and after an ISO, white-balance or shutter change 9–16 ms instead of 37–45 ms at 6 µm f/11 (#446).
+- **Faster parts and captures** (Node, one thread, each against the build before it): Quality display-view part medians −8 to −14 % (#441), −3 to −11 % (#445) and −3 to −8 % (#442); Speed parts −4 to −7 % (#442) and up to −9 % whole-view CPU (#444); the AHD demosaic stage −40 % (#448); the app's Quality 96 × 64 detail tile median 128 → 115 ms (#449, first part) and 116 → 95 ms (#449, second part), then 102 → 90 ms with the verification sites' chain re-validating less (#453). Browser wall time is not measured.
+- **Compatibility:** eight new root exports (1,742); new optional `fast` fields and an `output.demosaic` record form; `lens.diffraction`'s `aperture` key is deprecated in favour of `kind`. Query points use a portable `hypot3`, unchanged on V8 (#452).
 
 ### Added
 
