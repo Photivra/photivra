@@ -11,8 +11,9 @@ import { simulateDisplayViewWithInternals } from "../../src/facade/simulate-disp
 import type { SimulateCaptureOptions, SimulateDisplayViewOptions } from "../../src/index.js";
 import { createDisplayViewMaterialModules, type DisplayViewMaterialModules } from "../../src/gpu/display-view-composite-material-module.js";
 import { renderDisplayViewSpeedOnGpu, type DisplayViewSpeedGpuInput, type DisplayViewSpeedGpuResult } from "../../src/gpu/display-view-speed-gpu.js";
+import { qualityMaterialModule, renderDisplayViewQualityOnGpu, type CorrectionStateStore, type DisplayViewQualityGpuResult } from "../../src/gpu/display-view-quality-gpu.js";
 import { acquireWebGpuRuntime, createComputePipeline, type WebGpuRuntime } from "../../src/gpu/webgpu-runtime.js";
-import type { DisplayViewRenderResult, DisplayViewSetup } from "../../src/facade/display-view.js";
+import { clearDisplayViewCorrectionStates, createDisplayViewExpectedSignal, renderDisplayView, type DisplayViewExpectedSignal, type DisplayViewRenderResult, type DisplayViewSetup } from "../../src/facade/display-view.js";
 
 /** A CPU display view of a request and the inputs of its GPU render (the material module is built per runtime in `renderOnGpu`). */
 export interface DisplayViewGpuFixture { cpu: DisplayViewRenderResult; input: Omit<DisplayViewSpeedGpuInput, "material">; viewWidth: number; viewHeight: number }
@@ -51,6 +52,58 @@ export async function renderOnGpu(runtime: WebGpuRuntime, fixture: DisplayViewGp
   const material = await materialModuleOf(runtime, fixture.input.setup);
   return await renderDisplayViewSpeedOnGpu(runtime, maximumBandBytes, { ...fixture.input, material, recomputeFlagged }, new AbortController(), undefined,
     (label, code) => createComputePipeline(runtime, label, code, undefined));
+}
+
+/** Renders the fixture's input with the Quality kernels (#479); `states` keeps the correction states across renders as the renderer does. */
+export async function renderOnGpuQuality(runtime: WebGpuRuntime, fixture: DisplayViewGpuFixture, maximumBandBytes = 64 * 1024 * 1024, recomputeFlagged = true,
+  states?: CorrectionStateStore): Promise<DisplayViewQualityGpuResult> {
+  // The material module as the renderer builds it for a Quality render (the composite module reads the lattice groups with diffraction).
+  const material = await qualityMaterialModule(materialModulesOf(runtime), fixture.input.setup.gpu!, new AbortController().signal);
+  return await renderDisplayViewQualityOnGpu(runtime, maximumBandBytes, { ...fixture.input, material, recomputeFlagged, ...(states ? { states } : {}) }, new AbortController(), undefined,
+    (label, code) => createComputePipeline(runtime, label, code, undefined));
+}
+
+/**
+ * #479: the CPU reference's stages on a fixture, timed in this realm (one thread): `fullMs` a warm render (tables, kernels and
+ * correction states held); `signalMs` the expected signal of every native site the region reads, through one window of the
+ * reference's own signal (its rings, filled bands and one-material sums); `restMs` the render with the signal answered from those
+ * precomputed values and their one-material flags (everything after the expected signal: the demosaic candidates, development,
+ * covariance, residual, choice variance and correction interpolation, with the reference's one-material replay); and `statesMs`
+ * the correction states of the view from an empty cache (cold render − warm render). `restBitIdentical` checks that the split
+ * render equals the warm render. Wall-clock milliseconds on this host.
+ */
+export async function timeCpuStages(fixture: DisplayViewGpuFixture): Promise<{ fullMs: number; restMs: number; signalMs: number; statesMs: number; restBitIdentical: boolean }> {
+  const setup = fixture.input.setup, input = fixture.input.signalInput, now = (): number => performance.now();
+  clearDisplayViewCorrectionStates();
+  let t = now();
+  await renderDisplayView({ ...setup, signal: createDisplayViewExpectedSignal(input) });
+  const coldMs = now() - t;
+  t = now();
+  const full = await renderDisplayView({ ...setup, signal: createDisplayViewExpectedSignal(input) });
+  const fullMs = now() - t;
+  // Every native site the region's footprints and reach read, from one window of the reference's own signal.
+  const sx = setup.frameWidth / setup.viewWidth, sy = setup.frameHeight / setup.viewHeight, reach = 3, r = setup.region;
+  const x0 = Math.max(0, Math.floor(r.x * sx) + setup.margin - reach), x1 = Math.min(setup.nativeWidth - 1, Math.ceil((r.x + r.width) * sx) + setup.margin + reach);
+  const y0 = Math.max(0, Math.floor(r.y * sy) + setup.margin - reach), y1 = Math.min(setup.nativeHeight - 1, Math.ceil((r.y + r.height) * sy) + setup.margin + reach);
+  const W = x1 - x0 + 1, values = new Float64Array(W * (y1 - y0 + 1)), materials = new Int32Array(values.length), inner = createDisplayViewExpectedSignal(input);
+  t = now();
+  inner.window(x0, y0, x1 + 1, y1 + 1);
+  const tracked = inner.tracksMaterial;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const at = (y - y0) * W + x - x0; values[at] = inner.site(x, y); materials[at] = tracked ? inner.uniformMaterial : -1; }
+  const signalMs = now() - t;
+  let last = -1;
+  const site = (x: number, y: number): number => {
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) { const at = (y - y0) * W + x - x0; last = materials[at]!; return values[at]!; }
+    const v = inner.site(x, y); last = -1; return v;
+  };
+  const memo: DisplayViewExpectedSignal = { window: () => undefined, site, pilot: (u, v) => inner.pilot(u, v), get lookups() { return 0; }, get uniformMaterial() { return last; },
+    tracksMaterial: tracked, cachesSites: false, marksReads: false, markReads: () => undefined };
+  t = now();
+  const rest = await renderDisplayView({ ...setup, signal: memo });
+  const restMs = now() - t;
+  let identical = true;
+  for (let i = 0; i < full.expected.length && identical; i++) if (full.expected[i] !== rest.expected[i]) identical = false;
+  return { fullMs, restMs, signalMs, statesMs: Math.max(0, coldMs - fullMs), restBitIdentical: identical };
 }
 
 export interface DisplayViewAgreement {

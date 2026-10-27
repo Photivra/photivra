@@ -8,6 +8,7 @@
 import { SDR_COUNTER, SDR_TONE_MODE } from "../../src/gpu/wgsl-kernels.js";
 import { createChartMaterialEmulator, emulateChart, emulateSensor, emulateTemporalSum, nearestArithmetic, type EmulationArithmetic } from "./fake-webgpu-stages.js";
 import { emulateDisplayViewSpeed } from "./fake-webgpu-display-view.js";
+import { emulateDisplayViewQualityLattice, emulateDisplayViewQualityPixels, emulateDisplayViewQualitySites } from "./fake-webgpu-display-view-quality.js";
 
 const f = Math.fround;
 // #477: the composite chart kernel and its probe are emulated in their own module.
@@ -234,6 +235,17 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: Em
     // The chart-preset material module (group 1): its uniform at 100, its aux table at 101.
     const material = createChartMaterialEmulator(u32(100), f32(100), f32(101), 8, arithmetic);
     emulateDisplayViewSpeed(u32(0), f32(0), f32(1), f32(2), f32(3), f32(4), u32(5), material);
+  } else if (label === "photivra-display-view-quality-lattice:" + CHART_COMPOSITE_MATERIAL_MODULE_ID) {
+    // #491's composite module in the Quality lattice pass (group 1 as in Speed: float records 100, integer records 101, lattice uniform 102, offsets 103).
+    const material = createCompositeDisplayViewMaterialEmulator(u32(102), f32(102), f32(103), f32(100), u32(101));
+    emulateDisplayViewQualityLattice(u32(0), f32(0), u32(1), u32(2), material);
+  } else if (label.startsWith("photivra-display-view-quality-lattice:")) {
+    const material = createChartMaterialEmulator(u32(100), f32(100), f32(101), 8, arithmetic);
+    emulateDisplayViewQualityLattice(u32(0), f32(0), u32(1), u32(2), material);
+  } else if (label === "photivra-display-view-quality-sites") {
+    emulateDisplayViewQualitySites(u32(0), f32(0), u32(1), u32(2), f32(3), u32(4), f32(5), f32(6));
+  } else if (label === "photivra-display-view-quality-pixels") {
+    emulateDisplayViewQualityPixels(u32(0), f32(0), f32(1), f32(2), f32(3), i32(4), f32(5), u32(6), f32(7), u32(8));
   } else if (!emulateComposite(label, (b) => buffers.get(b)!.data)) {
     throw new Error(`No emulator for ${label}`);
   }

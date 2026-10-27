@@ -110,12 +110,12 @@ const LATTICE_RING_ROWS = 128, LATTICE_RING_MAXIMUM_BAND_ROWS = 64, LATTICE_RING
  * they are shared by every render of an input and, for chart materials, by every input of the same content (#449). Everything a
  * render changes (each group's window cache and its origin and size, the bands, rings and counts) lives in the render.
  */
-interface SignalTables {
+export interface SignalTables {
   readonly reflectance: Float64Array; readonly spectralIndex: Int32Array; readonly spectral: readonly Float64Array[]; readonly groups: readonly GroupTables[];
   readonly neutralDirect: readonly number[]; readonly spectralDirect: readonly (readonly number[])[]; readonly uniformSite: readonly Float64Array[];
 }
 /** A lattice group's fixed part: its fractional shift, members, index bounds, rectangle and combined kernels. */
-interface GroupTables { fx: number; fy: number; members: { ix: number; iy: number; weight: number }[]; minIx: number; maxIx: number; minIy: number; maxIy: number;
+export interface GroupTables { fx: number; fy: number; members: { ix: number; iy: number; weight: number }[]; minIx: number; maxIx: number; minIy: number; maxIy: number;
   cw: number; ch: number; neutral: Float64Array[]; spectral: Float64Array[][]; perNode: Float64Array[][] }
 /** A render's lattice group: the fixed part and its own window cache (lattice points [cx0, cx0 + cpw) × [cy0, cy0 + cph)). */
 interface Group extends GroupTables { cache: Int32Array | Float64Array; cx0: number; cy0: number; cpw: number; cph: number }
@@ -176,6 +176,15 @@ function prepareSignal(input: DisplayViewExpectedSignalInput): PreparedSignal {
   const prepared: PreparedSignal = { tables, rings: tables.groups.map(() => undefined) };
   PREPARED.set(input, prepared);
   return prepared;
+}
+
+/**
+ * Internal (#479): the read-only tables of an input (the ones `createDisplayViewExpectedSignal` reads), for the GPU display view,
+ * which uploads the combined kernels and per-material sums the reference forms in float64. Prepared and cached as a render
+ * prepares them, so a GPU render of an input and a CPU render read the same doubles.
+ */
+export function displayViewSignalTables(input: DisplayViewExpectedSignalInput): SignalTables {
+  return (PREPARED.get(input) ?? prepareSignal(input)).tables;
 }
 
 function buildTables(input: DisplayViewExpectedSignalInput): SignalTables {

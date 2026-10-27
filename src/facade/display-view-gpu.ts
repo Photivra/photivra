@@ -131,6 +131,12 @@ export interface DisplayViewGpuRequest {
   /** Pixel-aperture samples per axis (1: centre sampling). */
   boxSamples: number;
   toneCurve: "identity" | "positive-reinhard-per-channel";
+  /**
+   * #492: true when `lens.defocus` needs the defocus disc (out of focus; the CPU reference renders it since #492 step 2b). No
+   * GPU renderer covers it yet (a GPU gather is #492 step 2c), so `supports` refuses it and `gpu: "require"` fails when the view
+   * is prepared. Absent or false otherwise.
+   */
+  defocus?: boolean;
   /** The scene's form: an engine chart, a declared `material-layers` scene (#491), or a caller function. */
   scene: "chart" | "material-layers" | "material-function" | "reflectance-function" | "radiance-function";
 }

@@ -255,7 +255,8 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
     await renderDisplayView(setupOf(v, v.region ?? { x: 0, y: 0, width: v.width, height: v.height }, run, keys).setup);
     return Int32Array.from(keys).sort();
   };
-  const gpuRequest: DisplayViewGpuRequest = { ahd, diffraction: diffraction !== undefined, antiAliasing: antiAliasing !== undefined, boxSamples, toneCurve: viewToneCurve,
+  // #492: out of focus the view reads the defocus disc (its kernel in signalInput.kernels), which no GPU kernel gathers yet.
+  const gpuRequest: DisplayViewGpuRequest = { ahd, defocus: defocusKernel !== null, diffraction: diffraction !== undefined, antiAliasing: antiAliasing !== undefined, boxSamples, toneCurve: viewToneCurve,
     scene: chart ? "chart" : materialLayers ? "material-layers" : callerScene!.kind };
   const render: RenderPreparedView = async (v, run, viewInternals, gpu) => {
     const { started, viewStarted } = run;

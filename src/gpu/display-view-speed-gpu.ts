@@ -158,7 +158,7 @@ function siteTable(signalInput: DisplayViewExpectedSignalInput): Float32Array<Ar
  * is taken from the reference's own query points (two sites a frame apart, divided in float64), so a request whose
  * geometry differs is caught by the check against the reference at four corners (within 2^-40 relative).
  */
-function queryGeometry(signalInput: DisplayViewExpectedSignalInput): { scaleU: number; scaleV: number; offsetU: Float64Array; offsetV: Float64Array } {
+export function queryGeometry(signalInput: DisplayViewExpectedSignalInput): { scaleU: number; scaleV: number; offsetU: Float64Array; offsetV: Float64Array } {
   const W = signalInput.nativeWidth, H = signalInput.nativeHeight, point = new Float64Array(2), query = signalInput.queryPoint!;
   const x1 = W - 1, y1 = H - 1;
   query(0, 0, 0, point); const u0 = point[0]!, v0 = point[1]!;
@@ -181,7 +181,7 @@ function queryGeometry(signalInput: DisplayViewExpectedSignalInput): { scaleU: n
 }
 
 /** Gauss–Legendre nodes and weights on [−1, 1], 16 points, by the reference's own construction (display-view.ts). */
-function gaussLegendre16(): { x: Float64Array; w: Float64Array } {
+export function gaussLegendre16(): { x: Float64Array; w: Float64Array } {
   const n = 16, x = new Float64Array(n), w = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     let z = Math.cos(Math.PI * (i + 0.75) / (n + 0.5)), dp = 0;
@@ -199,7 +199,7 @@ function gaussLegendre16(): { x: Float64Array; w: Float64Array } {
 }
 
 /** One axis record of the geometry buffer: first real pixel, count, overlaps over the scale, axis sums over the squared scale. */
-function axisRecord(geometry: Float32Array, at: number, start: number, end: number, limit: number, margin: number, scale: number): void {
+export function axisRecord(geometry: Float32Array, at: number, start: number, end: number, limit: number, margin: number, scale: number): void {
   const { first, w } = overlaps(start, end, limit), sums = axisSums(start, end, limit, margin), scale2 = scale * scale;
   const words = new Int32Array(geometry.buffer, geometry.byteOffset, geometry.length);
   words[at] = first; words[at + 1] = w.length;

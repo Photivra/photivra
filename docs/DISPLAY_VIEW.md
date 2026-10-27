@@ -898,15 +898,20 @@ example its diffraction kernels), while its samples were identical in every case
 ## Rendering on the GPU
 
 2.11 (#481) adds the engine API through which a prepared display view chooses between a WebGPU renderer and the CPU
-reference and labels which ran. The engine's renderer is the Speed kernel of #478 (the exact area mean without diffraction,
-bilinear; `docs/WEBGPU.md`, "Display view (Speed) on the GPU": its design, bounds and measured agreement), registered when the
-GPU session module loads. It renders every engine chart (the 2.0 presets, composite charts, the 2.3 elements, fixed-size charts)
+reference and labels which ran. The engine's renderer (registered when the GPU session module loads) runs the Speed kernel of
+#478 for requests without diffraction and AHD (the exact area mean, bilinear; `docs/WEBGPU.md`, "Display view (Speed) on the
+GPU") and the Quality kernels of #479 for the rest of what it covers: diffraction kernels, the anti-aliasing filter's spots, the
+AHD candidates and the low-signal correction, whose states are still computed on the CPU and uploaded as a table
+(`docs/WEBGPU.md`, "Display view (Quality) on the GPU": the three passes, the running bounds, the measured agreement and the
+AHD placement decision). Both render every engine chart (the 2.0 presets, composite charts, the 2.3 elements, fixed-size charts)
 and, since #491, declared `material-layers` scenes: a chart under shape-mask layers, the form in which an application gives a
 printed label (`resolveChartMaterialLayers`; `scene: { kind: "material-layers", sceneId, chart, layers }` is accepted by
 `prepareDisplayView`, `simulateDisplayView` and `simulateCapture` directly and evaluated exactly as its `callerScene`, so a CPU
-render is byte-identical to the caller-scene form). A request it does not cover (AHD, diffraction, a caller scene function, a
-coarser view) runs the CPU reference labelled `unsupported-on-backend` (or fails with it). #479 builds the Quality kernel. Its
-speed-up over the CPU is not measured yet (#475).
+render is byte-identical to the caller-scene form). A request it does not cover (a caller scene function, a coarser view than the
+exact area mean, a footprint above 6 real pixels per axis) runs the CPU reference labelled `unsupported-on-backend` (or fails with
+it). A GPU render of the Quality options inherits the estimate's [known limits](#known-limit-quality-noise-at-small-footprints)
+(#379, and the star-centre AHD colour of #457): it agrees with the CPU reference within its bound, not with the real AHD capture
+any better than the reference does. The speed-up over the CPU is not measured yet (#475).
 
 ```ts
 import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";
