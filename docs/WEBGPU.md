@@ -273,11 +273,12 @@ It writes, per display pixel, the three means, the three variances (linear plus 
 | Clipped variance v·(Φ − zφ + z²Q − δ²) | 148E + 267E + 72.25·147E + 2·8E·72.25 + 2·8.9·1 350E | ≤ 36 000E in units of v: **CLIP_VARIANCE_U = 36 000** per clip side |
 | Two-sided clip to [0, 1] | both sides | 2 × the above |
 | Reinhard quadrature (64 nodes, weights ∝ φ(z_k)) | weight error w_k(16E·z_k² + 80E), Σ w_k z_k² = 1 (the second moment of Z); 64-term sums γ_66 | ≤ 176E relative on the mean, declared 256E; 512E on the variance; the shift ε < 10⁻¹² |
+| Host finishing: the output quantization term Σ_j (w_j/A)²·q(m), q(m) = s(e)²·Δ²/12 (`quantizationVariance`), evaluated at the GPU's mean (#496) | dq/dm = 2·s′(e)·Δ²/12 with s′ ≤ 3.02 on [0, 1] (0 on the linear segment); q non-decreasing with a jump ≤ 2.1·10⁻⁴·Δ²/12 at the segment join (m = 0.0031308) | Σ(w/A)²·(6.04·Δm + jump)·Δ²/12 per display pixel, Δm = the mean's bound of the largest component (relative·\|m\| + the pixel's absolute term; the jump only when the interval holds the join), doubled, added to the pixel's absolute variance term (`displayViewSpeedQuantizationBound`; the Quality host's term, #479). Before #496 it was covered only by the γ_80 relative term |
 | Flagged material lookups | — | recomputed on the host: exact |
 
 The clip terms are absolute in units of each clipped quantity's standard deviation (or variance) and propagate through weights that sum to one (demosaic, footprint), the gains and the matrix's absolute row sums; the kernel evaluates them per display pixel from its own float32 values as it goes (a fixed formula, as the luminance tone curves' running bound) and the host reports the largest term as `errorBound.absolute` and `varianceBound.absolute`, keeping every pixel's term for the tests (`expectedValueAbsoluteBound`, `varianceAbsoluteBound`). A pixel whose clips never act has a zero absolute term and only the relative bound: 2·γ_64 ≈ 1.5 × 10⁻⁵ of the value, about 0.004 of an 8-bit code at mid grey.
 
-**Measured agreement with the CPU reference**, per display pixel, every component inside its bound (the bound's largest fraction used: 4.1 % for the expected value, 4.0 % for the variance). ΔE2000 is between the GPU's and the CPU's expected values (linear sRGB clipped to [0, 1] → XYZ by the capture colour model → CIELAB, D65); σ units are |ΔE|/σ_cpu per component.
+**Measured agreement with the CPU reference**, per display pixel, every component inside its bound (the bound's largest fraction used: 4.1 % for the expected value, 3.9 % for the variance; 4.0 % before #496 added the quantization term, which changed no value). ΔE2000 is between the GPU's and the CPU's expected values (linear sRGB clipped to [0, 1] → XYZ by the capture colour model → CIELAB, D65); σ units are |ΔE|/σ_cpu per component.
 
 | Fixture (600 × 400 frame of 6 µm sites, 2 × 2 box, 203 × 135 view, 82 215 components) | ΔE2000 max / RMS | σ units max / RMS | σ relative max | Samples differing (≤ 1 code) | Flagged, recomputed |
 | --- | --- | --- | --- | --- | --- |
@@ -299,13 +300,13 @@ The same numbers come from the float32 JavaScript emulation of the kernel (`test
 | Fixture | ΔE2000 max / RMS | σ units max / RMS | σ relative max | Bound used (mean / variance) | Samples differing (≤ 1 code) | Flagged display pixels, recomputed |
 | --- | --- | --- | --- | --- | --- | --- |
 | Composite under the label layer, frame-filling | 4.7e-5 / 9.8e-6 | 3.7e-4 / 2.1e-5 | 2.5e-6 | 4.6 % / 3.0 % | 1 | 1 158 (4.2 %) |
-| The same, fixed-size chart (0.042 m at 0.63 m) with surround | 2.3e-5 / 7.9e-6 | 6.9e-5 / 8.8e-6 | 7.3e-7 | 2.7 % / 3.4 % | 0 | 28 (0.10 %) |
+| The same, fixed-size chart (0.042 m at 0.63 m) with surround | 2.3e-5 / 7.9e-6 | 6.9e-5 / 8.8e-6 | 7.3e-7 | 2.7 % / 3.3 % | 0 | 28 (0.10 %) |
 | The same, Reinhard at the white clip (emulation) | 4.0e-5 / 5.2e-6 | 4.3e-4 / 7.0e-5 | 1.5e-2 | 0.5 % / 29 % | 3 | 1 158 (4.2 %) |
 | Zone plate, 200 cycles per picture height | 2.9e-5 / 7.1e-6 | 5.7e-5 / 1.1e-5 | 4.2e-4 | 2.8 % / 3.1 % | 2 | 6 174 (22.5 %) |
 | Siemens star, sine, 64 cycles | 3.8e-5 / 8.4e-6 | 2.7e-4 / 1.3e-5 | 1.3e-6 | 3.4 % / 3.1 % | 1 | 565 (2.1 %) |
-| Dead leaves (emulation) | 4.2e-5 / 1.0e-5 | 7.6e-5 / 1.5e-5 | 5.7e-7 | 4.1 % / 4.1 % | 3 | 140 (0.5 %) |
-| Bar groups with numerals (emulation) | 4.3e-5 / 2.1e-5 | 9.0e-5 / 3.5e-5 | 3.1e-7 | 4.1 % / 3.0 % | 1 | 565 (2.1 %) |
-| Checkerboard, fixed-size chart (a 2.0 preset through the composite module; emulation) | 2.6e-5 / 7.9e-6 | 6.9e-5 / 8.8e-6 | 3.2e-7 | 2.5 % / 3.4 % | 0 | 0 |
+| Dead leaves (emulation) | 4.2e-5 / 1.0e-5 | 7.6e-5 / 1.5e-5 | 5.7e-7 | 4.1 % / 4.0 % | 3 | 140 (0.5 %) |
+| Bar groups with numerals (emulation) | 4.3e-5 / 2.1e-5 | 9.0e-5 / 3.5e-5 | 3.1e-7 | 4.1 % / 2.9 % | 1 | 565 (2.1 %) |
+| Checkerboard, fixed-size chart (a 2.0 preset through the composite module; emulation) | 2.6e-5 / 7.9e-6 | 6.9e-5 / 8.8e-6 | 3.2e-7 | 2.5 % / 3.3 % | 0 | 0 |
 | **The app's request shape, 24 MP 6 µm 6000 × 4000 at 2028 × 1352: its composite chart (`APP_CHART`) under the label layer as `material-layers`, 0.42 m at 0.63 m (emulation; 2.74 million pixels)** | 4.2e-5 / 2.3e-5 | 6.3e-5 / — | 4.8e-5 | 5.6 % / 4.2 % | 87 | 36 055 (1.3 %) |
 
 Flagged display pixels per element of the frame-filling composite (fraction of each element's display pixels; the same on both): zone plate 59 %, label layer 51 %, grey ramp 16 %, Siemens star (bar) 9.3 %, bar groups 3.8 %, Siemens star (sine) 2.9 %, hyperbolic wedge 1.6 %, dead leaves 1.1 %, the line-grid background 0.02 %, and 0 for `uniform`, `step-wedge`, `point-grid`, `slanted-squares`, `fiducial`, `checkerboard`, `slanted-edge`, `patches` and `line-grid`. In the fixed-size placement only the bar star flags (1.0 %). The per-point fraction is #477's (0.69 % of 197 544 points in the recovery check); a display pixel is flagged when any of its points is. The browser realm's CPU reference differed from Node's in 6 of 82 215 samples of the frame-filling composite (0 in the other cases); the GPU is compared with the browser realm's reference, and where those 6 lie was not examined (#471 found the realms' `Math.atan2` differ in the last bit). SwiftShader took 7–83 s per 203 × 135 view, most of it the host recomputation of flagged pixels in the browser; that says nothing about a GPU.
