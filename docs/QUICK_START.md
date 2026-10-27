@@ -479,6 +479,11 @@ const view = await simulateDisplayView({
 console.log(view.diagnostics.sceneLookups);
 ```
 
+The same scene can be declared as data instead of a function: `{ kind: "material-layers", sceneId, chart, layers }`, an
+engine chart under shape-mask layers (polygons and annuli in the mask's own units; `resolveChartMaterialLayers`). Every
+CPU result is that of its `callerScene`, byte for byte, and `prepareDisplayView(request, { gpu: "auto" })` can render it
+on the GPU, which a caller function cannot (docs/DISPLAY_VIEW.md, "Rendering on the GPU").
+
 The display view's expected values match the reflectance-function form to rounding, because they are the same
 quantities summed in another order. Measured on the app's chart with a maker label (a 24 MP frame, the 2028 × 1352 view's
 centre strip, one thread), the material form took 1.15 s instead of 3.2 s with the defaults, and 3.0 s instead of 111 s

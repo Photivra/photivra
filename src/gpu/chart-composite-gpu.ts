@@ -241,6 +241,30 @@ export function chartMaterialTable(plan: ChartRadianceBatchPlan): Float32Array<A
 /** The scene key of a batch input: the scene's data and the aspect (every record derives from them). */
 export function chartSceneKey(scene: unknown, aspect: number): string { return aspect + "|" + JSON.stringify(scene); }
 
+/**
+ * The device's double-float32 probe (`CHART_COMPOSITE_PROBE_WGSL`): rejects with `unsupported-on-backend` on a device whose
+ * compiled arithmetic differs from the round-to-nearest, written-order evaluation. Run once per accelerator by
+ * `ChartSceneUploads.probe`, and once per display-view renderer by the composite material module (#491).
+ */
+export async function probeChartCompositeDevice(runtime: WebGpuRuntime, pipelines: PipelineSource, signal: AbortSignal): Promise<void> {
+  const pipeline = await pipelines(CHART_COMPOSITE_PROBE_LABEL, CHART_COMPOSITE_PROBE_WGSL), scope = new GpuResourceScope(runtime);
+  try {
+    const input = scope.upload("photivra-chart-probe-in", Float32Array.from(PROBE_INPUTS.flat()), BUFFER_USAGE.STORAGE);
+    const output = scope.buffer("photivra-chart-probe-out", 16 * PROBE_INPUTS.length, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
+    const bindGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: input } }, { binding: 1, resource: { buffer: output } }] });
+    const [data] = await runComputePass(runtime, scope, pipeline, bindGroup, [PROBE_INPUTS.length, 1], [{ buffer: output, bytes: 16 * PROBE_INPUTS.length }], signal);
+    const got = new Float32Array(data!, 0, 4 * PROBE_INPUTS.length);
+    PROBE_INPUTS.forEach((row, i) => {
+      const want = probeExpectation(row);
+      for (let k = 0; k < 4; k++) {
+        if (!Object.is(got[4 * i + k], want[k])) {
+          throw new ImageKernelExecutionError("unsupported-on-backend", "This device does not evaluate the composite chart kernel's double-float32 arithmetic as written (reassociated or fused); use cpu-reference for composite charts, 2.3 elements and material-layers scenes.");
+        }
+      }
+    });
+  } finally { scope.release(); }
+}
+
 interface UploadedScene { key: string; scope: GpuResourceScope; af: GPUBuffer; ai: GPUBuffer; packed: PackedChartScene }
 
 /** Per accelerator: the uploaded records of recent scenes (a prepared view's scene is uploaded once) and the device probe. */
@@ -250,26 +274,8 @@ export class ChartSceneUploads {
   constructor(private readonly runtime: WebGpuRuntime, private readonly keep = 4) {}
   /** The device's double-float32 probe, run once per accelerator; rejects with `unsupported-on-backend` on a device that reassociates it. */
   probe(pipelines: PipelineSource, signal: AbortSignal): Promise<void> {
-    this.#probed ??= this.#runProbe(pipelines, signal).catch((error: unknown) => { this.#probed = null; throw error; });
+    this.#probed ??= probeChartCompositeDevice(this.runtime, pipelines, signal).catch((error: unknown) => { this.#probed = null; throw error; });
     return this.#probed;
-  }
-  async #runProbe(pipelines: PipelineSource, signal: AbortSignal): Promise<void> {
-    const pipeline = await pipelines(CHART_COMPOSITE_PROBE_LABEL, CHART_COMPOSITE_PROBE_WGSL), scope = new GpuResourceScope(this.runtime);
-    try {
-      const input = scope.upload("photivra-chart-probe-in", Float32Array.from(PROBE_INPUTS.flat()), BUFFER_USAGE.STORAGE);
-      const output = scope.buffer("photivra-chart-probe-out", 16 * PROBE_INPUTS.length, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
-      const bindGroup = this.runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: input } }, { binding: 1, resource: { buffer: output } }] });
-      const [data] = await runComputePass(this.runtime, scope, pipeline, bindGroup, [PROBE_INPUTS.length, 1], [{ buffer: output, bytes: 16 * PROBE_INPUTS.length }], signal);
-      const got = new Float32Array(data!, 0, 4 * PROBE_INPUTS.length);
-      PROBE_INPUTS.forEach((row, i) => {
-        const want = probeExpectation(row);
-        for (let k = 0; k < 4; k++) {
-          if (!Object.is(got[4 * i + k], want[k])) {
-            throw new ImageKernelExecutionError("unsupported-on-backend", "This device does not evaluate the composite chart kernel's double-float32 arithmetic as written (reassociated or fused); use cpu-reference for composite charts, 2.3 elements and material-layers scenes.");
-          }
-        }
-      });
-    } finally { scope.release(); }
   }
   get(plan: ChartRadianceBatchPlan, scene: unknown, aspect: number): UploadedScene {
     const key = chartSceneKey(scene, aspect), index = this.#entries.findIndex((e) => e.key === key);

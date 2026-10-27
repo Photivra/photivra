@@ -131,7 +131,8 @@ export interface DisplayViewGpuRequest {
   /** Pixel-aperture samples per axis (1: centre sampling). */
   boxSamples: number;
   toneCurve: "identity" | "positive-reinhard-per-channel";
-  scene: "chart" | "material-function" | "reflectance-function" | "radiance-function";
+  /** The scene's form: an engine chart, a declared `material-layers` scene (#491), or a caller function. */
+  scene: "chart" | "material-layers" | "material-function" | "reflectance-function" | "radiance-function";
 }
 /** One render of a region: the CPU renderer's own setup (tables, readout, demosaic, region, callbacks) and the render's signal. */
 export interface DisplayViewGpuPart { setup: DisplayViewSetup; signal: AbortSignal | undefined }
@@ -148,14 +149,18 @@ export interface DisplayViewGpuConformanceCase { id: string; run(runtime: Displa
  * registered factory for each prepared view that acquires or shares a device. `supports` says whether the renderer covers a
  * prepared request (`true`) or why not (a sentence; the view then runs the CPU reference labelled `unsupported-on-backend`).
  * `render` renders one region on the device and must throw `ImageKernelExecutionError` with reason `device-lost` or `aborted`
- * for those two events, as the accelerator's operations do. `conformanceCases` are run after the built-in image-kernel cases
- * before the device's first render; a failure keeps the whole view on the CPU.
+ * for those two events, as the accelerator's operations do; a render that throws `unsupported-on-backend` (a request the
+ * renderer finds it does not cover only when rendering) runs the CPU reference labelled with that reason, or fails with it under
+ * `"require"`. `conformanceCases` are run after the built-in image-kernel cases before the device's first render; a failure keeps
+ * the whole view on the CPU. `dispose` releases what the renderer holds on the device (#491: uploaded scene records); the session
+ * calls it when the prepared view is disposed.
  */
 export interface DisplayViewGpuRenderer {
   readonly id: string;
   supports(request: DisplayViewGpuRequest): true | string;
   render(part: DisplayViewGpuPart): Promise<DisplayViewGpuRenderOutput>;
   readonly conformanceCases?: readonly DisplayViewGpuConformanceCase[];
+  dispose?(): void;
 }
 export type DisplayViewGpuRendererFactory = (runtime: DisplayViewGpuRuntimeHandle) => DisplayViewGpuRenderer;
 

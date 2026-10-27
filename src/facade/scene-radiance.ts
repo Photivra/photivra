@@ -29,6 +29,7 @@ import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } fr
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
 import type { SensorApertureRay } from "../optics/sensor-aperture-rays.js";
 import { resolveChartMaterial, resolveChartScene, type ChartReflectance, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
+import { resolveChartMaterialLayers, type ChartMaterialLayerScene } from "./chart-material-layers.js";
 
 /** CIE maximum luminous efficacy for photopic vision, lm/W. */
 export const PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W = 683;
@@ -394,14 +395,15 @@ export function resolveChartSizeOption(value: unknown, frameAspect: number): { w
 }
 
 /**
- * Public scene-preset provider. Places an engine chart (or a caller reflectance or radiance function) on
+ * Public scene-preset provider. Places an engine chart (or a declared `material-layers` scene, #491, evaluated as
+ * its `callerScene`; or a caller reflectance, radiance or material function) on
  * a plane `distanceM` in front of the camera and `framedWidthM` wide (frame units u = ±1 at its edges),
  * lit by `illuminant` at `illuminanceLux`. The returned `evaluateRadiance` and `evaluateApertureRadiance`
  * follow the native environment RAW provider contract. They answer requests for scene `sceneId` and
  * provider `providerProfileId`.
  */
 export function createPlanarSceneRadianceProvider(input: {
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
+  scene: ChartScene | ChartMaterialLayerScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   illuminant: CaptureIlluminant;
   illuminanceLux: number;
   distanceM: number;
@@ -425,9 +427,10 @@ export function createPlanarSceneRadianceProvider(input: {
   }
   for (const key of ["sceneId", "providerProfileId"] as const) if (typeof input[key] !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input[key])) throw new InvalidConfigurationError(key + " must be a public opaque ID.");
   requireInputObject(input.scene, "scene");
-  const caller = "kind" in input.scene ? requireCallerScene(input.scene) : undefined;
-  const size = input.chartSize === undefined ? undefined : resolveChartSizeOption(input.chartSize, input.aspect);
-  const chart = caller ? null : resolveChartScene({ scene: input.scene as ChartScene, aspect: size ? size.heightM / size.widthM : input.aspect });
+  const size = input.chartSize === undefined ? undefined : resolveChartSizeOption(input.chartSize, input.aspect), chartAspect = size ? size.heightM / size.widthM : input.aspect;
+  const declared = (input.scene as { kind?: unknown }).kind === "material-layers" ? resolveChartMaterialLayers({ scene: input.scene as ChartMaterialLayerScene, aspect: chartAspect }) : undefined;
+  const caller = declared ? requireCallerScene(declared.callerScene) : "kind" in input.scene ? requireCallerScene(input.scene) : undefined;
+  const chart = caller ? null : resolveChartScene({ scene: input.scene as ChartScene, aspect: chartAspect });
   const illuminant = resolveCaptureIlluminant(input.illuminant);
   const provider = buildPlanarSceneRadianceProvider({ scene: chart ?? caller!, sceneId: input.sceneId, providerProfileId: input.providerProfileId, illuminant,
     irradianceScale: calculateIlluminantIrradianceScale(illuminant.shape, input.illuminanceLux),

@@ -49,13 +49,25 @@ export { createDisplayViewExpectedSignal, type DisplayViewExpectedSignal, type D
   type DisplayViewScene } from "./expected-signal.js";
 import type { DisplayViewExpectedSignal, DisplayViewExpectedSignalInput } from "./expected-signal.js";
 import type { ResolvedChartScene } from "./chart-scenes.js";
+import type { ResolvedChartMaterialLayers } from "./chart-material-layers.js";
 
 /**
  * #478: what a GPU renderer needs beyond the CPU setup, which reads the scene only through `signal`: the expected signal's
  * input (query offsets and points, the materials table, the channel responses) and the resolved chart (null for caller
  * scenes), from which it builds its material lookup. The CPU renderer ignores it.
  */
-export interface DisplayViewGpuSetup { signalInput: DisplayViewExpectedSignalInput; chart: ResolvedChartScene | null }
+export interface DisplayViewGpuSetup {
+  signalInput: DisplayViewExpectedSignalInput;
+  /** The resolved chart (portable), or null for a caller scene or a declared `material-layers` scene. */
+  chart: ResolvedChartScene | null;
+  /** #491: the declared `material-layers` scene (its `chart` is the chart under the layers), or null. */
+  layers?: ResolvedChartMaterialLayers | null;
+  /**
+   * #491: a fixed-size chart's placement (`chartSize`): chart-local frame units per frame unit (the metres per frame unit over the
+   * chart's half width) and the chart's aspect; outside |cu| ≤ 1, |cv| ≤ aspect the material is the surround, the materials' last entry.
+   */
+  placement?: { chartUnitsPerFrameUnit: number; aspect: number } | null;
+}
 // ---------------------------------------------------------------------------------------------------------------
 // Normal-distribution helpers.
 /** Standard normal density. */

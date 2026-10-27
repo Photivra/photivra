@@ -343,8 +343,12 @@ export interface SimulateCaptureOptions {
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
     compensationStops?: number;
   };
-  /** Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card) or a caller reflectance/radiance function. */
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
+  /**
+   * Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card), a declared `material-layers` scene (#491:
+   * a chart under shape-mask layers, as `resolveChartMaterialLayers` takes it; the capture is that of its `callerScene`, byte for
+   * byte, and the display view can render it on the GPU), or a caller reflectance, radiance or material function.
+   */
+  scene: ChartScene | ChartMaterialLayerScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
   /**

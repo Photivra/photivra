@@ -1,32 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Fixtures and metrics of the GPU display view (Speed, #478): a request rendered by the CPU reference with its setup and
- * expected-signal input exposed, the chart-preset material module, the GPU render on a WebGPU runtime, and the per-pixel
- * comparison in ΔE2000 (CIELAB under the capture colour model's D65 white) and noise-σ units.
+ * expected-signal input exposed, the material module chosen as the renderer chooses it (the chart-preset module, or the
+ * composite module of #491), the GPU render on a WebGPU runtime, and the per-pixel comparison in ΔE2000 (CIELAB under the
+ * capture colour model's D65 white) and noise-σ units.
  */
 import { resolveCaptureColorModel } from "../../src/color/capture-color.js";
 import { cielabOfXyz, deltaE2000 } from "../../src/color/color-difference.js";
-import { resolvePortableChartScene } from "../../src/facade/chart-scenes.js";
 import { simulateDisplayViewWithInternals } from "../../src/facade/simulate-display-view.js";
-import type { ChartScene, SimulateCaptureOptions, SimulateDisplayViewOptions } from "../../src/index.js";
-import { chartPresetMaterialModule } from "../../src/gpu/display-view-chart-material-module.js";
+import type { SimulateCaptureOptions, SimulateDisplayViewOptions } from "../../src/index.js";
+import { createDisplayViewMaterialModules, type DisplayViewMaterialModules } from "../../src/gpu/display-view-composite-material-module.js";
 import { renderDisplayViewSpeedOnGpu, type DisplayViewSpeedGpuInput, type DisplayViewSpeedGpuResult } from "../../src/gpu/display-view-speed-gpu.js";
 import { acquireWebGpuRuntime, createComputePipeline, type WebGpuRuntime } from "../../src/gpu/webgpu-runtime.js";
-import type { DisplayViewRenderResult } from "../../src/facade/display-view.js";
+import type { DisplayViewRenderResult, DisplayViewSetup } from "../../src/facade/display-view.js";
 
-/** A CPU display view of a chart-preset request and the inputs of its GPU render. */
-export interface DisplayViewGpuFixture { cpu: DisplayViewRenderResult; input: DisplayViewSpeedGpuInput; viewWidth: number; viewHeight: number }
+/** A CPU display view of a request and the inputs of its GPU render (the material module is built per runtime in `renderOnGpu`). */
+export interface DisplayViewGpuFixture { cpu: DisplayViewRenderResult; input: Omit<DisplayViewSpeedGpuInput, "material">; viewWidth: number; viewHeight: number }
 
 /** The small 3:2 frame of the unit tests: 600 × 400 real pixels of 6 µm, shown at 2.96 real pixels per display pixel. */
 export const SMALL_FRAME = { width: 600, height: 400 };
 export const SMALL_VIEW = { width: 203, height: 135 };
 
-/** Renders the CPU reference of `options` at `view` and builds the GPU input with the chart-preset material module. */
+/** Renders the CPU reference of `options` at `view` and keeps the GPU inputs (the setup carries the resolved scene in `setup.gpu`). */
 export async function displayViewGpuFixture(options: SimulateCaptureOptions, view: SimulateDisplayViewOptions): Promise<DisplayViewGpuFixture> {
   const { internals, setup, signalInput } = await simulateDisplayViewWithInternals(options, view);
-  const output = options.output ?? {}, width = output.width ?? 64, height = output.height ?? 64;
-  const chart = resolvePortableChartScene({ scene: options.scene as ChartScene, aspect: height / width });
-  return { cpu: internals, input: { setup, signalInput, material: chartPresetMaterialModule(chart) }, viewWidth: view.width, viewHeight: view.height };
+  return { cpu: internals, input: { setup, signalInput }, viewWidth: view.width, viewHeight: view.height };
 }
 
 /** A runtime on a `navigator.gpu`-shaped object (the fake device in unit tests). */
@@ -36,9 +34,22 @@ export async function runtimeOf(gpu: unknown): Promise<WebGpuRuntime> {
   return acquired.runtime;
 }
 
+const moduleSources = new WeakMap<WebGpuRuntime, DisplayViewMaterialModules>();
+/** The material modules of a runtime, as the renderer keeps them (one source per runtime: the probe once, scene records uploaded once). */
+export function materialModulesOf(runtime: WebGpuRuntime): DisplayViewMaterialModules {
+  let source = moduleSources.get(runtime);
+  if (!source) { source = createDisplayViewMaterialModules(runtime, (label, code) => createComputePipeline(runtime, label, code, undefined)); moduleSources.set(runtime, source); }
+  return source;
+}
+/** The material module the renderer would build for a setup's scene on the runtime. */
+export async function materialModuleOf(runtime: WebGpuRuntime, setup: DisplayViewSetup): Promise<DisplayViewSpeedGpuInput["material"]> {
+  return materialModulesOf(runtime).moduleFor(setup.gpu!, new AbortController().signal);
+}
+
 /** Renders the fixture's input on the runtime (the host path with its full result; the contract adapter is tested through prepareDisplayView). */
 export async function renderOnGpu(runtime: WebGpuRuntime, fixture: DisplayViewGpuFixture, maximumBandBytes = 64 * 1024 * 1024, recomputeFlagged = true): Promise<DisplayViewSpeedGpuResult> {
-  return await renderDisplayViewSpeedOnGpu(runtime, maximumBandBytes, { ...fixture.input, recomputeFlagged }, new AbortController(), undefined,
+  const material = await materialModuleOf(runtime, fixture.input.setup);
+  return await renderDisplayViewSpeedOnGpu(runtime, maximumBandBytes, { ...fixture.input, material, recomputeFlagged }, new AbortController(), undefined,
     (label, code) => createComputePipeline(runtime, label, code, undefined));
 }
 
