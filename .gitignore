@@ -10,3 +10,6 @@ coverage/
 .idea/
 .vscode/
 *.log
+
+# Preview acceptance harness output (scripts/accept-display-view-gpu.mjs, default --out): difference images, not committed
+/display-view-acceptance/
