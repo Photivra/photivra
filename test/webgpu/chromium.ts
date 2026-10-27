@@ -143,6 +143,44 @@ export async function awaitPageTarget(listTargets: () => Promise<DevToolsTarget[
     + (lastError instanceof Error ? ` Last error: ${lastError.message}` : ""));
 }
 
+/** What `cleanupBrowser` needs of the browser process (a `ChildProcess`, or a test double). */
+export interface BrowserProcess {
+  readonly exitCode: number | null;
+  readonly signalCode: NodeJS.Signals | null;
+  kill(signal: NodeJS.Signals): boolean;
+  once(event: "exit", listener: () => void): unknown;
+}
+export interface BrowserCleanupOptions {
+  /** How long to wait for the process to exit after SIGKILL before removing the profile anyway (default 10 s). */
+  exitTimeoutMs?: number;
+  /** Removes the profile directory (default: `rmSync` with five retries 200 ms apart). */
+  remove?: (path: string) => void;
+  /** Where a cleanup failure is reported (default `console.warn`). */
+  log?: (message: string) => void;
+}
+/**
+ * Ends a browser launched by `openBrowserPage`: SIGKILL, then waits for the process to exit (Chromium's helper processes may still
+ * be writing to the profile when SIGKILL returns; macOS reported `ENOTEMPTY` from removing it at once in the owner's M5 Pro run of
+ * October 27, 2026), closes the server, and removes the profile with retries. It never throws: a failure is logged, so a cleanup
+ * problem cannot turn a test case's or a harness case's result into an error.
+ */
+export async function cleanupBrowser(child: BrowserProcess, closeServer: () => Promise<void>, profile: string, options: BrowserCleanupOptions = {}): Promise<void> {
+  const log = options.log ?? ((message: string): void => console.warn(message));
+  const remove = options.remove ?? ((path: string): void => rmSync(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }));
+  try {
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = new Promise<boolean>((done) => {
+        const timer = setTimeout(() => done(false), options.exitTimeoutMs ?? 10_000);
+        child.once("exit", () => { clearTimeout(timer); done(true); });
+      });
+      child.kill("SIGKILL");
+      if (!(await exited)) log(`Browser cleanup: the browser process did not exit within ${options.exitTimeoutMs ?? 10_000} ms of SIGKILL; removing its profile anyway.`);
+    }
+  } catch (error) { log(`Browser cleanup: stopping the browser failed: ${error instanceof Error ? error.message : String(error)}`); }
+  try { await closeServer(); } catch (error) { log(`Browser cleanup: closing the page server failed: ${error instanceof Error ? error.message : String(error)}`); }
+  try { remove(profile); } catch (error) { log(`Browser cleanup: removing the profile ${profile} failed (left in place): ${error instanceof Error ? error.message : String(error)}`); }
+}
+
 /** Launches headless Chromium on the loopback-served repository and opens its root page (a secure context). */
 export async function openBrowserPage(binary: string, repositoryRoot: string): Promise<BrowserPage> {
   const root = resolve(repositoryRoot);
@@ -153,11 +191,7 @@ export async function openBrowserPage(binary: string, repositoryRoot: string): P
   const headless = process.env.PHOTIVRA_WEBGPU_HEADLESS === "0" ? [] : ["--headless=new"];
   const child: ChildProcess = spawn(binary, [...headless, "--no-sandbox", "--no-first-run", "--remote-debugging-port=0",
     `--user-data-dir=${profile}`, ...flags, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
-  const cleanup = async (): Promise<void> => {
-    child.kill("SIGKILL");
-    await new Promise<void>((done) => server.close(() => done()));
-    rmSync(profile, { recursive: true, force: true });
-  };
+  const cleanup = (): Promise<void> => cleanupBrowser(child, () => new Promise<void>((done) => server.close(() => done())), profile);
   try {
     const endpoint = await new Promise<string>((resolveEndpoint, reject) => {
       let log = "";
