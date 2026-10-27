@@ -29,15 +29,20 @@ export interface DisplayViewExpectedSignalInput {
   wavelengthsNm: readonly number[];
   electronsPerRadiance: readonly [Float64Array, Float64Array, Float64Array];
   offsets: readonly DisplayViewQueryOffset[];
-  /** Diffraction: per-node kernels on the site lattice, (2R + 1)² taps in row-major order, out(x) = Σ in(x − t)·K(t). */
+  /**
+   * Diffraction and (#492) defocus: per-node kernels on the site lattice, (2R + 1)² taps in row-major order,
+   * out(x) = Σ in(x − t)·K(t). With defocus each node's kernel is its diffraction kernel convolved with the disc, or the
+   * disc itself without diffraction (expected-signal-setup.ts).
+   */
   kernels?: { radius: number; perNode: readonly Float64Array[] };
   scene: DisplayViewScene;
   /** CFA channel index (0 red, 1 green, 2 blue) of native site (x, y). */
   channelAt(x: number, y: number): number;
   /**
-   * Without diffraction: the plane point (frame units) that the environment queries for offset `o` of native site (x, y),
+   * Without kernels: the plane point (frame units) that the environment queries for offset `o` of native site (x, y),
    * computed with the environment's own arithmetic, so points that fall exactly on a chart boundary resolve to the same
-   * material as in the capture. With diffraction the facade's object-space convolution uses the lattice formula, as here.
+   * material as in the capture. With kernels (diffraction or defocus) the facade's object-space convolution uses the
+   * lattice formula, as here.
    */
   queryPoint?(x: number, y: number, offset: number, out: Float64Array): void;
 }

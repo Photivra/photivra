@@ -72,7 +72,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.distortion` | none | `{ kind: "radial", profile }` or `{ kind: "brown-conrady", profile }`. |
 | `lens.vignetting` | none | An `IlluminationVignettingProfile` (radial relative illumination). |
 | `lens.psf` | none | A `{ kind: "sampled-local", configuration }` sampled lens PSF, passed to the environment contract unchanged. |
-| `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). `simulateCapture` renders it. `simulateDisplayView` still refuses it out of focus until the next step of #492. |
+| `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). `simulateCapture` and `simulateDisplayView` render it. |
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
@@ -793,6 +793,14 @@ The optics options feed only what the environment site contract accepts:
       later step of #492.
     - Building the combined kernels cost 0.5 ms per spectral node at diffraction radius 2 with defocus radius 41. It
       cost 90 ms per node at 32 with 64, the largest pair (Node, one thread).
+  - **The display view renders it** (#492, step 2b) with the same per-node kernels: its expected-signal tables read
+    the scene on the site lattice through the disc (with `lens.diffraction`, through each node's diffraction kernel
+    convolved with the disc), so the view's estimators run unchanged on the blurred signal. The `view.defocus`
+    assumption records the kernel and its radii. The GPU display-view renderer does not take the kernel yet:
+    `gpu: "auto"` renders such a view on the CPU, labelled `unsupported-on-backend`. Validation and cost per radius:
+    [Display view, Defocus](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#defocus).
+  - In focus (c = 0) no kernel is applied, and the image is byte-identical to the same request without the option.
+    `simulateIdealReference`, which has no camera effects, only records the disc.
   - **Refused out of focus** with camera rotation, `lens.projection` or `lens.distortion`, and `lens.vignetting`. Each
     of these moves the scene points that a site sees off the site lattice, so the convolution does not apply. In
     focus they render as without `lens.defocus`.
@@ -1442,8 +1450,8 @@ a 24 MP request, an 8 × 8 region took 6–40 ms through a prepared view instead
 
 **Not supported** (refused with an `InvalidConfigurationError`): `lens.pupilSampling`, `lens.projection`,
 `lens.distortion`, `lens.vignetting`, `lens.psf`, camera rotation, `output.whiteBalance: "auto"`, the luminance tone
-curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `lens.defocus` is accepted in
-focus and refused out of focus until its rendering arrives (#492). `onProgress` is not called; `signal` cancels.
+curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `lens.defocus` is rendered as a
+site kernel in the expected signal (#492; see [Optics](#optics)). `onProgress` is not called; `signal` cancels.
 
 The result is labelled `kind: "display-view"` with a `label` for the user interface; it has no RAW, plan or file, and
 the `view.*` assumptions state the definition, the estimator, the noise model, the demosaic treatment and which capture

@@ -23,6 +23,7 @@ import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, 
   SIMULATE_CAPTURE_FACADE_VERSION, DISPLAY_VIEW_WITHOUT_VIEW, allowKeys, parseDisplayViewOption, type DisplayViewResult, type DisplayViewRunContext, type ParsedDisplayView,
   type SimulateCaptureAssumption, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
 import { createHostYield } from "./host-yield.js";
+import { createDefocusDiscSiteKernel } from "../optics/defocus-disc-kernel.js";
 import { cpuDisplayViewExecution, parsePrepareDisplayViewOptions, type DisplayViewExecution, type DisplayViewGpuRequest, type PrepareDisplayViewOptions } from "./display-view-gpu.js";
 import type { DisplayViewGpuSession } from "./display-view-gpu-session.js";
 
@@ -201,8 +202,12 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
   const perNode = CHANNELS.map((c) => Float64Array.from(wavelengths, (nm) => electronsPerRadiance[c].get(nm) ?? 0)) as [Float64Array, Float64Array, Float64Array];
   // The tabulated expected signal's input (#394: shared with the capture's tabulated RAW path).
   const sceneMaterials = viewChart ? viewChart.materials : callerScene?.kind === "material-function" ? callerScene.materials : undefined;
+  // Defocus (#492): the geometric disc on the site lattice, combined with the diffraction kernels in the tables (expected-signal-setup.ts).
+  const defocusDisc = context.defocus, defocusKernel = defocusDisc && defocusDisc.diameterSites > 0 ? createDefocusDiscSiteKernel(defocusDisc.diameterSites) : null;
+  // The combined radius is at most 32 + 64 = 96 sites (the diffraction and disc caps), as in the capture.
+  const diffractionRadius = diffraction ? diffraction.kernelRadiusSamples : 0, combinedRadius = defocusKernel ? diffractionRadius + defocusKernel.radius : diffractionRadius;
   const { offsets, signalInput } = buildExpectedSignalInput({ nativeWidth, nativeHeight, width, wavelengths, perNode, apertureNodes: apertureNodeOffsets(boxSamples), boxSamples,
-    antiAliasing, pitch, diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm } : undefined,
+    antiAliasing, pitch, defocus: defocusKernel, diffraction: diffraction ? { radius: diffraction.kernelRadiusSamples, psf: diffractionPsf!.configuration.psf, profileWavelengths: diffraction.profile.axes.wavelengthNm } : undefined,
     materials: sceneMaterials && provider.chartMaterialAt ? { materialAt: provider.chartMaterialAt,
       list: [...sceneMaterials.map((m, index) => (m.kind === "neutral" ? { neutral: m.reflectance } : { radiance: (nm: number): number => viewProvider.materialRadiance!(index, nm) })),
         ...(chartSize ? [{ neutral: chartSize.surroundReflectance }] : [])],
@@ -250,9 +255,8 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
     await renderDisplayView(setupOf(v, v.region ?? { x: 0, y: 0, width: v.width, height: v.height }, run, keys).setup);
     return Int32Array.from(keys).sort();
   };
-  // #492: the defocus disc is needed when the lens.defocus assumption records a non-zero diameter (out of focus).
-  const defocus = context.assumptions.some((a) => a.id === "lens.defocus" && ((a.value as { diameterSites?: number } | null)?.diameterSites ?? 0) > 0);
-  const gpuRequest: DisplayViewGpuRequest = { ahd, defocus, diffraction: diffraction !== undefined, antiAliasing: antiAliasing !== undefined, boxSamples, toneCurve: viewToneCurve,
+  // #492: out of focus the view reads the defocus disc (its kernel in signalInput.kernels), which no GPU kernel gathers yet.
+  const gpuRequest: DisplayViewGpuRequest = { ahd, defocus: defocusKernel !== null, diffraction: diffraction !== undefined, antiAliasing: antiAliasing !== undefined, boxSamples, toneCurve: viewToneCurve,
     scene: chart ? "chart" : materialLayers ? "material-layers" : callerScene!.kind };
   const render: RenderPreparedView = async (v, run, viewInternals, gpu) => {
     const { started, viewStarted } = run;
@@ -299,6 +303,15 @@ function prepareView(context: DisplayViewRunContext): PreparedViewParts {
         "computed once per state of a logarithmic grid (8 steps per octave of the channel means) and interpolated trilinearly, a control variate with no per-pixel sampling noise; " +
         "the flat-neighbourhood state is an approximation at edges (docs/DISPLAY_VIEW.md, validation)." :
         "The bilinear demosaic's linear kernels, exactly.");
+    if (defocusKernel) {
+      assume("view.defocus", "model", { kernel: diffraction ? "diffraction-convolved-with-disc" : "disc", defocusKernelRadiusSites: defocusKernel.radius,
+        diffractionKernelRadiusSites: diffraction ? diffractionRadius : null, kernelRadiusSites: combinedRadius, scientificStatus: "approximation" },
+        "The expected electrons of each real site read the scene on the site lattice through the defocus disc (" + defocusKernel.diameterSites + " sites across, a " + defocusKernel.width + " × " +
+        defocusKernel.width + " window), as the capture's object-space convolution does; the estimators then run unchanged on the blurred signal. " + (diffraction ?
+          "With lens.diffraction each spectral node's kernel is its diffraction kernel convolved with the disc (" + (2 * combinedRadius + 1) + " × " + (2 * combinedRadius + 1) + " taps): " +
+          "an approximation, because the PSF of a defocused wave is not the in-focus Airy pattern convolved with a geometric disc." :
+          "The disc is the same at every spectral node (geometric optics)."));
+    }
     if (execution.backend === "webgpu-f32") {
       assume("view.execution", "model", { backend: execution.backend, arithmetic: execution.arithmetic, errorBound: execution.errorBound, adapter: execution.adapter },
         "Estimated on the GPU: this view was rendered by the WebGPU float32 display-view renderer, a labelled approximation of the float64 CPU reference within the a-priori " +
