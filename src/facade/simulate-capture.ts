@@ -227,8 +227,10 @@ export interface SimulateCaptureOptions {
      * Opt-in (#492): defocus of the flat scene plane when `focusDistanceM` differs from the subject distance, as a
      * geometric disc (`model: "geometric-disc"`): the thin-lens blur circle of an ideal uniform circular pupil
      * (`calculateDefocusCircle`), an approximation. The blur diameter is recorded in the `lens.defocus` assumption.
-     * Rendering the blur is not available yet: a request that would need a non-zero disc fails with a "not yet
-     * supported" error; in focus the result is that of the same request without the option, plus the assumption.
+     * `simulateCapture` renders the blur as an object-space convolution of the scene radiance on the site lattice and
+     * `simulateDisplayView` as a site kernel in its expected signal; with `diffraction` each spectral node's diffraction
+     * kernel is convolved with the disc (a further approximation). In focus the result is that of the same request
+     * without the option, plus the assumption.
      * Not combinable with `pupilSampling` or `psf`. Default off.
      */
     defocus?: { model: "geometric-disc" };
@@ -1107,6 +1109,8 @@ export interface DisplayViewRunContext {
   chartReport: { widthM: number; heightM: number; surroundReflectance: number; frameWidthFraction: number; frameHeightFraction: number; magnification: number; imageWidthMm: number; imageHeightMm: number; imageWidthPixels: number; imageHeightPixels: number; } | undefined;
   chartSize: { widthM: number; heightM: number; surroundReflectance: number; defaulted: ("heightM" | "surroundReflectance")[]; } | undefined;
   diffraction: DiffractionLimitedPsfProfile | undefined;
+  /** `lens.defocus` (#492): the resolved geometric disc out of focus; undefined in focus or without the option. */
+  defocus: ResolvedDefocusDisc | undefined;
   diffractionPsf: { kind: "sampled-local"; configuration: Pick<CalculateSensorPsfIrradianceQuadratureInput, "psf" | "psfWavelengthBasis" | "spatialModel">; } | undefined;
   fNumber: number;
   focalLengthMm: number;
@@ -1167,8 +1171,8 @@ export function parseDisplayViewOption(value: unknown, frameWidth: number, frame
 /**
  * `lens.defocus` (#492): resolves the geometric defocus disc at the resolved f-number on the site pitch and records it.
  * In focus (c = 0) no kernel exists and nothing else changes (undefined). The capture (step 2a) applies the disc as an
- * object-space convolution and gets it back; the ideal reference, which has no camera effects, only records it. Until the
- * display view applies the kernel, a display view that needs one fails rather than render without the blur.
+ * object-space convolution and the display view (step 2b) as a site kernel in its expected-signal tables, and both get it
+ * back; the ideal reference, which has no camera effects, only records it.
  */
 function resolveDefocusOption(input: { run: "capture" | "ideal-reference" | "display-view" | "dng-from-parts"; assume: DisplayViewRunContext["assume"];
   focalLengthMm: number; fNumber: number; focusDistanceM: number; subjectDistanceM: number; pitch: number; diffraction: boolean }): ResolvedDefocusDisc | undefined {
@@ -1191,9 +1195,13 @@ function resolveDefocusOption(input: { run: "capture" | "ideal-reference" | "dis
     assume("lens.defocus", "model", value, model + "Resolved but not applied: the ideal reference has no camera effects.");
     return undefined;
   }
-  if (run === "display-view") fail("simulateDisplayView does not yet support lens.defocus out of focus: the geometric blur circle here is " + size +
-    " (kernel radius " + radius + " sites), and rendering it arrives in a later release (#492). The engine does not render the request without the blur. " +
-    "Set lens.focusDistanceM equal to subjectDistanceM, or omit lens.defocus.");
+  // The display view (#492, step 2b): a site kernel in its expected-signal tables (simulate-display-view.ts).
+  if (run === "display-view") {
+    assume("lens.defocus", "model", { ...value, execution: "expected-signal-site-kernel", combinedWithDiffraction: input.diffraction }, model +
+      "Applied in the display view's expected-signal tables as a site kernel on the lattice" + (input.diffraction ? " (with lens.diffraction, each spectral node's " +
+      "diffraction kernel convolved with the disc, a further approximation)" : "") + "; see the view.defocus assumption.");
+    return disc;
+  }
   // The capture (#492, step 2a): an object-space convolution of the scene radiance on the site lattice.
   assume("lens.defocus", "model", { ...value, execution: "object-space-convolution", combinedWithDiffraction: input.diffraction }, model +
     "Applied as an object-space convolution: the scene radiance on the site lattice is convolved with the disc, the same kernel at every spectral node, " +
@@ -1427,7 +1435,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const parsedView = displayView && viewOption !== DISPLAY_VIEW_WITHOUT_VIEW ? parseDisplayViewOption(viewOption, width, height) : undefined;
   if (displayView) {
     const unsupported = (option: string, reason: string): never => fail("simulateDisplayView does not support " + option + ": " + reason);
-    if (pupil) unsupported("lens.pupilSampling", "defocus moves each query off the site lattice the expected-signal tables use.");
+    if (pupil) unsupported("lens.pupilSampling", "pupil rays move each query off the site lattice the expected-signal tables use; lens.defocus renders the defocus of the scene plane on the lattice.");
     if (lensFieldMapping) unsupported("lens.projection or lens.distortion", "the expected signal assumes the ideal rectilinear, distortion-free mapping of the site lattice.");
     if (vignetting) unsupported("lens.vignetting", "the expected signal assumes the same radiance-to-irradiance factor at every site.");
     if (lensPsf) unsupported("lens.psf", "only the engine-built diffraction kernels (lens.diffraction) are tabulated.");
@@ -1683,7 +1691,9 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       "on the site lattice, and " + reason + " moves the scene points the sites see off that lattice. Set lens.focusDistanceM equal to subjectDistanceM, or omit one of the two options.");
   }
   // #492: the disc on the site lattice (radius 0 for a disc inside one cell: the identity, still applied).
-  const defocusKernel = defocusDisc ? createDefocusDiscSiteKernel(defocusDisc.diameterSites) ?? undefined : undefined;
+  const defocusKernel = defocusDisc && !displayView ? createDefocusDiscSiteKernel(defocusDisc.diameterSites) ?? undefined : undefined;
+  // The display view's disc (#492, step 2b): its expected-signal tables apply it (simulate-display-view.ts).
+  const displayViewDefocus = displayView ? defocusDisc : undefined;
 
   // Sensor readout for the ISO setting. Standard output sensitivity S = 10/H (CIPA DC-004 §3.2) is defined at the
   // output, independent of pixel size, while the collected charge is proportional to the sensitive-aperture area
@@ -2106,7 +2116,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
-  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, defocus: displayViewDefocus, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();
