@@ -79,8 +79,9 @@ describe("lens.defocus option (#492 step 1: parse and resolve, no rendering yet)
     const focused = await simulateDisplayView({ ...options, lens: { defocus: { model: "geometric-disc" } } }, view);
     expect(Array.from(focused.image.samples)).toEqual(Array.from(plain.image.samples));
     expect(focused.assumptions.find((a) => a.id === "lens.defocus")!.value).toMatchObject({ diameterMicrometers: 0, kernelRadiusSites: null });
-    await expect(simulateDisplayView({ ...options, lens: { defocus: { model: "geometric-disc" }, focusDistanceM: 1.8 } }, view))
-      .rejects.toThrow(/simulateDisplayView does not yet support lens\.defocus out of focus/u);
+    // Out of focus the display view renders the disc (#492 step 2b; test/display-view-defocus.test.ts).
+    const blurred = await simulateDisplayView({ ...options, lens: { defocus: { model: "geometric-disc" }, focusDistanceM: 1.8 } }, view);
+    expect(blurred.assumptions.find((a) => a.id === "view.defocus")!.value).toMatchObject({ kernel: "disc", scientificStatus: "approximation" });
     await expect(simulateDisplayView({ ...options, lens: { defocus: { model: "geometric-disc" }, pupilSampling: { radialSamples: 1, angularSamples: 4 } } }, view))
       .rejects.toThrow(/lens\.defocus cannot be combined with lens\.pupilSampling/u);
     const reference = await simulateIdealReference({ ...options, lens: { fNumber: 4, defocus: { model: "geometric-disc" }, focusDistanceM: 1.8 } });

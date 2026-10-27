@@ -118,6 +118,75 @@ that frequency aliases into the display pixel exactly as it does in the real ave
 value of the box-averaged mosaic contains Σ_k Ŝ(f − k/(2p)), and the box passes the aliases that land
 near zero frequency). Sampling theory: MIT OpenCourseWare 6.003, lectures on sampling and aliasing.
 
+### Defocus
+
+`lens.defocus: { model: "geometric-disc" }` with `lens.focusDistanceM` different from `subjectDistanceM` (#492, step
+2b) blurs the view by the defocus of the flat scene plane. The model, an approximation recorded in the `lens.defocus`
+assumption, is the thin-lens blur circle of an ideal uniform circular pupil, c = f²·|s − d| / (N·d·(s − f))
+(`calculateDefocusCircle`), as a uniform disc D sampled on the site lattice: each site's weight is the exact area of the
+disc inside its cell over the disc's area ([Quick start, Optics](QUICK_START.md#optics)). For a plane, defocus is one
+convolution of the radiance with D, the same at every wavelength. So the disc enters the expected signal as a site
+kernel, and every query stays on the lattice:
+
+  μ_c(i, j) = Σ_o w_o Σ_λ A_c(λ) Σ_t (K_λ ∗ D)(t) · L(p_o(i, j) − t, λ),
+
+with K_λ the diffraction kernel (a unit tap without `lens.diffraction`).
+
+- **Without diffraction** every spectral node takes D itself. The view then reads the scene on the lattice, with the
+  formula the diffraction path uses, instead of the environment's query points. The tables fold the spectral sum
+  into one combined table per lattice group, so a chart or material scene costs one material lookup per lattice point
+  and one multiply-add per tap, as with diffraction.
+- **With diffraction** node λ takes K_λ ∗ D, the full 2-D convolution of its diffraction kernel with the disc, of
+  radius R_diff + R_defocus (`convolveSiteKernels`, `expected-signal-setup.ts`). This is a further approximation: the
+  PSF of a defocused wave is not the in-focus Airy pattern convolved with a geometric disc. Where it departs from the
+  wave-optics answer is measured in a later step of #492. The convolution is linear, so the result equals the
+  diffracted radiance blurred by D.
+- The `view.defocus` assumption records the kernel (`"disc"` or `"diffraction-convolved-with-disc"`), the defocus and
+  diffraction radii and the combined radius.
+- **Unchanged:** both estimators (the exact area mean and the stratified estimate), the noise, the demosaic and the
+  development run on the blurred lattice signal as they do on the sharp one. The pilot grid that classifies display
+  pixels is widened by the combined radius, so a pixel that the blur reaches from an edge outside it is sampled as detail.
+- **Prepared views** build the combined kernels and the tables once per prepared request, as they do the diffraction
+  kernels, so regions of one prepared view are byte-identical to the whole view.
+- **Limit:** the combined radius R_defocus + R_diff may be at most 64 sites
+  (`SIMULATE_DISPLAY_VIEW_MAXIMUM_KERNEL_RADIUS_SITES`). That is the disc kernel's own cap and the 64 columns the
+  lattice rings keep beyond the raster edges. Past it the view fails with an `InvalidConfigurationError` that names
+  both radii; the kernel is never clipped. The cost grows with the square of the radius
+  ([Cost, defocus](#defocus-1)).
+- **In focus** (c = 0), or without the option, nothing changes: the view is byte-identical to the request without it,
+  and every display-view hash lock holds.
+- **The GPU** display-view renderer does not take the kernel yet (a later step of #492). It refuses a view whose
+  expected signal carries site kernels with `unsupported-on-backend`, so `prepareDisplayView(request, { gpu: "auto" })`
+  renders a defocused view on this CPU path, labelled.
+
+**Validation** (`test/display-view-defocus.test.mjs`; `scripts/accept-display-view-defocus.mjs` for the whole matrix):
+
+- *Analytic.* A straight edge blurred by a uniform disc has a closed-form edge-spread function, the circular-segment
+  area fraction. The defocused view of a sharp edge is compared with the in-focus view of a reflectance-function scene
+  whose reflectance is that closed form. Setup: 6 µm full frame, 50 mm, subject at 2 m, focus at 1.6 m, f/2.8 and
+  f/16, at 1, 3 and 8 real pixels per display pixel (exact area mean and stratified).
+  - An axis-aligned edge on a cell boundary, where the lattice blur equals the closed form at every site centre: they
+    agree within 7.3e-15 in linear light.
+  - An edge slanted by 5°: the lattice counts each kernel cell the edge crosses on the side of its centre. The
+    difference stays within the summed weight of the crossed cells times the display swing: 14 % of that bound at
+    f/2.8 (disc radius 9.6 sites) and 57 % at f/16 (1.68 sites), at 1:1.
+- *Against the capture's model.* The capture's defocus (#492, step 2a) is a convolution of the radiance on the site
+  lattice. So the reference is the in-focus view (validated against the capture above and by the #480 harness) of the
+  same scene blurred beforehand by D on the lattice, in plain JavaScript, at the same focus distance (the same framing,
+  exposure and diffraction kernels). The cases are focus at 0.8× and 1.25× the 2 m subject distance; f/2.8, f/8 and
+  f/16; 6 µm (50 mm-equivalent prime) and 1.4 µm (300 mm-equivalent, about 48 mm) pitch; Speed (2 × 2 box) and
+  Quality (diffraction, four-spot filter, AHD); 1, 4 and 8 real pixels per display pixel. Thresholds of #480.
+  - `node scripts/accept-display-view-defocus.mjs --block 96x64 --capture` (October 27, 2026; Node 24.21.0, built
+    from this change): all 24 cases at all three scales (72 renders) pass. Every pixel is within ΔE2000 1. The largest
+    ΔE2000 is 6.6e-11 on the exact area mean and 1.6e-7 on the stratified estimate, where the two scenes' pilot grids
+    can classify a pixel differently. That changes its sample count, not its expectation. The largest |Δ|/σ is 1.3e-7,
+    and the largest difference is 2.5e-7 of an 8-bit code. No difference image can show structure at 1:1.
+  - Disc diameters run from 2.7 sites (6 µm, f/16, 1.25×) to 77.5 sites (1.4 µm, f/2.8, 0.8×). Combined Quality
+    radii run up to 45 sites.
+  - The test runs six of the cases.
+  Once the capture renders the option, the script's `--capture` and the test also compare the capture with the option
+  against the capture of the pre-blurred scene at the same noise seed; until then they record that the capture refuses it.
+
 ### Monte Carlo estimator and its error
 
 A point drawn uniformly in F_P lands in real pixel j with probability w_j/A, so the mean of
@@ -532,6 +601,51 @@ resolves them again. Prepares in one process, the app-request shape, five rounds
 change 37–45 → 9–16 ms at 6 µm f/11, 76–84 → 10–12 ms at 6 µm f/22 and 241–276 → 15–19 ms at
 1.4 µm f/11 (Node 24.21.0, one thread, five rounds alternating the builds).
 
+### Defocus
+
+The app-request shape above with `lens.defocus` at kernel radii of 4–60 sites (#492, step 2b). The focus distance is
+solved for a disc of 2R + 0.6 sites, in front of the 0.63 m subject or, where the prime cannot focus that close, behind
+it. Run as `DEFOCUS_RADII=0,4,8,16,28 ROWS=0,2 PARTS=12 node scripts/benchmark-display-view.mjs --app` at f/8, where the
+geometry reaches at most about 30 sites, and `DEFOCUS_RADII=0,32,48,60 ROWS=4,5 PARTS=8` at f/2.8 (opt-in rows).
+Conditions: two repeats with the radii interleaved and their order alternating, one fresh Node process per run, one
+thread, built from this change on `ef47d7e`, Node 24.21.0, a 4-vCPU Xeon shared with other work (load average 3.9–6.7,
+so absolute times run above the table above). Ranges are over the repeats; "view radius" is the combined kernel radius.
+
+| Options | f | Defocus radius (view radius) | Part median | Slowest part | µs per display pixel, median | Whole view, one thread (extrapolated) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Speed | f/8 | none | 109–119 ms | 292–474 ms | 11.8–12.9 | 36–44 s |
+| Speed | f/8 | 4 (4) | 115–141 ms | 305–354 ms | 12.5–15.2 | 41–50 s |
+| Speed | f/8 | 8 (8) | 146–198 ms | 431–503 ms | 15.5–21.2 | 52–64 s |
+| Speed | f/8 | 16 (16) | 357–359 ms | 872–883 ms | 38.8–39.0 | 121 s |
+| Speed | f/8 | 28 (28) | 944–977 ms | 1.82–1.93 s | 102–106 | 292–293 s |
+| Speed | f/2.8 | none | 142–199 ms | 461–552 ms | 15.1–21.2 | 61–62 s |
+| Speed | f/2.8 | 32 (32) | 1.56 s | 2.76–2.90 s | 165–166 | 448–468 s |
+| Speed | f/2.8 | 48 (48) | 3.42–3.45 s | 5.31–5.86 s | 364–367 | 966–979 s |
+| Speed | f/2.8 | 60 (60) | 6.39–6.43 s | 8.52–8.62 s | 679–683 | 1672–1679 s |
+| Quality | f/8 | none | 150–171 ms | 496–888 ms | 16.0–18.3 | 62–84 s |
+| Quality | f/8 | 4 (8) | 250–252 ms | 598–842 ms | 26.8–27.0 | 84–104 s |
+| Quality | f/8 | 8 (12) | 355–393 ms | 884–900 ms | 38.5–42.0 | 117–118 s |
+| Quality | f/8 | 16 (20) | 579–690 ms | 1.33–1.48 s | 62.2–73.3 | 202–205 s |
+| Quality | f/8 | 28 (32) | 1.47–1.49 s | 2.77–2.91 s | 160–162 | 463–479 s |
+| Quality | f/2.8 | none | 150–276 ms | 564–831 ms | 16.0–29.6 | 66–99 s |
+| Quality | f/2.8 | 32 (34) | 1.68–1.87 s | 3.01–3.41 s | 179–199 | 516–554 s |
+| Quality | f/2.8 | 48 (50) | 4.28–4.30 s | 6.32–6.83 s | 455–457 | 1168–1205 s |
+| Quality | f/2.8 | 60 (62) | 7.91–8.05 s | 11.6 s | 840–856 | 2126–2129 s |
+
+The prepare time does not grow with the radius here (76–320 ms over every row). Building the combined kernels was timed
+apart, in one process, five repeats: one node's diffraction kernel of radius 32 convolved with a disc of radius 32 takes
+about 31 ms, so about 0.6 s per prepare at 20 spectral nodes. Smaller combinations take 0.5–6 ms per node.
+
+Without the disc a site reads one point per query offset. With it, a site's expected electrons sum (2R + 1)² taps per
+lattice group (four groups for the 2 × 2 box). Sites whose whole window reads one material take the precomputed value,
+so the cost is in the parts with edges. It grows about as R². Speed's median per-pixel cost is 1.0–1.3× that of the sharp
+view at R = 4 (f/8) and 32–45× at R = 60 (f/2.8), with medians and ranges as in the table.
+
+The limit stays at 64 sites, the disc's own cap: a larger blur fails rather than render slowly or be clipped. At
+radii of 30 sites and above, a 96 × 96 part takes seconds on one thread. A faster path (separable sums for the disc's
+rows, or an FFT) is not part of this step; it would be justified by these measurements, and the GPU gather of #492 is
+the planned route for interactive use.
+
 ### Whole views against the 2.5 whole-frame view (2.6.0)
 
 The table below is the 2.6.0 record: whole views of 96–800 pixels wide, mostly on the stratified estimator, against the
@@ -887,7 +1001,9 @@ model:
 
 - `lens.pupilSampling`, `lens.projection`, `lens.distortion`, `lens.vignetting`, `lens.psf` and camera
   rotation (`motion.angularVelocityRadPerSec`): they move the queries off the site lattice or change the
-  radiance-to-irradiance factor between sites;
+  radiance-to-irradiance factor between sites (for defocus use `lens.defocus`, which stays on the lattice:
+  [Defocus](#defocus));
+- `lens.defocus` with a combined kernel radius (defocus plus diffraction) above 64 sites;
 - `output.whiteBalance: "auto"`: the capture measures it from its noisy full-resolution RAW (use
   `"scene-illuminant"` or a fixed white balance, as for region tiles);
 - luminance tone curves (`extended-reinhard-luminance`, `naka-rushton-luminance`) and

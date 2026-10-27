@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Display view: `lens.defocus` out of focus is rendered (#492, step 2b, the CPU display view).** No result changes without the option or in focus: every display-view hash lock holds. `simulateCapture` still refuses the option out of focus (step 2a).
+  - **How:** the disc enters the expected-signal tables as a site kernel (`buildExpectedSignalInput`'s new `defocus` input), so every query stays on the site lattice and both estimators run unchanged on the blurred lattice signal. Without diffraction every spectral node takes the disc itself (the view then reads the scene with the lattice formula, as with diffraction); with `lens.diffraction` node λ takes its diffraction kernel convolved with the disc (`convolveSiteKernels`, radius R_diff + R_defocus), a further labelled approximation. The new `view.defocus` assumption records the kernel and its radii. Prepared views build the combined kernels and tables once per request; regions stay byte-identical to the whole view.
+  - **Limit:** the combined radius may be at most 64 sites (`SIMULATE_DISPLAY_VIEW_MAXIMUM_KERNEL_RADIUS_SITES`, internal); past it the view fails with an `InvalidConfigurationError` naming both radii. The disc's own cap (64) is unchanged.
+  - **GPU:** the Speed renderer refuses a view whose expected signal carries site kernels at render time, so `gpu: "auto"` renders a defocused view on the CPU, labelled `unsupported-on-backend`.
+  - **Validation** (`test/display-view-defocus.test.mjs`, `scripts/accept-display-view-defocus.mjs`, shared cases in `scripts/lib/display-view-defocus-cases.mjs`): against the disc's closed-form edge-spread function (axis-aligned edge on a cell boundary within 7.3e-15 linear at 1, 3 and 8 real pixels per display pixel; a 5° edge within the crossed-cell bound); against the in-focus view of the scene blurred beforehand by the capture's lattice convolution, 24 cases (focus 0.8× and 1.25×; f/2.8, f/8, f/16; 6 µm and 1.4 µm; Speed and Quality) at three scales, every one inside the #480 thresholds (72 renders): ΔE2000 at most 6.6e-11 on the exact area mean and 1.6e-7 on the stratified estimate, |Δ|/σ at most 1.3e-7. A capture comparison runs automatically once the capture renders the option.
+  - **Cost:** `scripts/benchmark-display-view.mjs --app` takes `DEFOCUS_RADII` (and opt-in f/2.8 rows 4 and 5); measured costs per radius are in `docs/DISPLAY_VIEW.md`, "Cost".
+  - Docs: `docs/DISPLAY_VIEW.md` ("Defocus", limits, cost) and `docs/QUICK_START.md`.
+
 - **`lens.defocus: { model: "geometric-disc" }` and the geometric defocus disc on the site lattice (#492, step 1: the kernel and the option; no rendering yet).** No result changes without the option.
   - **The kernel** (internal, `src/optics/defocus-disc-kernel.ts`):
     - It takes the thin-lens blur circle c from `calculateDefocusCircle` and models it as a uniform disc of c/pitch sites.

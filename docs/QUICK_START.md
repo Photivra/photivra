@@ -72,7 +72,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.distortion` | none | `{ kind: "radial", profile }` or `{ kind: "brown-conrady", profile }`. |
 | `lens.vignetting` | none | An `IlluminationVignettingProfile` (radial relative illumination). |
 | `lens.psf` | none | A `{ kind: "sampled-local", configuration }` sampled lens PSF, passed to the environment contract unchanged. |
-| `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). Rendering arrives in the next steps of #492: until then a request out of focus is refused as not yet supported. |
+| `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). `simulateDisplayView` renders it; `simulateCapture` refuses a request out of focus as not yet supported until the next step of #492. |
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
@@ -780,15 +780,20 @@ The optics options feed only what the environment site contract accepts:
   - The kernel radius is capped at 64 sites, a 129 × 129 window. This cap is provisional: it will be set from
     the cost measured when the blur is applied. A larger blur is refused with an error that names the cap and the
     radius needed; the disc is never clipped.
-  - **Rendering is not available yet.** Within #492, the capture, the display view and then the GPU apply the kernel
-    in the next steps.
-    - Today the option resolves the disc and records it in the `lens.defocus` assumption: the model, its
-      approximation status, and the diameter in µm and in sites.
-    - In focus (c = 0) no kernel is applied, and the image is byte-identical to the same request without the option.
-    - A request that would need a non-zero disc, even one smaller than a site, fails with an
-      `InvalidConfigurationError` saying that it is not yet supported. The engine does not show it sharp.
-    - The same applies to `simulateDisplayView`.
-    - `simulateIdealReference`, which has no camera effects, only records the disc.
+  - The option resolves the disc and records it in the `lens.defocus` assumption: the model, its approximation
+    status, and the diameter in µm and in sites. In focus (c = 0) no kernel is applied, and the image is
+    byte-identical to the same request without the option.
+  - **`simulateDisplayView` renders the blur** (#492, step 2b). Its expected-signal tables read the scene on the site
+    lattice through the disc, as a convolution of the radiance, so the view's estimators are unchanged. With
+    `lens.diffraction`, each spectral node's diffraction kernel is convolved with the disc, which is a further
+    approximation: the PSF of a defocused wave is not the in-focus Airy pattern convolved with a geometric disc. The
+    `view.defocus` assumption records the kernel and its radius. The defocus radius plus the diffraction radius may
+    be at most 64 sites; a larger combination is refused with an error that names both radii. The GPU display-view
+    renderer does not take the kernel yet: `gpu: "auto"` renders such a view on the CPU, labelled
+    `unsupported-on-backend`. See [Display view](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#defocus).
+  - **`simulateCapture` does not render it yet.** A capture that would need a non-zero disc, even one smaller than a
+    site, fails with an `InvalidConfigurationError` saying that it is not yet supported. The engine does not show it
+    sharp. `simulateIdealReference`, which has no camera effects, only records the disc.
   - It cannot be combined with `lens.pupilSampling` (the rays already render defocus) or `lens.psf` (a caller PSF
     declares its own defocus). It can be combined with `lens.diffraction`.
 
@@ -1389,8 +1394,8 @@ a 24 MP request, an 8 × 8 region took 6–40 ms through a prepared view instead
 
 **Not supported** (refused with an `InvalidConfigurationError`): `lens.pupilSampling`, `lens.projection`,
 `lens.distortion`, `lens.vignetting`, `lens.psf`, camera rotation, `output.whiteBalance: "auto"`, the luminance tone
-curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `lens.defocus` is accepted in
-focus and refused out of focus until its rendering arrives (#492). `onProgress` is not called; `signal` cancels.
+curves, `output.highlightMode: "reconstruct"` and `output.region` (use `view.region`). `lens.defocus` is rendered as a
+site kernel in the expected signal (#492; see [Optics](#optics)). `onProgress` is not called; `signal` cancels.
 
 The result is labelled `kind: "display-view"` with a `label` for the user interface; it has no RAW, plan or file, and
 the `view.*` assumptions state the definition, the estimator, the noise model, the demosaic treatment and which capture

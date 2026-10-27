@@ -4,6 +4,13 @@
  * Internal (#394, not exported from the package): the input of the tabulated expected signal (`createDisplayViewExpectedSignal`)
  * for a resolved `simulateCapture` request, shared by the display view and the capture's tabulated RAW path so both build it
  * the same way: query offsets of each site, the environment's query points, the diffraction kernels and the scene tables.
+ *
+ * Defocus (#492, `lens.defocus`): the geometric disc D on the site lattice (`createDefocusDiscSiteKernel`) enters as a site
+ * kernel, so every query stays on the lattice. Without diffraction every spectral node takes D itself (a wavelength-independent
+ * kernel). With diffraction node λ takes K_λ ∗ D, the full 2-D convolution of the diffraction kernel with the disc (radius
+ * R_diff + R_defocus): a labelled approximation, since the defocused wave's PSF is not the in-focus Airy pattern convolved
+ * with a geometric disc. The convolution is linear, so Σ_t (K_λ ∗ D)(t)·L(p − t) is the diffracted radiance blurred by D, the
+ * order the capture's object-space convolutions apply them in.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -30,6 +37,8 @@ export interface ExpectedSignalSetupInput {
   pitch: number;
   /** Object-space diffraction: the kernel radius, the PSF and its profile wavelengths. */
   diffraction?: { radius: number; psf: Psf; profileWavelengths: readonly number[] } | undefined;
+  /** Defocus (#492): the geometric disc on the site lattice, (2R + 1)² row-major weights; absent or null in focus. */
+  defocus?: { radius: number; weights: Float64Array } | null | undefined;
   /** Material scenes: the materials (neutral reflectances, or radiance per wavelength), the material lookup and the white radiance. */
   materials?: { list: readonly ({ neutral: number } | { radiance: (nm: number) => number })[]; materialAt(u: number, v: number): number; whiteRadiance(nm: number): number } | undefined;
   radianceAt(u: number, v: number, nm: number): number;
@@ -59,6 +68,13 @@ export function buildExpectedSignalInput(input: ExpectedSignalSetupInput): { off
       return siteDiffractionKernel(diffraction.psf, wavelengthNm, pitch, radius, input.caller + ": diffraction kernels must sample the site pitch exactly.");
     }) };
   }
+  // Defocus (#492): the disc alone at every node (one shared array), or each node's diffraction kernel convolved with it.
+  const defocus = input.defocus;
+  if (defocus) {
+    const diffracted = kernels;
+    kernels = diffracted ? { radius: diffracted.radius + defocus.radius, perNode: diffracted.perNode.map((k) => convolveSiteKernels(k, diffracted.radius, defocus.weights, defocus.radius)) } :
+      { radius: defocus.radius, perNode: wavelengths.map(() => defocus.weights) };
+  }
   // Chart presets and (2.7) caller material scenes take the material path: each material tabulated once per node.
   const materials = input.materials;
   const scene: DisplayViewScene = materials ? { kind: "materials", materialAt: materials.materialAt,
@@ -81,4 +97,24 @@ export function buildExpectedSignalInput(input: ExpectedSignalSetupInput): { off
   };
   return { offsets, signalInput: { nativeWidth: input.nativeWidth, nativeHeight: input.nativeHeight, outputWidth: input.width, wavelengthsNm: wavelengths,
     electronsPerRadiance: input.perNode, offsets, ...(kernels ? { kernels } : { queryPoint }), scene, channelAt: channelIndex } };
+}
+
+/**
+ * The full 2-D convolution of two square row-major site kernels, a of radius ra and b of radius rb: radius ra + rb,
+ * (a ∗ b)(t) = Σ_s a(s)·b(t − s), accumulated in a fixed order (a's taps row by row, then b's), so the result is the same bits
+ * in every engine. Zero taps of either kernel (the disc's corners) add nothing and are skipped.
+ */
+export function convolveSiteKernels(a: Float64Array, ra: number, b: Float64Array, rb: number): Float64Array {
+  const wa = 2 * ra + 1, wb = 2 * rb + 1, w = wa + wb - 1;
+  if (a.length !== wa * wa || b.length !== wb * wb) throw new InvalidConfigurationError("Site kernels must be (2R + 1)² taps.");
+  const out = new Float64Array(w * w);
+  for (let ay = 0; ay < wa; ay++) for (let ax = 0; ax < wa; ax++) {
+    const va = a[ay * wa + ax]!;
+    if (va === 0) continue;
+    for (let by = 0; by < wb; by++) {
+      const row = (ay + by) * w + ax;
+      for (let bx = 0; bx < wb; bx++) { const vb = b[by * wb + bx]!; if (vb !== 0) out[row + bx] = out[row + bx]! + va * vb; }
+    }
+  }
+  return out;
 }

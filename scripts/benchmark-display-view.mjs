@@ -17,11 +17,15 @@
  * 96 × 96 parts, centre first; every k-th part of that order is timed (PARTS of them). At 2028 wide a display pixel covers
  * about 2.96 × 2.96 real pixels, so every part takes the exact area mean. One fresh Node process per row, build and
  * repeat; with a second build (DIST_B) the two run interleaved, the order alternating per repeat (A B, B A, ...).
- * Environment: REPEATS (default 2), PARTS (default 30), ROWS (subset of app row ids), DIST_B (path to another build's
- * `dist/index.js`; default: this checkout's `dist`).
+ * Environment: REPEATS (default 2), PARTS (default 30), ROWS (subset of app row ids; rows 4 and 5, f/2.8, run only when
+ * named), DIST_B (path to another build's
+ * `dist/index.js`; default: this checkout's `dist`), DEFOCUS_RADII (#492: comma-separated defocus kernel radii in sites,
+ * default "0"; 0 is the request without `lens.defocus`, R > 0 adds `lens.defocus` with the focus distance that gives a
+ * disc of 2R + 0.6 sites, so its kernel radius is R; the radii of one repeat run interleaved, their order alternating).
  *
  *   node scripts/benchmark-display-view.mjs --app
  *   DIST_B=/path/to/other/dist/index.js node scripts/benchmark-display-view.mjs --app
+ *   DEFOCUS_RADII=0,4,8,16,32 node scripts/benchmark-display-view.mjs --app
  */
 import "./require-fresh-dist.mjs";
 import console from "node:console";
@@ -67,16 +71,37 @@ async function measure(row) {
 
 export const APP_ROWS = [];
 for (const options of ["speed", "quality"]) for (const fNumber of [8, 11]) APP_ROWS.push({ id: APP_ROWS.length, options, fNumber });
+// #492: f/2.8 rows (4 Speed, 5 Quality), run only when ROWS names them, reach defocus radii up to 64 sites in this geometry.
+for (const options of ["speed", "quality"]) APP_ROWS.push({ id: APP_ROWS.length, options, fNumber: 2.8, optIn: true });
 
 const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
 const commit = () => { const r = spawnSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8", cwd: fileURLToPath(new URL("..", import.meta.url)) }); return r.status === 0 ? r.stdout.trim() : "unknown"; };
 
-async function appRow(id, distPath, count) {
+/**
+ * The app request with `lens.defocus` at a disc of 2R + 0.6 sites (kernel radius R): the thin-lens focus distance s with
+ * c = f²·|s − d| / (N·d·(s − f)) (`calculateDefocusCircle`) solved for s, in front of the subject when the generic prime
+ * focuses that close (s = d·(f² + cNf)/(cNd + f²)), else behind it (s = d·(cNf − f²)/(cNd − f²)). R = 0: the request as is.
+ */
+function withDefocusRadius(engine, options, radius) {
+  if (radius === 0) return options;
+  const output = options.output, pitch = options.sensor.pixelPitchMicrometers;
+  const lens = engine.resolveGenericPrimeLens({ equivalentFocalLengthMm: options.lens.prime, activeImagingArea: { widthMm: output.width * pitch / 1000, heightMm: output.height * pitch / 1000 } });
+  const f = lens.focalLengthMm, N = options.lens.fNumber, d = options.subjectDistanceM * 1000, c = (2 * radius + 0.6) * pitch / 1000;
+  let s = d * (f * f + c * N * f) / (c * N * d + f * f);
+  if (s / 1000 < lens.minimumFocusDistanceM) {
+    if (c * N * d <= f * f) throw new Error(`a defocus radius of ${radius} sites is out of reach at f/${N}`);
+    s = d * (c * N * f - f * f) / (c * N * d - f * f);
+  }
+  return { ...options, lens: { ...options.lens, focusDistanceM: s / 1000, defocus: { model: "geometric-disc" } } };
+}
+
+async function appRow(id, distPath, count, radius = 0) {
   const engine = await import(pathToFileURL(distPath).href), row = APP_ROWS[id], load = loadavg()[0];
-  const options = appRequestOptions(engine, row), parts = appParts(APP_VIEW.width, APP_VIEW.height, APP_PART_SIDE), timed = sampledParts(parts, count);
+  const options = withDefocusRadius(engine, appRequestOptions(engine, row), radius), parts = appParts(APP_VIEW.width, APP_VIEW.height, APP_PART_SIDE), timed = sampledParts(parts, count);
   let t = performance.now();
   const view = await engine.prepareDisplayView(options);
   const prepareMs = performance.now() - t, ms = [], usPerPixel = [], estimation = new Set();
+  let defocusKernelRadius = 0;
   let ahdCorrected = 0;
   for (const region of timed) {
     t = performance.now();
@@ -85,9 +110,10 @@ async function appRow(id, distPath, count) {
     ms.push(elapsed); usPerPixel.push(1000 * elapsed / (region.width * region.height));
     ahdCorrected = Math.max(ahdCorrected, result.diagnostics.ahdCorrectedPixelCount);
     estimation.add(result.assumptions.find((a) => a.id === "view.estimation")?.value?.method ?? "unknown");
+    defocusKernelRadius = result.assumptions.find((a) => a.id === "view.defocus")?.value?.kernelRadiusSites ?? 0;
   }
   const sortedMs = [...ms].sort((a, b) => a - b), sortedUs = [...usPerPixel].sort((a, b) => a - b), mean = ms.reduce((a, b) => a + b, 0) / ms.length;
-  return { ...row, dist: distPath, prepareMs, parts: ms.length, of: parts.length, firstMs: ms[0], medianMs: quantile(sortedMs, 0.5), maxMs: sortedMs.at(-1),
+  return { ...row, defocusRadius: radius, kernelRadius: defocusKernelRadius, focusDistanceM: options.lens.focusDistanceM ?? null, dist: distPath, prepareMs, parts: ms.length, of: parts.length, firstMs: ms[0], medianMs: quantile(sortedMs, 0.5), maxMs: sortedMs.at(-1),
     usPerPixel: { min: sortedUs[0], median: quantile(sortedUs, 0.5), max: sortedUs.at(-1) }, wholeViewCpuSecondsExtrapolated: mean * parts.length / 1000,
     estimation: [...estimation], ahdCorrectedPixelCount: ahdCorrected, loadAverage: load, node: process.version, commit: commit() };
 }
@@ -95,26 +121,27 @@ async function appRow(id, distPath, count) {
 async function appRequest() {
   const argv = process.argv, count = Number(process.env.PARTS ?? 30);
   const child = argv.indexOf("--app-row");
-  if (child >= 0) { console.log(JSON.stringify(await appRow(Number(argv[child + 1]), argv[argv.indexOf("--dist") + 1], count))); return; }
+  if (child >= 0) { console.log(JSON.stringify(await appRow(Number(argv[child + 1]), argv[argv.indexOf("--dist") + 1], count, Number(argv[argv.indexOf("--defocus-radius") + 1] ?? 0)))); return; }
   const a = fileURLToPath(new URL("../dist/index.js", import.meta.url)), b = process.env.DIST_B, builds = b ? [["A", a], ["B", b]] : [["A", a]];
-  const repeats = Number(process.env.REPEATS ?? 2), selected = process.env.ROWS ? process.env.ROWS.split(",").map(Number) : APP_ROWS.map((r) => r.id), results = [];
-  console.error(`app-request rows: ${selected.length} × ${builds.length} build(s) × ${repeats} repeat(s), ${count} parts each; A = ${a}${b ? `, B = ${b}` : ""}`);
-  for (const id of selected) for (let r = 0; r < repeats; r++) for (const [label, dist] of r % 2 === 0 ? builds : [...builds].reverse()) {
-    const run = spawnSync(process.execPath, ["--max-old-space-size=6000", argv[1], "--app-row", String(id), "--dist", dist], { encoding: "utf8", env: { ...process.env, PARTS: String(count) } });
-    if (run.status !== 0) { console.error(`app row ${id} (${label}) failed:\n${run.stderr}`); continue; }
+  const repeats = Number(process.env.REPEATS ?? 2), selected = process.env.ROWS ? process.env.ROWS.split(",").map(Number) : APP_ROWS.filter((r) => !r.optIn).map((r) => r.id), results = [];
+  const radii = (process.env.DEFOCUS_RADII ?? "0").split(",").map(Number);
+  console.error(`app-request rows: ${selected.length} × ${radii.length} defocus radii × ${builds.length} build(s) × ${repeats} repeat(s), ${count} parts each; A = ${a}${b ? `, B = ${b}` : ""}`);
+  for (const id of selected) for (let r = 0; r < repeats; r++) for (const radius of r % 2 === 0 ? radii : [...radii].reverse()) for (const [label, dist] of r % 2 === 0 ? builds : [...builds].reverse()) {
+    const run = spawnSync(process.execPath, ["--max-old-space-size=6000", argv[1], "--app-row", String(id), "--dist", dist, "--defocus-radius", String(radius)], { encoding: "utf8", env: { ...process.env, PARTS: String(count) } });
+    if (run.status !== 0) { console.error(`app row ${id} (${label}, defocus radius ${radius}) failed:\n${run.stderr}`); continue; }
     const result = { build: label, repeat: r, ...JSON.parse(run.stdout.trim().split("\n").pop()) };
     results.push(result); console.log(JSON.stringify(result));
   }
   if (!results.length) { process.exitCode = 1; return; }
   const range = (values, digits = 0) => { const lo = Math.min(...values), hi = Math.max(...values); return lo.toFixed(digits) === hi.toFixed(digits) ? lo.toFixed(digits) : `${lo.toFixed(digits)}–${hi.toFixed(digits)}`; };
   console.log("");
-  console.log("| Options | f | Build | Prepare | Part median | Part max | µs per display pixel, median (min–max) | Whole view CPU, extrapolated | Estimation | AHD-corrected pixels |");
-  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
-  for (const id of selected) for (const [label] of builds) {
-    const rs = results.filter((r) => r.id === id && r.build === label);
+  console.log("| Options | f | Defocus radius (view kernel radius) | Build | Prepare | Part median | Part max | µs per display pixel, median (min–max) | Whole view CPU, extrapolated | Estimation | AHD-corrected pixels |");
+  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const id of selected) for (const radius of radii) for (const [label] of builds) {
+    const rs = results.filter((r) => r.id === id && r.build === label && r.defocusRadius === radius);
     if (!rs.length) continue;
     const row = APP_ROWS[id];
-    console.log(`| ${row.options === "speed" ? "Speed" : "Quality"} | f/${row.fNumber} | ${label} | ${range(rs.map((r) => r.prepareMs))} ms | ${range(rs.map((r) => r.medianMs))} ms | ${range(rs.map((r) => r.maxMs))} ms | ` +
+    console.log(`| ${row.options === "speed" ? "Speed" : "Quality"} | f/${row.fNumber} | ${radius === 0 ? "none" : `${radius} (${rs[0].kernelRadius}) sites`} | ${label} | ${range(rs.map((r) => r.prepareMs))} ms | ${range(rs.map((r) => r.medianMs))} ms | ${range(rs.map((r) => r.maxMs))} ms | ` +
       `${range(rs.map((r) => r.usPerPixel.median), 1)} (${Math.min(...rs.map((r) => r.usPerPixel.min)).toFixed(1)}–${Math.max(...rs.map((r) => r.usPerPixel.max)).toFixed(1)}) | ${range(rs.map((r) => r.wholeViewCpuSecondsExtrapolated), 1)} s from ${rs[0].parts} of ${rs[0].of} parts | ` +
       `${[...new Set(rs.flatMap((r) => r.estimation))].join(", ")} | ${Math.max(...rs.map((r) => r.ahdCorrectedPixelCount))} |`);
   }
