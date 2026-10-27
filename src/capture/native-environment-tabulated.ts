@@ -15,10 +15,13 @@
  * Verification at run time: one site of each CFA phase runs the full chain (planning, the evaluator's callbacks, composition,
  * parsing and `calculateNativeRawSite`). Its readout template must reproduce that site bit for bit, and its tabulated
  * electrons must agree with the chain's within `TABULATED_RELATIVE_TOLERANCE`; otherwise the caller runs the environment task.
+ * #453: the chain's photo signal comes from `executeEngineOwnedEnvironmentPhotoSignal`, the same operations and values as
+ * `executeEnvironmentSensorPhotoSignal` for these engine-built records, without re-validating records that cannot have changed.
  */
 
 import type { EnvironmentRadianceEvaluator } from "../sensor/environment-photo-signal.js";
-import { executeEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
+import { executeEngineOwnedEnvironmentPhotoSignal, executeEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
+import { isInternalSceneRadianceEvaluator } from "../core/internal-radiance-evaluator.js";
 import { calculateCaptureExposureWindows, prepareCaptureExposureWindowSampler } from "../sensor/exposure-window.js";
 import { createEnvironmentRawFrameCanonicalMemo, planEnvironmentRawSite, type SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
 import { admitNativeEnvironmentInput, type NativeEnvironmentRawInput } from "./native-environment-raw.js";
@@ -34,6 +37,21 @@ export const TABULATED_RELATIVE_TOLERANCE = 1e-9;
 const BAND_ROWS = 32;
 /** Host-yield budget in milliseconds (the native task's cadence); the task also yields after its last row. */
 const YIELD_MS = 8;
+
+/** Internal counters (tests assert how many verification sites ran the chain per call; four, one per CFA phase). */
+export const tabulatedVerificationStatistics = { chainExecutions: 0 };
+
+/**
+ * Internal test hook (never set by the engine): `fullPhoto` also runs each verification site through
+ * `executeEnvironmentSensorPhotoSignal` (with the uncounted evaluator) and hands both photo signals to the test;
+ * `tabulatedElectrons` replaces the tabulated electrons the gate compares, to show that a wrong fast path is rejected.
+ */
+export interface TabulatedVerificationTestHook {
+  fullPhoto?(engineOwned: unknown, full: unknown): void;
+  tabulatedElectrons?(value: number, x: number, y: number): number;
+}
+let testHook: TabulatedVerificationTestHook | undefined;
+export function setTabulatedVerificationTestHook(hook: TabulatedVerificationTestHook | undefined): void { testHook = hook; }
 
 let tabulatedDisabled = false;
 /** Disables the tabulated path process-wide (internal; tests of the environment path itself turn it off). */
@@ -94,13 +112,19 @@ export async function renderTabulatedNativeRaw(t: TabulatedNativeRawInput): Prom
   const seed = plan.exposure.noise.seedUint32, schedule = plan.exposureWindow, memo = createEnvironmentRawFrameCanonicalMemo(plan.frame, schedule);
   let evaluations = 0;
   const evaluate: EnvironmentRadianceEvaluator = (request) => { evaluations++; return t.evaluateRadiance(request); };
+  // The counting wrapper returns the evaluator's own results, so they are engine-built exactly when the evaluator is.
+  const engineBuiltResults = isInternalSceneRadianceEvaluator(t.evaluateRadiance);
   // Verification: the region's top-left 2 × 2 block, one site per CFA phase, through the full chain.
   const readouts: NativeSiteReadout[] = [];
   let worst = 0;
   for (let k = 0; k < 4; k++) {
     const x = region.x + (k & 1), y = region.y + (k >> 1), index = y * W + x, site = t.siteInput(index);
     const full = planEnvironmentRawSite(site, index, plan.frame, sceneBinding, schedule, "engine-owned", memo, "photo-only");
-    const photo = executeEnvironmentSensorPhotoSignal(full, evaluate, undefined, "photo-only").value.photo.value.photoSignal;
+    // #453: the chain for these engine-built site records (the same operations and values as executeEnvironmentSensorPhotoSignal,
+    // without re-validating records that have not changed; see executeEngineOwnedEnvironmentPhotoSignal).
+    const photoResult = executeEngineOwnedEnvironmentPhotoSignal(full, evaluate, engineBuiltResults), photo = photoResult.value.photoSignal;
+    tabulatedVerificationStatistics.chainExecutions++;
+    if (testHook?.fullPhoto) testHook.fullPhoto(photoResult, executeEnvironmentSensorPhotoSignal(full, t.evaluateRadiance, undefined, "photo-only").value.photo);
     const timing = calculateCaptureExposureWindows({ ...schedule, nativeRaster: native, samplePointsNative: [{ x: x + 0.5, y: y + 0.5 }] }).value.samples[0];
     const parsed = parseNativeRawProducerSite(composeNativeEnvironmentSensorSite(site, photo), index, plan.frame, timing);
     const result = calculateNativeRawSite(parsed, seed, index);
@@ -108,7 +132,7 @@ export async function renderTabulatedNativeRaw(t: TabulatedNativeRawInput): Prom
     const readout = createVerifiedNativeSiteReadout(parsed, result, whiteCode, photo, x, y, index, seed);
     if (!readout) return undefined;
     t.electrons.window(x, y, x + 1, y + 1);
-    const chain = photo.expectedGeneratedElectronCount, tabulated = t.electrons.site(x, y);
+    const chain = photo.expectedGeneratedElectronCount, tabulated = testHook?.tabulatedElectrons ? testHook.tabulatedElectrons(t.electrons.site(x, y), x, y) : t.electrons.site(x, y);
     const difference = chain === tabulated ? 0 : Math.abs(tabulated - chain) / Math.max(Math.abs(chain), Number.MIN_VALUE);
     if (!(difference <= TABULATED_RELATIVE_TOLERANCE)) return undefined;
     worst = Math.max(worst, difference);

@@ -22,11 +22,13 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import { parseSceneIlluminationProfile } from "../schema/illumination.js";
 import { parseSceneIlluminationTemporalProfile } from "../schema/illumination-temporal.js";
 import { parseSceneMaterialResponseProfile, parseSceneRadianceProviderProfile, parseSceneRadianceEvaluationResult,
-  validateSceneRadianceEvaluationBindings, type SceneRadianceEvaluationRequest,
-  type SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
+  parseSceneRadianceEvaluationResultWithValidatedRecords, validateSceneRadianceEvaluationBindings, validateSceneRadianceRequestResultBindings,
+  type SceneRadianceEvaluationRequest, type SceneRadianceEvaluationResult, type ValidatedSceneRadianceRecords } from "../schema/scene-radiance.js";
 import { calculateMappedSensorEnvironmentRadianceQuery, calculateSensorEnvironmentRadianceQuery, prepareEnvironmentLensFieldMapping,
   type CalculateSensorEnvironmentRadianceQueryInput, type EnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
-import { calculateSceneRadianceToSensorIrradiance, type CalculateSceneRadianceToSensorIrradianceInput } from "../optics/scene-to-sensor-irradiance.js";
+import { calculateSceneRadianceToSensorIrradiance, prepareSceneRadianceToSensorIrradianceValue,
+  type CalculateSceneRadianceToSensorIrradianceInput } from "../optics/scene-to-sensor-irradiance.js";
+import { isDeeplyFrozen } from "../core/internal-radiance-evaluator.js";
 import { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradianceQuadratureInput } from "../optics/sensor-psf-quadrature.js";
 import { calculateIlluminationVignetting, type IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
 import { calculateSensorApertureRays, type IdealCircularPupil, type SensorApertureRay } from "../optics/sensor-aperture-rays.js";
@@ -376,6 +378,69 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
       "Lens field mapping: rays use the declared projection after inverse distortion; irradiance is multiplied once by the distortion area factor 1/det(d distorted/d ideal); field throughput and sampled PSFs remain evaluated at the physical sensor point."
     ])
   ]);
+}
+
+/**
+ * Internal (#453; not exported from the package): the photo signal of {@link executeEnvironmentSensorPhotoSignal} with
+ * retention "photo-only" (its `value.photo`), for a plan of engine-built records (planned as "engine-owned" from a record the
+ * engine built, never shown to supplied code and never changed). It is the same chain with the same operations: every query of
+ * the plan calls `evaluate` once with the same frozen request, in the same order; each result is parsed and its bindings and
+ * identity checked; the optical bridge forms each irradiance with its own code; the taps, nodes and instants are assembled as
+ * the full executor does; and `createSensorEqeTemporalPhotoSignal` forms the photo signal from the same input. So the photo
+ * signal is the full executor's, value for value.
+ *
+ * What it skips is only re-validation of records that cannot have changed since they passed it, and records nobody reads:
+ * - the first query runs the full per-query steps (full result parse, `validateSceneRadianceEvaluationBindings`,
+ *   `calculateSceneRadianceToSensorIrradiance`); later queries skip the profile-to-profile binding checks and the optical
+ *   bridge's re-parse of its unchanged optical inputs, request and result, keeping every per-query check
+ *   (`validateSceneRadianceRequestResultBindings`, `prepareSceneRadianceToSensorIrradianceValue`), with the same messages;
+ * - with `engineBuiltResults` (an evaluator marked by `markInternalSceneRadianceEvaluator`, or one returning such an
+ *   evaluator's results), later results reuse the first result's parsed uncertainty, evidence and limitations when they are
+ *   the same deep-frozen objects (`parseSceneRadianceEvaluationResultWithValidatedRecords`, as the lean executor does);
+ * - no per-query optical result envelopes and no outer execution envelope are built.
+ * Plans with ideal-pupil rays or a sampled PSF run the full executor.
+ */
+export function executeEngineOwnedEnvironmentPhotoSignal(plan: ReturnType<typeof planEnvironmentSensorPhotoSignal>, evaluate: EnvironmentRadianceEvaluator,
+  engineBuiltResults: boolean): EnvironmentSensorPhotoSignal["photo"] {
+  const { owned } = plan;
+  if (owned.pupil !== undefined || owned.psf.kind !== "not-applied") return executeEnvironmentSensorPhotoSignal(plan, evaluate, undefined, "photo-only").value.photo;
+  if (typeof evaluate !== "function") throw new InvalidScientificInputError("Environment radiance evaluator must be synchronous callable code.");
+  const { providerProfile, illuminationProfile, materialResponseProfile } = plan.sceneBindings;
+  let validated: ValidatedSceneRadianceRecords | undefined;
+  let irradianceOf: ReturnType<typeof prepareSceneRadianceToSensorIrradianceValue> | undefined;
+  const irradiance = [];
+  for (const instant of plan.instants) {
+    const samples = instant.groups.map(group => ({ node: group.node, sourceSamples: group.taps.map(tap => {
+      let integratedIrradiance = 0;
+      const request = tap.request, value = evaluate(request);
+      let sensorPlane: number;
+      if (irradianceOf === undefined) {
+        const result = parseSceneRadianceEvaluationResult(value);
+        validateSceneRadianceEvaluationBindings({ ...plan.sceneBindings, request, result });
+        sensorPlane = calculateSceneRadianceToSensorIrradiance({ ...owned.optics, sceneRadianceRequest: request,
+          sceneRadianceResult: result, imagePointMm: tap.sourcePointImagePlaneMm, fieldThroughput: tap.fieldThroughput }).value.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer;
+        const record = value as unknown as Record<string, unknown>;
+        if (engineBuiltResults && isDeeplyFrozen(record.uncertainty) && isDeeplyFrozen(record.evidence) && isDeeplyFrozen(record.limitations)) {
+          validated = { uncertainty: record.uncertainty, evidence: record.evidence, limitations: record.limitations, parsed: result };
+        }
+        irradianceOf = prepareSceneRadianceToSensorIrradianceValue(owned.optics);
+      } else {
+        const result = validated ? parseSceneRadianceEvaluationResultWithValidatedRecords(value, validated) : parseSceneRadianceEvaluationResult(value);
+        validateSceneRadianceRequestResultBindings(providerProfile, illuminationProfile, materialResponseProfile, request, result);
+        sensorPlane = irradianceOf(request, result, tap.sourcePointImagePlaneMm, tap.fieldThroughput);
+      }
+      // The full executor's sum over the tap's support (one direction, weight 1 without pupil rays).
+      integratedIrradiance += sensorPlane*1;
+      if (tap.distortionAreaFactor !== undefined) integratedIrradiance *= tap.distortionAreaFactor;
+      return { kernelSampleX: tap.kernelSampleX, kernelSampleY: tap.kernelSampleY, sourcePointNativeSensorMm: tap.point,
+        timeSecondsFromOpeningReference: instant.time, spectralIrradianceWattsPerSquareMeterPerNanometer: integratedIrradiance };
+    }) }));
+    irradiance.push({ temporalSampleIndex: instant.temporalSampleIndex, timeSecondsFromOpeningReference: instant.time,
+      irradianceSamples: samples.map(s => ({ node: s.node,
+        spectralIrradianceWattsPerSquareMeterPerNanometer: s.sourceSamples[0]!.spectralIrradianceWattsPerSquareMeterPerNanometer })) });
+  }
+  return createSensorEqeTemporalPhotoSignal({ temporalIntegrationId: owned.temporalIntegrationId,
+    exposure: { ...owned.sensor, samples: irradiance } });
 }
 
 /** Plans, queries the provider and integrates the photo signal for one site, at the site's own midpoint sample positions. */

@@ -93,6 +93,36 @@ function positiveInteger(value: unknown, maximum: number): number {
   return value;
 }
 
+/** Checks every sample (finite, non-negative, within the declared magnitude) and returns the largest. */
+function checkedMaximumSampleMagnitude(samples: Float32Array | Float64Array): number {
+  let maximumSampleMagnitude = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const v = samples[i]!;
+    // Negated comparison also rejects NaN.
+    if (!(v >= 0 && v <= IRRADIANCE_CONVOLUTION_LIMITS.maximumSampleMagnitude)) {
+      throw new InvalidConfigurationError("Irradiance samples must be finite, non-negative and within the declared magnitude.");
+    }
+    if (v > maximumSampleMagnitude) maximumSampleMagnitude = v;
+  }
+  return maximumSampleMagnitude;
+}
+
+/** Checks every kernel weight (finite, in [0, 1]) and kernel sum (at most 1 plus slack) and returns the largest sum. */
+function checkedMaximumKernelSum(kernels: Float32Array | Float64Array, patchCount: number, tapCount: number): number {
+  let maximumKernelSum = 0;
+  for (let p = 0; p < patchCount; p++) {
+    let sum = 0;
+    for (let t = p * tapCount, end = t + tapCount; t < end; t++) {
+      const w = kernels[t]!;
+      if (!(w >= 0 && w <= 1)) throw new InvalidConfigurationError("PSF kernel weights must be finite and within [0, 1].");
+      sum += w;
+    }
+    if (sum > IRRADIANCE_CONVOLUTION_LIMITS.maximumKernelSum) throw new InvalidConfigurationError("A PSF kernel may not create energy (sum exceeds 1).");
+    if (sum > maximumKernelSum) maximumKernelSum = sum;
+  }
+  return maximumKernelSum;
+}
+
 /** Validates the request and returns its plan. Every sample and weight is checked once. */
 export function calculateIrradianceConvolutionPlan(input: IrradianceConvolutionInput): IrradianceConvolutionPlan {
   const r = requireAllowlistedRecord(input, ["schemaVersion", "width", "height", "samples", "kernelRadius", "patchWidth",
@@ -120,26 +150,8 @@ export function calculateIrradianceConvolutionPlan(input: IrradianceConvolutionI
       !(kernels instanceof Float32Array || kernels instanceof Float64Array) || kernels.length !== patchCount * tapCount) {
     throw new InvalidConfigurationError("Irradiance convolution arrays do not match the declared geometry.");
   }
-  let maximumSampleMagnitude = 0;
-  for (let i = 0; i < samples.length; i++) {
-    const v = samples[i]!;
-    // Negated comparison also rejects NaN.
-    if (!(v >= 0 && v <= L.maximumSampleMagnitude)) {
-      throw new InvalidConfigurationError("Irradiance samples must be finite, non-negative and within the declared magnitude.");
-    }
-    if (v > maximumSampleMagnitude) maximumSampleMagnitude = v;
-  }
-  let maximumKernelSum = 0;
-  for (let p = 0; p < patchCount; p++) {
-    let sum = 0;
-    for (let t = p * tapCount, end = t + tapCount; t < end; t++) {
-      const w = kernels[t]!;
-      if (!(w >= 0 && w <= 1)) throw new InvalidConfigurationError("PSF kernel weights must be finite and within [0, 1].");
-      sum += w;
-    }
-    if (sum > L.maximumKernelSum) throw new InvalidConfigurationError("A PSF kernel may not create energy (sum exceeds 1).");
-    if (sum > maximumKernelSum) maximumKernelSum = sum;
-  }
+  const maximumSampleMagnitude = checkedMaximumSampleMagnitude(samples);
+  const maximumKernelSum = checkedMaximumKernelSum(kernels, patchCount, tapCount);
   return Object.freeze({ width, height, kernelRadius: radius, kernelSize, tapCount, patchWidth, patchHeight, patchColumns, patchRows,
     maximumKernelSum, maximumSampleMagnitude });
 }
@@ -179,4 +191,36 @@ export function calculateIrradianceConvolution(input: IrradianceConvolutionInput
   const values = new Float64Array(plan.width * plan.height);
   convolveIrradianceRows(plan, input.samples, input.kernels, 0, plan.height, values);
   return { plan, values };
+}
+
+/**
+ * Internal (#453; not exported from the package): runs several convolutions that share one geometry (width, height,
+ * kernel radius, patch size, boundary, pixel limit) with one validation of that geometry. The first call is
+ * `calculateIrradianceConvolution` itself, with every check. Each later call checks its own arrays exactly as the plan
+ * does (array types and lengths against the geometry, every sample, every kernel weight and kernel sum, with the same
+ * messages) and then runs the same gather (`convolveIrradianceRows`) with the first call's plan, whose geometry fields are
+ * the same numbers a full validation of this call would give. The values are therefore identical to one
+ * `calculateIrradianceConvolution` per call; only the repeated record and geometry checks are skipped.
+ * @internal
+ */
+export function createIrradianceConvolutionRunner(geometry: Omit<IrradianceConvolutionInput, "samples" | "kernels">):
+  (samples: Float32Array | Float64Array, kernels: Float32Array | Float64Array) => Float64Array {
+  let plan: IrradianceConvolutionPlan | undefined;
+  return (samples, kernels) => {
+    if (plan === undefined) {
+      const first = calculateIrradianceConvolution({ ...geometry, samples, kernels });
+      plan = first.plan;
+      return first.values;
+    }
+    const patchCount = plan.patchColumns * plan.patchRows;
+    if (!(samples instanceof Float32Array || samples instanceof Float64Array) || samples.length !== plan.width * plan.height ||
+        !(kernels instanceof Float32Array || kernels instanceof Float64Array) || kernels.length !== patchCount * plan.tapCount) {
+      throw new InvalidConfigurationError("Irradiance convolution arrays do not match the declared geometry.");
+    }
+    checkedMaximumSampleMagnitude(samples);
+    checkedMaximumKernelSum(kernels, patchCount, plan.tapCount);
+    const values = new Float64Array(plan.width * plan.height);
+    convolveIrradianceRows(plan, samples, kernels, 0, plan.height, values);
+    return values;
+  };
 }

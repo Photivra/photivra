@@ -60,7 +60,9 @@ describe("createDiffractedPlanarProvider window (2.6)", () => {
     const r = await simulateCapture({ scene: { preset: "siemens-star" }, lens: { fNumber: 16, diffraction: "circular-aperture" }, output: { width: 4, height: 4 } });
     const d = r.request.diffraction!, R = d.profile.kernelRadiusSamples;
     const offsets = [{ x: -0.75, y: -0.75 }, { x: 0.25, y: -0.75 }, { x: -0.75, y: 0.25 }, { x: 0.25, y: 0.25 }];
-    return { R, make: (window, counter) => createDiffractedPlanarProvider({ base: counter ? { ...base, radianceAt: (u: number, v: number, nm: number): number => { counter.calls++; return base.radianceAt(u, v, nm); } } : base,
+    return { R, make: (window, counter) => createDiffractedPlanarProvider({ base: counter ? { ...base, radianceAt: (u: number, v: number, nm: number): number => { counter.calls++; return base.radianceAt(u, v, nm); },
+        // #453: a material scene's lattice is filled from one material lookup per point; count those too.
+        chartMaterialAt: (u: number, v: number): number => { counter.calls++; return base.chartMaterialAt!(u, v); } } : base,
       psf: d.psf.configuration.psf, wavelengthsNm: [550], kernelRadius: R, nativeWidth: W, nativeHeight: H, outputWidth, sitePitchMicrometers: 6,
       distanceM: 5, metresPerFrameUnit, queryOffsetsSites: offsets, ...(window ? { window } : {}) }) };
   }
@@ -78,7 +80,8 @@ describe("createDiffractedPlanarProvider window (2.6)", () => {
     const window = { x: 90, y: 40, width: 12, height: 9 }, full = make(), counter = { calls: 0 }, narrow = make(window, counter);
     for (let j = window.y; j < window.y + window.height; j++) for (let i = window.x; i < window.x + window.width; i++)
       for (const o of [{ x: -0.75, y: -0.75 }, { x: 0.25, y: 0.25 }]) expect(Object.is(value(narrow, query(i, j, o)), value(full, query(i, j, o)))).toBe(true);
-    // One band (window rows + 2M ≤ 32) of (rows + 2M + 2R) × (columns + 2M + 2R) samples: M = 1, and every offset has the fraction 0.25 (one lattice).
+    // One band (window rows + 2M ≤ 32) of (rows + 2M + 2R) × (columns + 2M + 2R) scene lookups (one wavelength): M = 1, and every
+    // offset has the fraction 0.25 (one lattice).
     expect(counter.calls).toBe((window.height + 2 + 2 * R) * (window.width + 2 + 2 * R));
     expect(() => value(narrow, query(window.x + window.width + 2, window.y, { x: 0.25, y: 0.25 }))).toThrow(InvalidConfigurationError);
     expect(() => make({ x: W + 5, y: 0, width: 2, height: 2 })).toThrow(InvalidConfigurationError);

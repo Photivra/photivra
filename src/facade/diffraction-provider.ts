@@ -44,7 +44,7 @@
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { isInternalSceneRadianceEvaluator, markInternalSceneRadianceEvaluator, registerInternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
-import { calculateIrradianceConvolution } from "../optics/irradiance-convolution.js";
+import { createIrradianceConvolutionRunner } from "../optics/irradiance-convolution.js";
 import { siteDiffractionKernel } from "../optics/site-diffraction-kernel.js";
 import type { ResolveLensSampledPsfInput } from "../optics/lens-psf-profile.js";
 import type { PlanarSceneRadianceProvider } from "./scene-radiance.js";
@@ -110,23 +110,53 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
   const gridWidth = NW + 2 * R;
   const now = (): number => globalThis.performance?.now() ?? Date.now();
   const bands = new Map<number, Float64Array[][]>();
+  const materialAt = base.chartMaterialAt?.bind(base), materialRadiance = base.materialRadiance?.bind(base);
   function band(b: number): Float64Array[][] {
     const cached = bands.get(b);
     if (cached) { bands.delete(b); bands.set(b, cached); return cached; }
     const started = input.onConvolution ? now() : 0;
-    const y0 = ly0 + b * BAND_ROWS, rows = Math.min(BAND_ROWS, ly1 - y0), gridHeight = rows + 2 * R;
-    const values = shifts.map((shift) => wavelengthsNm.map((nm, w) => {
-      const samples = new Float64Array(gridWidth * gridHeight);
-      for (let gy = 0; gy < gridHeight; gy++) {
-        const v = shift.y === 0 ? -(y0 + gy - R - M + 0.5 - H / 2) * g : -(y0 + gy - R - M + 0.5 + shift.y - H / 2) * g;
-        for (let gx = 0, x = lx0; gx < gridWidth; gx++, x++) samples[gy * gridWidth + gx] = base.radianceAt(shift.x === 0 ? (x - R - M + 0.5 - W / 2) * g : (x - R - M + 0.5 + shift.x - W / 2) * g, v, nm);
+    const y0 = ly0 + b * BAND_ROWS, rows = Math.min(BAND_ROWS, ly1 - y0), gridHeight = rows + 2 * R, size = gridWidth * gridHeight;
+    // #453: the band's shifts × spectral nodes convolutions share one geometry, validated once (the first runs the full
+    // calculateIrradianceConvolution; every later one still checks its samples and kernel).
+    const convolve = createIrradianceConvolutionRunner({ schemaVersion: "0.1.0", width: gridWidth, height: gridHeight, kernelRadius: R,
+      patchWidth: gridWidth, patchHeight: gridHeight, boundary: "zero-outside-grid" });
+    const values = shifts.map((shift) => {
+      // The plane point of lattice grid sample (gx, gy) of this shift, the same expressions for both fills below.
+      const vOf = (gy: number): number => shift.y === 0 ? -(y0 + gy - R - M + 0.5 - H / 2) * g : -(y0 + gy - R - M + 0.5 + shift.y - H / 2) * g;
+      const uOf = (x: number): number => shift.x === 0 ? (x - R - M + 0.5 - W / 2) * g : (x - R - M + 0.5 + shift.x - W / 2) * g;
+      // #453, material scenes (chart presets and caller material scenes): radianceAt(u, v, nm) is materialRadiance(chartMaterialAt(u, v), nm)
+      // (scene-radiance.ts), so the material is looked up once per lattice point and each node's samples come from one
+      // materialRadiance per material present, the same numbers as one radianceAt per point and node.
+      let materialOf: Int32Array | undefined;
+      if (materialAt && materialRadiance) {
+        materialOf = new Int32Array(size);
+        for (let gy = 0; gy < gridHeight; gy++) {
+          const v = vOf(gy);
+          for (let gx = 0, x = lx0; gx < gridWidth; gx++, x++) materialOf[gy * gridWidth + gx] = materialAt(uOf(x), v);
+        }
       }
-      const blurred = calculateIrradianceConvolution({ schemaVersion: "0.1.0", width: gridWidth, height: gridHeight, samples, kernelRadius: R,
-        patchWidth: gridWidth, patchHeight: gridHeight, kernels: kernels[w]!, boundary: "zero-outside-grid" }).values;
-      const out = new Float64Array(NW * rows);
-      for (let y = 0; y < rows; y++) out.set(blurred.subarray((y + R) * gridWidth + R, (y + R) * gridWidth + R + NW), y * NW);
-      return out;
-    }));
+      return wavelengthsNm.map((nm, w) => {
+        const samples = new Float64Array(size);
+        if (materialOf) {
+          const radiance = new Map<number, number>();
+          for (let i = 0; i < size; i++) {
+            const m = materialOf[i]!;
+            let value = radiance.get(m);
+            if (value === undefined) { value = materialRadiance!(m, nm); radiance.set(m, value); }
+            samples[i] = value;
+          }
+        } else {
+          for (let gy = 0; gy < gridHeight; gy++) {
+            const v = vOf(gy);
+            for (let gx = 0, x = lx0; gx < gridWidth; gx++, x++) samples[gy * gridWidth + gx] = base.radianceAt(uOf(x), v, nm);
+          }
+        }
+        const blurred = convolve(samples, kernels[w]!);
+        const out = new Float64Array(NW * rows);
+        for (let y = 0; y < rows; y++) out.set(blurred.subarray((y + R) * gridWidth + R, (y + R) * gridWidth + R + NW), y * NW);
+        return out;
+      });
+    });
     bands.set(b, values);
     if (bands.size > CACHED_BANDS) bands.delete(bands.keys().next().value!);
     if (input.onConvolution) input.onConvolution(now() - started);
