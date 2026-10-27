@@ -101,10 +101,10 @@ export type ImageKernelFailureReason = ImageKernelFallbackReason | "device-lost"
 
 ## ImageKernelFallbackReason
 
-Why a requested WebGPU backend was not used (only with `fallback: "cpu-reference"`).
+Why a requested `webgpu-f32` backend ran the CPU reference instead. `webgpu-disabled`: `setWebGpuEnabled(false)` in this realm.
 
 ```ts
-export type ImageKernelFallbackReason = "webgpu-unavailable" | "adapter-unavailable" | "device-request-failed" |
+export type ImageKernelFallbackReason = "webgpu-unavailable" | "webgpu-disabled" | "adapter-unavailable" | "device-request-failed" |
   "insufficient-limits" | "unsupported-platform-endianness";
 ```
 

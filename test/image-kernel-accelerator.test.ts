@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, expect, it } from "vitest";
-import { calculateIrradianceConvolution, createImageKernelAccelerator, createNativeCaptureSdrTask, createNativeRawDevelopmentTask, ImageKernelExecutionError,
+import { afterEach, describe, expect, it } from "vitest";
+import { calculateIrradianceConvolution, createImageKernelAccelerator, createNativeCaptureSdrTask, createNativeRawDevelopmentTask, getWebGpuEnabled, ImageKernelExecutionError,
+  InvalidConfigurationError, setWebGpuEnabled,
   calculateIrradianceConvolutionPlan, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND, WEBGPU_F32_UNIT_ROUNDOFF, type ImageKernelAccelerator, type IrradianceConvolutionInput,
   type NativeCaptureSdrInput, type NativeCaptureSdrProvider, type NativeCaptureSdrTile, type NativeRawDevelopmentInput } from "../src/index.js";
 import { float32Gamma, integerCodeBound } from "../src/gpu/image-kernel-execution.js";
@@ -123,6 +124,56 @@ describe("accelerator backend selection", () => {
     }
     const aborted = new AbortController(); aborted.abort();
     expect(await reason(createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu: createFakeGpu().gpu, signal: aborted.signal }))).toBe("aborted");
+  });
+  it("the one-boolean form resolves to the explicit form and excludes backend", async () => {
+    const on = await createImageKernelAccelerator({ webgpu: true, gpu: createFakeGpu().gpu });
+    expect([on.backend, on.requestedBackend, on.fallbackReason]).toEqual(["webgpu-f32", "webgpu-f32", null]);
+    on.dispose();
+    const fellBack = await createImageKernelAccelerator({ webgpu: true });
+    expect([fellBack.backend, fellBack.requestedBackend, fellBack.fallbackReason]).toEqual(["cpu-reference", "webgpu-f32", "webgpu-unavailable"]);
+    expect(await reason(createImageKernelAccelerator({ webgpu: true, fallback: "fail" }))).toBe("webgpu-unavailable");
+    const off = await createImageKernelAccelerator({ webgpu: false, gpu: createFakeGpu().gpu });
+    expect([off.backend, off.requestedBackend, off.fallbackReason]).toEqual(["cpu-reference", "cpu-reference", null]);
+    for (const options of [{ webgpu: "yes" }, { webgpu: 1 }, { webgpu: true, backend: "webgpu-f32" }, { webgpu: false, backend: "cpu-reference" }, { webgpu: false, fallback: "fail" }]) {
+      await expect(createImageKernelAccelerator(options as never)).rejects.toThrow(/options/u);
+    }
+  });
+  describe("the realm's WebGPU switch", () => {
+    afterEach(() => setWebGpuEnabled(true));
+    it("is on by default, accepts only booleans, and reads back", () => {
+      expect(getWebGpuEnabled()).toBe(true);
+      for (const value of ["false", 0, null, undefined]) expect(() => setWebGpuEnabled(value as never)).toThrow(InvalidConfigurationError);
+      expect(getWebGpuEnabled()).toBe(true);
+      setWebGpuEnabled(false);
+      expect(getWebGpuEnabled()).toBe(false);
+      setWebGpuEnabled(true);
+      expect(getWebGpuEnabled()).toBe(true);
+    });
+    it("off: a working GPU is never asked for, the label says webgpu-disabled, and fail mode throws that reason", async () => {
+      setWebGpuEnabled(false);
+      const { gpu, controls } = createFakeGpu();
+      const labelled = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "cpu-reference", gpu });
+      expect([labelled.backend, labelled.requestedBackend, labelled.fallbackReason, labelled.state]).toEqual(["cpu-reference", "webgpu-f32", "webgpu-disabled", "ready"]);
+      expect(controls.adapterRequests).toBe(0);
+      const viaBoolean = await createImageKernelAccelerator({ webgpu: true, gpu });
+      expect(viaBoolean.fallbackReason).toBe("webgpu-disabled");
+      expect(await reason(createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu }))).toBe("webgpu-disabled");
+      // The reference path is untouched by the switch and gives the reference's bytes.
+      const input = convolutionCorpus(16, 8, 1, 16, 8, 7);
+      const result = await labelled.convolveIrradiance(input);
+      expect(Array.from(result.values)).toEqual(Array.from(calculateIrradianceConvolution(input).values));
+      expect(result.execution.bitIdenticalToReference).toBe(true);
+    });
+    it("on again: the same options acquire the GPU, and an accelerator created while on keeps its device", async () => {
+      const { gpu } = createFakeGpu();
+      const kept = await createImageKernelAccelerator({ webgpu: true, gpu });
+      setWebGpuEnabled(false);
+      expect([kept.backend, kept.state]).toEqual(["webgpu-f32", "ready"]);
+      setWebGpuEnabled(true);
+      const fresh = await createImageKernelAccelerator({ webgpu: true, gpu });
+      expect(fresh.backend).toBe("webgpu-f32");
+      kept.dispose(); fresh.dispose();
+    });
   });
   it("destroys a device that arrives after acquisition was aborted", async () => {
     const { gpu, controls } = createFakeGpu({ device: "deferred" }), controller = new AbortController();

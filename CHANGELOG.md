@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **One boolean to turn the engine's GPU use on or off (#474).** No result changes: the GPU was already opt-in per call, and this adds the simple form of the request and one switch for the whole realm.
+  - **The option:** `createImageKernelAccelerator({ webgpu: true })` is `backend: "webgpu-f32"` with `fallback: "cpu-reference"` (add `fallback: "fail"` to fail instead of falling back), and `{ webgpu: false }` is `backend: "cpu-reference"`. `webgpu` and `backend` exclude each other; `backend` is now optional when `webgpu` is given. The explicit form is unchanged.
+  - **The switch:** `setWebGpuEnabled(false)` keeps every accelerator in the JavaScript realm on the CPU reference whatever callers ask. A request for `webgpu-f32` then runs the reference with the new `fallbackReason` `webgpu-disabled`, or throws `ImageKernelExecutionError` with that reason in fail mode, and no adapter is requested. `setWebGpuEnabled(true)` is the default; `getWebGpuEnabled()` reads it; anything but a boolean is refused with `InvalidConfigurationError`. A Web Worker has its own switch. An accelerator created while the switch was on keeps its device. Every GPU path added later (the preview and fast-capture work of #474) consults the same switch.
+  - **Tests** (`test/image-kernel-accelerator.test.ts`): the boolean form resolves to the explicit form and rejects the mixed and non-boolean forms; with the switch off a working (fake) GPU is never asked for, the label and fail reason are `webgpu-disabled`, and the reference's bytes are returned; an accelerator created while on keeps its device after the switch is turned off.
+  - New root exports: `getWebGpuEnabled` and `setWebGpuEnabled`; `ImageKernelAcceleratorOptions` gains `webgpu`; `ImageKernelFallbackReason` gains `webgpu-disabled`. Docs: `docs/WEBGPU.md` (Contract) and `docs/USAGE.md`.
+
 ## 2.10.0 — published October 27, 2026
 
 A minor release: one exact-or-fast flag for every slow option (no option has a fast method yet, so every result is still exact), export and import of the display view's AHD correction states so workers can share them, and faster display-view prepares and parts and faster Quality captures. Samples, RAW codes and files are the same as 2.9.0; captures and display views gain the `diagnostics.fast` report.
