@@ -6,7 +6,7 @@
  * Real-GPU conformance lives in test/webgpu (npm run test:webgpu).
  */
 import { SDR_COUNTER, SDR_TONE_MODE } from "../../src/gpu/wgsl-kernels.js";
-import { emulateChart, emulateSensor, emulateTemporalSum } from "./fake-webgpu-stages.js";
+import { emulateChart, emulateSensor, emulateTemporalSum, nearestArithmetic, type EmulationArithmetic } from "./fake-webgpu-stages.js";
 
 const f = Math.fround;
 
@@ -38,6 +38,8 @@ export interface FakeGpuOptions {
   device?: "throws" | "deferred";
   maxStorageBufferBindingSize?: number;
   maxComputeWorkgroupsPerDimension?: number;
+  /** How the sensor and chart emulations round (default: to nearest; see `adversarialArithmetic`). */
+  arithmetic?: EmulationArithmetic;
 }
 
 class FakeBuffer {
@@ -130,7 +132,7 @@ function renderToned(e: number, sourceNonzero: boolean, band0: number, band1: nu
   return Math.min(maximum, Math.max(0, Math.floor(f(f(encode(linear) * maximum) + .5))));
 }
 
-function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
+function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: EmulationArithmetic): void {
   const u32 = (b: number): Uint32Array => new Uint32Array(buffers.get(b)!.data);
   const i32 = (b: number): Int32Array => new Int32Array(buffers.get(b)!.data);
   const f32 = (b: number): Float32Array => new Float32Array(buffers.get(b)!.data);
@@ -211,9 +213,9 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
     }
   } else if (label === "photivra-sensor-raw") {
     const means = buffers.get(1)!.data;
-    emulateSensor(u32(0), i32(0), f32(0), new Uint32Array(means), new Float32Array(means), f32(2), u32(3));
+    emulateSensor(u32(0), i32(0), f32(0), new Uint32Array(means), new Float32Array(means), f32(2), u32(3), arithmetic);
   } else if (label === "photivra-chart-radiance") {
-    emulateChart(u32(0), f32(0), f32(1), f32(2), f32(3), u32(4), f32(5), u32(6));
+    emulateChart(u32(0), f32(0), f32(1), f32(2), f32(3), u32(4), f32(5), u32(6), arithmetic);
   } else if (label === "photivra-temporal-sum") {
     emulateTemporalSum(u32(0), f32(1), buffers.get(2)!.data, f32(3), f32(4));
   } else {
@@ -254,7 +256,7 @@ export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; con
             dispatchWorkgroups: (): void => { ops.push(() => {
               controls.dispatches++;
               controls.beforeDispatch?.(controls.dispatches);
-              emulate(pipeline!.label, new Map(group!.entries.map(e => [e.binding, e.resource.buffer])));
+              emulate(pipeline!.label, new Map(group!.entries.map(e => [e.binding, e.resource.buffer])), options.arithmetic ?? nearestArithmetic);
             }); }, end: (): void => {} };
         },
         copyBufferToBuffer: (src: FakeBuffer, so: number, dst: FakeBuffer, d0: number, size: number): void => {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * WGSL kernel for the `webgpu-f32` sensor stage (#277), one invocation per native site. It evaluates the
+ * WGSL kernel for the `webgpu-f32` sensor stage (#277, #471), one invocation per native site. It evaluates the
  * reference `simulatePackedSensorSite` (packed-sensor-raw.ts) with the same seeded noise model
  * (`photivra-native-raw-noise` 0.4.0):
  * - the MurmurHash3_x86_32 site seeds, fmix32 scrambling and xorshift32 streams are 32-bit integer
@@ -20,17 +20,32 @@
  *   charge stream after photo and dark charge, in declaration order; deterministic components enter as an
  *   exact integer part plus a float32 fraction, with their own bounds.
  *
- * The bounds use u = 2^-24 and the WGSL accuracy table (W3C WGSL, "Floating Point Accuracy"): correctly
- * rounded + − ×, division 2.5 ULP, sqrt inherited from 1/inverseSqrt (≤ 4.5 ULP), exp 3 + 2|x| ULP,
- * log 3 ULP or 2^-21 absolute on [0.5, 2]. WGSL's built-in cos has only a 2^-11 absolute bound, so
- * the kernel uses its own range-reduced Taylor polynomials. Every margin is doubled (`MARGIN`).
- * See docs/WEBGPU.md.
+ * Arithmetic assumptions (W3C WGSL, "Floating Point Accuracy" and "Reassociation and Fusion"; every margin
+ * is derived in docs/WEBGPU.md, "Sensor-stage margins"):
+ * - E = 2^-23. WGSL specifies no rounding direction, so a "correctly rounded" operation (+ − ×, floor, f32(u32))
+ *   is within one ULP of the exact value, that is ≤ E relative; `/` is 2.5 ULP (≤ 2.5E); `sqrt` inherits
+ *   1.0 / inverseSqrt(x) (≤ 4.5E); `exp` is (3 + 2|x|) ULP; `log` is 3 ULP outside [0.5, 2] and 2^-21
+ *   absolute inside. WGSL's `cos` has only a 2^-11 absolute bound, so the kernel uses its own
+ *   octant-reduced polynomials.
+ * - No decision depends on correctly rounded division: 1/gain and the digital gain arrive from the host as
+ *   exact 12-bit pieces, INL segments as host-computed slopes, and every quotient that remains (Box–Muller
+ *   logarithm, PTRS) carries the 2.5 ULP bound.
+ * - WGSL lets an implementation reassociate. The integer parts of the ADC input are therefore formed in
+ *   integer arithmetic, and every floating-point sum carries the order-independent bound
+ *   (n − 1)·E·Σ|terms| (Higham, Accuracy and Stability of Numerical Algorithms, 2nd ed., §4.2), so the
+ *   sums' margins hold under any association. Fusing a multiply and an add only removes a rounding.
+ * - Every margin is then doubled (`MARGIN`), which covers the second-order terms dropped in the derivations.
  */
 
 /** Output word: code in bits 0–15, saturation flags in bits 16–19, the flagged (uncertain) bit 20. */
 export const SENSOR_OUTPUT = Object.freeze({ codeMask: 0xffff, flagShift: 16, uncertainBit: 1 << 20 });
-/** Auxiliary table layout (float32 words). */
-export const SENSOR_AUX = Object.freeze({ stirlingRemainder: 0, sigma: 256, inversePieces: 272, digitalPieces: 276, knots: 280 });
+/**
+ * Auxiliary table layout (float32 words). A gain's four 12-bit pieces are stored as `SENSOR_PIECE_WORDS` words
+ * each: the integer mantissa m (< 2^12), the exponent s and the exact scale 2^s, so that piece = m·2^s. The INL
+ * table holds the knot codes, the knot offsets and the host-computed segment slopes.
+ */
+export const SENSOR_AUX = Object.freeze({ stirlingRemainder: 0, sigma: 256, inversePieces: 272, digitalPieces: 284, knots: 296 });
+export const SENSOR_PIECE_WORDS = 3;
 export const SENSOR_WORKGROUP_SIZE = 256;
 /**
  * Per-site packed words: photo word, photo fraction bits, dark word, dark fraction bits; then 2 words per
@@ -44,6 +59,10 @@ export const SENSOR_EXTRAS = Object.freeze({ deterministic: 1, fixedPattern: 2 }
 export const SENSOR_REALIZED_CLAMP = 2 ** 30;
 /** Mean categories in bits 30–31 of a mean word, mirroring `samplePoisson`'s branches. */
 export const SENSOR_MEAN_CATEGORY = Object.freeze({ zero: 0, multiplication: 1, transformedRejection: 2, normal: 3 });
+/** One WGSL rounding (one ULP, either direction) is at most this relative error: 2^-23. */
+export const SENSOR_ROUNDING = 2 ** -23;
+/** |z_f32 − z_f64| ≤ SENSOR_NORMAL_ERROR·E·radius for the Box–Muller normal (docs/WEBGPU.md). */
+export const SENSOR_NORMAL_ERROR = 20;
 
 /** Smallest integer m with (m + 0.5)/2^32 ≥ t, so `uS ≥ t` ⇔ `m ≥ result` exactly. */
 export function uniformThresholdInteger(t: number): number {
@@ -58,11 +77,13 @@ const literal = (value: number): string => {
 };
 
 export const SENSOR_RAW_WGSL = /* wgsl */ `
-const U: f32 = 5.9604644775390625e-8;
+const E: f32 = 1.1920928955078125e-7;
 const INV32: f32 = 2.3283064365386963e-10;
 const TWO_PI_INV32: f32 = ${literal(2 * Math.PI / 2 ** 32)};
 const MARGIN: f32 = 2.0;
 const CPU_REL: f32 = 7.105427357601002e-15;
+const LOG_ABS: f32 = 4.76837158203125e-7;
+const Z_ERR: f32 = ${literal(SENSOR_NORMAL_ERROR)};
 struct Params {
   count: u32, row0: u32, region_w: u32, native_w: u32,
   region_x: u32, region_y: u32, seed: u32, components: u32,
@@ -71,7 +92,7 @@ struct Params {
   capacity_frac: f32, threshold_frac: f32, inv_gain: f32, inv_residual: f32,
   digital_gain: f32, digital_residual: f32, inl_slope: f32, inl_offset: f32,
   site_words: u32, poisson_count: u32, extras: u32, pad0: u32,
-  fpn_e_slack: f32, fpn_c_slack: f32, pad1: f32, pad2: f32,
+  fpn_e_slack: f32, fpn_c_slack: f32, inl_knot: f32, pad2: f32,
 };
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var<storage, read> means: array<u32>;
@@ -108,10 +129,12 @@ fn next_bits() -> u32 {
   state = state ^ (state << 13u); state = state ^ (state >> 17u); state = state ^ (state << 5u);
   return state;
 }
+// (bits + 0.5)/2^32 with two roundings (the conversion and the sum; the power-of-two scale is exact): ≤ 2E.
 fn unit(bits: u32) -> f32 { return (f32(bits) + 0.5) * INV32; }
 fn check(distance: f32, margin: f32) { if (abs(distance) <= margin) { uncertain = true; } }
 
-// ln((bits + 0.5)/2^32), relative error <= 12u: WGSL log below 1/2, else 2·atanh(r) on the exact 1 - u.
+// ln((bits + 0.5)/2^32), relative error ≤ 11E: WGSL log below 1/2 (≤ 6E), else 2·atanh(r) with r = −w/(2 − w)
+// on the exact 1 − unit (division 2.5E; ≤ 10.5E in all).
 fn ln_unit(bits: u32) -> f32 {
   if (bits < 0x80000000u) { return log(unit(bits)); }
   let w = (f32(0xffffffffu - bits) + 0.5) * INV32;
@@ -122,7 +145,7 @@ fn ln_unit(bits: u32) -> f32 {
   p = p * r2 + 1.0;
   return 2.0 * r * p;
 }
-// cos(2π (bits + 0.5)/2^32): exact octant reduction on the integer, Taylor polynomials on [0, π/4].
+// cos(2π (bits + 0.5)/2^32): exact octant reduction on the integer, Taylor polynomials on [0, π/4]; absolute error ≤ 8E.
 fn cos_unit(bits: u32) -> f32 {
   let octant = bits >> 29u;
   let low = bits & 0x1fffffffu;
@@ -144,13 +167,16 @@ fn cos_unit(bits: u32) -> f32 {
   if (q == 2u) { return -cb; }
   return sb;
 }
-// Box–Muller, one value per two uniforms; |z_f32 − z_f64| <= 24u·radius.
+// Box–Muller, one value per two uniforms: radius = sqrt(−2 ln u1) (≤ 10E relative), times cos (≤ 8E absolute),
+// one product rounding: |z_f32 − z_f64| ≤ Z_ERR·E·radius with Z_ERR = 20 (derivation in docs/WEBGPU.md).
 fn std_normal() -> f32 {
   let b1 = next_bits();
   let b2 = next_bits();
   radius = sqrt(-2.0 * ln_unit(b1));
   return radius * cos_unit(b2);
 }
+// Multiplication method: product of uniforms (3E per factor) against exp(−mean), whose relative error is
+// (3 + 2·mean) ULP plus the float32 mean's absolute error E·(mean + 1): ≤ (4 + 3·mean)·E.
 fn poisson_small(mean: f32) -> u32 {
   let threshold = exp(-mean);
   var product = 1.0;
@@ -158,7 +184,7 @@ fn poisson_small(mean: f32) -> u32 {
   loop {
     count = count + 1u;
     product = product * unit(next_bits());
-    check(product - threshold, MARGIN * (3.0 * f32(count) + 130.0) * U * max(product, threshold));
+    check(product - threshold, MARGIN * (3.0 * f32(count) + 4.0 + 3.0 * mean) * E * max(product, threshold));
     if (!(product > threshold)) { break; }
     if (count >= 1000u) { uncertain = true; break; }
   }
@@ -175,6 +201,7 @@ fn log1p_minus(t: f32) -> f32 {
   return -(t * t) / d + 2.0 * s * s2 * p;
 }
 fn poisson_ptrs(mi: u32, mf: f32) -> u32 {
+  // mean: ≤ 2.1E relative; sq: ≤ 5.6E; b: ≤ 8.7E; a: ≤ 14E; inv_alpha: ≤ 3.5E; v_r: ≤ 6E absolute (docs/WEBGPU.md).
   let mean = f32(mi) + mf;
   let sq = sqrt(mean);
   let b = 0.931 + 2.53 * sq;
@@ -191,26 +218,28 @@ fn poisson_ptrs(mi: u32, mf: f32) -> u32 {
     let us = unit(m);
     let u = sign * unit(0x7fffffffu - m);
     let v = unit(sv);
+    // scale ≤ 19.5E, t = scale·u ≤ 22.5E relative; x = (t + mf) + 0.43 in any order adds 2E·(|t| + 1.43) + 2E.
     let scale = 2.0 * a / us + b;
     let t = scale * u;
     let x = (t + mf) + 0.43;
     let fl = floor(x);
-    let ex = MARGIN * (abs(t) * 40.0 * U + 2.0 * U * (abs(t) + 1.0) + 4.5e-16 * (abs(t) + mean + 1.0));
+    let ex = MARGIN * (25.0 * E * abs(t) + 4.0 * E + 4.5e-16 * (abs(t) + mean + 1.0));
     if (x - fl <= ex || fl + 1.0 - x <= ex) { uncertain = true; }
     if (fl <= -1073741824.0 || fl >= 1073741824.0) { continue; }
     let k = i32(mi) + i32(fl);
     if (m >= ${uniformThresholdInteger(0.07)}u) {
-      if (k >= 0) { check(v - v_r, MARGIN * (16.0 * U + 2.0 * U * v)); }
+      if (k >= 0) { check(v - v_r, MARGIN * (7.0 * E + 2.0 * E * v)); }
       if (v <= v_r && k >= 0) { return u32(k); }
     }
     if (k < 0 || (m < ${uniformThresholdInteger(0.013)}u && sv > m)) { continue; }
+    // lhs: the argument carries ≤ 31.5E (two divisions), the logarithm 3 ULP or 2^-21.
     let lhs = log(v * inv_alpha / (a / (us * us) + b));
-    let dl = 60.0 * U + 4.76837158203125e-7 + 4.0 * U * abs(lhs);
+    let dl = 32.0 * E + LOG_ABS + 3.0 * E * abs(lhs);
     var rhs: f32;
     var dr: f32;
     if (k == 0) {
       rhs = -mean;
-      dr = 2.0 * U * mean + CPU_REL * mean;
+      dr = 3.0 * E * mean + CPU_REL * mean;
     } else {
       let kf = f32(k);
       let dd = f32(i32(mi) - k) + mf;
@@ -219,17 +248,17 @@ fn poisson_ptrs(mi: u32, mf: f32) -> u32 {
       var dk: f32;
       if (abs(t2) <= 0.5) {
         kg = kf * log1p_minus(t2);
-        dk = 20.0 * U * abs(kg);
+        dk = 25.0 * E * abs(kg) + E;
       } else {
         let lr = log(mean / kf);
         kg = kf * lr - dd;
-        dk = kf * (8.0 * U + 4.76837158203125e-7 + 5.0 * U * abs(lr)) + 3.0 * U * abs(dd) + U * abs(kg);
+        dk = kf * (6.0 * E + LOG_ABS + 5.0 * E * abs(lr)) + 2.0 * E * abs(dd) + E + E * abs(kg);
       }
       let lnk = log(kf);
       var corr: f32;
       if (k < 256) { corr = aux[u32(k)]; } else { corr = 1.0 / (12.0 * kf) - 1.0 / (360.0 * kf * kf * kf); }
       rhs = ((kg - 0.5 * lnk) - 0.91893853320467274) - corr;
-      dr = dk + 2.384185791015625e-7 + 2.0 * U * lnk + U + 0.6 * U + 3.0 * U * (abs(kg) + 0.5 * lnk + 1.0) +
+      dr = dk + 0.5 * LOG_ABS + 1.5 * E * lnk + 2.0 * E + 3.0 * E * (abs(kg) + 0.5 * lnk + 1.0) +
         CPU_REL * (mean + kf * (abs(ln_mean) + lnk + 1.0));
     }
     check(lhs - rhs, MARGIN * (dl + dr));
@@ -249,20 +278,28 @@ fn poisson(word: u32, frac: f32) -> u32 {
   let y = sqrt(f32(mi) + frac) * z + frac + 0.5;
   return u32(max(0, i32(mi) + i32(floor(y))));
 }
-// Adds an exact non-negative float32 value split into integer and fractional parts.
-fn accumulate(value: f32) {
-  let f = floor(value);
-  ip = ip + i32(f);
-  fp = fp + (value - f);
+// Adds product·2^s for an exact integer product < 2^24: the integer part by an integer shift, the fraction as
+// an exact float32 below 1 (the masked low bits times the exact power of two). No float split depends on order.
+fn add_scaled(product: u32, s: i32, scale: f32) {
+  if (product == 0u) { return; }
+  // product·2^s is below 2^30 by the host's domain check, so the shift count is below 31.
+  if (s >= 0) { ip = ip + i32(product << u32(s)); return; }
+  if (s <= -24) { fp = fp + f32(product) * scale; return; }
+  let shift = u32(-s);
+  ip = ip + i32(product >> shift);
+  fp = fp + f32(product & ((1u << shift) - 1u)) * scale;
 }
-// n·(p0 + p1 + p2 + p3) for an integer 0 <= n < 2^24 and 12-bit pieces: every product is exact.
+// n·(p0 + p1 + p2 + p3) for an integer 0 <= n < 2^24 and pieces p_j = m_j·2^(s_j) with m_j < 2^12: the
+// products hi·m_j and lo·m_j are exact 32-bit integers.
 fn scaled(n: u32, base: u32) {
-  let hi = f32(n >> 12u);
-  let lo = f32(n & 0xfffu);
+  let hi = n >> 12u;
+  let lo = n & 0xfffu;
   for (var j = 0u; j < 4u; j = j + 1u) {
-    let piece = aux[base + j];
-    accumulate(hi * piece * 4096.0);
-    accumulate(lo * piece);
+    let m = u32(aux[base + ${SENSOR_PIECE_WORDS}u * j]);
+    let s = i32(aux[base + ${SENSOR_PIECE_WORDS}u * j + 1u]);
+    let scale = aux[base + ${SENSOR_PIECE_WORDS}u * j + 2u];
+    add_scaled(hi * m, s + 12, scale * 4096.0);
+    add_scaled(lo * m, s, scale);
   }
 }
 fn normalize() {
@@ -270,9 +307,10 @@ fn normalize() {
   ip = ip + i32(f);
   fp = fp - f;
 }
+// Piecewise-linear INL offset with host-computed segment slopes (no division): ao + (code − ac)·slope.
 fn inl_offset(code: f32) -> f32 {
   let n = params.knots;
-  let base = ${"280u"};
+  let base = ${SENSOR_AUX.knots}u;
   if (code <= aux[base]) { return aux[base + n]; }
   if (code >= aux[base + n - 1u]) { return aux[base + 2u * n - 1u]; }
   var low = 0u;
@@ -282,9 +320,7 @@ fn inl_offset(code: f32) -> f32 {
     let middle = (low + high) >> 1u;
     if (aux[base + middle] <= code) { low = middle; } else { high = middle; }
   }
-  let ac = aux[base + low];
-  let ao = aux[base + n + low];
-  return ao + ((code - ac) / (aux[base + high] - ac)) * (aux[base + n + high] - ao);
+  return aux[base + n + low] + (code - aux[base + low]) * aux[base + 2u * n + low];
 }
 @compute @workgroup_size(${SENSOR_WORKGROUP_SIZE})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) groups: vec3<u32>) {
@@ -310,7 +346,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   if (deterministic) {
     realized = min(realized + means[cursor], ${SENSOR_REALIZED_CLAMP}u);
     r_frac = bitcast<f32>(means[cursor + 1u]);
-    det_slack = U;
+    det_slack = E;
     cursor = cursor + 2u;
   }
   var t_floor = i32(params.threshold_floor);
@@ -329,7 +365,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
     if (sigma != 0.0) {
       let z = std_normal();
       noise = noise + z * sigma;
-      noise_bound = noise_bound + sigma * radius * (28.0 + f32(params.components)) * U;
+      // z's error, sigma's rounding, the product, and the order-independent sum over the component count.
+      noise_bound = noise_bound + sigma * radius * (Z_ERR + 2.0 + f32(params.components)) * E;
     }
   }
   var flags = 0u;
@@ -338,16 +375,17 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   if (!deterministic) {
     if (realized > params.capacity_floor) { flags = 1u; a_int = params.capacity_floor; a_frac = params.capacity_frac; }
   } else {
-    // realized > capacity with a non-integer total: float32 difference with its bound.
+    // realized > capacity with a non-integer total: a three-term float32 sum (any order) with its bound.
     let w = f32(i32(realized) - i32(params.capacity_floor));
     let dcap = w + (r_frac - params.capacity_frac);
-    check(dcap, MARGIN * (5.0 * U + U * abs(w) + U * abs(dcap) + CPU_REL * (f32(realized) + 1.0)));
+    check(dcap, MARGIN * (3.0 * E * abs(w) + 6.0 * E + CPU_REL * (f32(realized) + 1.0)));
     if (dcap > 0.0) { flags = 1u; a_int = params.capacity_floor; a_frac = params.capacity_frac; }
   }
-  // Pre-ADC limit: afterPhysical + noise + offset > threshold, as afterPhysical − (threshold − offset) + noise > 0.
+  // Pre-ADC limit: afterPhysical + noise + offset > threshold, as afterPhysical − (threshold − offset) + noise > 0,
+  // a four-term float32 sum (any order).
   let whole = f32(i32(a_int) - t_floor);
   let diff = (whole + (a_frac - t_frac)) + noise;
-  check(diff, MARGIN * (noise_bound + 3.0 * U + 2.0 * U * (abs(whole) + abs(noise) + 2.0) + CPU_REL * (f32(a_int) + abs(noise)) +
+  check(diff, MARGIN * (noise_bound + 4.0 * E * abs(whole) + 3.0 * E * abs(noise) + 8.0 * E + CPU_REL * (f32(a_int) + abs(noise)) +
     fpn_e_slack + det_slack));
   var q: i32;
   if (diff > 0.0) {
@@ -363,20 +401,24 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
       fp = bitcast<f32>(means[cursor + 3u]);
       fpn_c_slack = params.fpn_c_slack;
     }
-    scaled(a_int, 272u);
+    scaled(a_int, ${SENSOR_AUX.inversePieces}u);
     let noise_codes = noise * params.inv_gain;
-    fp = fp + a_frac * params.inv_gain + noise_codes;
+    let frac_codes = a_frac * params.inv_gain;
+    fp = fp + frac_codes + noise_codes;
     let a_codes = f32(a_int) * params.inv_gain;
-    var margin = MARGIN * (10.0 * U * (10.0 + abs(noise_codes)) + 4.0 * U * a_frac * params.inv_gain + 3.0 * U * abs(noise_codes) +
-      noise_bound * params.inv_gain + f32(a_int) * params.inv_residual + 2.0 * U +
+    // The fraction sum (eleven terms below 1, frac_codes and noise_codes), the two normalizations and the
+    // half-code comparison in any association: 13E·Σ|terms|; then the term errors, the pieces' residual,
+    // the reference's float64 rounding and the packed fractions' rounding.
+    var margin = MARGIN * (13.0 * E * (13.0 + frac_codes + abs(noise_codes)) + 3.0 * E * frac_codes + 2.0 * E * abs(noise_codes) +
+      noise_bound * params.inv_gain + f32(a_int) * params.inv_residual +
       CPU_REL * (a_codes + abs(noise_codes) + f32(params.black)) + fpn_c_slack + det_slack * params.inv_gain);
     normalize();
     if (params.knots > 0u) {
       let ideal = f32(ip) + fp;
       let offset = inl_offset(ideal);
       fp = fp + offset;
-      margin = margin * (1.0 + params.inl_slope) + MARGIN * (params.inl_slope * 2.0 * U * (abs(ideal) + 1.0) +
-        8.0 * U * (params.inl_offset + 1.0) + CPU_REL * (abs(ideal) + params.inl_offset) * (1.0 + params.inl_slope));
+      margin = margin * (1.0 + params.inl_slope) + MARGIN * (params.inl_slope * 2.0 * E * (abs(ideal) + 1.0 + params.inl_knot) +
+        11.0 * E * (params.inl_offset + 1.0) + CPU_REL * (abs(ideal) + params.inl_offset) * (1.0 + params.inl_slope));
       normalize();
     }
     if ((params.digital & 4u) == 0u) { check(fp - 0.5, margin); }
@@ -393,8 +435,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
     } else {
       ip = 0;
       fp = 0.0;
-      scaled(u32(abs(delta)), 276u);
-      if ((params.digital & 2u) == 0u) { check(fp - floor(fp) - 0.5, MARGIN * (40.0 * U * 9.0 + f32(abs(delta)) * params.digital_residual + CPU_REL * (abs(estimate) + f32(params.black)))); }
+      scaled(u32(abs(delta)), ${SENSOR_AUX.digitalPieces}u);
+      // Eight exact fractions summed in any order, the floor split and the half comparison: ≤ 10 roundings on
+      // values below 9; the pieces' residual; the reference's float64 product.
+      if ((params.digital & 2u) == 0u) { check(fp - floor(fp) - 0.5, MARGIN * (90.0 * E + f32(abs(delta)) * params.digital_residual + CPU_REL * (abs(estimate) + f32(params.black)))); }
       normalize();
       var whole_part = ip;
       var fraction = fp;
