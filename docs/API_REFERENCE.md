@@ -1157,6 +1157,17 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`UniformChartScene`](api/facade-chart-scenes.md#uniformchartscene) | Type |
 | [`ZonePlateChartScene`](api/facade-chart-scenes.md#zoneplatechartscene) | Type |
 
+## facade/display-view.ts
+
+[Detailed contracts](api/facade-display-view.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/display-view.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`bindDisplayViewCorrectionStates`](api/facade-display-view.md#binddisplayviewcorrectionstates) | Runtime |
+| [`DisplayViewCorrectionStateKeys`](api/facade-display-view.md#displayviewcorrectionstatekeys) | Type |
+| [`DisplayViewCorrectionStateSet`](api/facade-display-view.md#displayviewcorrectionstateset) | Type |
+| [`serializeDisplayViewCorrectionStates`](api/facade-display-view.md#serializedisplayviewcorrectionstates) | Runtime |
+
 ## facade/scene-radiance.ts
 
 [Detailed contracts](api/facade-scene-radiance.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/scene-radiance.ts)

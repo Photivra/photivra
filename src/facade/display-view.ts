@@ -183,6 +183,12 @@ export interface DisplayViewSetup {
    * correction of a flat neighbourhood with their channel means, estimated once per quantized state with `drawsPerState` draws.
    */
   ahdCorrection?: { labMatrix: readonly (readonly number[])[]; drawsPerState: number; thresholdVariance: number };
+  /**
+   * #447: a collect pass. The render adds to this set the grid key of every state its corrected samples interpolate between
+   * (the corners `gridCorrection` would compute or read), computes and reads no state and leaves the cache untouched; its
+   * corrections are zero, so its image is not a display view and is discarded by the caller.
+   */
+  ahdCollect?: Set<number>;
   yieldControl(): Promise<void>;
   checkAbort(): void;
 }
@@ -369,6 +375,120 @@ export function flatDisplayViewCandidateTables(slots: readonly (readonly (readon
 /** Internal (exported for tests): the correction states kept across calls, and clearing them. */
 export function displayViewCorrectionStateCount(): number { let n = 0; for (const states of ahdStateCache.values()) n += states.index.size; return n; }
 export function clearDisplayViewCorrectionStates(): void { ahdStateCache.clear(); }
+/** Number of grid keys: AHD_KEY_LEVELS³ (a grid key is (i0·AHD_KEY_LEVELS + i1)·AHD_KEY_LEVELS + i2). */
+const AHD_GRID_KEY_COUNT = AHD_KEY_LEVELS * AHD_KEY_LEVELS * AHD_KEY_LEVELS;
+/**
+ * 2.10 (#447): the AHD low-signal correction states of one setup, as a realm sends them to another. `key` is the setup's
+ * correction key (`PreparedDisplayView.correctionKey()`), `gridKeys[i]` a state's grid key and `values[3·i …]` its three
+ * values (28 bytes per state). Both arrays are transferable.
+ */
+export interface DisplayViewCorrectionStateSet { key: string; gridKeys: Int32Array; values: Float64Array }
+/** 2.10 (#447): the grid keys of the states a region needs (`PreparedDisplayView.collectCorrectionStates`), ascending. */
+export interface DisplayViewCorrectionStateKeys { key: string; gridKeys: Int32Array }
+/** The inputs of one setup's correction states: the inputs of its correction key. */
+export type DisplayViewCorrectionSetup = Pick<DisplayViewSetup, "seed" | "readout" | "gains" | "clipLevel" | "matrix" | "toneCurve"> &
+  { ahdCorrection: NonNullable<DisplayViewSetup["ahdCorrection"]> };
+/** Internal (#447): the correction key of a setup, or null without the AHD correction (the key `renderDisplayView` looks its states up with). */
+export function displayViewCorrectionKey(setup: Pick<DisplayViewSetup, "seed" | "readout" | "gains" | "clipLevel" | "matrix" | "toneCurve" | "ahdCorrection">): string | null {
+  if (!setup.ahdCorrection) return null;
+  return correctionKey(setup.seed, setup.ahdCorrection, Float64Array.from(setup.readout, (r) => r.perElectron), Float64Array.from(setup.readout, (r) => r.constantVariance),
+    setup.gains, setup.clipLevel, setup.matrix, setup.toneCurve);
+}
+/** True for a typed array of the named kind from any realm (a structured clone arrives as one of the receiving realm). */
+function isTypedArray(value: unknown, tag: "Int32Array" | "Float64Array"): boolean {
+  return ArrayBuffer.isView(value) && Object.prototype.toString.call(value) === "[object " + tag + "]";
+}
+/** A grid-key list, checked: an Int32Array of keys in [0, AHD_KEY_LEVELS³). */
+function checkGridKeys(gridKeys: unknown, caller: string): Int32Array {
+  if (!isTypedArray(gridKeys, "Int32Array")) throw new InvalidConfigurationError(caller + ": gridKeys must be an Int32Array.");
+  const keys = gridKeys as Int32Array;
+  for (let i = 0; i < keys.length; i++) if (!(keys[i]! >= 0 && keys[i]! < AHD_GRID_KEY_COUNT))
+    throw new InvalidConfigurationError(caller + ": gridKeys[" + i + "] (" + keys[i] + ") is not a grid key, an integer in [0, " + AHD_GRID_KEY_COUNT + ").");
+  return keys;
+}
+/**
+ * 2.10 (#447): the AHD low-signal correction states this JavaScript realm holds (a Web Worker, a page), one entry per cached
+ * setup, least recently used first, each state's grid key and three values copied out. Another realm adds them with
+ * {@link bindDisplayViewCorrectionStates}; a render there then reads them instead of computing them, with the same bytes.
+ */
+export function serializeDisplayViewCorrectionStates(): DisplayViewCorrectionStateSet[] {
+  const out: DisplayViewCorrectionStateSet[] = [];
+  for (const [key, states] of ahdStateCache) {
+    const gridKeys = new Int32Array(states.index.size), values = new Float64Array(3 * states.index.size);
+    let i = 0;
+    for (const [gridKey, n] of states.index) {
+      gridKeys[i] = gridKey;
+      values[3 * i] = states.values[3 * n]!; values[3 * i + 1] = states.values[3 * n + 1]!; values[3 * i + 2] = states.values[3 * n + 2]!;
+      i++;
+    }
+    out.push({ key, gridKeys, values });
+  }
+  return out;
+}
+/**
+ * 2.10 (#447): adds states another realm computed (an export, or `computeCorrectionStates` results) to this realm's cache and
+ * returns the number of states added. For each entry, the grid keys its setup does not hold yet are appended; known ones are
+ * left as they are (a state's values follow from its key, so they are equal). Every entry is checked before the cache is
+ * touched: `key` a non-empty string, `gridKeys` an Int32Array of grid keys, `values` a Float64Array of 3 × `gridKeys.length`
+ * finite numbers; otherwise it fails with an InvalidConfigurationError and the cache is unchanged. The cache's bounds apply as
+ * in a render: an unknown key creates a setup and can evict the least recently used of the four kept, and a setup that
+ * reaches 65 536 states is cleared before the next one is added. Import only keys a prepared view reported
+ * (`correctionKey()`), so states a render here will read.
+ */
+export function bindDisplayViewCorrectionStates(entries: readonly DisplayViewCorrectionStateSet[]): number {
+  const caller = "bindDisplayViewCorrectionStates";
+  if (!Array.isArray(entries)) throw new InvalidConfigurationError(caller + ": entries must be an array of { key, gridKeys, values }.");
+  const checked: DisplayViewCorrectionStateSet[] = [];
+  for (let e = 0; e < entries.length; e++) {
+    const entry: unknown = entries[e], at = caller + ": entries[" + e + "]";
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) throw new InvalidConfigurationError(at + " must be an object { key, gridKeys, values }.");
+    for (const field of Object.keys(entry)) if (field !== "key" && field !== "gridKeys" && field !== "values") throw new InvalidConfigurationError(at + " has unknown field " + JSON.stringify(field) + ".");
+    const { key, gridKeys, values } = entry as Record<string, unknown>;
+    if (typeof key !== "string" || key.length === 0) throw new InvalidConfigurationError(at + ".key must be a non-empty string (a prepared view's correctionKey()).");
+    const keys = checkGridKeys(gridKeys, at);
+    if (!isTypedArray(values, "Float64Array")) throw new InvalidConfigurationError(at + ".values must be a Float64Array.");
+    const v = values as Float64Array;
+    if (v.length !== 3 * keys.length) throw new InvalidConfigurationError(at + ".values must hold 3 values per grid key (" + 3 * keys.length + "), not " + v.length + ".");
+    for (let i = 0; i < v.length; i++) if (!Number.isFinite(v[i])) throw new InvalidConfigurationError(at + ".values[" + i + "] (" + v[i] + ") is not finite.");
+    checked.push({ key, gridKeys: keys, values: v });
+  }
+  let appended = 0;
+  for (const entry of checked) {
+    const states = correctionStates(entry.key);
+    for (let i = 0; i < entry.gridKeys.length; i++) {
+      const gridKey = entry.gridKeys[i]!;
+      if (states.index.has(gridKey)) continue;
+      // As gridCorrection stores a state.
+      if (states.index.size >= AHD_STATE_LIMIT) states.index.clear();
+      const n = states.index.size;
+      if (states.values.length < 3 * (n + 1)) { const grown = new Float64Array(2 * states.values.length); grown.set(states.values); states.values = grown; }
+      states.values[3 * n] = entry.values[3 * i]!; states.values[3 * n + 1] = entry.values[3 * i + 1]!; states.values[3 * n + 2] = entry.values[3 * i + 2]!;
+      states.index.set(gridKey, n);
+      appended++;
+    }
+  }
+  return appended;
+}
+/**
+ * Internal (#447, `PreparedDisplayView.computeCorrectionStates`): computes the states of the given grid keys for a setup (each
+ * as a render computes it, read from the cache where it is held) and stores them in this realm's cache; returns each key's
+ * three values in the order given. Yields to the host and checks for abort between states, as a render does.
+ */
+export async function computeDisplayViewCorrectionStates(setup: DisplayViewCorrectionSetup & Pick<DisplayViewSetup, "yieldControl" | "checkAbort">,
+  gridKeys: Int32Array): Promise<DisplayViewCorrectionStateSet> {
+  const keys = checkGridKeys(gridKeys, "computeCorrectionStates");
+  setup.checkAbort();
+  const key = displayViewCorrectionKey(setup)!, states = correctionStates(key), gridCorrection = createGridCorrection(setup, states);
+  const outKeys = Int32Array.from(keys), values = new Float64Array(3 * keys.length);
+  let lastYield = Date.now();
+  for (let i = 0; i < keys.length; i++) {
+    const gridKey = keys[i]!, i2 = gridKey % AHD_KEY_LEVELS, i1 = ((gridKey - i2) / AHD_KEY_LEVELS) % AHD_KEY_LEVELS, i0 = (gridKey - i1 * AHD_KEY_LEVELS - i2) / (AHD_KEY_LEVELS * AHD_KEY_LEVELS);
+    const at = gridCorrection(i0, i1, i2);
+    values[3 * i] = states.values[at]!; values[3 * i + 1] = states.values[at + 1]!; values[3 * i + 2] = states.values[at + 2]!;
+    if (Date.now() - lastYield >= 8) { await setup.yieldControl(); setup.checkAbort(); lastYield = Date.now(); }
+  }
+  return { key, gridKeys: outKeys, values };
+}
 /** The state map of one setup (moved to the most recently used end). */
 function correctionStates(key: string): CorrectionStates {
   let states = ahdStateCache.get(key);
@@ -399,6 +519,124 @@ export const EXACT_AREA_MEAN_MAX_PIXELS = 25;
 const SITE_RING_LIMIT = 1 << 18;
 /** Pilot points per axis: about one per two sites of the footprint plus its reach, 4 to 16. */
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
+
+/**
+ * The state computer of one setup's AHD correction (#447: shared by the render and `computeDisplayViewCorrectionStates`):
+ * gridCorrection(i0, i1, i2) returns the offset of the grid state's three values in `states.values`, computing and storing
+ * the state on first use. The code and its operations are those the render ran in place before.
+ */
+function createGridCorrection(setup: DisplayViewCorrectionSetup, states: CorrectionStates): (i0: number, i1: number, i2: number) => number {
+  const { seed, ahdCorrection } = setup;
+  const k = Float64Array.from(setup.readout, (r) => r.perElectron), c0 = Float64Array.from(setup.readout, (r) => r.constantVariance);
+  const M = setup.matrix, m00 = M[0]![0]!, m01 = M[0]![1]!, m02 = M[0]![2]!, m10 = M[1]![0]!, m11 = M[1]![1]!, m12 = M[1]![2]!, m20 = M[2]![0]!, m21 = M[2]![1]!, m22 = M[2]![2]!;
+  const g0 = setup.gains[0], g1 = setup.gains[1], g2 = setup.gains[2], L = setup.clipLevel, reinhard = setup.toneCurve === "positive-reinhard-per-channel";
+  const correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE);
+  const readStd = Float64Array.from(c0, (v) => Math.sqrt(v));
+  /** The offset of a grid state's three values in states.values (computed and stored on first use). */
+  function gridCorrection(i0: number, i1: number, i2: number): number {
+    const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = states.index.get(key);
+    if (cached !== undefined) return 3 * cached;
+    const electrons = [i0, i1, i2].map((i, c) => portableExp2(i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
+    const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
+    const sum = new Float64Array(3), draws = ahdCorrection.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e, true));
+    const normal = createPortableStandardNormalPairs(random);
+    for (let draw = 0; draw < draws; draw++) {
+      const phase = draw & 3, roles = AHD_ROLES[phase]!;
+      for (let p = 0; p < AHD_SIDE * AHD_SIDE; p++) {
+        // The 16 sites the AHD steps never read are not drawn.
+        if (AHD_READ[p] === 0) continue;
+        const c = roles[p]!, value = k[c]! * poisson[c]!(random) + readStd[c]! * normal();
+        patch[p] = value < 1 ? value : 1;
+      }
+      ahdDifference(phase, correction);
+      for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / draws;
+    }
+    if (states.index.size >= AHD_STATE_LIMIT) states.index.clear();
+    const n = states.index.size;
+    if (states.values.length < 3 * (n + 1)) { const grown = new Float64Array(2 * states.values.length); grown.set(states.values); states.values = grown; }
+    states.values.set(sum, 3 * n);
+    states.index.set(key, n);
+    return 3 * n;
+  }
+  const lab = ahdCorrection.labMatrix, labWhite = Float64Array.from(lab, (row) => row[0]! + row[1]! + row[2]!);
+  const l00 = lab[0]![0]!, l01 = lab[0]![1]!, l02 = lab[0]![2]!, l10 = lab[1]![0]!, l11 = lab[1]![1]!, l12 = lab[1]![2]!, l20 = lab[2]![0]!, l21 = lab[2]![1]!, l22 = lab[2]![2]!;
+  const lw0 = labWhite[0]!, lw1 = labWhite[1]!, lw2 = labWhite[2]!;
+  const gh = new Float64Array(49), gv = new Float64Array(49), cand = [new Float64Array(75), new Float64Array(75)], labs = [new Float64Array(75), new Float64Array(75)];
+  const rgb = new Float64Array(3), rendered = new Float64Array(3), linear = new Float64Array(3);
+  /** Develops one deterministic camera pixel and renders it: WB, highlight clip, colour matrix, tone curve, clip to [0, 1]. */
+  function renderPixel(r: number, gr: number, b: number, out: Float64Array): void {
+    const u0 = Math.min(L, g0 * r), u1 = Math.min(L, g1 * gr), u2 = Math.min(L, g2 * b);
+    for (let comp = 0; comp < 3; comp++) {
+      let v = comp === 0 ? m00 * u0 + m01 * u1 + m02 * u2 : comp === 1 ? m10 * u0 + m11 * u1 + m12 * u2 : m20 * u0 + m21 * u1 + m22 * u2;
+      if (reinhard) v = v > 0 ? v / (1 + v) : v;
+      out[comp] = v < 0 ? 0 : v > 1 ? 1 : v;
+    }
+  }
+  /**
+   * h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (createAhdDemosaicTask's steps, centre pixel only). The
+   * patch and the greens are read by flat index (patch (dy + 5)·11 + dx + 5, greens (dy + 3)·7 + dx + 3); every value is formed
+   * with the same operations in the same order as the steps themselves, except that CIELAB's cube root is `portableCbrt`
+   * (within 1 ulp of Math.cbrt) and squares are products, so the result has the same bits in every JavaScript engine.
+   */
+  function ahdDifference(phase: number, out: Float64Array): void {
+    const roles = AHD_ROLES[phase]!;
+    // 1. Directional greens within 3 sites.
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const i = (dy + 3) * 7 + dx + 3, p = (dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH, c = patch[p]!;
+      if (roles[p] === 1) { gh[i] = c; gv[i] = c; continue; }
+      gh[i] = (patch[p - 1]! + patch[p + 1]!) / 2 + (2 * c - patch[p - 2]! - patch[p + 2]!) / 4;
+      gv[i] = (patch[p - AHD_SIDE]! + patch[p + AHD_SIDE]!) / 2 + (2 * c - patch[p - 2 * AHD_SIDE]! - patch[p + 2 * AHD_SIDE]!) / 4;
+    }
+    // 2. Candidates within 2 sites; 3. their CIELAB. The four corners (±2, ±2) are not read by step 4 and are skipped.
+    for (let d = 0; d < 2; d++) {
+      const g = d === 0 ? gh : gv, o = cand[d]!, ol = labs[d]!;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        if ((dx === -2 || dx === 2) && (dy === -2 || dy === 2)) continue;
+        const i = (dy + 2) * 5 + dx + 2, p = (dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH, q = (dy + 3) * 7 + dx + 3, own = roles[p]!, gc = g[q]!;
+        o[3 * i + 1] = gc;
+        if (own === 1) {
+          const hRole = roles[p + 1]!, vRole = 2 - hRole;
+          o[3 * i + hRole] = gc + ((patch[p - 1]! - g[q - 1]!) + (patch[p + 1]! - g[q + 1]!)) / 2;
+          o[3 * i + vRole] = gc + ((patch[p - AHD_SIDE]! - g[q - 7]!) + (patch[p + AHD_SIDE]! - g[q + 7]!)) / 2;
+        } else {
+          o[3 * i + own] = patch[p]!;
+          o[3 * i + 2 - own] = gc + ((patch[p - AHD_SIDE - 1]! - g[q - 8]!) + (patch[p - AHD_SIDE + 1]! - g[q - 6]!) + (patch[p + AHD_SIDE - 1]! - g[q + 6]!) +
+            (patch[p + AHD_SIDE + 1]! - g[q + 8]!)) / 4;
+        }
+        const R = o[3 * i]!, G = o[3 * i + 1]!, Bc = o[3 * i + 2]!;
+        let tx = (l00 * R + l01 * G + l02 * Bc) / lw0, ty = (l10 * R + l11 * G + l12 * Bc) / lw1, tz = (l20 * R + l21 * G + l22 * Bc) / lw2;
+        tx = tx > LAB_EPSILON ? portableCbrt(tx) : (LAB_KAPPA * tx + 16) / 116;
+        ty = ty > LAB_EPSILON ? portableCbrt(ty) : (LAB_KAPPA * ty + 16) / 116;
+        tz = tz > LAB_EPSILON ? portableCbrt(tz) : (LAB_KAPPA * tz + 16) / 116;
+        ol[3 * i] = 116 * ty - 16; ol[3 * i + 1] = 500 * (tx - ty); ol[3 * i + 2] = 200 * (ty - tz);
+      }
+    }
+    // 4. Homogeneity within 1 site, with the adaptive tolerances (neighbours left, right, up, down); 5. the 3 × 3 sum selects
+    // the candidate.
+    const h = labs[0]!, v = labs[1]!;
+    let sh = 0, sv = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const i = 3 * ((dy + 2) * 5 + dx + 2), j0 = i - 3, j1 = i + 3, j2 = i - 15, j3 = i + 15;
+      const hL0 = Math.abs(h[i]! - h[j0]!), hL1 = Math.abs(h[i]! - h[j1]!), hL2 = Math.abs(h[i]! - h[j2]!), hL3 = Math.abs(h[i]! - h[j3]!);
+      const vL0 = Math.abs(v[i]! - v[j0]!), vL1 = Math.abs(v[i]! - v[j1]!), vL2 = Math.abs(v[i]! - v[j2]!), vL3 = Math.abs(v[i]! - v[j3]!);
+      const hC0 = square(h[i + 1]! - h[j0 + 1]!) + square(h[i + 2]! - h[j0 + 2]!), hC1 = square(h[i + 1]! - h[j1 + 1]!) + square(h[i + 2]! - h[j1 + 2]!);
+      const hC2 = square(h[i + 1]! - h[j2 + 1]!) + square(h[i + 2]! - h[j2 + 2]!), hC3 = square(h[i + 1]! - h[j3 + 1]!) + square(h[i + 2]! - h[j3 + 2]!);
+      const vC0 = square(v[i + 1]! - v[j0 + 1]!) + square(v[i + 2]! - v[j0 + 2]!), vC1 = square(v[i + 1]! - v[j1 + 1]!) + square(v[i + 2]! - v[j1 + 2]!);
+      const vC2 = square(v[i + 1]! - v[j2 + 1]!) + square(v[i + 2]! - v[j2 + 2]!), vC3 = square(v[i + 1]! - v[j3 + 1]!) + square(v[i + 2]! - v[j3 + 2]!);
+      const epsL = Math.min(Math.max(hL0, hL1), Math.max(vL2, vL3)), epsC = Math.min(Math.max(hC0, hC1), Math.max(vC2, vC3));
+      sh += (hL0 <= epsL && hC0 <= epsC ? 1 : 0) + (hL1 <= epsL && hC1 <= epsC ? 1 : 0) + (hL2 <= epsL && hC2 <= epsC ? 1 : 0) + (hL3 <= epsL && hC3 <= epsC ? 1 : 0);
+      sv += (vL0 <= epsL && vC0 <= epsC ? 1 : 0) + (vL1 <= epsL && vC1 <= epsC ? 1 : 0) + (vL2 <= epsL && vC2 <= epsC ? 1 : 0) + (vL3 <= epsL && vC3 <= epsC ? 1 : 0);
+    }
+    const centre = 12, a = cand[0]!, b = cand[1]!;
+    for (let c = 0; c < 3; c++) rgb[c] = sh > sv ? a[3 * centre + c]! : sv > sh ? b[3 * centre + c]! : (a[3 * centre + c]! + b[3 * centre + c]!) / 2;
+    renderPixel(rgb[0]!, rgb[1]!, rgb[2]!, rendered);
+    renderPixel(a[3 * centre]!, a[3 * centre + 1]!, a[3 * centre + 2]!, linear);
+    for (let c = 0; c < 3; c++) out[c] = rendered[c]! - linear[c]! / 2;
+    renderPixel(b[3 * centre]!, b[3 * centre + 1]!, b[3 * centre + 2]!, linear);
+    for (let c = 0; c < 3; c++) out[c] = out[c]! - linear[c]! / 2;
+  }
+  return gridCorrection;
+}
 
 /** Renders the display view (docs/DISPLAY_VIEW.md). */
 export async function renderDisplayView(setup: DisplayViewSetup): Promise<DisplayViewRenderResult> {
@@ -476,9 +714,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   // (No closure assigns them, so they stay locals of the render loop.)
   // AHD low-signal correction: an 11 × 11 noisy neighbourhood (AHD reads up to 5 sites away) and the local AHD steps.
   const ahdCorrection = setup.ahdCorrection, windowReach = ahdCorrection ? Math.max(reach, AHD_REACH) : reach;
-  const correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE), cmAverage = new Float64Array(3);
+  const cmAverage = new Float64Array(3);
   let correctedPixels = 0;
-  const readStd = Float64Array.from(c0, (v) => Math.sqrt(v));
   // The correction of a flat neighbourhood whose sites of channel c have normalized mean μ_c, on a logarithmic grid of states
   // (AHD_KEY_STEPS per octave from 2^-AHD_KEY_OCTAVES of white); each grid state is computed once with draws seeded by the state
   // alone, so it is the same in every display pixel and region, and a pixel interpolates trilinearly between the 8 states
@@ -486,33 +723,11 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   // Grid states are shared across display pixels and across calls: a state depends only on its indices and on the inputs in
   // `correctionKey` (the seed, the draws, the readout scale and noise, the homogeneity matrix and the development), so a cached
   // state is the same value the draws would give again.
-  const states = ahdCorrection ? correctionStates(correctionKey(seed, ahdCorrection, k, c0, setup.gains, L, M, setup.toneCurve)) : { index: new Map<number, number>(), values: new Float64Array(0) };
-  /** The offset of a grid state's three values in states.values (computed and stored on first use). */
-  function gridCorrection(i0: number, i1: number, i2: number): number {
-    const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = states.index.get(key);
-    if (cached !== undefined) return 3 * cached;
-    const electrons = [i0, i1, i2].map((i, c) => portableExp2(i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
-    const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
-    const sum = new Float64Array(3), draws = ahdCorrection!.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e, true));
-    const normal = createPortableStandardNormalPairs(random);
-    for (let draw = 0; draw < draws; draw++) {
-      const phase = draw & 3, roles = AHD_ROLES[phase]!;
-      for (let p = 0; p < AHD_SIDE * AHD_SIDE; p++) {
-        // The 16 sites the AHD steps never read are not drawn.
-        if (AHD_READ[p] === 0) continue;
-        const c = roles[p]!, value = k[c]! * poisson[c]!(random) + readStd[c]! * normal();
-        patch[p] = value < 1 ? value : 1;
-      }
-      ahdDifference(phase, correction);
-      for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / draws;
-    }
-    if (states.index.size >= AHD_STATE_LIMIT) states.index.clear();
-    const n = states.index.size;
-    if (states.values.length < 3 * (n + 1)) { const grown = new Float64Array(2 * states.values.length); grown.set(states.values); states.values = grown; }
-    states.values.set(sum, 3 * n);
-    states.index.set(key, n);
-    return 3 * n;
-  }
+  // A collect pass (#447) records the grid keys its corrected samples read instead of computing or reading states, and
+  // leaves the cache untouched; its image is discarded.
+  const collect = setup.ahdCollect;
+  const states = ahdCorrection && !collect ? correctionStates(displayViewCorrectionKey(setup)!) : { index: new Map<number, number>(), values: new Float64Array(0) };
+  const gridCorrection = ahdCorrection && !collect ? createGridCorrection(setup as DisplayViewCorrectionSetup, states) : (): number => 0;
   const interpolated = new Float64Array(3);
   const gridBase = new Float64Array(3), gridFrac = new Float64Array(3);
   function flatCorrection(m0: number, m1: number, m2: number): Float64Array {
@@ -526,87 +741,12 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
       let weight = 1;
       for (let i = 0; i < 3; i++) weight *= (corner >> i) & 1 ? gridFrac[i]! : 1 - gridFrac[i]!;
       if (weight === 0) continue;
-      const at = gridCorrection(gridBase[0]! + (corner & 1), gridBase[1]! + ((corner >> 1) & 1), gridBase[2]! + ((corner >> 2) & 1)), value = states.values;
+      const i0 = gridBase[0]! + (corner & 1), i1 = gridBase[1]! + ((corner >> 1) & 1), i2 = gridBase[2]! + ((corner >> 2) & 1);
+      if (collect) { collect.add((i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2); continue; }
+      const at = gridCorrection(i0, i1, i2), value = states.values;
       for (let comp = 0; comp < 3; comp++) interpolated[comp] = interpolated[comp]! + weight * value[at + comp]!;
     }
     return interpolated;
-  }
-  const lab = ahdCorrection?.labMatrix ?? [[1, 0, 0], [0, 1, 0], [0, 0, 1]], labWhite = Float64Array.from(lab, (row) => row[0]! + row[1]! + row[2]!);
-  const l00 = lab[0]![0]!, l01 = lab[0]![1]!, l02 = lab[0]![2]!, l10 = lab[1]![0]!, l11 = lab[1]![1]!, l12 = lab[1]![2]!, l20 = lab[2]![0]!, l21 = lab[2]![1]!, l22 = lab[2]![2]!;
-  const lw0 = labWhite[0]!, lw1 = labWhite[1]!, lw2 = labWhite[2]!;
-  const gh = new Float64Array(49), gv = new Float64Array(49), cand = [new Float64Array(75), new Float64Array(75)], labs = [new Float64Array(75), new Float64Array(75)];
-  const rgb = new Float64Array(3), rendered = new Float64Array(3), linear = new Float64Array(3);
-  /** Develops one deterministic camera pixel and renders it: WB, highlight clip, colour matrix, tone curve, clip to [0, 1]. */
-  function renderPixel(r: number, gr: number, b: number, out: Float64Array): void {
-    const u0 = Math.min(L, g0 * r), u1 = Math.min(L, g1 * gr), u2 = Math.min(L, g2 * b);
-    for (let comp = 0; comp < 3; comp++) {
-      let v = comp === 0 ? m00 * u0 + m01 * u1 + m02 * u2 : comp === 1 ? m10 * u0 + m11 * u1 + m12 * u2 : m20 * u0 + m21 * u1 + m22 * u2;
-      if (reinhard) v = v > 0 ? v / (1 + v) : v;
-      out[comp] = v < 0 ? 0 : v > 1 ? 1 : v;
-    }
-  }
-  /**
-   * h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (createAhdDemosaicTask's steps, centre pixel only). The
-   * patch and the greens are read by flat index (patch (dy + 5)·11 + dx + 5, greens (dy + 3)·7 + dx + 3); every value is formed
-   * with the same operations in the same order as the steps themselves, except that CIELAB's cube root is `portableCbrt`
-   * (within 1 ulp of Math.cbrt) and squares are products, so the result has the same bits in every JavaScript engine.
-   */
-  function ahdDifference(phase: number, out: Float64Array): void {
-    const roles = AHD_ROLES[phase]!;
-    // 1. Directional greens within 3 sites.
-    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-      const i = (dy + 3) * 7 + dx + 3, p = (dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH, c = patch[p]!;
-      if (roles[p] === 1) { gh[i] = c; gv[i] = c; continue; }
-      gh[i] = (patch[p - 1]! + patch[p + 1]!) / 2 + (2 * c - patch[p - 2]! - patch[p + 2]!) / 4;
-      gv[i] = (patch[p - AHD_SIDE]! + patch[p + AHD_SIDE]!) / 2 + (2 * c - patch[p - 2 * AHD_SIDE]! - patch[p + 2 * AHD_SIDE]!) / 4;
-    }
-    // 2. Candidates within 2 sites; 3. their CIELAB. The four corners (±2, ±2) are not read by step 4 and are skipped.
-    for (let d = 0; d < 2; d++) {
-      const g = d === 0 ? gh : gv, o = cand[d]!, ol = labs[d]!;
-      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-        if ((dx === -2 || dx === 2) && (dy === -2 || dy === 2)) continue;
-        const i = (dy + 2) * 5 + dx + 2, p = (dy + AHD_REACH) * AHD_SIDE + dx + AHD_REACH, q = (dy + 3) * 7 + dx + 3, own = roles[p]!, gc = g[q]!;
-        o[3 * i + 1] = gc;
-        if (own === 1) {
-          const hRole = roles[p + 1]!, vRole = 2 - hRole;
-          o[3 * i + hRole] = gc + ((patch[p - 1]! - g[q - 1]!) + (patch[p + 1]! - g[q + 1]!)) / 2;
-          o[3 * i + vRole] = gc + ((patch[p - AHD_SIDE]! - g[q - 7]!) + (patch[p + AHD_SIDE]! - g[q + 7]!)) / 2;
-        } else {
-          o[3 * i + own] = patch[p]!;
-          o[3 * i + 2 - own] = gc + ((patch[p - AHD_SIDE - 1]! - g[q - 8]!) + (patch[p - AHD_SIDE + 1]! - g[q - 6]!) + (patch[p + AHD_SIDE - 1]! - g[q + 6]!) +
-            (patch[p + AHD_SIDE + 1]! - g[q + 8]!)) / 4;
-        }
-        const R = o[3 * i]!, G = o[3 * i + 1]!, Bc = o[3 * i + 2]!;
-        let tx = (l00 * R + l01 * G + l02 * Bc) / lw0, ty = (l10 * R + l11 * G + l12 * Bc) / lw1, tz = (l20 * R + l21 * G + l22 * Bc) / lw2;
-        tx = tx > LAB_EPSILON ? portableCbrt(tx) : (LAB_KAPPA * tx + 16) / 116;
-        ty = ty > LAB_EPSILON ? portableCbrt(ty) : (LAB_KAPPA * ty + 16) / 116;
-        tz = tz > LAB_EPSILON ? portableCbrt(tz) : (LAB_KAPPA * tz + 16) / 116;
-        ol[3 * i] = 116 * ty - 16; ol[3 * i + 1] = 500 * (tx - ty); ol[3 * i + 2] = 200 * (ty - tz);
-      }
-    }
-    // 4. Homogeneity within 1 site, with the adaptive tolerances (neighbours left, right, up, down); 5. the 3 × 3 sum selects
-    // the candidate.
-    const h = labs[0]!, v = labs[1]!;
-    let sh = 0, sv = 0;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const i = 3 * ((dy + 2) * 5 + dx + 2), j0 = i - 3, j1 = i + 3, j2 = i - 15, j3 = i + 15;
-      const hL0 = Math.abs(h[i]! - h[j0]!), hL1 = Math.abs(h[i]! - h[j1]!), hL2 = Math.abs(h[i]! - h[j2]!), hL3 = Math.abs(h[i]! - h[j3]!);
-      const vL0 = Math.abs(v[i]! - v[j0]!), vL1 = Math.abs(v[i]! - v[j1]!), vL2 = Math.abs(v[i]! - v[j2]!), vL3 = Math.abs(v[i]! - v[j3]!);
-      const hC0 = square(h[i + 1]! - h[j0 + 1]!) + square(h[i + 2]! - h[j0 + 2]!), hC1 = square(h[i + 1]! - h[j1 + 1]!) + square(h[i + 2]! - h[j1 + 2]!);
-      const hC2 = square(h[i + 1]! - h[j2 + 1]!) + square(h[i + 2]! - h[j2 + 2]!), hC3 = square(h[i + 1]! - h[j3 + 1]!) + square(h[i + 2]! - h[j3 + 2]!);
-      const vC0 = square(v[i + 1]! - v[j0 + 1]!) + square(v[i + 2]! - v[j0 + 2]!), vC1 = square(v[i + 1]! - v[j1 + 1]!) + square(v[i + 2]! - v[j1 + 2]!);
-      const vC2 = square(v[i + 1]! - v[j2 + 1]!) + square(v[i + 2]! - v[j2 + 2]!), vC3 = square(v[i + 1]! - v[j3 + 1]!) + square(v[i + 2]! - v[j3 + 2]!);
-      const epsL = Math.min(Math.max(hL0, hL1), Math.max(vL2, vL3)), epsC = Math.min(Math.max(hC0, hC1), Math.max(vC2, vC3));
-      sh += (hL0 <= epsL && hC0 <= epsC ? 1 : 0) + (hL1 <= epsL && hC1 <= epsC ? 1 : 0) + (hL2 <= epsL && hC2 <= epsC ? 1 : 0) + (hL3 <= epsL && hC3 <= epsC ? 1 : 0);
-      sv += (vL0 <= epsL && vC0 <= epsC ? 1 : 0) + (vL1 <= epsL && vC1 <= epsC ? 1 : 0) + (vL2 <= epsL && vC2 <= epsC ? 1 : 0) + (vL3 <= epsL && vC3 <= epsC ? 1 : 0);
-    }
-    const centre = 12, a = cand[0]!, b = cand[1]!;
-    for (let c = 0; c < 3; c++) rgb[c] = sh > sv ? a[3 * centre + c]! : sv > sh ? b[3 * centre + c]! : (a[3 * centre + c]! + b[3 * centre + c]!) / 2;
-    renderPixel(rgb[0]!, rgb[1]!, rgb[2]!, rendered);
-    renderPixel(a[3 * centre]!, a[3 * centre + 1]!, a[3 * centre + 2]!, linear);
-    for (let c = 0; c < 3; c++) out[c] = rendered[c]! - linear[c]! / 2;
-    renderPixel(b[3 * centre]!, b[3 * centre + 1]!, b[3 * centre + 2]!, linear);
-    for (let c = 0; c < 3; c++) out[c] = out[c]! - linear[c]! / 2;
   }
   /** Normalized site value of a slot: normal with mean k·e and variance k²·e + constant, clipped at the white level (1). */
   function siteStatistics(slot: number): void {

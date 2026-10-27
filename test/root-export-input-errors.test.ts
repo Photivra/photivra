@@ -114,7 +114,9 @@ describe("root exports reject malformed input with domain errors (API review #4)
     "evaluateSrgbDecoding", "evaluateSrgbEncoding", "evaluateZernikePolynomial", "getImageFormationContract", "getPsfFoundationContract",
     "resolveCaptureColorModel", "resolveChromaticAdaptationConeMatrix", "resolveRgbColorSpace", "resolveZernikeNollOrder",
     // Parsers of a string, an array or raw bytes rather than a record.
-    "parseColorimetricQuadratureNodes", "parseLensProjectionModel", "parseLosslessJpeg", "parseSpectralWavelengthBasis"
+    "parseColorimetricQuadratureNodes", "parseLensProjectionModel", "parseLosslessJpeg", "parseSpectralWavelengthBasis",
+    // #447: the AHD correction states of the display view: no argument, and an array of { key, gridKeys, values } entries.
+    "serializeDisplayViewCorrectionStates", "bindDisplayViewCorrectionStates"
   ]);
   /*
    * 2.0.0: the parse*() record parsers and the functions that take a whole engine or versioned record

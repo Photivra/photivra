@@ -253,6 +253,55 @@ The shared grid has no per-pixel sampling noise; its remaining error is a common
 1/√(8 × 2048) of the difference's spread, and the flat-neighbourhood state, which is an approximation
 at edges. On the 1.4 µm sensor at ISO 6400 it took the red error from +6.6 to within ±0.4 code.
 
+**The states live in one JavaScript realm** (a page, a Web Worker, a Node process): each realm keeps
+its own cache, so N workers rendering parts of one view compute the same states N times, and each
+worker's first part waits for all of its states. On the app's Quality request at 6 µm ISO 400, one
+48 × 48 part at the centre needs 897 states at 27–30 ms each (#447, Node, one thread). 2.10 adds four
+operations that move states between realms without changing a byte:
+
+- `prepared.correctionKey()` is the key of the request's states (the exact decimal text of the inputs
+  listed above), or null without AHD. Every input of the key is fixed when the request is prepared.
+- `prepared.collectCorrectionStates(view)` returns `{ key, gridKeys }`: the grid key of every state a
+  render of `view` reads (the eight corners around each corrected sample's channel means, ascending,
+  whether or not this realm holds them). It is a render of the region that records the keys instead of
+  computing or reading the states. It returns no image and leaves the cache untouched. It runs the
+  whole expected-signal and statistics path, so it should cost about one render whose states are all
+  held. Measured on the app's Quality request (one 48 × 48 centre part, Node 24.21.0, one thread): 209–217, 126–132 and 76–77 ms in three successive calls, against 129–139, 100–105 and 94–98 ms for a warm render of the same part.
+- `prepared.computeCorrectionStates(gridKeys, { signal })` computes the states of the given keys exactly
+  as a render does (the same seeding and draws), stores them in this realm's cache and returns
+  `{ key, gridKeys, values }`, three values per state. It reads states the realm already holds instead of
+  computing them, and it yields and honours `signal` like `render`.
+- `serializeDisplayViewCorrectionStates()` (the export) returns one `{ key, gridKeys, values }` entry per cached setup,
+  least recently used first. `bindDisplayViewCorrectionStates(entries)` (the import) adds the states a setup does
+  not hold yet, leaves known ones as they are and returns the count added. A state takes 28 bytes
+  (an `Int32Array` key and three doubles in a `Float64Array`); both arrays can be transferred with
+  `postMessage`.
+
+The import checks every entry before it touches the cache. `key` must be a non-empty string,
+`gridKeys` an `Int32Array` of grid keys in [0, 97³), and `values` a `Float64Array` of 3 ×
+`gridKeys.length` finite numbers. Otherwise the import fails with an `InvalidConfigurationError` and
+leaves the cache unchanged. The cache's bounds apply as in a render. A key the realm does not hold
+creates a setup, which can evict the least recently used of the four kept. A setup that reaches 65 536
+states is cleared before the next state is added. **Import only keys a prepared view reported**
+(`correctionKey()`), so the states are ones a render in this realm will read.
+
+Same bytes: a state's three values follow from its grid indices and its key alone. Its stream is
+seeded by the noise seed and its indices, and the draws use only the portable functions and correctly
+rounded operations (see [Same bytes in every engine](#same-bytes-in-every-engine)), so every realm
+computes the same bits. A render reads a state only through its own grid key, so neither the order of
+the states, a state computed twice in two realms, nor an imported state in place of a computed one can
+change a byte. A last-bit difference in an input between two realms changes the key, so it causes a
+cache miss, never a wrong state. The tests in `test/display-view.test.ts` (#447) render a region after
+importing a neighbouring region's states in reversed order, and after merging two realms' sets, and
+compare SHA-256 hashes of the samples, expected values, noise and diagnostics with a cold render. They
+also check that a collect pass returns exactly the states a cold render computes and that two realms
+hold the same bits for common states.
+
+The operations make nothing faster by themselves: a pool of workers gains only if it splits the
+states of a round between its workers and exchanges them before rendering (Photivra/apps#113, which
+measures it in the browser). They do not reduce the number of states a view needs, and every exchange
+copies 28 bytes per state. `structuredClone` of an exported set of 764 states (21,392 bytes) took 10–11 µs at the median (Node 24.21.0).
+
 ## Drawing the noise near a bound
 
 The drawn display value is clipped to [0, 1] like any light level. Where its noise reaches 0 or 1
@@ -580,6 +629,9 @@ same values with the same operations in the same order; none reassociates a floa
   temporary objects and skip the four corner candidates their homogeneity step never reads, and the 16 patch sites the
   steps never read skip the normal transform (their uniforms were still drawn, so the stream was where it was; since the
   move to the portable functions below, those sites are not drawn at all and the normals come in Box–Muller pairs).
+  The cache belongs to one JavaScript realm (a page, a Web Worker, a Node process); since 2.10 a realm can export its
+  states, another can import them, and a prepared view can collect the keys a region needs and compute an assigned
+  share, with the same bytes ([AHD at low signal](#ahd-at-low-signal), #447).
 - **Diffraction sums are shared, not rearranged.** A site's expected electrons are a sum of kernel taps in a fixed
   order; a separable, summed-area or transform evaluation would reassociate it and change the last bits, so the sum
   itself is kept. With chart materials (every preset): each lattice point is looked up once per display row (a band
