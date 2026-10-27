@@ -30,8 +30,7 @@ Every pull request merged since `v2.10.0` (`git log v2.10.0..origin/main`):
 | Display view: the Quality kernels on the GPU (#479) | #495 |
 | Display view: defocus in the GPU kernels, Speed and Quality (#492, step 2c) | #499 |
 | Preview acceptance harness: run the app's request on the GPU (#480) | #500 |
-
-Not included: #501 (#496), the quantization term of the GPU Speed kernel's variance bound, was still open when this candidate was prepared. It changes no computed value, CPU result or hash lock (its pull request's statement); if it merges before the tag, it joins this release under "Fixed" and this record is updated.
+| GPU Speed kernel: the quantization-variance term in the variance bound (#496) | #501 |
 
 Out of scope: the Quality display-view noise limit (#379) and the Quality AHD colour error at the Siemens star's centre (#457) are unchanged from 2.10.0, and the GPU reproduces both; see [Known issues](#known-issues).
 
@@ -87,6 +86,8 @@ The figures below are quoted from the changelog entries and pull requests of eac
 
 **Values (emulation; SwiftShader for the small fixtures):** on nine fixtures and the 24 MP 6 µm frame at 2028 × 1352, every component inside its bound using at most 4.1 % of it; ΔE2000 at most 4.3 × 10⁻⁵, at most 3.3 × 10⁻⁴ noise σ; a sample differs from the CPU's by at most one code.
 
+**Variance bound's quantization term (#501, issue #496):** the host evaluates the quantization variance at the GPU's mean, which moves it by up to 6.04·Δ²/12 per unit of mean error; the Speed bound now adds that term explicitly, as the Quality bound does, instead of covering it only through its γ₈₀ relative term. No computed value, CPU result or hash lock changes; only the variance bounds grow. `test/display-view-speed-gpu-quantization.test.ts` checks that the term covers the actual change of q(m) over every allowed mean on [−0.1, 1.1] and at the segment join, using at most 50 % of it. The largest fraction of the variance bound used falls from 4.0 % to 3.9 % on the chart presets and from 4.1 % to 4.0 % on the composite fixtures (Reinhard at the white clip: 28.7 % before and after; emulation, SwiftShader the same digits).
+
 **Measured on the CPU:** the host finishing costs 1.22 µs per display pixel (3.4 s for a whole 2028 × 1352 view, one thread), a floor of this design. **GPU time: TBD (#475).**
 
 ### The composite material module for the GPU display view (#493, issue #491)
@@ -129,7 +130,7 @@ The figures below are quoted from the changelog entries and pull requests of eac
 
 ### Same results as 2.10.0
 
-A fingerprint of 24 whole results was taken from a build of the `v2.10.0` tag (`ce58a3e`) and from this candidate (`main` at `63934af`, with #500), on Node 24.21.0, with the script of the 2.10.0 record: 18 `simulateCapture` requests (chart presets, spectral patches, a uniform spectrum, a composite with a fixed-size chart, both caller function forms and a material scene, PNG 16-bit Display P3, JPEG, two DNGs, auto and Kelvin white balance, the tone curve, a rolling shutter, a region with diffraction, the Quality options, projection, distortion and vignetting, camera rotation, mirror borders at ISO 3200), 3 `simulateIdealReference` and 3 `simulateDisplayView` results (one with the Quality options at 2 × 2 real pixels per display pixel, one of a material scene). Typed arrays (samples, RAW codes, encoded files) were hashed with SHA-256; everything else was compared as JSON with timings zeroed. The engine version was normalized by setting the `v2.10.0` build's `ENGINE_API_VERSION` to the candidate's, so the DNG Software tag matches too.
+A fingerprint of 24 whole results was taken from a build of the `v2.10.0` tag (`ce58a3e`) and from this candidate (`main` at `63934af`, with #500; repeated after merging `598aae3`, #501, with identical results), on Node 24.21.0, with the script of the 2.10.0 record: 18 `simulateCapture` requests (chart presets, spectral patches, a uniform spectrum, a composite with a fixed-size chart, both caller function forms and a material scene, PNG 16-bit Display P3, JPEG, two DNGs, auto and Kelvin white balance, the tone curve, a rolling shutter, a region with diffraction, the Quality options, projection, distortion and vignetting, camera rotation, mirror borders at ISO 3200), 3 `simulateIdealReference` and 3 `simulateDisplayView` results (one with the Quality options at 2 × 2 real pixels per display pixel, one of a material scene). Typed arrays (samples, RAW codes, encoded files) were hashed with SHA-256; everything else was compared as JSON with timings zeroed. The engine version was normalized by setting the `v2.10.0` build's `ENGINE_API_VERSION` to the candidate's, so the DNG Software tag matches too.
 
 - **Bytes identical in all 24:** samples, RAW codes and PNG, JPEG and DNG bytes.
 - **Whole results identical in 21:** the 18 captures and the 3 ideal references.
@@ -164,12 +165,12 @@ No network, persistence or telemetry is added. GPU use is opt-in per call (`gpu:
 
 ## Remaining release checklist
 
-- [x] The 2.11.0 changes merged with their changelog entries (#484, #485, #486, #487, #488, #489, #490, #493, #494, #495, #497, #498, #499, #500).
+- [x] The 2.11.0 changes merged with their changelog entries (#484, #485, #486, #487, #488, #489, #490, #493, #494, #495, #497, #498, #499, #500, #501).
 - [x] Version surfaces aligned at 2.11.0 (`npm run release:prepare -- 2.11.0`). Root exports 1,762.
 - [x] Hash locks unchanged; no test change needed for the version string (see "Hash locks").
-- [x] Fingerprint against `v2.10.0`: bytes identical in all 24 results; the only difference is the new `diagnostics.fast.execution` label in the 3 display views (run on `main` at `63934af`, with #500).
+- [x] Fingerprint against `v2.10.0`: bytes identical in all 24 results; the only difference is the new `diagnostics.fast.execution` label in the 3 display views (run on `main` at `63934af`, with #500, and again with #501 merged: all 24 identical to the first run).
 - [x] Semver: no root export removed or changed incompatibly (exports manifest and API reference compared with `v2.10.0`).
-- [ ] #501 (#496): merged into this candidate before the tag, or left to the next release.
+- [x] #501 (#496) merged into this candidate (`598aae3`).
 - [ ] Owner's review of this record.
 - [ ] Green CI on the record pull request, then on `main` after merge.
 - [ ] **The owner's M5 Pro runs of `npm run accept:gpu:hardware` and `npm run test:webgpu:hardware`** on the commit to be tagged, passed and recorded in [the hardware record](WEBGPU_DEVICES.md).
