@@ -56,11 +56,15 @@ export interface DisplayViewExpectedSignal {
   /** Scene lookups performed so far (material or radiance queries), for diagnostics. */
   readonly lookups: number;
   /**
-   * The chart material that every kernel tap of the last `site` call read, when they all read one material (its value is
-   * then a function of that material and the site's CFA channel only); −1 when unknown or mixed.
+   * The chart material that every kernel tap (without diffraction: every query point) of the last `site` call read, when
+   * they all read one material (its value is then a function of that material and the site's CFA channel only); −1 when
+   * unknown or mixed.
    */
   readonly uniformMaterial: number;
-  /** Whether `uniformMaterial` is tracked in the current window (otherwise it is not meaningful). */
+  /**
+   * Whether `uniformMaterial` is tracked in the current window (otherwise it is not meaningful): chart materials in a
+   * filled window or, without diffraction, in a window the direct ring serves (#444); never for radiance scenes.
+   */
   readonly tracksMaterial: boolean;
   /**
    * Whether the current window caches its sites: a second `site` call for a site inside the window then returns the stored
@@ -196,17 +200,25 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     if (si === undefined) throw new InvalidConfigurationError("Unknown chart material.");
     return si < 0 ? reflectance[m]! * neutralDirect[c]! : spectralDirect[c]![si]!;
   };
-  /** Without diffraction: one site from the environment's own query points. */
+  /**
+   * Without diffraction: one site from the environment's own query points. Also sets lastMaterial: the chart material every
+   * query point read, or −1 when they read more than one (or the scene is a radiance scene). A site whose points all read
+   * material m sums the same operands in the same order as every other such site of its channel, so it holds the same value.
+   */
   function directSite(x: number, y: number): number {
     const c = channelAt(x, y);
-    let sum = 0;
+    let sum = 0, uniform = -1;
     for (let o = 0; o < offsets.length; o++) {
       input.queryPoint!(x, y, o, point);
       let value: number;
-      if (scene.kind === "materials") { value = materialSignalDirect(scene.materialAt(point[0]!, point[1]!), c); lookups++; }
-      else { value = 0; for (let n = 0; n < nodes; n++) value += A[c]![n]! * scene.radianceAt(point[0]!, point[1]!, input.wavelengthsNm[n]!); lookups += nodes; }
+      if (scene.kind === "materials") {
+        const m = scene.materialAt(point[0]!, point[1]!);
+        uniform = o === 0 || uniform === m ? m : -2;
+        value = materialSignalDirect(m, c); lookups++;
+      } else { value = 0; for (let n = 0; n < nodes; n++) value += A[c]![n]! * scene.radianceAt(point[0]!, point[1]!, input.wavelengthsNm[n]!); lookups += nodes; }
       sum += offsets[o]!.weight * value;
     }
+    lastMaterial = uniform < 0 ? -1 : uniform;
     return sum;
   }
   // Lattice point (p, q) of a group: the facade's lattice formula (createDiffractedPlanarProvider).
@@ -403,22 +415,23 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     return v;
   }
   // Without diffraction (#392): site values persist across windows the same way, in their own ring (a site's value does not
-  // depend on the window). A ring hit counts the lookups directSite would have made, so `lookups` is unchanged.
-  let directRows = 0, directOn = false, directRing = new Float64Array(0), directRowId = new Int32Array(0);
+  // depend on the window). A ring hit counts the lookups directSite would have made, so `lookups` is unchanged. The site's
+  // material (directSite's lastMaterial) is kept beside its value, so the display view's one-material memo applies (#444).
+  let directRows = 0, directOn = false, directRing = new Float64Array(0), directRowId = new Int32Array(0), directRingMaterial = new Int32Array(0);
   const directLookups = offsets.length * (scene.kind === "materials" ? 1 : nodes);
   function directRead(x: number, y: number): number {
     const slot = y & (directRows - 1), q = slot * W + x;
-    if (directRowId[slot] === y) { const v = directRing[q]!; if (v === v) { lookups += directLookups; return v; } }
+    if (directRowId[slot] === y) { const v = directRing[q]!; if (v === v) { lookups += directLookups; lastMaterial = directRingMaterial[q]!; return v; } }
     else { directRowId[slot] = y; directRing.fill(NaN, slot * W, (slot + 1) * W); }
     const v = directSite(x, y);
-    directRing[q] = v;
+    directRing[q] = v; directRingMaterial[q] = lastMaterial;
     return v;
   }
   /** A site not in the window's site cache: from a ring, a filled window without the ring, the lazy window caches, or uncached. */
   function siteMiss(x: number, y: number, i: number, j: number, cached: boolean): number {
     if (directOn) {
       const v = directRead(x, y);
-      if (cached) siteCache[j * sw + i] = v;
+      if (cached) { siteCache[j * sw + i] = v; windowMaterial[j * sw + i] = lastMaterial; }
       return v;
     }
     if (ringOn) {
@@ -545,7 +558,8 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   return {
     get lookups(): number { return lookups + (filled ? windowLookups() : 0); },
     get uniformMaterial(): number { return lastMaterial; },
-    get tracksMaterial(): boolean { return ringOn; },
+    // Chart materials are tracked on the filled path and, without diffraction, on the direct ring (radiance scenes never).
+    get tracksMaterial(): boolean { return ringOn || (directOn && scene.kind === "materials"); },
     get cachesSites(): boolean { return sw > 0; },
     get marksReads(): boolean { return filled; },
     markReads(xs: Int32Array, ys: Int32Array, values: Float64Array, materials: Int32Array, count: number): void {
@@ -572,9 +586,10 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
         if (sh > 0 && directRows < 2 * sh) {
           let rows = 1;
           while (rows < 2 * sh) rows *= 2;
-          if (rows * W <= CACHE_LIMIT) { directRows = rows; directRing = new Float64Array(rows * W).fill(NaN); directRowId = new Int32Array(rows).fill(-1); }
+          if (rows * W <= CACHE_LIMIT) { directRows = rows; directRing = new Float64Array(rows * W).fill(NaN); directRowId = new Int32Array(rows).fill(-1); directRingMaterial = new Int32Array(rows * W); }
         }
         directOn = sh > 0 && directRows >= 2 * sh;
+        if (directOn && windowMaterial.length < sw * sh) windowMaterial = new Int32Array(sw * sh);
         return;
       }
       for (const group of groups) {
@@ -605,7 +620,7 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
     site(x: number, y: number): number {
       // The window's site cache first (with the ring: the sites read in this window, which its lookup count needs too).
       const i = x - sx0, j = y - sy0, cached = i >= 0 && j >= 0 && i < sw && j < sh;
-      if (cached) { const w = j * sw + i, v = siteCache[w]!; if (v === v) { if (ringOn) lastMaterial = windowMaterial[w]!; return v; } }
+      if (cached) { const w = j * sw + i, v = siteCache[w]!; if (v === v) { if (ringOn || directOn) lastMaterial = windowMaterial[w]!; return v; } }
       return siteMiss(x, y, i, j, cached);
     },
     pilot(u: number, v: number): number {

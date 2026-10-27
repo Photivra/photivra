@@ -619,6 +619,16 @@ same values with the same operations in the same order; none reassociates a floa
   stops V8 from discarding the render loop's optimized code when its loads met another array shape. Measured on the
   app-request shape (Node 24.21.0, one thread, three repeats, builds alternated, against #441): Quality part medians
   148–156 → 143–151 ms, Speed 83–91 → 79–84 ms.
+- **One-material samples are replayed without diffraction too (#444).** Without diffraction a site's expected
+  electrons are the weighted sum of the scene at its query points (four with the 2 × 2 box); the expected signal now
+  reports the chart material when every point read the same one, and its direct ring and window cache keep that material
+  beside the value, so the one-material memo applies on the Speed path as it does with diffraction. A one-material site
+  sums the same operands in the same order as every other such site of its channel, so it holds the same value. A sample
+  whose sites read two materials is not replayed; it takes its site statistics as it reads its sites from the first site
+  of a second material on, rather than in a second pass. Radiance scenes are not tracked. Measured on the app-request
+  shape (Node 24.21.0, one thread, four repeats, builds alternated, against #445): Speed whole-view CPU, extrapolated
+  from 30 parts, 31.0–32.1 → 28.8–32.0 s (part medians 82–89 → 73–89 ms); the Siemens-star centre part, whose samples
+  read two materials, is slower, 202–342 → 234–341 ms (one part per process, six repeats). Quality is unchanged.
 
 **Proof of byte identity.** The display views of all 155 validation cases at their seeds (the requests of
 `validate-display-view.mjs`, Speed and Quality, three sensors) were hashed before and after (SHA-256 of the samples, of
