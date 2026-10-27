@@ -700,7 +700,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           x = Math.min(frameWidth - 1, Math.floor(fx)) + margin; y = Math.min(frameHeight - 1, Math.floor(fy)) + margin;
         }
         const phase = (y & 1) * 2 + (x & 1), list = phaseList[phase]!;
-        let material = -2;
+        let material = -2, statistics = false;
         const px = x - mx0, py = y - my0;
         const inside = x >= reach && y >= reach && x + reach < nativeWidth && y + reach < nativeHeight;
         const stamps = exactMemo ? exactStamp : pixelStamp, records = exactMemo ? exactRecords : pixelRecords, stamp = exactMemo ? y + 1 : pixelGeneration;
@@ -758,7 +758,15 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           const c = (sys & 1) === 0 ? ((sxs & 1) === 0 ? 0 : 1) : ((sxs & 1) === 0 ? 1 : 2);
           const e = setup.signal.site(sxs, sys) + dark[c]!;
           siteChannel[slot] = c;
-          if (tracking) { siteElectrons[slot] = e; const own = setup.signal.uniformMaterial; material = material === -2 || material === own ? own : -1; continue; }
+          if (tracking && !statistics) {
+            siteElectrons[slot] = e; const own = setup.signal.uniformMaterial; material = material === -2 || material === own ? own : -1;
+            if (material >= 0) continue;
+            // The first site of a second material: the sample is not replayed, so the statistics are taken now, for the earlier
+            // sites and inline from this site on, instead of in a second pass (#444; each site's statistics depend on its own
+            // slot only, so the order leaves every value's bits).
+            statistics = true;
+            for (let lj = 0; lj < li; lj++) siteStatistics(list[lj]!);
+          }
           // As siteStatistics, written out here for the untracked (Speed) path.
           const kc = k[c]!, mean = kc * e, variance = kc * kc * e + c0[c]!, gap = 1 - mean;
           siteThird[slot] = kc * kc * kc * e;
@@ -798,7 +806,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           if (count === 1) { for (let o = 12; o < 21; o++) rt[ro + o] = 0; rt[ro + 24] = 0; rt[ro + 25] = 0; rt[ro + 26] = 0; rt[ro + 30] = 0; rt[ro + 31] = 0; rt[ro + 32] = 0; }
           rt[ro + 33] = 0; rt[ro + 34] = 0; rt[ro + 35] = 0; rt[ro + 36] = 0;
         }
-        if (tracking && !ringOn) for (let li = 0; li < list.length; li++) siteStatistics(list[li]!);
+        if (tracking && !ringOn) { if (!statistics) for (let li = 0; li < list.length; li++) siteStatistics(list[li]!); }
         else if (tracking) for (let li = 0; li < list.length; li++) {
           const slot = list[li]!, q = siteSlotQ[slot]!, rowStamp = siteSlotStamp[slot]!;
           if (q >= 0 && ringStatStamp[q] === rowStamp) { siteMean[slot] = ringMean[q]!; siteVar[slot] = ringVar[q]!; siteThird[slot] = ringThird[q]!; continue; }
