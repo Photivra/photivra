@@ -303,8 +303,8 @@ export function footprintWeights(x: AxisSums, y: AxisSums, area: number, out: Fl
 }
 /** AHD's dependence reach in sites (directional green ±2, colour differences ±1, homogeneity 4-neighbours and 3 × 3 sum). */
 const AHD_REACH = 5, AHD_SIDE = 2 * AHD_REACH + 1;
-/** Grid of flat-neighbourhood states for the AHD correction: steps per octave of the normalized channel mean, octaves below white. */
-const AHD_KEY_STEPS = 8, AHD_KEY_OCTAVES = 12;
+/** Grid of flat-neighbourhood states for the AHD correction: steps per octave of the normalized channel mean, octaves below white (exported for the GPU display view, #479). */
+export const AHD_KEY_STEPS = 8, AHD_KEY_OCTAVES = 12;
 /** CFA role (0 red, 1 green, 2 blue) of each patch site (dy + 5)·11 + dx + 5, per phase (phaseY·2 + phaseX) of the centre. */
 const AHD_ROLES = [0, 1, 2, 3].map((phase) => {
   const roles = new Uint8Array(AHD_SIDE * AHD_SIDE), px = phase & 1, py = phase >> 1;
@@ -329,9 +329,9 @@ const LAB_EPSILON = 216 / 24389, LAB_KAPPA = 24389 / 27;
 /** A 32-bit hash of a correction key (MurmurHash3 finalizer of the three quantized means). */
 function fmixKey(a: number, b: number, c: number): number { return fmix32((Math.imul(a + 1, 0x9e3779b1) ^ Math.imul(b + 1, 0x85ebca77) ^ Math.imul(c + 1, 0xc2b2ae3d)) >>> 0); }
 /** Lowest grid level, 2^-AHD_KEY_OCTAVES of white (exact). */
-const AHD_KEY_FLOOR = 1 / 4096;
+export const AHD_KEY_FLOOR = 1 / 4096;
 /** Grid levels per channel (indices 0 to AHD_KEY_OCTAVES·AHD_KEY_STEPS). */
-const AHD_KEY_LEVELS = AHD_KEY_OCTAVES * AHD_KEY_STEPS + 1;
+export const AHD_KEY_LEVELS = AHD_KEY_OCTAVES * AHD_KEY_STEPS + 1;
 /** Correction states kept per setup, and setups kept (least recently used first out); about 50 bytes per state. */
 const AHD_STATE_LIMIT = 1 << 16, AHD_SETUP_LIMIT = 4;
 /** The correction states of one setup: the three values of state n at values[3·n …], found by its grid key. */

@@ -6,8 +6,8 @@
  *
  * - the realm's switch (`setWebGpuEnabled(false)`) vetoes before anything else: `"auto"` falls back with `webgpu-disabled`,
  *   `"require"` throws it;
- * - with no renderer registered (the engine registers its Speed renderer, #478, when this module loads; a caller may replace it or
- *   set null) no device is requested: `unsupported-on-backend`;
+ * - with no renderer registered (the engine registers its renderer, the Speed and Quality kernels of #478 and #479, when this module
+ *   loads; a caller may replace it or set null) no device is requested: `unsupported-on-backend`;
  * - the device is the handle's (`gpuDevice`: an `ImageKernelAccelerator`'s device, shared and left to its owner, or a WebGPU
  *   entry point to acquire from), or acquired from `navigator.gpu` and owned by the session; the accelerator's acquisition
  *   reasons apply, and the request's `signal` aborts the acquisition;
@@ -27,14 +27,14 @@ import { ImageKernelExecutionError, WEBGPU_F32_LIMITATIONS, type ImageKernelAdap
 import { acceleratorRuntime, convolveIrradianceOnRuntime } from "../gpu/image-kernel-accelerator.js";
 import { calculateIrradianceConvolutionPlan, convolveIrradianceRows, type IrradianceConvolutionInput } from "../optics/irradiance-convolution.js";
 import type { DisplayViewRenderResult, DisplayViewSetup } from "./display-view.js";
-import { displayViewSpeedGpuRendererFactory } from "../gpu/display-view-speed-gpu.js";
+import { displayViewGpuRendererFactory as engineDisplayViewGpuRendererFactory } from "../gpu/display-view-quality-gpu.js";
 import { cpuDisplayViewExecution, displayViewGpuRendererFactory, setDisplayViewGpuRendererFactory, type DisplayViewExecution, type DisplayViewGpuConformance, type DisplayViewGpuConformanceCase,
   type DisplayViewGpuFallbackReason, type DisplayViewGpuRenderer, type DisplayViewGpuRequest, type ParsedPrepareDisplayViewOptions } from "./display-view-gpu.js";
 
-// #478: the engine's own renderer, the display view's Speed kernel (`src/gpu/display-view-speed-gpu.ts`), is registered when this
-// module loads (that is, when a prepared view first asks for the GPU) unless a caller registered a renderer before; a test that
-// needs "no renderer" sets the factory to null.
-if (displayViewGpuRendererFactory() === null) setDisplayViewGpuRendererFactory(displayViewSpeedGpuRendererFactory);
+// #478, #479: the engine's own renderer, the display view's Speed and Quality kernels behind one renderer
+// (`src/gpu/display-view-quality-gpu.ts`), is registered when this module loads (that is, when a prepared view first asks for the
+// GPU) unless a caller registered a renderer before; a test that needs "no renderer" sets the factory to null.
+if (displayViewGpuRendererFactory() === null) setDisplayViewGpuRendererFactory(engineDisplayViewGpuRendererFactory);
 
 /** Internal: the GPU side of one prepared view. */
 export interface DisplayViewGpuSession {
