@@ -217,9 +217,10 @@ describe("display view with lens.defocus (#492 step 2b)", () => {
   }, scaledTimeout(240_000));
 
   /*
-   * The GPU Speed renderer has no defocus gather yet (#492's GPU step; the prepare-time refusal is PR #495's). With the
-   * defocus kernel in the expected signal its render-time check refuses the request, so gpu "auto" renders this CPU
-   * path, labelled, byte-identical to the CPU reference; in focus the GPU still takes the request.
+   * The Speed-only renderer (`registerDisplayViewSpeedGpuRenderer`, #478) has no defocus gather: with the defocus kernel in
+   * the expected signal its render-time check refuses the request, so gpu "auto" renders this CPU path, labelled,
+   * byte-identical to the CPU reference; in focus the GPU still takes the request. The engine's combined renderer gathers the
+   * disc in its Quality site pass (#492 step 2c: test/display-view-defocus-gpu.test.ts).
    */
   it("gpu \"auto\" renders a defocused view on the CPU path, labelled unsupported-on-backend", async () => {
     const options = { scene: { preset: "checkerboard", squaresAcross: 12 }, lens: { focalLengthMm: 50, fNumber: 8, focusDistanceM: 4, defocus: DEFOCUS },

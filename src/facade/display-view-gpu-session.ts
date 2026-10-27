@@ -13,7 +13,8 @@
  *   reasons apply, and the request's `signal` aborts the acquisition;
  * - the renderer must support the request, else `unsupported-on-backend`; a render the renderer refuses only when rendering
  *   (`unsupported-on-backend` thrown by `render`: a coarse view, a device that fails the composite chart probe, #491) runs the
- *   CPU reference for that render with the same label;
+ *   CPU reference for that render with the same label, and so does a render whose tables or bands exceed the device's limits
+ *   (`insufficient-limits` thrown by `render`: #492, a large defocus kernel's table on a scene of many materials);
  * - before the first GPU render on the device a short conformance self-check runs once (single-flight): the built-in cases run
  *   the existing `webgpu-f32` convolution kernel against the float64 reference within its a-priori bound, then the renderer's own
  *   cases; a failure keeps the whole view on the CPU, labelled `conformance-failed`, with the adapter recorded;
@@ -218,6 +219,9 @@ function createSession(options: ParsedPrepareDisplayViewOptions, runtime: WebGpu
         setup.checkAbort();
         if (error instanceof ImageKernelExecutionError && error.reason === "unsupported-on-backend")
           return fallback("unsupported-on-backend", "the GPU display-view renderer \"" + renderer.id + "\" does not cover this render: " + error.message, cpu);
+        // #492: a render past the device's limits (a kernel table or band above its storage binding limit) runs the CPU reference too.
+        if (error instanceof ImageKernelExecutionError && error.reason === "insufficient-limits")
+          return fallback("insufficient-limits", "the device's limits do not hold this render on the GPU: " + error.message, cpu);
         throw error;
       }
       if (output === null) return this.render(setup, signal, cpu);
