@@ -308,13 +308,14 @@ fn reinhard_moments(m: vec2<f32>, v: vec2<f32>) -> Moments {
 `;
 
 /**
- * Pass 1: the material of every lattice point of every group (the module's `material_at`, its uncertainty in bit 31). The group
+ * Pass 1: the material of every lattice point of every group (the module's `material_at`, its uncertainty in bit 31; the output
+ * is `lattice_out`, since a material module may declare its own `lattice`, as #491's composite module does). The group
  * records hold each group's lattice window (lx0, ly0, lw, lh), its first index in the lattice buffer and the point constants
  * c_u = 0.5 + f_x − W/2 and c_v = 0.5 + f_y − H/2 (exact in float32, checked by the host).
  */
 export const DISPLAY_VIEW_QUALITY_LATTICE_WGSL = /* wgsl */ `${COMMON_WGSL}
 @group(0) @binding(1) var<storage, read> groups: array<u32>;
-@group(0) @binding(2) var<storage, read_write> lattice: array<u32>;
+@group(0) @binding(2) var<storage, read_write> lattice_out: array<u32>;
 @compute @workgroup_size(${DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) wg: vec3<u32>) {
   let i = gid.x + gid.y * wg.x * ${DISPLAY_VIEW_QUALITY_WORKGROUP_SIZE}u;
@@ -332,7 +333,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   let v = (f32(q) + bitcast<f32>(groups[base + 7u])) * params.scale_v;
   material_uncertain = false;
   let m = material_at(vec2<f32>(u, v));
-  lattice[i] = m | select(0u, 0x80000000u, material_uncertain);
+  lattice_out[i] = m | select(0u, 0x80000000u, material_uncertain);
 }
 `;
 

@@ -19,6 +19,10 @@ import { prepareDisplayView, type SimulateCaptureOptions } from "../src/index.js
 import { createFakeGpu } from "./helpers/fake-webgpu.js";
 import { SMALL_FRAME, SMALL_VIEW, compareDisplayViews, displayViewGpuFixture, renderOnGpuQuality, runtimeOf, type DisplayViewAgreement } from "./helpers/display-view-gpu-fixture.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
+import { CHART_COMPOSITE_MATERIAL_MODULE_ID } from "../src/gpu/display-view-composite-material-module.js";
+import { FIXTURE_ASPECT, layeredScene } from "./helpers/chart-composite-fixtures.js";
+import { materialModulesOf } from "./helpers/display-view-gpu-fixture.js";
+import { qualityMaterialModule, qualityMaterialSetup } from "../src/gpu/display-view-quality-gpu.js";
 
 const sensor = { pixelPitchMicrometers: 6, pixelAperture: { kind: "box" as const, samplesPerAxis: 2 }, antiAliasing: { kind: "four-spot" as const } };
 const output = { ...SMALL_FRAME, format: "srgb-8" as const, demosaic: "ahd" as const };
@@ -141,6 +145,16 @@ describe("display view Quality kernels (float32 emulation) vs the CPU reference"
     runtime.destroy();
   }, scaledTimeout(300_000));
 
+  it("the lattice pass assembles with both material modules without declaring a name twice (the fake device does not compile WGSL)", async () => {
+    const { chartCompositeMaterialWgsl } = await import("../src/gpu/display-view-composite-material-module.js");
+    const declared = (code: string): string[] => [...code.matchAll(/\b(?:fn|const|struct|var<private>|var<uniform>|var<storage[^>]*>|alias)\s+([A-Za-z_][A-Za-z0-9_]*)/gu)].map((m) => m[1]!);
+    for (const module of [chartPresetMaterialWgsl(), chartCompositeMaterialWgsl()]) {
+      const names = declared(assembleDisplayViewQualityLatticeWgsl(module)), seen = new Set<string>(), twice: string[] = [];
+      for (const name of names) { if (seen.has(name)) twice.push(name); seen.add(name); }
+      expect(twice).toEqual([]);
+    }
+  });
+
   it("the three kernels assemble: the lattice pass takes the material module, the others are self-contained", () => {
     const lattice = assembleDisplayViewQualityLatticeWgsl(chartPresetMaterialWgsl());
     expect(lattice).toContain("fn material_at(p: vec2<f32>) -> u32");
@@ -213,6 +227,72 @@ describe("display view Quality kernels (float32 emulation) vs the CPU reference"
       expect(Array.from(pixel.expected)).toEqual(Array.from(fixture.cpu.expected.subarray(o, o + 3)));
     }
   }, scaledTimeout(120_000));
+
+  it("#491: a material-layers scene (every composite element under the label layer) renders Quality through the composite module, within its bounds", async () => {
+    const declared = layeredScene(FIXTURE_ASPECT), region = { x: 50, y: 70, width: 48, height: 36 };
+    const variants: [string, SimulateCaptureOptions][] = [
+      ["material-layers, frame-filling, diffraction + four-spot + AHD", { scene: declared, lens, sensor, output }],
+      ["material-layers, fixed-size chart with surround, AHD without diffraction", { scene: declared, lens: { prime: 50, fNumber: 8 }, sensor, output, chartSize: { widthM: 0.042 }, subjectDistanceM: 0.63 }]
+    ];
+    for (const [name, options] of variants) {
+      const fixture = await displayViewGpuFixture(options, { ...SMALL_VIEW, region }), runtime = await runtimeOf(createFakeGpu().gpu);
+      const module = await qualityMaterialModule(materialModulesOf(runtime), fixture.input.setup.gpu!, new AbortController().signal);
+      expect(module.id).toBe(CHART_COMPOSITE_MATERIAL_MODULE_ID);
+      // The scene records are buffers the module holds on the device (the bindings' buffer form).
+      expect(module.bindings.some((b) => b.buffer !== undefined)).toBe(true);
+      const gpu = await renderOnGpuQuality(runtime, fixture), a = compareDisplayViews(fixture.cpu, gpu);
+      record("#491 " + name + " (48 × 36 region)", a, { flagged: gpu.flaggedPixelIndices.length, tapsPerSite: gpu.tapsPerSite });
+      expect(a.outsideExpectedBound).toBe(0);
+      expect(a.outsideVarianceBound).toBe(0);
+      expect(a.largestCodeDifference).toBeLessThanOrEqual(1);
+      expect(a.deltaEMaximum).toBeLessThan(0.01);
+      expect(a.sigmaUnitsMaximum).toBeLessThan(0.01);
+      expect(Array.from(gpu.hostRecomputedPixelIndices)).toEqual(Array.from(gpu.flaggedPixelIndices));
+      for (const i of gpu.flaggedPixelIndices) for (let c = 0; c < 3; c++) expect(gpu.expected[3 * i + c]).toBe(fixture.cpu.expected[3 * i + c]);
+      runtime.destroy();
+    }
+  }, scaledTimeout(900_000));
+
+  it("#491: with diffraction the composite module is given the lattice groups as its offsets and the reference's lattice formula as its query points", async () => {
+    const fixture = await displayViewGpuFixture({ scene: layeredScene(FIXTURE_ASPECT), lens, sensor, output }, { ...SMALL_VIEW, region: { x: 0, y: 0, width: 4, height: 4 } });
+    const gpu = fixture.input.setup.gpu!, derived = qualityMaterialSetup(gpu), input = gpu.signalInput;
+    expect(input.kernels).toBeDefined();
+    expect(derived.signalInput.kernels).toBeUndefined();
+    expect(derived.signalInput.offsets).toHaveLength(4);
+    // The query point of group o at lattice point (p, q) is the reference's lattice formula (createDisplayViewExpectedSignal).
+    const W = input.nativeWidth, H = input.nativeHeight, g = 2 / input.outputWidth, point = new Float64Array(2);
+    derived.signalInput.offsets.forEach((o, index) => {
+      for (const [p, q] of [[0, 0], [17, 5], [W - 1, H - 1]] as const) {
+        derived.signalInput.queryPoint!(p, q, index, point);
+        expect(point[0]).toBe(o.x === 0 ? (p + 0.5 - W / 2) * g : (p + 0.5 + o.x - W / 2) * g);
+        expect(point[1]).toBe(-(o.y === 0 ? (q + 0.5 - H / 2) : (q + 0.5 + o.y - H / 2)) * g);
+      }
+    });
+    // Without diffraction the setup is the request's own.
+    const plain = await displayViewGpuFixture({ scene: layeredScene(FIXTURE_ASPECT), lens: { prime: 50, fNumber: 8 }, sensor, output }, { ...SMALL_VIEW, region: { x: 0, y: 0, width: 4, height: 4 } });
+    expect(qualityMaterialSetup(plain.input.setup.gpu!)).toBe(plain.input.setup.gpu!);
+  }, scaledTimeout(120_000));
+
+  it("#492: lens.defocus out of focus is refused by the GPU renderer; in focus the request renders on the GPU", async () => {
+    const quality = { ahd: true, diffraction: true, antiAliasing: true, boxSamples: 2, toneCurve: "identity" as const, scene: "chart" as const };
+    expect(displayViewQualityGpuSupports({ ...quality, defocus: true })).toMatch(/lens\.defocus/u);
+    const runtime = await runtimeOf(createFakeGpu().gpu), renderer = createDisplayViewGpuRenderer(runtime);
+    expect(renderer.supports({ ...quality, defocus: true })).toMatch(/lens\.defocus/u);
+    expect(renderer.supports({ ...quality, ahd: false, diffraction: false, antiAliasing: false, defocus: true })).toMatch(/lens\.defocus/u);
+    expect(renderer.supports({ ...quality, defocus: false })).toBe(true);
+    renderer.dispose?.();
+    runtime.destroy();
+    const previous = registerDisplayViewGpuRenderer();
+    try {
+      const base = QUALITY_CASES[3]![1], view = { ...SMALL_VIEW, region: { x: 90, y: 60, width: 12, height: 8 } };
+      // In focus: the option resolves a zero disc and the GPU renders the view.
+      const inFocus = await prepareDisplayView({ ...base, lens: { ...lens, defocus: { model: "geometric-disc" } } }, { gpu: "require", gpuDevice: createFakeGpu().gpu });
+      try { expect((await inFocus.render(view)).diagnostics.fast.execution).toMatchObject({ backend: "webgpu-f32", fallbackReason: null }); } finally { inFocus.dispose(); }
+      // Out of focus: refused before any device is involved (the CPU reference does not render it yet either, #492 step 2b).
+      await expect(prepareDisplayView({ ...base, lens: { ...lens, focusDistanceM: 1.5, defocus: { model: "geometric-disc" } }, subjectDistanceM: 3 }, { gpu: "require", gpuDevice: createFakeGpu().gpu }))
+        .rejects.toThrow(/lens\.defocus out of focus/u);
+    } finally { setDisplayViewGpuRendererFactory(previous); }
+  }, scaledTimeout(300_000));
 
   it("reports the measured agreement", () => {
     process.stdout.write("[display-view quality gpu emulation] " + JSON.stringify(report, null, 1) + "\n");

@@ -323,6 +323,15 @@ export interface SimulateCaptureOptions {
      * the longest spectral node, capped at 32 sites. Not combinable with `psf` or `pupilSampling`. Default off.
      */
     diffraction?: SimulateCaptureLensDiffraction;
+    /**
+     * Opt-in (#492): defocus of the flat scene plane when `focusDistanceM` differs from the subject distance, as a
+     * geometric disc (`model: "geometric-disc"`): the thin-lens blur circle of an ideal uniform circular pupil
+     * (`calculateDefocusCircle`), an approximation. The blur diameter is recorded in the `lens.defocus` assumption.
+     * Rendering the blur is not available yet: a request that would need a non-zero disc fails with a "not yet
+     * supported" error; in focus the result is that of the same request without the option, plus the assumption.
+     * Not combinable with `pupilSampling` or `psf`. Default off.
+     */
+    defocus?: { model: "geometric-disc" };
   };
   exposure?: {
     /** Default "manual". */
@@ -334,8 +343,12 @@ export interface SimulateCaptureOptions {
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
     compensationStops?: number;
   };
-  /** Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card) or a caller reflectance/radiance function. */
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
+  /**
+   * Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card), a declared `material-layers` scene (#491:
+   * a chart under shape-mask layers, as `resolveChartMaterialLayers` takes it; the capture is that of its `callerScene`, byte for
+   * byte, and the display view can render it on the GPU), or a caller reflectance, radiance or material function.
+   */
+  scene: ChartScene | ChartMaterialLayerScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
   /**

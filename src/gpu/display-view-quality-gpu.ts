@@ -22,7 +22,9 @@
 import { AHD_KEY_LEVELS, EXACT_AREA_MEAN_MAX_PIXELS, axisSums, computeDisplayViewCorrectionStates, createDisplayViewExpectedSignal, displayViewCorrectionKey, overlaps, renderDisplayView,
   ahdCandidateKernels, type AxisSums, type DisplayViewCorrectionSetup, type DisplayViewKernelTap, type DisplayViewRenderResult, type DisplayViewSetup } from "../facade/display-view.js";
 import { displayViewSignalTables, type DisplayViewExpectedSignalInput, type GroupTables } from "../facade/expected-signal.js";
-import { resolvePortableChartScene, type ResolvedChartScene } from "../facade/chart-scenes.js";
+import type { DisplayViewGpuSetup } from "../facade/display-view.js";
+import { resolvePortableChartScene } from "../facade/chart-scenes.js";
+import { createDisplayViewMaterialModules, type DisplayViewMaterialModules } from "./display-view-composite-material-module.js";
 import { setDisplayViewGpuRendererFactory, type DisplayViewGpuConformanceCase, type DisplayViewGpuPart, type DisplayViewGpuRenderOutput, type DisplayViewGpuRenderer,
   type DisplayViewGpuRendererFactory, type DisplayViewGpuRequest, type DisplayViewGpuRuntimeHandle } from "../facade/display-view-gpu.js";
 import { chartPresetMaterialModule } from "./display-view-chart-material-module.js";
@@ -389,7 +391,9 @@ export async function renderDisplayViewQualityOnGpu(runtime: WebGpuRuntime, band
     const tapsBuffer = scope.upload("photivra-display-view-taps", gather.taps, BUFFER_USAGE.STORAGE);
     const tableBuffer = scope.upload("photivra-display-view-table", gather.table, BUFFER_USAGE.STORAGE);
     const spreadBuffer = scope.upload("photivra-display-view-spread", gather.spread, BUFFER_USAGE.STORAGE);
-    const materialEntries = material.bindings.map((b) => ({ binding: b.binding, resource: { buffer: scope.upload("photivra-display-view-material-" + b.binding, b.data, b.kind === "uniform" ? BUFFER_USAGE.UNIFORM : BUFFER_USAGE.STORAGE) } }));
+    // A module's binding is data uploaded per render or a buffer the module already holds on the device (#491: scene records).
+    const materialEntries = material.bindings.map((b) => ({ binding: b.binding, resource: { buffer: b.buffer ??
+      scope.upload("photivra-display-view-material-" + b.binding, b.data, b.kind === "uniform" ? BUFFER_USAGE.UNIFORM : BUFFER_USAGE.STORAGE) } }));
     const materialGroup = runtime.device.createBindGroup({ layout: latticePipeline.getBindGroupLayout(1), entries: materialEntries });
     const gate = createHostYieldGate();
     for (let row0 = 0; row0 < region.height; row0 += rows) {
@@ -551,16 +555,51 @@ export async function renderDisplayViewQualityOnGpu(runtime: WebGpuRuntime, band
     pixelFlags, statesComputed, statesHeld: states.size, tapsPerSite: gather.tapCount, stageMilliseconds: timings };
 }
 
+/** #492: `lens.defocus` out of focus needs the defocus disc's gather, which no GPU kernel has yet (#492 step 2c). */
+const DEFOCUS_REFUSAL = "lens.defocus out of focus (the geometric defocus disc) is not on the GPU (#492)";
+
+/**
+ * The GPU setup the material modules read for a Quality render (#491's `createDisplayViewMaterialModules`). The composite module
+ * recovers the exact lattice point from the kernel's float32 point with the request's query offsets and the scale of its own
+ * query points. With diffraction kernels the reference has no query points: it evaluates each lattice group's points with the
+ * lattice formula (p + 0.5 + f − W/2)·g, −(q + 0.5 + f − H/2)·g (`createDisplayViewExpectedSignal`). The lattice pass forms
+ * exactly that point per group, so the module is given the groups as its offsets and that formula as the query points; the
+ * module's own checks (the model at the frame's corners within 2⁻⁴⁸, the offsets' separation, at most 16 offsets) then apply to
+ * them as to a Speed lattice. Without diffraction the request's own offsets and query points are the lattice already (each
+ * group member's point is checked to be its offset's, `displayViewQualityGpuUnsupportedReason`).
+ */
+export function qualityMaterialSetup(gpu: DisplayViewGpuSetup): DisplayViewGpuSetup {
+  const input = gpu.signalInput;
+  if (!input.kernels) return gpu;
+  const groups = displayViewSignalTables(input).groups, W = input.nativeWidth, H = input.nativeHeight, g = 2 / input.outputWidth;
+  const offsets = groups.map((group) => ({ x: group.fx, y: group.fy, weight: 1 / groups.length }));
+  const queryPoint = (x: number, y: number, o: number, out: Float64Array): void => {
+    const group = groups[o]!;
+    out[0] = (group.fx === 0 ? (x + 0.5 - W / 2) : (x + 0.5 + group.fx - W / 2)) * g;
+    out[1] = -(group.fy === 0 ? (y + 0.5 - H / 2) : (y + 0.5 + group.fy - H / 2)) * g;
+  };
+  const { kernels: _kernels, ...rest } = input;
+  void _kernels;
+  return { ...gpu, signalInput: { ...rest, offsets, queryPoint } };
+}
+
+/** The material module of a Quality render's scene (see `qualityMaterialSetup`). */
+export function qualityMaterialModule(modules: DisplayViewMaterialModules, gpu: DisplayViewGpuSetup, signal: AbortSignal): Promise<DisplayViewGpuMaterialModule> {
+  return modules.moduleFor(qualityMaterialSetup(gpu), signal);
+}
+
 /** The pixel-aperture samples per axis and anti-aliasing spots of a request. */
 function offsetCount(request: DisplayViewGpuRequest): number { return request.boxSamples * request.boxSamples * (request.antiAliasing ? 4 : 1); }
 
 /**
- * Why the Quality renderer does not support a prepared request (`DisplayViewGpuRenderer.supports`), or true: chart presets
- * (the material module of `display-view-chart-material-module.ts`), the identity or Reinhard tone curve and at most 64 query
- * offsets (lattice groups); whether a view's footprints take the exact area mean is known only per render.
+ * Why the Quality renderer does not support a prepared request (`DisplayViewGpuRenderer.supports`), or true: engine charts and
+ * declared `material-layers` scenes (the material modules of `createDisplayViewMaterialModules`, #491), the identity or Reinhard
+ * tone curve and at most 64 query offsets (lattice groups), never `lens.defocus` out of focus (#492: no GPU defocus gather yet);
+ * whether a view's footprints take the exact area mean, and whether the device passes the composite probe, is known only per render.
  */
 export function displayViewQualityGpuSupports(request: DisplayViewGpuRequest): true | string {
-  if (request.scene !== "chart") return "the scene is a caller " + request.scene + "; the GPU material lookup covers the chart presets";
+  if (request.defocus) return DEFOCUS_REFUSAL;
+  if (request.scene !== "chart" && request.scene !== "material-layers") return "the scene is a caller " + request.scene + "; the GPU material lookup covers engine charts and declared material-layers scenes (describe the scene as material-layers)";
   if (request.toneCurve !== "identity" && request.toneCurve !== "positive-reinhard-per-channel") return "unsupported tone curve " + String(request.toneCurve);
   if (offsetCount(request) > MAXIMUM_GROUPS) return "more than " + MAXIMUM_GROUPS + " query offsets per site";
   return true;
@@ -629,22 +668,27 @@ function bilinearKernels(): DisplayViewKernelTap[][][] {
 
 /**
  * The display view's GPU renderer on one runtime (#481's `DisplayViewGpuRenderer`): the Speed kernel for requests it covers
- * (no diffraction, no AHD, at most 16 offsets) and the Quality kernels for the rest. One pipeline cache per device, one material
- * module per resolved chart, one correction-state store per correction key. `render` renders the part's region (`setup.gpu`
+ * (no diffraction, no AHD, at most 16 offsets) and the Quality kernels for the rest. One pipeline cache per device, one set of
+ * material modules (#491: chart presets, composite charts, the 2.3 elements and material-layers scenes; `dispose` releases their
+ * uploaded scene records), one correction-state store per correction key. `render` renders the part's region (`setup.gpu`
  * carries the expected signal's input and the chart; a setup without it, a coarse view or a frame the kernels do not cover
  * throws `unsupported-on-backend`), and throws `aborted` and `device-lost` as the accelerator's operations do.
  */
 export function createDisplayViewGpuRenderer(runtime: WebGpuRuntime, options: { maximumBandBytes?: number; yieldControl?: YieldControl } = {}): DisplayViewGpuRenderer {
-  const pipelines = new Map<string, Promise<GPUComputePipeline>>(), modules = new WeakMap<ResolvedChartScene, DisplayViewGpuMaterialModule>(), stores = new Map<string, CorrectionStateStore>();
+  const pipelines = new Map<string, Promise<GPUComputePipeline>>(), stores = new Map<string, CorrectionStateStore>();
   const bandBytes = options.maximumBandBytes ?? Math.min(64 * 1024 * 1024, runtime.maximumStorageBindingBytes);
   const source: PipelineSource = (label, code) => {
     let pending = pipelines.get(label);
     if (!pending) { pending = createComputePipeline(runtime, label, code, undefined); pipelines.set(label, pending); pending.catch(() => pipelines.delete(label)); }
     return pending;
   };
+  // #491: one set of material modules per device for both kernels (the preset module per chart; the composite module, its probe
+  // and its uploaded scene records), released by `dispose`.
+  const modules = createDisplayViewMaterialModules(runtime, source);
   return {
     id: "photivra-display-view",
     supports(request: DisplayViewGpuRequest): true | string {
+      if (request.defocus) return DEFOCUS_REFUSAL;
       const speed = displayViewSpeedGpuSupports(request);
       if (speed === true) return true;
       return displayViewQualityGpuSupports(request);
@@ -653,11 +697,6 @@ export function createDisplayViewGpuRenderer(runtime: WebGpuRuntime, options: { 
     async render(part: DisplayViewGpuPart): Promise<DisplayViewGpuRenderOutput> {
       const { setup, signal } = part;
       if (!setup.gpu) throw new ImageKernelExecutionError("unsupported-on-backend", "The display-view setup carries no GPU inputs (setup.gpu); use cpu-reference.");
-      if (!setup.gpu.chart) throw new ImageKernelExecutionError("unsupported-on-backend", "The GPU material lookup covers the chart presets; caller scenes are not on the GPU.");
-      if (setup.gpu.chart.materials.length !== (setup.gpu.signalInput.scene.kind === "materials" ? setup.gpu.signalInput.scene.materials.length : -1))
-        throw new ImageKernelExecutionError("unsupported-on-backend", "The scene has materials beyond the chart's (a framed chart's surround); use cpu-reference.");
-      let material = modules.get(setup.gpu.chart);
-      if (!material) { material = chartPresetMaterialModule(setup.gpu.chart); modules.set(setup.gpu.chart, material); }
       const abort = new AbortController(), onAbort = (): void => abort.abort();
       if (signal?.aborted) throw abortedError();
       signal?.addEventListener("abort", onAbort, { once: true });
@@ -665,8 +704,10 @@ export function createDisplayViewGpuRenderer(runtime: WebGpuRuntime, options: { 
         const signalInput = setup.gpu.signalInput;
         let result: DisplayViewRenderResult & { expectedValueBound: ImageKernelRelativeErrorBound; execution: ImageKernelExecution };
         if (displayViewSpeedGpuUnsupportedReason(setup, signalInput) === null) {
+          const material = await modules.moduleFor(setup.gpu, abort.signal);
           result = await renderDisplayViewSpeedOnGpu(runtime, bandBytes, { setup, signalInput, material }, abort, options.yieldControl, source);
         } else {
+          const material = await qualityMaterialModule(modules, setup.gpu, abort.signal);
           const key = displayViewCorrectionKey(setup);
           let states = key === null ? undefined : stores.get(key);
           if (key !== null && !states) { states = new CorrectionStateStore(); stores.set(key, states); }
@@ -676,7 +717,8 @@ export function createDisplayViewGpuRenderer(runtime: WebGpuRuntime, options: { 
           uniformPixelCount: result.uniformPixelCount, ahdCorrectedPixelCount: result.ahdCorrectedPixelCount, estimation: result.estimation, errorBound: result.expectedValueBound,
           diagnosticUncertaintySampleCount: result.execution.diagnosticUncertaintySampleCount };
       } finally { signal?.removeEventListener("abort", onAbort); }
-    }
+    },
+    dispose(): void { modules.release(); stores.clear(); }
   };
 }
 

@@ -11,14 +11,16 @@
  * The float64 reference is `renderDisplayView` (facade/display-view.ts) on the exact-area-mean path without
  * diffraction, with the bilinear demosaic and chart materials. Internal: not exported from the package. The
  * material lookup per query point is a module the caller supplies (`DisplayViewGpuMaterialModule`, the seam of
- * #477); `display-view-chart-material-module.ts` provides one for the eight 2.0 chart presets.
+ * #477); `display-view-chart-material-module.ts` provides one for the eight 2.0 chart presets and
+ * `display-view-composite-material-module.ts` (#491) one for composite charts, the 2.3 elements and `material-layers` scenes.
  */
 import { DISPLAY_VIEW_NOISE_STREAM_ID, EXACT_AREA_MEAN_MAX_PIXELS, axisSums, clipCentre, createDisplayViewExpectedSignal, overlaps,
   quantizationVariance, renderDisplayView, type AxisSums, type DisplayViewKernelTap, type DisplayViewRenderResult, type DisplayViewSetup } from "../facade/display-view.js";
 import type { DisplayViewExpectedSignalInput } from "../facade/expected-signal.js";
-import { resolvePortableChartScene, type ResolvedChartScene } from "../facade/chart-scenes.js";
+import { resolvePortableChartScene } from "../facade/chart-scenes.js";
 import { setDisplayViewGpuRendererFactory, type DisplayViewGpuConformanceCase, type DisplayViewGpuPart, type DisplayViewGpuRenderOutput, type DisplayViewGpuRenderer,
   type DisplayViewGpuRendererFactory, type DisplayViewGpuRequest, type DisplayViewGpuRuntimeHandle } from "../facade/display-view-gpu.js";
+import { createDisplayViewMaterialModules } from "./display-view-composite-material-module.js";
 import { chartPresetMaterialModule } from "./display-view-chart-material-module.js";
 import { encodeSrgbComponentPortable } from "../color/srgb-transfer.js";
 import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, samplePortableStandardNormal } from "../sensor/stochastic-seed.js";
@@ -57,13 +59,15 @@ const BYTES_PER_PIXEL = 4 * DISPLAY_VIEW_OUTPUT_FLOATS + 4;
  * with the reference. The point p carries a relative error of at most 2E + 10⁻¹⁴ (E = 2⁻²³) against the reference's float64
  * query point (two float32 roundings of (x + c)·scale), which the module's bounds must cover. The module may use the
  * kernel's constants `E` (2⁻²³) and `SLACK` (10⁻¹⁴) and declares its buffers in @group(1); `bindings` are their
- * contents, uploaded once per render.
+ * contents: `data` is uploaded once per render, `buffer` is a buffer the module already holds on the device (#491: scene
+ * records uploaded once per renderer and reused across a view's parts).
  */
 export interface DisplayViewGpuMaterialModule {
   /** Names the module in the pipeline cache; two modules with different `wgsl` need different ids. */
   readonly id: string;
   readonly wgsl: string;
-  readonly bindings: readonly { binding: number; kind: "uniform" | "storage"; data: ArrayBufferView<ArrayBuffer> }[];
+  readonly bindings: readonly ({ binding: number; kind: "uniform" | "storage"; data: ArrayBufferView<ArrayBuffer>; buffer?: undefined } |
+    { binding: number; kind: "uniform" | "storage"; buffer: GPUBuffer; data?: undefined })[];
 }
 
 /** What a GPU render of a display view needs: the reference's own setup and expected-signal input, plus the material module. */
@@ -282,7 +286,7 @@ export async function renderDisplayViewSpeedOnGpu(runtime: WebGpuRuntime, bandBy
     const auxBuffer = scope.upload("photivra-display-view-aux", aux, BUFFER_USAGE.STORAGE);
     const geometryBuffer = scope.upload("photivra-display-view-geometry", geometry, BUFFER_USAGE.STORAGE);
     const tableBuffer = scope.upload("photivra-display-view-table", table, BUFFER_USAGE.STORAGE);
-    const materialEntries = material.bindings.map((b) => ({ binding: b.binding, resource: { buffer: scope.upload("photivra-display-view-material-" + b.binding, b.data, b.kind === "uniform" ? BUFFER_USAGE.UNIFORM : BUFFER_USAGE.STORAGE) } }));
+    const materialEntries = material.bindings.map((b) => ({ binding: b.binding, resource: { buffer: b.buffer ?? scope.upload("photivra-display-view-material-" + b.binding, b.data, b.kind === "uniform" ? BUFFER_USAGE.UNIFORM : BUFFER_USAGE.STORAGE) } }));
     const materialGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(1), entries: materialEntries });
     const gate = createHostYieldGate();
     for (let row0 = 0; row0 < region.height; row0 += rows) {
@@ -360,15 +364,17 @@ export async function renderDisplayViewSpeedOnGpu(runtime: WebGpuRuntime, bandBy
 function offsetCount(request: DisplayViewGpuRequest): number { return request.boxSamples * request.boxSamples * (request.antiAliasing ? 4 : 1); }
 
 /**
- * Why the Speed renderer does not support a prepared request (`DisplayViewGpuRenderer.supports`), or true. It covers chart
- * presets (the material module of `display-view-chart-material-module.ts`; composites, caller scenes and label masks are #477)
- * without AHD or diffraction, with the identity or Reinhard tone curve and at most 16 query offsets; whether a view's
- * footprints take the exact area mean is known only per render (`displayViewSpeedGpuUnsupportedReason`).
+ * Why the Speed renderer does not support a prepared request (`DisplayViewGpuRenderer.supports`), or true. It covers every
+ * engine chart (the 2.0 presets through `display-view-chart-material-module.ts`; composites, the 2.3 elements, the sine star
+ * and fixed-size charts through the composite module, #491) and declared `material-layers` scenes, never a caller scene
+ * function, without AHD or diffraction, with the identity or Reinhard tone curve and at most 16 query offsets; whether a
+ * view's footprints take the exact area mean, and whether the device passes the composite kernel's probe, is known only per
+ * render (`displayViewSpeedGpuUnsupportedReason`, `createDisplayViewMaterialModules`).
  */
 export function displayViewSpeedGpuSupports(request: DisplayViewGpuRequest): true | string {
   if (request.ahd) return "AHD (the Quality demosaic) is not on the GPU";
   if (request.diffraction) return "diffraction (the Quality optics) is not on the GPU";
-  if (request.scene !== "chart") return "the scene is a caller " + request.scene + "; the GPU material lookup covers the chart presets (composites and label masks: #477)";
+  if (request.scene !== "chart" && request.scene !== "material-layers") return "the scene is a caller " + request.scene + "; the GPU material lookup covers engine charts and declared material-layers scenes (describe the scene as material-layers)";
   if (request.toneCurve !== "identity" && request.toneCurve !== "positive-reinhard-per-channel") return "unsupported tone curve " + String(request.toneCurve);
   if (offsetCount(request) > DISPLAY_VIEW_GPU_MAXIMUM_OFFSETS) return "more than " + DISPLAY_VIEW_GPU_MAXIMUM_OFFSETS + " query offsets per site";
   return true;
@@ -421,19 +427,22 @@ export const DISPLAY_VIEW_SPEED_CONFORMANCE_CASE: DisplayViewGpuConformanceCase 
 } };
 
 /**
- * The display view's Speed renderer on one runtime (#481's `DisplayViewGpuRenderer`): one pipeline cache per device, one
- * material module per resolved chart. `render` renders the part's region (`setup.gpu` carries the expected signal's input and
- * the chart; a setup without it, a coarse view or a frame the kernel does not cover throws `unsupported-on-backend`), and
- * throws `aborted` and `device-lost` as the accelerator's operations do.
+ * The display view's Speed renderer on one runtime (#481's `DisplayViewGpuRenderer`): one pipeline cache per device, the
+ * material modules of `createDisplayViewMaterialModules` (the preset module per resolved chart, the composite module with its
+ * scene records uploaded once per scene). `render` renders the part's region (`setup.gpu` carries the expected signal's input
+ * and the resolved scene; a setup without it, a caller scene, a coarse view, a frame the kernel does not cover or a device
+ * that fails the composite probe throws `unsupported-on-backend`), and throws `aborted` and `device-lost` as the accelerator's
+ * operations do. `dispose` releases the uploaded scene records.
  */
 export function createDisplayViewSpeedGpuRenderer(runtime: WebGpuRuntime, options: { maximumBandBytes?: number; yieldControl?: YieldControl } = {}): DisplayViewGpuRenderer {
-  const pipelines = new Map<string, Promise<GPUComputePipeline>>(), modules = new WeakMap<ResolvedChartScene, DisplayViewGpuMaterialModule>();
+  const pipelines = new Map<string, Promise<GPUComputePipeline>>();
   const bandBytes = options.maximumBandBytes ?? Math.min(64 * 1024 * 1024, runtime.maximumStorageBindingBytes);
   const source: PipelineSource = (label, code) => {
     let pending = pipelines.get(label);
     if (!pending) { pending = createComputePipeline(runtime, label, code, undefined); pipelines.set(label, pending); pending.catch(() => pipelines.delete(label)); }
     return pending;
   };
+  const modules = createDisplayViewMaterialModules(runtime, source);
   return {
     id: "photivra-display-view-speed",
     supports: displayViewSpeedGpuSupports,
@@ -441,21 +450,18 @@ export function createDisplayViewSpeedGpuRenderer(runtime: WebGpuRuntime, option
     async render(part: DisplayViewGpuPart): Promise<DisplayViewGpuRenderOutput> {
       const { setup, signal } = part;
       if (!setup.gpu) throw new ImageKernelExecutionError("unsupported-on-backend", "The display-view setup carries no GPU inputs (setup.gpu); use cpu-reference.");
-      if (!setup.gpu.chart) throw new ImageKernelExecutionError("unsupported-on-backend", "The GPU material lookup covers the chart presets; caller scenes are #477.");
-      if (setup.gpu.chart.materials.length !== (setup.gpu.signalInput.scene.kind === "materials" ? setup.gpu.signalInput.scene.materials.length : -1))
-        throw new ImageKernelExecutionError("unsupported-on-backend", "The scene has materials beyond the chart's (a framed chart's surround); use cpu-reference.");
-      let material = modules.get(setup.gpu.chart);
-      if (!material) { material = chartPresetMaterialModule(setup.gpu.chart); modules.set(setup.gpu.chart, material); }
       const abort = new AbortController(), onAbort = (): void => abort.abort();
       if (signal?.aborted) throw abortedError();
       signal?.addEventListener("abort", onAbort, { once: true });
       try {
+        const material = await modules.moduleFor(setup.gpu, abort.signal);
         const result = await renderDisplayViewSpeedOnGpu(runtime, bandBytes, { setup, signalInput: setup.gpu.signalInput, material }, abort, options.yieldControl, source);
         return { samples: result.samples, expected: result.expected, noiseStd: result.noiseStd, sampleCount: result.sampleCount, siteCount: result.siteCount, detailPixelCount: result.detailPixelCount,
           uniformPixelCount: result.uniformPixelCount, ahdCorrectedPixelCount: result.ahdCorrectedPixelCount, estimation: result.estimation, errorBound: result.expectedValueBound,
           diagnosticUncertaintySampleCount: result.execution.diagnosticUncertaintySampleCount };
       } finally { signal?.removeEventListener("abort", onAbort); }
-    }
+    },
+    dispose(): void { modules.release(); }
   };
 }
 

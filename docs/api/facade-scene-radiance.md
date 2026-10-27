@@ -82,7 +82,8 @@ export interface ChartSizeOption {
 
 ## createPlanarSceneRadianceProvider
 
-Public scene-preset provider. Places an engine chart (or a caller reflectance or radiance function) on
+Public scene-preset provider. Places an engine chart (or a declared `material-layers` scene, #491, evaluated as
+its `callerScene`; or a caller reflectance, radiance or material function) on
 a plane `distanceM` in front of the camera and `framedWidthM` wide (frame units u = ±1 at its edges),
 lit by `illuminant` at `illuminanceLux`. The returned `evaluateRadiance` and `evaluateApertureRadiance`
 follow the native environment RAW provider contract. They answer requests for scene `sceneId` and
@@ -90,7 +91,7 @@ provider `providerProfileId`.
 
 ```ts
 export function createPlanarSceneRadianceProvider(input: {
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
+  scene: ChartScene | ChartMaterialLayerScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   illuminant: CaptureIlluminant;
   illuminanceLux: number;
   distanceM: number;

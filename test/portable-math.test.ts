@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { calculateEquivalentFocalLength35Mm, calculateImagingAreaMetrics, calculateNativeRawPlan, createNativeRawDevelopmentTask, createSimulatedCapture, parseSimulatedCapture, type NativeRawOutput } from "../src/index.js";
 import { nativeRawFixture } from "./helpers/native-raw-fixture.js";
 import { createHash } from "node:crypto";
-import { equalWithinUlps, portableCbrt, portableCosTwoPi, portableExp, portableExp2, portableExpm1, portableHypot, portableLog, portableLog2, portablePow,
+import { equalWithinUlps, portableAsin, portableCbrt, portableCosTwoPi, portableExp, portableExp2, portableExpm1, portableHypot, portableLog, portableLog2, portablePow,
   portableSinTwoPi } from "../src/core/portable-math.js";
 import { encodeSrgbComponent, encodeSrgbComponentPortable } from "../src/color/srgb-transfer.js";
 import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
@@ -191,5 +191,28 @@ describe("engine-portable logarithm, exponential, power, cube root and cosine (d
         portablePow(u, 1 / 2.4), portablePow(u + w, 1.4), portablePow(wide, (w - 0.5) * 8), portablePow(u * 1e-6, 5), portableCosTwoPi(x), portableSinTwoPi(x)]) { out.setFloat64(o, v, true); o += 8; }
     }
     expect(createHash("sha256").update(new Uint8Array(out.buffer)).digest("hex")).toBe("ca9d40f40f487e106b35ebb15f796b613cdea061bd3c644cc95b88ac41eb0dd7");
+  });
+});
+
+describe("portableAsin (#492: the defocus disc's cell areas)", () => {
+  /** |a − b| in units of the last place of b (b ≠ 0). */
+  const ulps = (a: number, b: number): number => Math.abs(a - b) / 2 ** (Math.floor(Math.log2(Math.abs(b))) - 52);
+  it("is within 2 ulps of Math.asin over [−1, 1] and exact at the anchors", () => {
+    let worst = 0;
+    for (let k = -100_000; k <= 100_000; k++) {
+      if (k === 0) continue;
+      const x = k / 100_000;
+      worst = Math.max(worst, ulps(portableAsin(x), Math.asin(x)));
+    }
+    for (const x of [1e-300, 1e-8, 0.4999999999999999, 0.5, 0.5000000000000001, 1 - 2 ** -53, 0.8411240000000001]) worst = Math.max(worst, ulps(portableAsin(x), Math.asin(x)));
+    expect(worst).toBeLessThanOrEqual(2);
+    expect(portableAsin(1)).toBe(Math.PI / 2);
+    expect(portableAsin(-1)).toBe(-Math.PI / 2);
+    expect(portableAsin(0)).toBe(0);
+    expect(Object.is(portableAsin(-0), -0)).toBe(true);
+  });
+  it("is odd and returns NaN outside [−1, 1]", () => {
+    for (const x of [0.1, 0.3, 0.5, 0.7, 0.9, 0.999]) expect(portableAsin(-x)).toBe(-portableAsin(x));
+    for (const x of [1.0000000000000002, -1.0000000000000002, 2, Number.NaN, Number.POSITIVE_INFINITY]) expect(portableAsin(x)).toBeNaN();
   });
 });
