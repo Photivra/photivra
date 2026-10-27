@@ -11,8 +11,30 @@ setup: use it to render one view in many regions, for example on each worker of 
 
 ```ts
 export interface PreparedDisplayView {
-  /** Renders a view of the prepared request. Renders may run concurrently; they share no state except read-only setup. */
+  /**
+   * Renders a view of the prepared request. Renders may run concurrently; they share no state except read-only setup and the
+   * realm's AHD correction states, which never change a byte (docs/DISPLAY_VIEW.md, "AHD at low signal").
+   */
   render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult>;
+  /**
+   * 2.10 (#447): the key of this request's AHD low-signal correction states, or null when the request has no AHD
+   * (`output.demosaic` other than "ahd"). Every input of the key is fixed when the request is prepared; two prepared views
+   * with the same key read the same states.
+   */
+  correctionKey(): string | null;
+  /**
+   * 2.10 (#447): the grid keys of every correction state a render of `view` reads (ascending, whether or not this realm holds
+   * them), found by a render of the view's region that records the states instead of computing them. No image is returned;
+   * it costs about one render whose states are all held. Fails with an InvalidConfigurationError when the request has no AHD.
+   */
+  collectCorrectionStates(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewCorrectionStateKeys>;
+  /**
+   * 2.10 (#447): computes the correction states of `gridKeys` (from `collectCorrectionStates`, or a share of them) as a render
+   * would, stores them in this realm's cache and returns their values, for {@link bindDisplayViewCorrectionStates} in
+   * another realm. States this realm holds are read, not computed. Yields and honours `signal` like `render`. Fails with an
+   * InvalidConfigurationError when the request has no AHD or a grid key is out of range.
+   */
+  computeCorrectionStates(gridKeys: Int32Array, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewCorrectionStateSet>;
 }
 ```
 

@@ -213,6 +213,11 @@
       "kind": "type"
     },
     {
+      "name": "bindDisplayViewCorrectionStates",
+      "source": "src/facade/display-view.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "bindIsoCapabilityToExposureCapabilities",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "runtime"
@@ -2600,6 +2605,16 @@
     {
       "name": "DiscreteSpectralLineQuantityUnit",
       "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DisplayViewCorrectionStateKeys",
+      "source": "src/facade/display-view.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DisplayViewCorrectionStateSet",
+      "source": "src/facade/display-view.ts",
       "kind": "type"
     },
     {
@@ -7866,6 +7881,11 @@
       "name": "SensorTemporalDarkCurrentCharge",
       "source": "src/sensor/dark-current.ts",
       "kind": "type"
+    },
+    {
+      "name": "serializeDisplayViewCorrectionStates",
+      "source": "src/facade/display-view.ts",
+      "kind": "runtime"
     },
     {
       "name": "serializeNativeRawDng",

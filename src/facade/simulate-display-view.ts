@@ -15,12 +15,15 @@ import { buildExpectedSignalInput } from "./expected-signal-setup.js";
 import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolvePortableChartScene, type ChartScene } from "./chart-scenes.js";
 import { resolvePortableCaptureIlluminant, calculateIlluminantIrradianceScale } from "./scene-radiance.js";
-import { ahdCandidateKernels, createDisplayViewExpectedSignal, renderDisplayView, type DisplayViewChannelReadout, type DisplayViewExpectedSignal, type DisplayViewRenderResult,
+import { ahdCandidateKernels, computeDisplayViewCorrectionStates, createDisplayViewExpectedSignal, displayViewCorrectionKey, renderDisplayView, type DisplayViewChannelReadout,
+  type DisplayViewCorrectionSetup, type DisplayViewCorrectionStateKeys, type DisplayViewCorrectionStateSet, type DisplayViewExpectedSignal, type DisplayViewRenderResult, type DisplayViewSetup,
   EXACT_AREA_MEAN_MAX_PIXELS } from "./display-view.js";
 import { runCapture, apertureNodeOffsets, bilinearPhaseProfiles, clockMs, fail, sceneIlluminantWhiteBalance, CAMERA_TO_XYZ, CHANNELS, DARK_CURRENT_ELECTRONS_PER_SECOND, FACADE_EVIDENCE,
   SIMULATE_CAPTURE_FACADE_VERSION, DISPLAY_VIEW_WITHOUT_VIEW, allowKeys, parseDisplayViewOption, type DisplayViewResult, type DisplayViewRunContext, type ParsedDisplayView,
   type SimulateCaptureAssumption, type SimulateCaptureOptions, type SimulateDisplayViewOptions } from "./simulate-capture.js";
 import { createHostYield } from "./host-yield.js";
+
+export { serializeDisplayViewCorrectionStates, bindDisplayViewCorrectionStates, type DisplayViewCorrectionStateKeys, type DisplayViewCorrectionStateSet } from "./display-view.js";
 
 /**
  * The display view of a capture request: the image the real full-resolution capture (`simulateCapture(options)`) would
@@ -46,8 +49,30 @@ export interface PreparedDisplayViewRenderOptions {
  * setup: use it to render one view in many regions, for example on each worker of a progressive display.
  */
 export interface PreparedDisplayView {
-  /** Renders a view of the prepared request. Renders may run concurrently; they share no state except read-only setup. */
+  /**
+   * Renders a view of the prepared request. Renders may run concurrently; they share no state except read-only setup and the
+   * realm's AHD correction states, which never change a byte (docs/DISPLAY_VIEW.md, "AHD at low signal").
+   */
   render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult>;
+  /**
+   * 2.10 (#447): the key of this request's AHD low-signal correction states, or null when the request has no AHD
+   * (`output.demosaic` other than "ahd"). Every input of the key is fixed when the request is prepared; two prepared views
+   * with the same key read the same states.
+   */
+  correctionKey(): string | null;
+  /**
+   * 2.10 (#447): the grid keys of every correction state a render of `view` reads (ascending, whether or not this realm holds
+   * them), found by a render of the view's region that records the states instead of computing them. No image is returned;
+   * it costs about one render whose states are all held. Fails with an InvalidConfigurationError when the request has no AHD.
+   */
+  collectCorrectionStates(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewCorrectionStateKeys>;
+  /**
+   * 2.10 (#447): computes the correction states of `gridKeys` (from `collectCorrectionStates`, or a share of them) as a render
+   * would, stores them in this realm's cache and returns their values, for {@link bindDisplayViewCorrectionStates} in
+   * another realm. States this realm holds are read, not computed. Yields and honours `signal` like `render`. Fails with an
+   * InvalidConfigurationError when the request has no AHD or a grid key is out of range.
+   */
+  computeCorrectionStates(gridKeys: Int32Array, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewCorrectionStateSet>;
 }
 /**
  * 2.7 (#387): resolves a {@link simulateDisplayView} request once, without a view, and returns a handle whose `render(view)`
@@ -59,19 +84,36 @@ export interface PreparedDisplayView {
  */
 export async function prepareDisplayView(options: SimulateCaptureOptions): Promise<PreparedDisplayView> {
   let frameWidth = 0, frameHeight = 0;
-  const renderPrepared = await runCapture(options, "display-view", DISPLAY_VIEW_WITHOUT_VIEW, (context) => {
+  const prepared = await runCapture(options, "display-view", DISPLAY_VIEW_WITHOUT_VIEW, (context) => {
     frameWidth = context.width; frameHeight = context.height;
     return Promise.resolve(prepareView(context));
-  }) as RenderPreparedView;
+  }) as PreparedViewParts;
+  /** One call's start times, cancellation (its own signal) and yielding. */
+  const runOf = (renderOptions: PreparedDisplayViewRenderOptions | undefined): ViewRun => {
+    const started = Date.now(), viewStarted = clockMs();
+    const signal = renderOptions === undefined ? undefined : allowKeys(renderOptions, "render options", ["signal"]).signal as AbortSignal | undefined;
+    if (signal !== undefined && (typeof signal !== "object" || signal === null || typeof signal.aborted !== "boolean")) fail("signal must be an AbortSignal.");
+    const checkAbort = (): void => { if (signal?.aborted) fail("simulateCapture aborted."); };
+    checkAbort();
+    return { started, viewStarted, checkAbort, yieldControl: createHostYield().yieldControl };
+  };
+  const correctionOf = (caller: string): DisplayViewCorrectionSetup => prepared.correction ??
+    fail(caller + ": the prepared request has no AHD low-signal correction (it applies with output.demosaic \"ahd\").");
   return Object.freeze({
     async render(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewResult> {
-      const started = Date.now(), viewStarted = clockMs();
-      const signal = renderOptions === undefined ? undefined : allowKeys(renderOptions, "render options", ["signal"]).signal as AbortSignal | undefined;
-      if (signal !== undefined && (typeof signal !== "object" || signal === null || typeof signal.aborted !== "boolean")) fail("signal must be an AbortSignal.");
-      const checkAbort = (): void => { if (signal?.aborted) fail("simulateCapture aborted."); };
-      checkAbort();
+      const run = runOf(renderOptions);
       const parsed = parseDisplayViewOption(view, frameWidth, frameHeight);
-      return await renderPrepared(parsed, { started, viewStarted, checkAbort, yieldControl: createHostYield().yieldControl });
+      return await prepared.render(parsed, run);
+    },
+    correctionKey(): string | null { return prepared.correction ? displayViewCorrectionKey(prepared.correction) : null; },
+    async collectCorrectionStates(view: SimulateDisplayViewOptions, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewCorrectionStateKeys> {
+      const run = runOf(renderOptions), correction = correctionOf("collectCorrectionStates");
+      const parsed = parseDisplayViewOption(view, frameWidth, frameHeight);
+      return { key: displayViewCorrectionKey(correction)!, gridKeys: await prepared.collect(parsed, run) };
+    },
+    async computeCorrectionStates(gridKeys: Int32Array, renderOptions?: PreparedDisplayViewRenderOptions): Promise<DisplayViewCorrectionStateSet> {
+      const run = runOf(renderOptions), correction = correctionOf("computeCorrectionStates");
+      return await computeDisplayViewCorrectionStates({ ...correction, yieldControl: run.yieldControl, checkAbort: run.checkAbort }, gridKeys);
     }
   });
 }
@@ -93,11 +135,20 @@ type ViewInternals = { value?: DisplayViewRenderResult; signal?: DisplayViewExpe
 /** What one render of a prepared view needs from its call: its start times, cancellation and yielding. */
 interface ViewRun { started: number; viewStarted: number; checkAbort: () => void; yieldControl: () => Promise<void> }
 type RenderPreparedView = (view: ParsedDisplayView, run: ViewRun, viewInternals?: ViewInternals) => Promise<DisplayViewResult>;
+/**
+ * A prepared request: its render, its collect pass (#447: the grid keys of the correction states a view's region reads) and
+ * the inputs of its correction states (undefined without AHD).
+ */
+interface PreparedViewParts {
+  render: RenderPreparedView;
+  collect(view: ParsedDisplayView, run: ViewRun): Promise<Int32Array>;
+  correction: DisplayViewCorrectionSetup | undefined;
+}
 
 /** Renders the display view of a resolved request (the last step of `runCapture` for "display-view"). */
 async function renderDisplayViewResult(context: DisplayViewRunContext, viewInternals?: ViewInternals): Promise<DisplayViewResult> {
   const viewStarted = clockMs();
-  return await prepareView(context)(context.parsedView!, { started: context.started, viewStarted, checkAbort: context.checkAbort, yieldControl: context.yieldControl }, viewInternals);
+  return await prepareView(context).render(context.parsedView!, { started: context.started, viewStarted, checkAbort: context.checkAbort, yieldControl: context.yieldControl }, viewInternals);
 }
 
 /**
@@ -106,7 +157,7 @@ async function renderDisplayViewResult(context: DisplayViewRunContext, viewInter
  * matrix). The returned function renders one view from it; it keeps no state between renders (each has its own expected-
  * signal caches, lookup count and assumptions), so its results are those of separate calls.
  */
-function prepareView(context: DisplayViewRunContext): RenderPreparedView {
+function prepareView(context: DisplayViewRunContext): PreparedViewParts {
   const { ahd, antiAliasing, aspect, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, margin, mode, nativeHeight, nativeWidth, sourceSha256 } = context;
   const kelvinInput = context.kelvinWhiteBalanceInput;
   const portableKelvinWhiteBalance = kelvinInput ? (): ResolvedWhiteBalanceState => resolvePortableColorTemperatureWhiteBalance(kelvinInput) : undefined;
@@ -149,19 +200,34 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
   const matrix = [0, 1, 2].map((r) => [0, 1, 2].map((c) => toSrgb[r]![0]! * m[0]![c]! + toSrgb[r]![1]! * m[1]![c]! + toSrgb[r]![2]! * m[2]![c]!));
   // Reach of a footprint's pixels into the scene, in sites: the demosaic (1), the largest query offset and the kernel radius.
   const reachSites = (ahd ? 3 : 1) + Math.ceil(Math.max(0, ...offsets.map((o) => Math.max(Math.abs(o.x), Math.abs(o.y))))) + (kernels ? kernels.radius : 0);
-  return async (v, { started, viewStarted, checkAbort, yieldControl }, viewInternals) => {
+  // The inputs of the AHD correction states (fixed here, so the correction key is too; #447).
+  const gains = colour.appliedGains as [number, number, number], clipLevel = Math.min(...colour.appliedGains), viewToneCurve = toneCurve as "identity" | "positive-reinhard-per-channel";
+  const ahdCorrection = ahd ? { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), drawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS,
+    thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD * DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } : undefined;
+  const ahdCandidates = ahd ? [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))) : undefined;
+  /** The renderer's setup of one view (with `ahdCollect`, a collect pass), and its expected signal. */
+  const setupOf = (v: ParsedDisplayView, viewRegion: { x: number; y: number; width: number; height: number }, { checkAbort, yieldControl }: ViewRun,
+    ahdCollect?: Set<number>): { setup: DisplayViewSetup; signal: DisplayViewExpectedSignal } => {
+    // The native columns the region's windows span, beyond one window's width: a filled band need not be wider (a speed hint).
+    const signal = createDisplayViewExpectedSignal(signalInput, Math.ceil((viewRegion.width + 2) * nativeWidth / v.width));
+    return { signal, setup: { frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
+      region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
+      ...(ahdCandidates && ahdCorrection ? { candidates: ahdCandidates, ahdCorrection } : {}), ...(ahdCollect ? { ahdCollect } : {}),
+      gains, clipLevel, matrix, toneCurve: viewToneCurve, yieldControl, checkAbort } };
+  };
+  const correction: DisplayViewCorrectionSetup | undefined = ahdCorrection ? { seed: noiseSeed, readout, gains, clipLevel, matrix, toneCurve: viewToneCurve, ahdCorrection } : undefined;
+  const collect = async (v: ParsedDisplayView, run: ViewRun): Promise<Int32Array> => {
+    const keys = new Set<number>();
+    await renderDisplayView(setupOf(v, v.region ?? { x: 0, y: 0, width: v.width, height: v.height }, run, keys).setup);
+    return Int32Array.from(keys).sort();
+  };
+  const render: RenderPreparedView = async (v, run, viewInternals) => {
+    const { started, viewStarted } = run;
     const assumptions: SimulateCaptureAssumption[] = [...context.assumptions];
     const assume = (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string): void => { assumptions.push({ id, kind, value, explanation }); };
     const viewRegion = v.region ?? { x: 0, y: 0, width: v.width, height: v.height };
-    // The native columns the region's windows span, beyond one window's width: a filled band need not be wider (a speed hint).
-    const signal = createDisplayViewExpectedSignal(signalInput, Math.ceil((viewRegion.width + 2) * nativeWidth / v.width));
-    const rendered = await renderDisplayView({ frameWidth: width, frameHeight: height, margin, nativeWidth, nativeHeight, viewWidth: v.width, viewHeight: v.height,
-      region: viewRegion, samplesPerAxis: v.samplesPerAxis, reachSites, bitDepth: v.bitDepth, seed: noiseSeed, signal, readout, demosaic: demosaicTable,
-      ...(ahd ? { candidates: [0, 1, 2, 3].map((p) => ahdCandidateKernels(p % 2, Math.floor(p / 2))),
-        ahdCorrection: { labMatrix: CAMERA_TO_XYZ.map((row) => row.map((value, c) => value * (viewGains ? viewGains[c]! : 1))), drawsPerState: DISPLAY_VIEW_AHD_CORRECTION_DRAWS,
-          thresholdVariance: DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD * DISPLAY_VIEW_AHD_CORRECTION_THRESHOLD } } : {}),
-      gains: colour.appliedGains as [number, number, number], clipLevel: Math.min(...colour.appliedGains), matrix, toneCurve: toneCurve as "identity" | "positive-reinhard-per-channel",
-      yieldControl, checkAbort });
+    const { setup, signal } = setupOf(v, viewRegion, run);
+    const rendered = await renderDisplayView(setup);
     if (viewInternals) { viewInternals.value = rendered; viewInternals.signal = signal; }
     const viewMs = clockMs() - viewStarted, scaleX = width / v.width, scaleY = height / v.height;
     assume("view.definition", "model", { resampling: "area-average-linear-light", width: v.width, height: v.height, frameWidth: width, frameHeight: height, scaleX, scaleY },
@@ -215,4 +281,5 @@ function prepareView(context: DisplayViewRunContext): RenderPreparedView {
         limitations: ["Estimated display view of the full-resolution capture: its expected value is a stratified Monte Carlo estimate and its noise is drawn from the variance of the area mean, so it has the resized capture's statistics, not its exact pixels; not a capture and not a measurement."] },
       assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a))) });
   };
+  return { render, collect, correction };
 }
