@@ -1,6 +1,6 @@
-# 2.10.0 release candidate
+# 2.10.0 release
 
-> **Prepared October 27, 2026; proposed, awaiting owner approval; not published.** Publishing runs only from the owner's `v2.10.0` tag, after `main` CI on the tagged commit has passed.
+> **Published October 27, 2026.** The owner tagged `v2.10.0` on `ce58a3e` (#470) after `main` CI on that commit had passed, and published the GitHub release. npm publishing ran from the tag.
 
 ## At a glance
 
@@ -194,7 +194,18 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 - [x] Version surfaces aligned at 2.10.0 (`npm run release:prepare -- 2.10.0`). Root exports 1,742.
 - [x] The 2.0.0 and 2.3.0 DNG hash locks made version-length independent, digests unchanged (see "Two hash-lock tests changed").
 - [x] Fingerprint against `v2.9.0`: bytes identical in all 24 results; the only difference is the new `diagnostics.fast` field in the 21 captures and display views (run on `main` at `544921d`, with #469).
-- [ ] Owner's review of this record.
-- [ ] Green CI on the record pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.10.0`** on the `main` commit that merges this record, after its CI has passed.
-- [ ] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on the record pull request (#470), then on `main` after merge (CI run 1046 on `ce58a3e` passed before the tag).
+- [x] **The owner's explicit approval to tag `v2.10.0`** on the `main` commit that merges this record, after its CI has passed. The owner tagged it and published the release.
+- [x] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.10.0` → `ce58a3e73de19b428f2be49847979ae7e4ecce37` (#470), after `main` CI on that commit passed ([CI run 1046](https://github.com/Photivra/photivra/actions/runs/40437171048)) |
+| GitHub release | [@photivra/engine 2.10.0](https://github.com/Photivra/photivra/releases/tag/v2.10.0), published 02:44:47 UTC |
+| Publish workflow | [Publish npm run 28](https://github.com/Photivra/photivra/actions/runs/40440213266): passed (completed 02:52:34 UTC) |
+| npm | `@photivra/engine@2.10.0`, dist-tag `latest`, registry time 02:55:11 UTC |
+| Integrity | `sha512-eWxi1IIKupPBvwgZkC8hUZ+XzG3U1g49gZxbK0JUErvSA5qNAw7VjpP4Dvefxh7wAY6qdrytbtFfJ5RMHzZKYQ==` (shasum `98c7834b337c3ed204c614d10494c1f99d4f3e72`, 862 files), the same as a local pack of `ce58a3e` |
+| Provenance | SLSA provenance from GitHub Actions for the tag, in the Sigstore transparency log ([log index 3502848997](https://search.sigstore.dev/?logIndex=3502848997)); the registry lists the provenance and publish attestations for 2.10.0 |

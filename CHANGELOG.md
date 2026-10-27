@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.10.0 — unreleased (prepared October 27, 2026)
+## 2.10.0 — published October 27, 2026
 
 A minor release: one exact-or-fast flag for every slow option (no option has a fast method yet, so every result is still exact), export and import of the display view's AHD correction states so workers can share them, and faster display-view prepares and parts and faster Quality captures. Samples, RAW codes and files are the same as 2.9.0; captures and display views gain the `diagnostics.fast` report.
 - **New:** `fast`, `SIMULATE_CAPTURE_FAST_OPTIONS` and `diagnostics.fast` (#395, stage 2). `serializeDisplayViewCorrectionStates`, `bindDisplayViewCorrectionStates` and three `PreparedDisplayView` methods share the AHD correction states between workers (#447); no speed-up is claimed until the app measures it.
