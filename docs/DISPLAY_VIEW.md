@@ -994,7 +994,8 @@ with that reason for `"require"`:
 - *Single flight.* GPU renders of one view run one at a time on its device; concurrent `render` calls queue rather than
   reject with `busy`. CPU renders are unaffected.
 - *Refused at render time.* What only a render can tell (a view coarser than the exact area mean, a footprint above 6 real
-  pixels per axis, a device that fails the composite chart kernel's arithmetic probe, #491) makes the renderer throw
+  pixels per axis, a device on which neither product path of the composite chart kernel's arithmetic probe holds, #491 and
+  2.11.0) makes the renderer throw
   `unsupported-on-backend`; that render runs the CPU reference with that label, or fails under `"require"`, and the next
   render asks the renderer again.
 - *Device loss.* A render during which the device is lost falls back to the CPU for that render, and every later render of the
@@ -1008,7 +1009,12 @@ with that reason for `"require"`:
 fields (`backend`, `requestedBackend`, `fallbackReason`, `arithmetic`, `assurance`, `fast`, `bitIdenticalToReference`,
 `errorBound`, `diagnosticsExact`, `diagnosticUncertaintySampleCount`, `limitations`) plus `gpu` (the mode), `adapter`
 (the device's `GPUAdapter.info`, recorded whenever a device was involved, also when the view then fell back) and
-`conformance` (the self-check once it has run). A CPU render, with or without a GPU request, keeps `backend: "cpu-reference"`,
+`conformance` (the self-check once it has run), and since 2.11.0 `compositeProbe`: the composite chart kernel's device probe
+when the render needed it (composite charts, the 2.3 elements, `material-layers` scenes), with the device class (`exact`,
+`contracted`, `reassociated`, `other`), the product path the kernel ran with (`dekker`, `fma`, or null on a refusal), whether
+`fma` is fused, and the differing components with their probe inputs and float32 bits; on a refusal it is on the CPU
+fallback's label (`"auto"`) and on the error `"require"` throws (`probe`), so the fallback says why; null otherwise
+([WebGPU, the device probe](WEBGPU.md#composite-charts-chart-elements-and-mask-layers-477)). A CPU render, with or without a GPU request, keeps `backend: "cpu-reference"`,
 `assurance: "engine-reference"`, `fast: false` and `errorBound: null`; a fallback names its reason and, in `limitations`, a
 sentence saying why. A GPU render reports `backend: "webgpu-f32"`, `arithmetic: "float32"`, `fast: true`,
 `assurance: "approximation-with-a-priori-bound"`, its `errorBound`, the adapter, and `diagnostics.fast.assurance` follows it;
