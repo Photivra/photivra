@@ -101,6 +101,7 @@ import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/g
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
 import { parseSensorReadoutConversionProfile, resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolveChartScene, chartMaterialInputs, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
+import { resolveChartMaterialLayers, type ChartMaterialLayerScene, type ResolvedChartMaterialLayers } from "./chart-material-layers.js";
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   resolveChartSizeOption, type ChartSizeOption,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerMaterialScene, type CallerRadianceScene, type CallerReflectanceScene, type ResolvedCallerScene,
@@ -232,8 +233,12 @@ export interface SimulateCaptureOptions {
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
     compensationStops?: number;
   };
-  /** Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card) or a caller reflectance/radiance function. */
-  scene: ChartScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
+  /**
+   * Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card), a declared `material-layers` scene (#491:
+   * a chart under shape-mask layers, as `resolveChartMaterialLayers` takes it; the capture is that of its `callerScene`, byte for
+   * byte, and the display view can render it on the GPU), or a caller reflectance, radiance or material function.
+   */
+  scene: ChartScene | ChartMaterialLayerScene | CallerReflectanceScene | CallerRadianceScene | CallerMaterialScene;
   /** Distance from the camera to the scene plane in metres. Default 5. */
   subjectDistanceM?: number;
   /**
@@ -1085,6 +1090,8 @@ export interface DisplayViewRunContext {
   buildProvider: (sceneIlluminant: ResolvedCaptureIlluminant, scale: number) => PlanarSceneRadianceProvider;
   callerScene: ResolvedCallerScene | undefined;
   chart: ResolvedChartScene | undefined;
+  /** #491: the declared material-layers scene behind `callerScene`, when the request gave one. */
+  materialLayers: ResolvedChartMaterialLayers | undefined;
   chartReport: { widthM: number; heightM: number; surroundReflectance: number; frameWidthFraction: number; frameHeightFraction: number; magnification: number; imageWidthMm: number; imageHeightMm: number; imageWidthPixels: number; imageHeightPixels: number; } | undefined;
   chartSize: { widthM: number; heightM: number; surroundReflectance: number; defaulted: ("heightM" | "surroundReflectance")[]; } | undefined;
   diffraction: DiffractionLimitedPsfProfile | undefined;
@@ -1491,10 +1498,13 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const illuminanceLux = positive(pick(top, "illuminanceLux", "illuminanceLux", SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX,
     "π·10·N²/(0.65·t·S·0.18) lux at f/8, 1/125 s, ISO 100 (CIPA DC-004 standard output sensitivity H = 10/S and camera equation H = 0.65·L·t/N²): an 18 % grey card then gets the reference exposure for the default settings. It does not follow the caller's exposure settings."), "illuminanceLux");
   const irradianceScale = calculateIlluminantIrradianceScale(illuminant.shape, illuminanceLux);
-  let chart: ResolvedChartScene | undefined, callerScene: ResolvedCallerScene | undefined;
+  let chart: ResolvedChartScene | undefined, callerScene: ResolvedCallerScene | undefined, materialLayers: ResolvedChartMaterialLayers | undefined;
   const sceneRecord = sceneOption as Record<string, unknown>;
   if ("kind" in sceneRecord) {
-    callerScene = requireCallerScene(sceneOption);
+    // #491: a declared material-layers scene is its callerScene (the same validation, materials, digest and bytes as passing that scene);
+    // the resolved layers are kept for the display view's GPU renderer.
+    if (sceneRecord.kind === "material-layers") materialLayers = resolveChartMaterialLayers({ scene: sceneOption as ChartMaterialLayerScene, aspect: chartSize ? chartSize.heightM / chartSize.widthM : aspect });
+    callerScene = requireCallerScene(materialLayers ? materialLayers.callerScene : sceneOption);
   } else {
     chart = resolveChartScene({ scene: sceneOption as ChartScene, aspect: chartSize ? chartSize.heightM / chartSize.widthM : aspect });
     // Composite charts (2.3) report nested defaults by dotted path, for example "elements.2.parameters.cycles".
@@ -1990,7 +2000,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
-  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();

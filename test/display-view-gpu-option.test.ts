@@ -191,6 +191,29 @@ describe("display view GPU option (#481)", () => {
     required.dispose();
   });
 
+  it("a render the renderer refuses only when rendering (unsupported-on-backend thrown by render) runs the CPU reference labelled, or fails under require; dispose reaches the renderer", async () => {
+    let disposed = 0, refuse = true;
+    const fake = fakeRenderer({ onRender: () => { if (refuse) throw new ImageKernelExecutionError("unsupported-on-backend", "the device fails the composite probe."); } });
+    const factory = fake.factory;
+    setDisplayViewGpuRendererFactory((runtime) => ({ ...factory(runtime), dispose: (): void => { disposed++; } }));
+    const prepared = await prepareDisplayView(REQUEST, { gpu: "auto", gpuDevice: createFakeGpu().gpu });
+    const fell = await prepared.render(VIEW);
+    expect(fell.diagnostics.fast.execution).toMatchObject({ backend: "cpu-reference", fallbackReason: "unsupported-on-backend", conformance: { passed: true } });
+    expect(fell.diagnostics.fast.execution.limitations.join(" ")).toMatch(/composite probe/u);
+    expect(Array.from(fell.image.samples)).toEqual(Array.from((await simulateDisplayView(REQUEST, VIEW)).image.samples));
+    // The next render asks the renderer again (a later request may be covered).
+    refuse = false;
+    expect((await prepared.render(VIEW)).diagnostics.fast.execution.backend).toBe("webgpu-f32");
+    prepared.dispose();
+    expect(disposed).toBe(1);
+    prepared.dispose();
+    expect(disposed).toBe(1);
+    refuse = true;
+    const required = await prepareDisplayView(REQUEST, { gpu: "require", gpuDevice: createFakeGpu().gpu });
+    expect(await reason(required.render(VIEW))).toBe("unsupported-on-backend");
+    required.dispose();
+  }, testTimeout(30_000));
+
   it("an unsupported request, a missing adapter and the handle forms", async () => {
     setDisplayViewGpuRendererFactory(fakeRenderer({ supports: "AHD is not implemented on the fake." }).factory);
     const { gpu, controls } = createFakeGpu();
