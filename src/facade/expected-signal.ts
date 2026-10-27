@@ -435,20 +435,42 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   /**
    * Lattice points of the closing window that kernelSite's lazy cache would have looked up: per group, the window cache points
    * covered by the rectangles of the computed sites (the site cache's filled entries and the outside sites), a box dilation.
+   * A group's count depends only on the computed sites and its geometry (cw, ch, cpw, cph), so a group shaped like an
+   * earlier one takes that group's count (the app's Quality groups all have one shape).
    */
+  const groupTotals = new Float64Array(groups.length);
+  function sameGeometry(g: number): number {
+    const group = groups[g]!;
+    for (let h = 0; h < g; h++) { const o = groups[h]!; if (o.cw === group.cw && o.ch === group.ch && o.cpw === group.cpw && o.cph === group.cph) return h; }
+    return -1;
+  }
   function windowLookups(): number {
     let total = 0;
     if (outsideSites.length === 0 && filledCount === 0) return 0;
+    if (outsideSites.length === 0 && filledCount === sw * sh) {
+      // Every site computed (each once) and none outside: the marks at (i + cw − 1, j + ch − 1) cover cache columns
+      // 0 … sw + cw − 2 and rows 0 … sh + ch − 2, the whole cpw × cph cache of every group.
+      for (const group of groups) total += group.cpw * group.cph;
+      return total;
+    }
     if (outsideSites.length === 0 && sw <= 31) {
       // Computed sites as a bit mask per window row. Cache point (ci, cj) is covered when a computed site (i, j) has
       // i ≤ ci < i + cw and j ≤ cj < j + ch; a union of dilations is the dilation of the union, so per cache row the
-      // covered columns are the dilation of the OR of the masks of window rows cj − ch + 1 … cj.
-      for (const group of groups) {
-        const cw = group.cw, ch = group.ch, cpw = group.cpw, cph = group.cph, last = Math.min(cph - 1, fy1 + ch - 1);
+      // covered columns are the dilation of the OR of the masks of window rows cj − ch + 1 … cj. That OR is a prefix OR
+      // when the rows start at fy0 and a suffix OR when they end at fy1 (OR is associative and commutative).
+      if (prefixOr.length < sh) { prefixOr = new Int32Array(sh); suffixOr = new Int32Array(sh); }
+      for (let j = fy0, m = 0; j <= fy1; j++) { m |= rowMask[j]!; prefixOr[j] = m; }
+      for (let j = fy1, m = 0; j >= fy0; j--) { m |= rowMask[j]!; suffixOr[j] = m; }
+      for (let g = 0; g < groups.length; g++) {
+        const same = sameGeometry(g);
+        if (same >= 0) { total += groupTotals[same]!; groupTotals[g] = groupTotals[same]!; continue; }
+        const group = groups[g]!, cw = group.cw, ch = group.ch, cpw = group.cpw, cph = group.cph, last = Math.min(cph - 1, fy1 + ch - 1), before = total;
         let previous = -1, width = 0;
         for (let cj = fy0; cj <= last; cj++) {
           let m = 0;
-          for (let j = Math.max(fy0, cj - ch + 1), top = Math.min(fy1, cj); j <= top; j++) m |= rowMask[j]!;
+          const a = Math.max(fy0, cj - ch + 1), b = Math.min(fy1, cj);
+          if (a === fy0) m = prefixOr[b]!; else if (b === fy1) m = suffixOr[a]!;
+          else for (let j = a; j <= b; j++) m |= rowMask[j]!;
           if (m !== previous) {
             previous = m; width = 0;
             let end = -1;
@@ -461,11 +483,16 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
           }
           total += width;
         }
+        groupTotals[g] = total - before;
       }
       return total;
     }
-    for (const group of groups) {
-      const cw = group.cw, ch = group.ch, cpw = group.cpw, cph = group.cph, ew = cpw + cw - 1, eh = cph + ch - 1;
+    for (let g = 0; g < groups.length; g++) {
+      // The marks are the computed sites shifted by (cw − 1, ch − 1), so the count depends on the group's geometry only.
+      const same = sameGeometry(g);
+      if (same >= 0) { total += groupTotals[same]!; groupTotals[g] = groupTotals[same]!; continue; }
+      const group = groups[g]!, cw = group.cw, ch = group.ch, cpw = group.cpw, cph = group.cph, ew = cpw + cw - 1, eh = cph + ch - 1, before = total;
+      groupTotals[g] = 0;
       // Top-left marks in extended coordinates (window coordinates + (cw − 1, ch − 1)), and their bounding box.
       if (marks.length < ew * eh) { marks = new Uint8Array(ew * eh); }
       let x0 = ew, x1 = -1, y0 = eh, y1 = -1;
@@ -499,6 +526,7 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
           if (j >= 0 && j < cph && run > 0) total++;
         }
       }
+      groupTotals[g] = total - before;
     }
     return total;
   }
@@ -506,7 +534,7 @@ export function createDisplayViewExpectedSignal(input: DisplayViewExpectedSignal
   // The computed entries of a filled window's site cache (windowLookups): their count, bounding box and a bit mask per row
   // (columns below 31).
   let filledCount = 0, fx0 = 0, fx1 = -1, fy0 = 0, fy1 = -1;
-  let rowMask = new Int32Array(0);
+  let rowMask = new Int32Array(0), prefixOr = new Int32Array(0), suffixOr = new Int32Array(0);
   function markFilled(i: number, j: number): void {
     if (i < 31) rowMask[j] = rowMask[j]! | (1 << i);
     if (filledCount++ === 0) { fx0 = fx1 = i; fy0 = fy1 = j; return; }
