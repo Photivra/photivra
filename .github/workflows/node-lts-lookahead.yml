@@ -1,0 +1,31 @@
+name: Node support look-ahead
+
+# Early warning, not a required check: evaluates the newest published build of each supported
+# Node major against .github/node-lts-policy.mjs for today and the next 14 days, so a date
+# boundary in the policy fails here before it fails the required `verify` checks on pull requests.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  look-ahead:
+    name: look-ahead
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+      - name: Check the Node support policy against upcoming dates
+        run: |
+          node --test .github/test-node-lts-policy.mjs
+          node .github/node-lts-lookahead.mjs

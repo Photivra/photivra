@@ -27,7 +27,7 @@ Snapshot, reverified against the official schedule on 2026-10-02 (original polic
 - Node 22 is Maintenance LTS.
 - Node 26 is Current and is in the support set.
 
-This is a dated snapshot. Review and test future lines as the official lifecycle changes. Node 26 stays supported when it enters LTS; from that date its runtime must carry the LTS marker.
+This is a dated snapshot. Review and test future lines as the official lifecycle changes. Node 26 stays supported when it enters LTS; from that date its runtime must carry the LTS marker, after the grace period described under "CI and dependency enforcement".
 
 ## Repository baselines
 
@@ -66,7 +66,7 @@ A broad `engines.node` range is a compatibility hint. It is not evidence of supp
 - reviewed upstream LTS and Current date windows;
 - the approved pinned typings major.
 
-`.github/test-node-lts-policy.mjs` tests the acceptance and rejection boundaries. Both scripts run before dependency installation in every Node CI job. That includes each verification matrix leg and the `native-performance.yml` benchmark job (path-filtered and nightly).
+`.github/test-node-lts-policy.mjs` tests the acceptance and rejection boundaries, the grace period and the look-ahead against recorded release data. Both scripts run before dependency installation in every Node CI job. That includes each verification matrix leg and the `native-performance.yml` benchmark job (path-filtered and nightly).
 
 The lifecycle snapshot is local and reviewed. Ordinary CI does not fetch it from the network. It uses UTC dates and fails closed on the recorded end-of-life date.
 
@@ -77,6 +77,22 @@ Reverify the official schedule:
 - during regular dependency maintenance.
 
 Do not extend an expired window, or admit an unreviewed line, just to pass CI. The Current window ends when the line enters LTS; from then the runtime must carry an LTS marker. A new Current line needs a coordinated review of the snapshot and the CI matrix.
+
+### LTS marker grace period
+
+An LTS window opens at 00:00 UTC on the scheduled date, but Node publishes the line's first LTS build during that day, and setup-node can offer it only after that. In `https://nodejs.org/dist/index.json`, the first LTS build of every line from Node 4 to Node 24 is dated on its scheduled LTS date: 11 of 11 lines, none late. Node 26 had no LTS build at 02:48 UTC on 2026-10-28, its LTS date, so every job on the `node` alias failed with "An LTS Node build must carry its LTS marker."
+
+For **7 days** from a line's LTS start, the guard therefore accepts a build of that line without the LTS marker. Seven days is a margin over that record, enough for a release that slips by a week. It is not a measured delay. After the grace period the marker is required again. The grace period changes nothing else:
+
+- A Current build in its Current window still must not claim an LTS marker.
+- Other majors, prereleases and end-of-life dates are checked as before.
+- A build that carries the LTS marker passes as before.
+
+### Early warning
+
+`.github/workflows/node-lts-lookahead.yml` runs daily and on manual dispatch. It does not run on pull requests and is not a required check. It fetches `https://nodejs.org/dist/index.json`, takes the newest stable release of each supported major, and runs the policy guard against it at 00:00 UTC on today and each of the next 14 days (`.github/node-lts-lookahead.mjs`). If any date fails, the job fails and names the major, the first failing date, the build and the reason. That leaves two weeks to act before the required checks fail.
+
+The warning is expected once a year: from 7 days before a line's LTS start until Node publishes its first LTS build, it reports the end of the grace period. It clears by itself when the LTS build appears. If it stays red near the end of the grace period, review the snapshot against the official schedule. Do not widen a window just to clear it. An end of life inside the next 14 days fails it the same way.
 
 Routine minor and patch updates within an approved major may follow normal green-PR rules. Do not auto-merge a major upgrade of the Node runtime, a Node image, or `@types/node` on its own. Where Dependabot is configured, keep Node typings major upgrades out of its routine queue, while still allowing updates within supported majors.
 
