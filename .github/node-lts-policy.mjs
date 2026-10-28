@@ -18,6 +18,16 @@ const currentWindows = new Map([
   [26, ["2026-05-05", "2026-10-28"]]
 ]);
 
+// The LTS window opens at 00:00 UTC on the scheduled date, but Node publishes the first LTS
+// build later that day: in https://nodejs.org/dist/index.json the first LTS build of every line
+// from Node 4 to Node 24 is dated on its scheduled LTS date (0 days late, 11 of 11 lines), and
+// setup-node can only offer it after that. For this many days from the LTS start, a build of
+// that major without the marker is still accepted. Seven days is a margin over that record (a
+// full week for a slipped release), not a measured delay; the look-ahead in
+// node-lts-lookahead.mjs warns 14 days before it ends if no LTS build has appeared.
+export const ltsMarkerGraceDays = 7;
+const dayMs = 86_400_000;
+
 function withinWindow(window, at) {
   assert.ok(at instanceof Date && Number.isFinite(at.getTime()), "Invalid policy evaluation date.");
   if (!window) return false;
@@ -29,6 +39,13 @@ export function assertMaintainedLts(major, at = new Date()) {
   const window = ltsWindows.get(major);
   assert.ok(window, `Node ${major} is not an approved maintained LTS line; review NODE_SUPPORT.md.`);
   assert.ok(withinWindow(window, at), `Node ${major} is outside its approved LTS support window.`);
+}
+
+function withinLtsMarkerGrace(major, at) {
+  const window = ltsWindows.get(major);
+  if (!window) return false;
+  const start = Date.parse(`${window[0]}T00:00:00Z`);
+  return at.getTime() >= start && at.getTime() < start + ltsMarkerGraceDays * dayMs;
 }
 
 function pinnedMajor(version) {
@@ -43,6 +60,7 @@ export function assertSupportedRuntime(version, lts, at = new Date()) {
     assert.equal(lts, undefined, "A Current Node build must not claim an LTS marker.");
   } else {
     assertMaintainedLts(major, at);
+    if (lts === undefined && withinLtsMarkerGrace(major, at)) return;
     assert.ok(typeof lts === "string" && lts.length > 0, "An LTS Node build must carry its LTS marker.");
   }
 }
