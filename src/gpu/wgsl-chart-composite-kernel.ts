@@ -46,6 +46,14 @@
  * within E·|v| of the exact value of the same expression, the term `+` already adds (the product's own E·|v| term
  * is then a bound on a rounding that did not happen).
  *
+ * **The rounding barrier (2.11.0).** Metal's compiler reassociated the error-free transforms on an Apple M5 Pro (the probe
+ * of October 27, 2026: class `reassociated`, every differing low part zero, the value (a + b) − a → b gives), which neither
+ * product path survives. Every operation of the transforms, and every value of the bound arithmetic, is therefore wrapped in
+ * `ob`: the result's bits XORed with a word the host sets to 0 (a uniform: `params.zero`, `lattice.zero`, the probe's
+ * `probe_zero`), which a compiler cannot see through, so it can neither regroup nor fuse across it and each operation rounds
+ * once, as written. On a device that already evaluates as written it changes no value. On the M5 Pro the probe then reports
+ * `exact` on the Dekker path (docs/WEBGPU.md). The probe still decides on every device.
+ *
  * **No `sin`, `cos` or `atan2` decides anything.** The zone plate reduces its phase to [−1, 1] cycles
  * exactly (Sterbenz) and evaluates cos by quadrant reduction and a Taylor polynomial in bound arithmetic
  * (truncation ≤ 4·10^-13 on [0, π/4 + ε], the Lagrange remainder). A Siemens star (bar or sine profile) is
@@ -87,34 +95,39 @@ struct B { v: f32, e: f32 }
 var<private> flagged: bool;
 
 // --- double-float32 (evaluation order matters; the host probes it) ---
-fn two_sum(a: f32, b: f32) -> D { let s = a + b; let bb = s - a; let e = (a - (s - bb)) + (b - bb); return D(s, e); }
-fn quick_two_sum(a: f32, b: f32) -> D { let s = a + b; let e = b - (s - a); return D(s, e); }
+// The rounding barrier (2.11.0): ob(x) is x, its bits XORed with a word the host sets to 0 (a uniform), so a
+// compiler cannot know it is x. Every operation of the error-free transforms is wrapped, so none can be fused with or
+// reassociated across its neighbours (W3C WGSL § 15.7.5 permits both; Metal's compiler simplifies (a + b) - a to b, the M5 Pro
+// probe of October 27, 2026), and each rounds once, as written. On a device that already evaluates as written it changes nothing.
+fn ob(x: f32) -> f32 { return bitcast<f32>(bitcast<u32>(x) ^ BARRIER_ZERO); }
+fn two_sum(a: f32, b: f32) -> D { let s = ob(a + b); let bb = ob(s - a); let e = ob(ob(a - ob(s - bb)) + ob(b - bb)); return D(s, e); }
+fn quick_two_sum(a: f32, b: f32) -> D { let s = ob(a + b); let e = ob(b - ob(s - a)); return D(s, e); }
 // The Dekker product path: Veltkamp's split and Dekker's TwoProduct, exact only when every + - x is evaluated unfused as written.
-fn split(a: f32) -> D { let t = 4097.0 * a; let h = t - (t - a); return D(h, a - h); }
+fn split(a: f32) -> D { let t = ob(4097.0 * a); let h = ob(t - ob(t - a)); return D(h, ob(a - h)); }
 fn two_prod_dekker(a: f32, b: f32) -> D {
-  let p = a * b; let sa = split(a); let sb = split(b);
-  let e = ((sa.h * sb.h - p) + sa.h * sb.l + sa.l * sb.h) + sa.l * sb.l;
+  let p = ob(a * b); let sa = split(a); let sb = split(b);
+  let e = ob(ob(ob(ob(ob(sa.h * sb.h) - p) + ob(sa.h * sb.l)) + ob(sa.l * sb.h)) + ob(sa.l * sb.l));
   return D(p, e);
 }
 fn d_mul_dekker(a: D, b: D) -> D {
   let p = two_prod_dekker(a.h, b.h);
-  let t = a.h * b.l + a.l * b.h;
-  let l = p.l + t;
+  let t = ob(ob(a.h * b.l) + ob(a.l * b.h));
+  let l = ob(p.l + t);
   return quick_two_sum(p.h, l);
 }
 // The fma product path, for a device whose fma is fused (the probe checks it): TwoProduct as fma(a, b, -p), and a double-word
 // product in which no rounded product is an operand of an addition (the hi part is fma(a.h, b.h, t), its error fma(a.h, b.h, -s)),
 // so a contraction of a*b + c into one rounding cannot change it; only t, an ordinary bounded sum, may be contracted.
-fn two_prod_fma(a: f32, b: f32) -> D { let p = a * b; return D(p, fma(a, b, -p)); }
+fn two_prod_fma(a: f32, b: f32) -> D { let p = ob(a * b); return D(p, ob(fma(a, b, -p))); }
 fn d_mul_fma(a: D, b: D) -> D {
-  let t = a.h * b.l + a.l * b.h;
-  let s = fma(a.h, b.h, t);
-  return D(s, fma(a.h, b.h, -s) + t);
+  let t = ob(ob(a.h * b.l) + ob(a.l * b.h));
+  let s = ob(fma(a.h, b.h, t));
+  return D(s, ob(ob(fma(a.h, b.h, -s)) + t));
 }
 fn d_add(a: D, b: D) -> D {
   let s = two_sum(a.h, b.h); let t = two_sum(a.l, b.l);
-  let c = s.l + t.h; let v = quick_two_sum(s.h, c);
-  let w = v.l + t.l; return quick_two_sum(v.h, w);
+  let c = ob(s.l + t.h); let v = quick_two_sum(s.h, c);
+  let w = ob(v.l + t.l); return quick_two_sum(v.h, w);
 }
 fn d_neg(a: D) -> D { return D(-a.h, -a.l); }
 fn d_sub(a: D, b: D) -> D { return d_add(a, d_neg(b)); }
@@ -124,17 +137,17 @@ fn d_mul(a: D, b: D) -> D { return d_mul_PRODUCT_PATH(a, b); }
 fn bds(a: D, scale: f32) -> B { return B(a.h, abs(a.l) + DW * (abs(a.h) + abs(a.l) + scale) + TINY); }
 fn bd(a: D) -> B { return bds(a, 0.0); }
 
-// --- bound arithmetic ---
+// --- bound arithmetic (each value rounds once, as written: the barrier keeps a compiler from regrouping them) ---
 fn bc(c: f32) -> B { return B(c, E * abs(c) + TINY); }
 fn bx(c: f32) -> B { return B(c, 0.0); }
-fn badd(a: B, b: B) -> B { let v = a.v + b.v; return B(v, a.e + b.e + E * abs(v)); }
-fn bsub(a: B, b: B) -> B { let v = a.v - b.v; return B(v, a.e + b.e + E * abs(v)); }
-fn bmul(a: B, b: B) -> B { let v = a.v * b.v; return B(v, abs(a.v) * b.e + abs(b.v) * a.e + a.e * b.e + E * abs(v)); }
+fn badd(a: B, b: B) -> B { let v = ob(a.v + b.v); return B(v, a.e + b.e + E * abs(v)); }
+fn bsub(a: B, b: B) -> B { let v = ob(a.v - b.v); return B(v, a.e + b.e + E * abs(v)); }
+fn bmul(a: B, b: B) -> B { let v = ob(a.v * b.v); return B(v, abs(a.v) * b.e + abs(b.v) * a.e + a.e * b.e + E * abs(v)); }
 fn bneg(a: B) -> B { return B(-a.v, a.e); }
 fn babs(a: B) -> B { return B(abs(a.v), a.e); }
 // WGSL division: 2.5 ULP (at most 5u relative) for a denominator within the normal range; a denominator within its bound of 0 flags.
 fn bdiv(a: B, b: B) -> B {
-  let v = a.v / b.v;
+  let v = ob(a.v / b.v);
   let d = abs(b.v) - SAFETY * b.e;
   if (!(d > 0.0)) { flagged = true; return B(v, 3.0e38); }
   let e = (a.e + (abs(a.v) + a.e) * b.e / d) / abs(b.v) + 5.0 * E * abs(v);
@@ -159,12 +172,14 @@ fn parity_even(i: i32, j: i32) -> bool { return ((i + j) & 1) == 0; }
 
 /** The product path of the double-float32 arithmetic: Dekker's (unfused evaluation as written) or the fma one (a fused `fma`). */
 export type ChartCompositeProductPath = "dekker" | "fma";
-const commonWgsl = (path: ChartCompositeProductPath): string => COMMON_TEMPLATE.replace("d_mul_PRODUCT_PATH", "d_mul_" + path);
+/** `zero`: the WGSL expression of the host's zero word the rounding barrier reads (a uniform the compiler cannot see). */
+const commonWgsl = (path: ChartCompositeProductPath, zero: string): string => COMMON_TEMPLATE.replace("d_mul_PRODUCT_PATH", "d_mul_" + path).replaceAll("BARRIER_ZERO", zero);
 
 /** The composite kernel compiled with one product path (`d_mul`): the probe's choice for the device. */
 export function chartCompositeWgsl(path: ChartCompositeProductPath): string {
-  return /* wgsl */ `${commonWgsl(path)}
-struct Params { count: u32, columns: u32, wavelength_mode: u32, pad0: u32 };
+  return /* wgsl */ `${commonWgsl(path, "params.zero")}
+// zero: 0, set by the host; the rounding barrier's word.
+struct Params { count: u32, columns: u32, wavelength_mode: u32, zero: u32 };
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var<storage, read> points: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read> table: array<f32>;
@@ -482,9 +497,11 @@ export const CHART_COMPOSITE_WGSL = chartCompositeWgsl("dekker");
  * with the round-to-nearest evaluation in the written order, names the components that differ, classifies the device and picks
  * the product path the composite kernel is compiled with. The functions are the kernel's own (`COMMON_TEMPLATE`).
  */
-export const CHART_COMPOSITE_PROBE_WGSL = /* wgsl */ `${commonWgsl("dekker")}
+export const CHART_COMPOSITE_PROBE_WGSL = /* wgsl */ `${commonWgsl("dekker", "probe_zero.x")}
 @group(0) @binding(0) var<storage, read> input: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> output: array<vec4<f32>>;
+// x: 0, set by the host; the rounding barrier's word.
+@group(0) @binding(2) var<uniform> probe_zero: vec4<u32>;
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
