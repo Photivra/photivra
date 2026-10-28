@@ -1739,7 +1739,8 @@ export { TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION, TEMPORAL_EXPOSURE_SUM_LIMITS, cal
 export type { TemporalExposureSumInput, TemporalExposureSumNode, TemporalExposureSumPlan } from "./motion/temporal-exposure-sum.js";
 export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND, composeRelativeErrorBounds } from "./gpu/image-kernel-execution.js";
 export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureReason, ImageKernelExecution, ImageKernelCodeErrorBound,
-  ImageKernelRelativeErrorBound, ImageKernelSeededRealizationBound, ImageKernelAdapterDescription } from "./gpu/image-kernel-execution.js";
+  ImageKernelRelativeErrorBound, ImageKernelSeededRealizationBound, ImageKernelAdapterDescription,
+  ChartCompositeProbeComponent, ChartCompositeProbeMismatch, ChartCompositeProbeRecord } from "./gpu/image-kernel-execution.js";
 export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
 export { getWebGpuEnabled, setWebGpuEnabled } from "./gpu/webgpu-switch.js";
 export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,

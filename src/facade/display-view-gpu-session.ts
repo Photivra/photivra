@@ -26,7 +26,7 @@
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { getWebGpuEnabled } from "../gpu/webgpu-switch.js";
 import { acquireWebGpuRuntime, type WebGpuRuntime } from "../gpu/webgpu-runtime.js";
-import { ImageKernelExecutionError, WEBGPU_F32_LIMITATIONS, type ImageKernelAdapterDescription } from "../gpu/image-kernel-execution.js";
+import { ImageKernelExecutionError, WEBGPU_F32_LIMITATIONS, type ChartCompositeProbeRecord, type ImageKernelAdapterDescription } from "../gpu/image-kernel-execution.js";
 import { acceleratorRuntime, convolveIrradianceOnRuntime } from "../gpu/image-kernel-accelerator.js";
 import { calculateIrradianceConvolutionPlan, convolveIrradianceRows, type IrradianceConvolutionInput } from "../optics/irradiance-convolution.js";
 import type { DisplayViewRenderResult, DisplayViewSetup } from "./display-view.js";
@@ -60,9 +60,19 @@ function fallBack(options: ParsedPrepareDisplayViewOptions, reason: DisplayViewG
   if (options.gpu === "require") throw requireError(reason, detail);
   return cpuSession(options, reason, detail, adapter, conformance);
 }
-/** The error `"require"` throws instead of falling back. Every display-view fallback reason is also a failure reason of the accelerator's error. */
-function requireError(reason: DisplayViewGpuFallbackReason, detail: string): ImageKernelExecutionError {
-  return new ImageKernelExecutionError(reason, "prepareDisplayView with gpu \"require\": " + detail);
+/**
+ * The error `"require"` throws instead of falling back. Every display-view fallback reason is also a failure reason of the accelerator's
+ * error. A refusal by the composite chart probe carries its record as `probe` (the structured detail of the message).
+ */
+function requireError(reason: DisplayViewGpuFallbackReason, detail: string, probe: ChartCompositeProbeRecord | null = null): ImageKernelExecutionError {
+  const error = new ImageKernelExecutionError(reason, "prepareDisplayView with gpu \"require\": " + detail);
+  if (probe) Object.defineProperty(error, "probe", { value: probe, enumerable: true });
+  return error;
+}
+/** The composite chart probe's record on a refusal (`ChartCompositeProbeError.probe`), or null. */
+function probeOf(error: unknown): ChartCompositeProbeRecord | null {
+  const probe = (error as { probe?: unknown }).probe;
+  return typeof probe === "object" && probe !== null ? probe as ChartCompositeProbeRecord : null;
 }
 
 /** True for an object shaped like an `ImageKernelAccelerator` (the handle form that shares a device). */
@@ -181,9 +191,10 @@ function createSession(options: ParsedPrepareDisplayViewOptions, runtime: WebGpu
   /** The last GPU turn: renders queue behind it, so one dispatch runs at a time on the device. */
   let tail: Promise<unknown> = Promise.resolve();
   /** A CPU fallback label for `"auto"`; with `"require"` the same event is an error. */
-  const fallback = async (reason: DisplayViewGpuFallbackReason, detail: string, cpu: () => Promise<DisplayViewRenderResult>): Promise<{ rendered: DisplayViewRenderResult; execution: DisplayViewExecution }> => {
-    if (options.gpu === "require") throw requireError(reason, detail);
-    return { rendered: await cpu(), execution: cpuDisplayViewExecution(options.gpu, reason, adapter, conformance, detail) };
+  const fallback = async (reason: DisplayViewGpuFallbackReason, detail: string, cpu: () => Promise<DisplayViewRenderResult>, compositeProbe: ChartCompositeProbeRecord | null = null):
+    Promise<{ rendered: DisplayViewRenderResult; execution: DisplayViewExecution }> => {
+    if (options.gpu === "require") throw requireError(reason, detail, compositeProbe);
+    return { rendered: await cpu(), execution: cpuDisplayViewExecution(options.gpu, reason, adapter, conformance, detail, compositeProbe) };
   };
   /** The self-check, run once per session (single flight); a failing check is remembered and never repeated. */
   function selfCheck(signal: AbortSignal | undefined): Promise<DisplayViewGpuConformance> {
@@ -218,17 +229,17 @@ function createSession(options: ParsedPrepareDisplayViewOptions, runtime: WebGpu
         if (lostError(error)) { lost = true; return fallback("device-lost", "the WebGPU device was lost during a render; the rest of the view runs on the CPU.", cpu); }
         setup.checkAbort();
         if (error instanceof ImageKernelExecutionError && error.reason === "unsupported-on-backend")
-          return fallback("unsupported-on-backend", "the GPU display-view renderer \"" + renderer.id + "\" does not cover this render: " + error.message, cpu);
+          return fallback("unsupported-on-backend", "the GPU display-view renderer \"" + renderer.id + "\" does not cover this render: " + error.message, cpu, probeOf(error));
         // #492: a render past the device's limits (a kernel table or band above its storage binding limit) runs the CPU reference too.
         if (error instanceof ImageKernelExecutionError && error.reason === "insufficient-limits")
           return fallback("insufficient-limits", "the device's limits do not hold this render on the GPU: " + error.message, cpu);
         throw error;
       }
       if (output === null) return this.render(setup, signal, cpu);
-      const { errorBound, diagnosticUncertaintySampleCount: uncertainty = 0, ...rendered } = output;
+      const { errorBound, diagnosticUncertaintySampleCount: uncertainty = 0, compositeProbe = null, ...rendered } = output;
       const execution: DisplayViewExecution = Object.freeze({ gpu: options.gpu, backend: "webgpu-f32", requestedBackend: "webgpu-f32", fallbackReason: null, arithmetic: "float32",
         assurance: "approximation-with-a-priori-bound", fast: true, bitIdenticalToReference: false, errorBound, diagnosticsExact: uncertainty === 0,
-        diagnosticUncertaintySampleCount: uncertainty, limitations: WEBGPU_F32_LIMITATIONS, adapter, conformance: check });
+        diagnosticUncertaintySampleCount: uncertainty, limitations: WEBGPU_F32_LIMITATIONS, adapter, conformance: check, compositeProbe });
       return { rendered, execution };
     },
     dispose(): void {

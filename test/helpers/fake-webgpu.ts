@@ -12,8 +12,15 @@ import { emulateDisplayViewQualityLattice, emulateDisplayViewQualityPixels, emul
 
 const f = Math.fround;
 // #477: the composite chart kernel and its probe are emulated in their own module.
-import { createCompositeDisplayViewMaterialEmulator, emulateComposite } from "./fake-webgpu-composite.js";
-import { CHART_COMPOSITE_MATERIAL_MODULE_ID } from "../../src/gpu/display-view-composite-material-module.js";
+import { createCompositeDisplayViewMaterialEmulator, emulateComposite, NEAREST_COMPOSITE_ARITHMETIC, type CompositeArithmetic } from "./fake-webgpu-composite.js";
+import { chartCompositeMaterialModuleId } from "../../src/gpu/display-view-composite-material-module.js";
+import type { ChartCompositeProductPath } from "../../src/gpu/wgsl-chart-composite-kernel.js";
+
+/** The product path of a display-view pipeline label that carries the composite material module, or null. */
+function compositeModulePath(label: string, kernel: string): ChartCompositeProductPath | null {
+  for (const path of ["dekker", "fma"] as const) if (label === kernel + ":" + chartCompositeMaterialModuleId(path)) return path;
+  return null;
+}
 
 export interface FakeGpuControls {
   /** Buffers created / destroyed so far. */
@@ -47,6 +54,11 @@ export interface FakeGpuOptions {
   adapterInfo?: { vendor: string; architecture: string; device: string; description: string } | null;
   /** How the sensor and chart emulations round (default: to nearest; see `adversarialArithmetic`). */
   arithmetic?: EmulationArithmetic;
+  /**
+   * 2.11.0 (the M5 Pro finding): how the composite chart kernel, its probe and the display view's composite material module evaluate
+   * (default: round to nearest, unfused, fused fma; `fused-contraction` and `reassociation` model what WGSL permits, see fake-webgpu-composite.ts).
+   */
+  compositeArithmetic?: CompositeArithmetic;
 }
 /** The default `GPUAdapterInfo` of the fake adapter. */
 export const FAKE_ADAPTER_INFO = Object.freeze({ vendor: "photivra-test", architecture: "float32-emulation", device: "", description: "Fake WebGPU adapter (JavaScript float32 emulation)" });
@@ -141,7 +153,7 @@ function renderToned(e: number, sourceNonzero: boolean, band0: number, band1: nu
   return Math.min(maximum, Math.max(0, Math.floor(f(f(encode(linear) * maximum) + .5))));
 }
 
-function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: EmulationArithmetic): void {
+function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: EmulationArithmetic, composite: CompositeArithmetic): void {
   const u32 = (b: number): Uint32Array => new Uint32Array(buffers.get(b)!.data);
   const i32 = (b: number): Int32Array => new Int32Array(buffers.get(b)!.data);
   const f32 = (b: number): Float32Array => new Float32Array(buffers.get(b)!.data);
@@ -227,17 +239,17 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: Em
     emulateChart(u32(0), f32(0), f32(1), f32(2), f32(3), u32(4), f32(5), u32(6), arithmetic);
   } else if (label === "photivra-temporal-sum") {
     emulateTemporalSum(u32(0), f32(1), buffers.get(2)!.data, f32(3), f32(4));
-  } else if (label === "photivra-display-view-speed:" + CHART_COMPOSITE_MATERIAL_MODULE_ID) {
+  } else if (compositeModulePath(label, "photivra-display-view-speed")) {
     // #491: the composite material module (group 1): the scene's float records at 100, integer records at 101, the lattice uniform at 102, the offsets at 103.
-    const material = createCompositeDisplayViewMaterialEmulator(u32(102), f32(102), f32(103), f32(100), u32(101));
+    const material = createCompositeDisplayViewMaterialEmulator(u32(102), f32(102), f32(103), f32(100), u32(101), compositeModulePath(label, "photivra-display-view-speed")!, composite);
     emulateDisplayViewSpeed(u32(0), f32(0), f32(1), f32(2), f32(3), f32(4), u32(5), material);
   } else if (label.startsWith("photivra-display-view-speed:")) {
     // The chart-preset material module (group 1): its uniform at 100, its aux table at 101.
     const material = createChartMaterialEmulator(u32(100), f32(100), f32(101), 8, arithmetic);
     emulateDisplayViewSpeed(u32(0), f32(0), f32(1), f32(2), f32(3), f32(4), u32(5), material);
-  } else if (label === "photivra-display-view-quality-lattice:" + CHART_COMPOSITE_MATERIAL_MODULE_ID) {
+  } else if (compositeModulePath(label, "photivra-display-view-quality-lattice")) {
     // #491's composite module in the Quality lattice pass (group 1 as in Speed: float records 100, integer records 101, lattice uniform 102, offsets 103).
-    const material = createCompositeDisplayViewMaterialEmulator(u32(102), f32(102), f32(103), f32(100), u32(101));
+    const material = createCompositeDisplayViewMaterialEmulator(u32(102), f32(102), f32(103), f32(100), u32(101), compositeModulePath(label, "photivra-display-view-quality-lattice")!, composite);
     emulateDisplayViewQualityLattice(u32(0), f32(0), u32(1), u32(2), material);
   } else if (label.startsWith("photivra-display-view-quality-lattice:")) {
     const material = createChartMaterialEmulator(u32(100), f32(100), f32(101), 8, arithmetic);
@@ -248,7 +260,7 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>, arithmetic: Em
     emulateDisplayViewQualitySitesBlocked(u32(0), f32(0), u32(1), f32(3), u32(4), f32(5), f32(6), u32(7));
   } else if (label === "photivra-display-view-quality-pixels") {
     emulateDisplayViewQualityPixels(u32(0), f32(0), f32(1), f32(2), f32(3), i32(4), f32(5), u32(6), f32(7), u32(8));
-  } else if (!emulateComposite(label, (b) => buffers.get(b)!.data)) {
+  } else if (!emulateComposite(label, (b) => buffers.get(b)!.data, composite)) {
     throw new Error(`No emulator for ${label}`);
   }
 }
@@ -290,7 +302,7 @@ export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; con
               // Group 0's bindings keep their numbers; group g's binding b is keyed 100·g + b.
               const buffers = new Map<number, FakeBuffer>();
               for (const [index, group] of groups) for (const e of group.entries) buffers.set(100 * index + e.binding, e.resource.buffer);
-              emulate(pipeline!.label, buffers, options.arithmetic ?? nearestArithmetic);
+              emulate(pipeline!.label, buffers, options.arithmetic ?? nearestArithmetic, options.compositeArithmetic ?? NEAREST_COMPOSITE_ARITHMETIC);
             }); }, end: (): void => {} };
         },
         copyBufferToBuffer: (src: FakeBuffer, so: number, dst: FakeBuffer, d0: number, size: number): void => {

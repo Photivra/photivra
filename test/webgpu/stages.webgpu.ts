@@ -13,7 +13,7 @@ import { allElementsComposite, compositeBatchInput, COMPOSITE_ELEMENTS, elementR
   viewPoints } from "../helpers/chart-composite-fixtures.js";
 import { chartGeometry } from "../../src/facade/chart-scenes.js";
 import { resolveChartScene } from "../../src/index.js";
-import { calculateChartRadianceBatch, calculateTemporalExposureSum, simulatePackedSensorRaw, type ImageKernelExecution, type ImageKernelRelativeErrorBound,
+import { calculateChartRadianceBatch, calculateTemporalExposureSum, simulatePackedSensorRaw, type ChartCompositeProbeRecord, type ImageKernelExecution, type ImageKernelRelativeErrorBound,
   type PackedSensorRawDiagnostics, type PackedSensorRawInput } from "../../src/index.js";
 import { calculatePackedSensorRawPlan, createPackedFixedPattern, simulatePackedSensorSite } from "../../src/capture/packed-sensor-raw.js";
 import { fixedPatternCorpus, readoutProfile, sensorCorpus, sensorStageInput, temporalCorpus } from "../helpers/sensor-stage-fixtures.js";
@@ -236,6 +236,38 @@ describe("webgpu-f32 composite chart kernel vs float64 reference (#477)", () => 
     const result = await conformComposite(layeredScene(), points, counted);
     report.push({ stage: "chart-composite", layer: "label", points: counted, ...result });
     expect(result.flaggedFraction).toBeLessThanOrEqual(0.01);
+  });
+});
+
+/**
+ * 2.11.0 (the owner's M5 Pro run of October 27, 2026, every composite case refused by the probe): the probe's record on this device
+ * (its class, the product path it picks, whether `fma` is fused, the differing components and inputs), both product paths' shaders
+ * compiled (the composite kernel and the display view's Speed and Quality-lattice shaders with the composite module), and the
+ * composite kernel run with each path the probe found exact: every value is the realm's reference rounded once.
+ */
+describe("webgpu-f32 composite chart probe and product paths (2.11.0)", () => {
+  let software = false;
+  beforeAll(() => { software = report.some((r) => r.softwareAdapter === true); });
+  it.each(["dekker", "fma"] as const)("the %s product path: compiles; when the probe finds it exact here, the all-elements composite and the label layer equal the reference except flagged points", async (path) => {
+    if (guard()) return;
+    const points = Float64Array.from([...viewPoints(FIXTURE_ASPECT, VIEW_SIZES.coarse, 1), ...viewPoints(FIXTURE_ASPECT, VIEW_SIZES.app, 1, labelLayer(FIXTURE_ASPECT).rectangle, 3000, 13)]);
+    const rows: Record<string, unknown>[] = [];
+    let record: ChartCompositeProbeRecord | null = null;
+    for (const [name, scene] of [["all-elements composite", allElementsComposite()], ["material-layers", layeredScene()]] as const) {
+      const input = compositeBatchInput(scene, points, "spectral-integral"), nodeReference = calculateChartRadianceBatch(input).values;
+      const gpu = await call<CompositeRun & { record: ChartCompositeProbeRecord; compiled: Record<string, boolean | string> }>("compositeProbe", { input, path });
+      record = gpu.record;
+      for (const [kernel, ok] of Object.entries(gpu.compiled)) expect(ok, `${kernel} did not compile: ${ok}`).toBe(true);
+      const exactHere = path === "dekker" ? record.mismatchCounts["two-product"] + record.mismatchCounts["double-word-multiply"] === 0 : record.fmaFused && record.mismatchCounts["fma-double-word-multiply"] === 0;
+      const sums = record.mismatchCounts["two-sum"] + record.mismatchCounts["double-word-add"] === 0;
+      if (exactHere && sums) {
+        const disagreements = checkComposite(gpu as CompositeRun, nodeReference, 3, `${path} ${name}`);
+        rows.push({ scene: name, queries: points.length / 2, recomputed: gpu.hostRecomputedQueryIndices.length, realmDisagreements: disagreements });
+      } else rows.push({ scene: name, checked: false, reason: "the probe found this path not exact on this device; its values are not checked" });
+    }
+    report.push({ stage: "chart-composite-probe", path, probe: record, rows });
+    // SwiftShader neither fuses nor reassociates (the probe of 2.10 passed on it); it keeps the Dekker path, and its fma is recorded.
+    if (software) expect(record).toMatchObject({ deviceClass: "exact", productPath: "dekker" });
   });
 });
 

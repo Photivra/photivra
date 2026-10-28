@@ -899,11 +899,12 @@ export function createDisplayViewGpuRenderer(runtime: WebGpuRuntime, options: { 
       try {
         const signalInput = setup.gpu.signalInput;
         let result: DisplayViewRenderResult & { expectedValueBound: ImageKernelRelativeErrorBound; execution: ImageKernelExecution };
+        let material: DisplayViewGpuMaterialModule;
         if (displayViewSpeedGpuUnsupportedReason(setup, signalInput) === null) {
-          const material = await modules.moduleFor(setup.gpu, abort.signal);
+          material = await modules.moduleFor(setup.gpu, abort.signal);
           result = await renderDisplayViewSpeedOnGpu(runtime, bandBytes, { setup, signalInput, material }, abort, options.yieldControl, source);
         } else {
-          const material = await qualityMaterialModule(modules, setup.gpu, abort.signal);
+          material = await qualityMaterialModule(modules, setup.gpu, abort.signal);
           const key = displayViewCorrectionKey(setup);
           let states = key === null ? undefined : stores.get(key);
           if (key !== null && !states) { states = new CorrectionStateStore(); stores.set(key, states); }
@@ -911,7 +912,7 @@ export function createDisplayViewGpuRenderer(runtime: WebGpuRuntime, options: { 
         }
         return { samples: result.samples, expected: result.expected, noiseStd: result.noiseStd, sampleCount: result.sampleCount, siteCount: result.siteCount, detailPixelCount: result.detailPixelCount,
           uniformPixelCount: result.uniformPixelCount, ahdCorrectedPixelCount: result.ahdCorrectedPixelCount, estimation: result.estimation, errorBound: result.expectedValueBound,
-          diagnosticUncertaintySampleCount: result.execution.diagnosticUncertaintySampleCount };
+          diagnosticUncertaintySampleCount: result.execution.diagnosticUncertaintySampleCount, ...(material.compositeProbe ? { compositeProbe: material.compositeProbe } : {}) };
       } finally { signal?.removeEventListener("abort", onAbort); }
     },
     dispose(): void { modules.release(); stores.clear(); }

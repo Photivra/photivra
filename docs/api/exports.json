@@ -1873,6 +1873,21 @@
       "kind": "type"
     },
     {
+      "name": "ChartCompositeProbeComponent",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartCompositeProbeMismatch",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartCompositeProbeRecord",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
       "name": "ChartElementScene",
       "source": "src/facade/chart-scenes.ts",
       "kind": "type"

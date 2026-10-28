@@ -1307,6 +1307,9 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`ChartCompositeProbeComponent`](api/gpu-image-kernel-execution.md#chartcompositeprobecomponent) | Type |
+| [`ChartCompositeProbeMismatch`](api/gpu-image-kernel-execution.md#chartcompositeprobemismatch) | Type |
+| [`ChartCompositeProbeRecord`](api/gpu-image-kernel-execution.md#chartcompositeproberecord) | Type |
 | [`composeRelativeErrorBounds`](api/gpu-image-kernel-execution.md#composerelativeerrorbounds) | Runtime |
 | [`ImageKernelAdapterDescription`](api/gpu-image-kernel-execution.md#imagekerneladapterdescription) | Type |
 | [`ImageKernelBackend`](api/gpu-image-kernel-execution.md#imagekernelbackend) | Type |

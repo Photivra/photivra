@@ -16,7 +16,7 @@
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import type { ImageKernelAdapterDescription, ImageKernelBackend, ImageKernelExecution, ImageKernelFallbackReason } from "../gpu/image-kernel-execution.js";
+import type { ChartCompositeProbeRecord, ImageKernelAdapterDescription, ImageKernelBackend, ImageKernelExecution, ImageKernelFallbackReason } from "../gpu/image-kernel-execution.js";
 import type { DisplayViewRenderResult, DisplayViewSetup } from "./display-view.js";
 import type { SimulateCaptureFastReport } from "./simulate-capture.js";
 
@@ -89,6 +89,12 @@ export interface DisplayViewExecution extends Omit<ImageKernelExecution, "fallba
   fallbackReason: DisplayViewGpuFallbackReason | null;
   adapter: ImageKernelAdapterDescription | null;
   conformance: DisplayViewGpuConformance | null;
+  /**
+   * 2.11: the composite chart kernel's device probe when this render needed it (composite charts, the 2.3 elements and
+   * `material-layers` scenes): the device class and the product path the kernel ran with, or, on a refusal (`fallbackReason`
+   * `unsupported-on-backend`), why. Null when the render did not run the probe (the 2.0 presets, `gpu: "off"`).
+   */
+  compositeProbe: ChartCompositeProbeRecord | null;
 }
 
 /** 2.11 (#481): `diagnostics.fast` of a display view: the capture's report plus where the render ran. */
@@ -101,11 +107,11 @@ const CPU_LIMITATIONS = Object.freeze(["Float64 engine reference execution; resu
 
 /** Internal: the execution record of a display view rendered on the CPU reference. `requested` names what `gpu` asked for. */
 export function cpuDisplayViewExecution(gpu: DisplayViewGpuMode, fallbackReason: DisplayViewGpuFallbackReason | null, adapter: ImageKernelAdapterDescription | null,
-  conformance: DisplayViewGpuConformance | null, detail?: string): DisplayViewExecution {
+  conformance: DisplayViewGpuConformance | null, detail?: string, compositeProbe: ChartCompositeProbeRecord | null = null): DisplayViewExecution {
   const requestedBackend: ImageKernelBackend = gpu === "off" ? "cpu-reference" : "webgpu-f32";
   const limitations = detail === undefined ? CPU_LIMITATIONS : Object.freeze([...CPU_LIMITATIONS, "WebGPU was requested (gpu: \"" + gpu + "\") and the CPU reference ran: " + detail]);
   return Object.freeze({ gpu, backend: "cpu-reference", requestedBackend, fallbackReason, arithmetic: "float64", assurance: "engine-reference", fast: false,
-    bitIdenticalToReference: true, errorBound: null, diagnosticsExact: true, diagnosticUncertaintySampleCount: 0, limitations, adapter, conformance });
+    bitIdenticalToReference: true, errorBound: null, diagnosticsExact: true, diagnosticUncertaintySampleCount: 0, limitations, adapter, conformance, compositeProbe });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -147,6 +153,8 @@ export interface DisplayViewGpuRenderOutput extends DisplayViewRenderResult {
   errorBound: NonNullable<ImageKernelExecution["errorBound"]>;
   /** Samples whose float32 classification fell inside its bound (0 when none). */
   diagnosticUncertaintySampleCount?: number;
+  /** The composite chart kernel's device probe record, when the render used the composite material module. */
+  compositeProbe?: ChartCompositeProbeRecord;
 }
 /** A conformance case: returns `true` when the device agrees with the reference within the case's bound, or a sentence saying how it did not. */
 export interface DisplayViewGpuConformanceCase { id: string; run(runtime: DisplayViewGpuRuntimeHandle, signal: AbortSignal | undefined): Promise<true | string> }

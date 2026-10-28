@@ -11,7 +11,13 @@ import { displayViewGpuFixture, renderOnGpu, renderOnGpuQuality, timeCpuStages }
 import { clearDisplayViewCorrectionStates } from "../../src/facade/display-view.js";
 import { DISPLAY_VIEW_SPEED_CONFORMANCE_CASE } from "../../src/gpu/display-view-speed-gpu.js";
 import { DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE, DISPLAY_VIEW_QUALITY_DEFOCUS_CONFORMANCE_CASE } from "../../src/gpu/display-view-quality-gpu.js";
-import { acquireWebGpuRuntime, type WebGpuRuntime } from "../../src/gpu/webgpu-runtime.js";
+import { acquireWebGpuRuntime, createComputePipeline, type WebGpuRuntime } from "../../src/gpu/webgpu-runtime.js";
+import { ChartCompositeProbeError, ChartSceneUploads, evaluateChartCompositeOnGpu, probeChartCompositeDevice } from "../../src/gpu/chart-composite-gpu.js";
+import { chartCompositeMaterialWgsl } from "../../src/gpu/display-view-composite-material-module.js";
+import { assembleDisplayViewSpeedWgsl } from "../../src/gpu/wgsl-display-view-speed-kernel.js";
+import { assembleDisplayViewQualityLatticeWgsl } from "../../src/gpu/wgsl-display-view-quality-kernel.js";
+import type { ChartCompositeProductPath } from "../../src/gpu/wgsl-chart-composite-kernel.js";
+import { calculateChartRadianceBatchPlan, type ChartCompositeProbeRecord } from "../../src/index.js";
 import type { SimulateCaptureOptions, SimulateDisplayViewOptions } from "../../src/index.js";
 
 interface RunRequest<T> { input: T; maximumBandBytes?: number; timeCpu?: boolean; repeat?: number; reference?: boolean }
@@ -240,4 +246,39 @@ export async function displayViewQualityConformance(): Promise<string> {
   const device = await runtime();
   try { return encodeTransport({ outcome: await DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE.run(device, undefined) }); }
   finally { device.destroy(); }
+}
+
+/**
+ * 2.11.0 (the M5 Pro finding): the composite chart probe on this device, its raw outputs, and the composite kernel compiled with a
+ * given product path regardless of the probe's choice, evaluated on `input` (both paths compile and run here; Node checks the values).
+ * Also compiles the display view's Speed and Quality-lattice shaders with the composite module of each path.
+ */
+export async function compositeProbe(payload: string): Promise<string> {
+  const { input, path } = decodeTransport<{ input: ChartRadianceBatchInput; path: ChartCompositeProductPath }>(payload);
+  const acquired = await acquireWebGpuRuntime((navigator as Navigator & { gpu?: GPU }).gpu, undefined, undefined);
+  if (!("runtime" in acquired)) throw new Error(acquired.message);
+  const runtime = acquired.runtime, pipelines = new Map<string, Promise<GPUComputePipeline>>();
+  const source = (label: string, code: string): Promise<GPUComputePipeline> => {
+    let pending = pipelines.get(label);
+    if (!pending) { pending = createComputePipeline(runtime, label, code, undefined); pipelines.set(label, pending); }
+    return pending;
+  };
+  try {
+    const record = await probeChartCompositeDevice(runtime, source, new AbortController().signal).catch((error: unknown) => {
+      if (error instanceof ChartCompositeProbeError) return error.probe;
+      throw error;
+    });
+    const compiled: Record<string, boolean | string> = {};
+    for (const p of ["dekker", "fma"] as const) {
+      for (const [kernel, code] of [["speed", assembleDisplayViewSpeedWgsl(chartCompositeMaterialWgsl(p))], ["quality-lattice", assembleDisplayViewQualityLatticeWgsl(chartCompositeMaterialWgsl(p))]] as const) {
+        compiled[kernel + ":" + p] = await createComputePipeline(runtime, "photivra-compile-check-" + kernel + "-" + p, code, undefined).then(() => true, (e: unknown) => String(e));
+      }
+    }
+    // The kernel with the requested path: the uploads' probe is replaced by a record that names it.
+    const uploads = new (class extends ChartSceneUploads { override probe(): Promise<ChartCompositeProbeRecord> { return Promise.resolve({ ...record, productPath: path }); } })(runtime);
+    const plan = calculateChartRadianceBatchPlan(input);
+    const result = await evaluateChartCompositeOnGpu(runtime, 64 * 1024 * 1024, plan, input.scene, input.points, input.wavelengthIndices, new AbortController(), undefined, source, uploads);
+    uploads.release();
+    return encodeTransport({ record, compiled, values: result.values, hostRecomputedQueryIndices: result.hostRecomputedQueryIndices, reference: calculateChartRadianceBatch(input).values });
+  } finally { runtime.destroy(); }
 }

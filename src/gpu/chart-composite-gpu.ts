@@ -11,11 +11,12 @@ import { createHostYieldGate } from "../capture/host-yield-cadence.js";
 import type { ChartRadianceBatchPlan } from "../facade/chart-radiance-batch.js";
 import { chartGeometry, type ChartGeometry, type ResolvedChartScene } from "../facade/chart-scenes.js";
 import type { ResolvedChartMaskLayer } from "../facade/chart-material-layers.js";
-import { ImageKernelExecutionError, webGpuExecution, type ImageKernelExecution } from "./image-kernel-execution.js";
+import { ImageKernelExecutionError, webGpuExecution, type ChartCompositeProbeComponent, type ChartCompositeProbeMismatch, type ChartCompositeProbeRecord,
+  type ImageKernelExecution } from "./image-kernel-execution.js";
 import type { ChartRadianceResult } from "./image-kernel-accelerator.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, linearDispatch, runComputePass, type WebGpuRuntime } from "./webgpu-runtime.js";
-import { CHART_COMPOSITE_LABEL, CHART_COMPOSITE_PROBE_LABEL, CHART_COMPOSITE_PROBE_WGSL, CHART_COMPOSITE_WGSL, CHART_COMPOSITE_WORKGROUP_SIZE, CHART_ELEMENT_KIND,
-  CHART_PLACEMENT, CHART_RECORD_STRIDE } from "./wgsl-chart-composite-kernel.js";
+import { CHART_COMPOSITE_PROBE_LABEL, CHART_COMPOSITE_PROBE_OUTPUTS, CHART_COMPOSITE_PROBE_WGSL, CHART_COMPOSITE_WORKGROUP_SIZE, CHART_ELEMENT_KIND,
+  CHART_PLACEMENT, CHART_RECORD_STRIDE, chartCompositeLabel, chartCompositeWgsl } from "./wgsl-chart-composite-kernel.js";
 
 type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
 type YieldControl = ((signal: AbortSignal) => Promise<void>) | undefined;
@@ -51,19 +52,134 @@ export function dwMul(a: Dw, b: Dw): Dw {
 }
 
 /**
+ * fma on float32 operands with one rounding to nearest (ties to even), as a fused `fma` evaluates it: the product of two float32
+ * values is exact in float64 (48 significant bits), the float64 TwoSum gives the sum's exact error, and the one case where rounding
+ * the float64 sum to float32 differs from rounding the exact sum (the float64 sum lands on a float32 midpoint) is resolved by the error's sign.
+ */
+export function fmaF32(a: number, b: number, c: number): number {
+  const p = a * b, s = p + c, bb = s - p, e = (p - (s - bb)) + (c - bb), r = f(s);
+  if (e === 0 || r === s || !Number.isFinite(r)) return r;
+  const other = nextFloat32(r, s > r ? 1 : -1);
+  if (Math.abs(s - r) !== Math.abs(other - s)) return r;
+  return (e > 0) === (other > r) ? other : r;
+}
+const bits32 = new Float32Array(1), int32 = new Int32Array(bits32.buffer);
+/** The float32 neighbour of a finite float32 x toward +∞ (direction 1) or −∞ (−1). */
+function nextFloat32(x: number, direction: 1 | -1): number {
+  if (x === 0) return direction * 2 ** -149;
+  bits32[0] = x;
+  int32[0] = int32[0]! + ((x > 0) === (direction > 0) ? 1 : -1);
+  return bits32[0]!;
+}
+/** The fma TwoProduct: p = fl(a·b) and its exact error fma(a, b, −p) (exact for a fused fma; Joldes, Muller & Popescu 2017, Algorithm 2). */
+export function twoProdFma(a: number, b: number): Dw { const p = f(a * b); return [p, fmaF32(a, b, -p)]; }
+/** The cross-term sum t = a.h·b.l + a.l·b.h of a double-word product: unfused (the default), or with one of the two products fused into the addition. */
+export function dwCrossTerm(a: Dw, b: Dw, contraction: "none" | "first" | "second" = "none"): number {
+  if (contraction === "first") return fmaF32(a[0], b[1], f(a[1] * b[0]));
+  if (contraction === "second") return fmaF32(a[1], b[0], f(a[0] * b[1]));
+  return f(f(a[0] * b[1]) + f(a[1] * b[0]));
+}
+/**
+ * The fma path's double-word product (`d_mul_fma`): s = fma(a.h, b.h, t), lo = fl(fma(a.h, b.h, −s) + t), with t the cross-term
+ * sum. No rounded product is an operand of an addition, so a contraction cannot change it; see docs/WEBGPU.md for its error bound.
+ */
+export function dwMulFma(a: Dw, b: Dw, t: number = dwCrossTerm(a, b)): Dw {
+  const s = fmaF32(a[0], b[0], t);
+  return [s, f(fmaF32(a[0], b[0], -s) + t)];
+}
+/** The Dekker path's double-word product with a given cross-term sum (`dwMul` is it with the unfused one). */
+export function dwMulDekker(a: Dw, b: Dw, t: number = dwCrossTerm(a, b)): Dw {
+  const p = twoProd(a[0], b[0]), l = f(p[1] + t);
+  return quickTwoSum(p[0], l);
+}
+
+/**
  * Probe inputs (x, y, z, w): pairs whose TwoSum and TwoProduct low parts are non-zero, double words to add and multiply, and sums and
  * products that a directed (truncating or upward) rounding would place on the other neighbour than round-to-nearest: 1 + 3·2^-26
- * rounds up to 1 + 2^-23 (nearest) but down to 1 (truncation); −1 − 3·2^-26 the mirror; 1.25 · (1 + 2^-23) likewise.
+ * rounds up to 1 + 2^-23 (nearest) but down to 1 (truncation); −1 − 3·2^-26 the mirror; 1.25 · (1 + 2^-23) likewise. The last four
+ * (2.11.0, the M5 Pro finding) are normalized double words whose products have non-zero TwoProduct errors on both operand pairs, so
+ * a contraction of the Dekker path's final Fast2Sum (which then adds the product's error twice) shows in the double-word product.
  */
 export const PROBE_INPUTS: readonly (readonly [number, number, number, number])[] = Object.freeze([
   [1, 2 ** -30, 1.5, 2 ** -29], [3.7, 1e-8, -2.25, 3e-9], [0.1, 0.7, 12345.678, -0.0001], [1e6, 1e-3, 1e-6, 1e-9], [-5.5, 2 ** -26, 7, -(2 ** -27)],
   [0.3333333, 0.6666667, 1.0000001, 0.99999994], [1024.5, 1e-5, 0.0078125, 3e-10], [2.5e-3, 4.1e-11, 999.75, 2 ** -40],
-  [1, 3 * 2 ** -26, 1.25, 1 + 2 ** -23], [-1, -3 * 2 ** -26, -1.25, 1 + 2 ** -23], [1 + 2 ** -23, 1.25, 1, 5 * 2 ** -26], [0.75, 2 ** -25 + 2 ** -27, 3, 2 ** -24 + 2 ** -26]
+  [1, 3 * 2 ** -26, 1.25, 1 + 2 ** -23], [-1, -3 * 2 ** -26, -1.25, 1 + 2 ** -23], [1 + 2 ** -23, 1.25, 1, 5 * 2 ** -26], [0.75, 2 ** -25 + 2 ** -27, 3, 2 ** -24 + 2 ** -26],
+  [1.1, 2.2e-9, 1.3, -3.1e-9], [0.7071068, -1.2e-8, 0.7071067, 2.9e-8], [123.456, 3.3e-6, -0.0123, 4.4e-10], [3.14159274, -8.7422777e-8, 2.7182817, 8.2e-8]
 ]);
-/** The probe's expected output (s.l, m.l, a.l, q.l) per input, from the JavaScript double-float32. */
-export function probeExpectation(input: readonly [number, number, number, number]): [number, number, number, number] {
+/** The components of the probe in output order (see `CHART_COMPOSITE_PROBE_WGSL`). */
+export const PROBE_COMPONENTS: readonly ChartCompositeProbeComponent[] = Object.freeze(["two-sum", "two-product", "double-word-add", "double-word-multiply", "fma-two-product", "fma-double-word-multiply"]);
+/**
+ * The probe's output per input on a device that evaluates as written, round to nearest, unfused, with a fused `fma`, in the shader's
+ * order: [TwoSum lo, Dekker TwoProduct lo, double-word sum lo, fma TwoProduct lo, Dekker product hi, lo, fma product hi, lo].
+ */
+export function probeExpectation(input: readonly [number, number, number, number]): [number, number, number, number, number, number, number, number] {
   const [x, y, z, w] = input.map(f) as [number, number, number, number];
-  return [twoSum(x, y)[1], twoProd(x, y)[1], dwAdd([x, y], [z, w])[1], dwMul([x, y], [z, w])[1]];
+  const q = dwMulDekker([x, y], [z, w]), qf = dwMulFma([x, y], [z, w]);
+  return [twoSum(x, y)[1], twoProd(x, y)[1], dwAdd([x, y], [z, w])[1], twoProdFma(x, y)[1], q[0], q[1], qf[0], qf[1]];
+}
+const hex32 = (x: number): string => { bits32[0] = x; return "0x" + (int32[0]! >>> 0).toString(16).padStart(8, "0"); };
+
+/**
+ * Classifies the probe's output (`CHART_COMPOSITE_PROBE_OUTPUTS` floats per input of `PROBE_INPUTS`). TwoSum, both TwoProducts and the
+ * double-word sum must equal their exact values bit for bit (each is error-free, or a fixed sequence of roundings to nearest); a
+ * double-word product must equal the written-order evaluation for the unfused cross-term sum t = a.h·b.l + a.l·b.h or for either
+ * product of t fused into its addition (a contraction WGSL permits, "Reassociation and Fusion", and harmless there: t is an ordinary
+ * bounded sum). Anything else is a mismatch, recorded with the float32 bits.
+ */
+export function classifyChartCompositeProbe(got: Float32Array): ChartCompositeProbeRecord {
+  const counts = Object.fromEntries(PROBE_COMPONENTS.map((c) => [c, 0])) as Record<ChartCompositeProbeComponent, number>;
+  const inputs = Object.fromEntries(PROBE_COMPONENTS.map((c) => [c, [] as number[]])) as Record<ChartCompositeProbeComponent, number[]>;
+  const mismatches: ChartCompositeProbeMismatch[] = [];
+  let nonFinite = false, sumZero = true;
+  const miss = (component: ChartCompositeProbeComponent, input: number, g: number, want: number): void => {
+    counts[component]++;
+    inputs[component].push(input);
+    if (!Number.isFinite(g)) nonFinite = true;
+    if ((component === "two-sum" || component === "double-word-add") && g !== 0) sumZero = false;
+    if (mismatches.length < 8) mismatches.push({ component, input, got: hex32(g), want: hex32(want) });
+  };
+  PROBE_INPUTS.forEach((row, i) => {
+    const [x, y, z, w] = row.map(f) as [number, number, number, number], o = got.subarray(8 * i, 8 * i + 8), want = probeExpectation(row);
+    for (const [k, component] of [[0, "two-sum"], [1, "two-product"], [2, "double-word-add"]] as const) if (!Object.is(o[k], want[k])) miss(component, i, o[k]!, want[k]);
+    const products = (mul: (a: Dw, b: Dw, t: number) => Dw, h: number, l: number, component: ChartCompositeProbeComponent): void => {
+      const candidates = (["none", "first", "second"] as const).map((c) => mul([x, y], [z, w], dwCrossTerm([x, y], [z, w], c)));
+      if (!candidates.some((c) => Object.is(c[0], h) && Object.is(c[1], l))) miss(component, i, Object.is(candidates[0]![0], h) ? l : h, Object.is(candidates[0]![0], h) ? candidates[0]![1] : candidates[0]![0]);
+    };
+    products(dwMulDekker, o[4]!, o[5]!, "double-word-multiply");
+    if (!Object.is(o[3], want[3])) miss("fma-two-product", i, o[3]!, want[3]);
+    products(dwMulFma, o[6]!, o[7]!, "fma-double-word-multiply");
+  });
+  mismatches.sort((a, b) => PROBE_COMPONENTS.indexOf(a.component) - PROBE_COMPONENTS.indexOf(b.component) || a.input - b.input);
+  const sums = counts["two-sum"] + counts["double-word-add"], dekker = counts["two-product"] + counts["double-word-multiply"];
+  const fma = counts["fma-two-product"] + counts["fma-double-word-multiply"];
+  const deviceClass: ChartCompositeProbeRecord["deviceClass"] = nonFinite ? "other" : sums > 0 ? (sumZero ? "reassociated" : "other") : dekker > 0 ? "contracted" : "exact";
+  const productPath = sums > 0 || nonFinite ? null : dekker === 0 ? "dekker" : fma === 0 ? "fma" : null;
+  return Object.freeze({ deviceClass, productPath, fmaFused: counts["fma-two-product"] === 0, inputs: PROBE_INPUTS.length, mismatchCounts: Object.freeze(counts),
+    mismatchedInputs: Object.freeze(Object.fromEntries(PROBE_COMPONENTS.map((c) => [c, Object.freeze(inputs[c])])) as Record<ChartCompositeProbeComponent, readonly number[]>),
+    mismatches: Object.freeze(mismatches.map((m) => Object.freeze(m))) });
+}
+
+/** The components' names in a log line, with the probe output they are (s.l, m.l, a.l, q of the probe before 2.11.0; mf.l, qf of the fma path). */
+const COMPONENT_NAMES: Record<ChartCompositeProbeComponent, string> = { "two-sum": "TwoSum (s.l)", "two-product": "TwoProduct (m.l)", "double-word-add": "double-word add (a.l)",
+  "double-word-multiply": "double-word multiply (q)", "fma-two-product": "fma TwoProduct (mf.l)", "fma-double-word-multiply": "fma double-word multiply (qf)" };
+/**
+ * One log line for a probe record: the class, the chosen path, each differing component with its count and the probe input
+ * indices that differ, and the first difference with its float32 bits.
+ */
+export function describeChartCompositeProbe(probe: ChartCompositeProbeRecord): string {
+  const differing = PROBE_COMPONENTS.filter((c) => probe.mismatchCounts[c] > 0).map((c) => COMPONENT_NAMES[c] + " ×" + probe.mismatchCounts[c] + " [" + probe.mismatchedInputs[c].join(",") + "]");
+  const first = probe.mismatches[0];
+  return "class " + probe.deviceClass + ", product path " + (probe.productPath ?? "none") + ", fma " + (probe.fmaFused ? "fused" : "not fused") +
+    (differing.length ? "; differing of " + probe.inputs + " inputs: " + differing.join(", ") : "") +
+    (first ? "; first: " + COMPONENT_NAMES[first.component] + " input " + first.input + " got " + first.got + " want " + first.want : "");
+}
+
+/** The probe's refusal: `unsupported-on-backend` with the probe record (`probe`) for the execution diagnostics. */
+export class ChartCompositeProbeError extends ImageKernelExecutionError {
+  constructor(readonly probe: ChartCompositeProbeRecord) {
+    super("unsupported-on-backend", "This device does not evaluate the composite chart kernel's double-float32 arithmetic as written (" + describeChartCompositeProbe(probe) +
+      "); use cpu-reference for composite charts, 2.3 elements and material-layers scenes.");
+  }
 }
 
 /** Packed records of one scene: the kernel's float and integer arrays and its material count. */
@@ -242,27 +358,24 @@ export function chartMaterialTable(plan: ChartRadianceBatchPlan): Float32Array<A
 export function chartSceneKey(scene: unknown, aspect: number): string { return aspect + "|" + JSON.stringify(scene); }
 
 /**
- * The device's double-float32 probe (`CHART_COMPOSITE_PROBE_WGSL`): rejects with `unsupported-on-backend` on a device whose
- * compiled arithmetic differs from the round-to-nearest, written-order evaluation. Run once per accelerator by
+ * The device's double-float32 probe (`CHART_COMPOSITE_PROBE_WGSL`, classified by `classifyChartCompositeProbe`): resolves with the probe
+ * record (its `productPath` is the variant the composite kernel is compiled with), or rejects with `ChartCompositeProbeError`
+ * (`unsupported-on-backend`, the record in `probe`) on a device that neither product path holds on. Run once per accelerator by
  * `ChartSceneUploads.probe`, and once per display-view renderer by the composite material module (#491).
  */
-export async function probeChartCompositeDevice(runtime: WebGpuRuntime, pipelines: PipelineSource, signal: AbortSignal): Promise<void> {
+export async function probeChartCompositeDevice(runtime: WebGpuRuntime, pipelines: PipelineSource, signal: AbortSignal): Promise<ChartCompositeProbeRecord> {
   const pipeline = await pipelines(CHART_COMPOSITE_PROBE_LABEL, CHART_COMPOSITE_PROBE_WGSL), scope = new GpuResourceScope(runtime);
+  const bytes = 4 * CHART_COMPOSITE_PROBE_OUTPUTS * PROBE_INPUTS.length;
+  let record: ChartCompositeProbeRecord;
   try {
     const input = scope.upload("photivra-chart-probe-in", Float32Array.from(PROBE_INPUTS.flat()), BUFFER_USAGE.STORAGE);
-    const output = scope.buffer("photivra-chart-probe-out", 16 * PROBE_INPUTS.length, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
+    const output = scope.buffer("photivra-chart-probe-out", bytes, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
     const bindGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: input } }, { binding: 1, resource: { buffer: output } }] });
-    const [data] = await runComputePass(runtime, scope, pipeline, bindGroup, [PROBE_INPUTS.length, 1], [{ buffer: output, bytes: 16 * PROBE_INPUTS.length }], signal);
-    const got = new Float32Array(data!, 0, 4 * PROBE_INPUTS.length);
-    PROBE_INPUTS.forEach((row, i) => {
-      const want = probeExpectation(row);
-      for (let k = 0; k < 4; k++) {
-        if (!Object.is(got[4 * i + k], want[k])) {
-          throw new ImageKernelExecutionError("unsupported-on-backend", "This device does not evaluate the composite chart kernel's double-float32 arithmetic as written (reassociated or fused); use cpu-reference for composite charts, 2.3 elements and material-layers scenes.");
-        }
-      }
-    });
+    const [data] = await runComputePass(runtime, scope, pipeline, bindGroup, [PROBE_INPUTS.length, 1], [{ buffer: output, bytes }], signal);
+    record = classifyChartCompositeProbe(new Float32Array(data!, 0, CHART_COMPOSITE_PROBE_OUTPUTS * PROBE_INPUTS.length));
   } finally { scope.release(); }
+  if (record.productPath === null) throw new ChartCompositeProbeError(record);
+  return record;
 }
 
 interface UploadedScene { key: string; scope: GpuResourceScope; af: GPUBuffer; ai: GPUBuffer; packed: PackedChartScene }
@@ -270,10 +383,10 @@ interface UploadedScene { key: string; scope: GpuResourceScope; af: GPUBuffer; a
 /** Per accelerator: the uploaded records of recent scenes (a prepared view's scene is uploaded once) and the device probe. */
 export class ChartSceneUploads {
   readonly #entries: UploadedScene[] = [];
-  #probed: Promise<void> | null = null;
+  #probed: Promise<ChartCompositeProbeRecord> | null = null;
   constructor(private readonly runtime: WebGpuRuntime, private readonly keep = 4) {}
-  /** The device's double-float32 probe, run once per accelerator; rejects with `unsupported-on-backend` on a device that reassociates it. */
-  probe(pipelines: PipelineSource, signal: AbortSignal): Promise<void> {
+  /** The device's double-float32 probe, run once per accelerator (single flight; a refusal is retried on the next call): the record, or `ChartCompositeProbeError`. */
+  probe(pipelines: PipelineSource, signal: AbortSignal): Promise<ChartCompositeProbeRecord> {
     this.#probed ??= probeChartCompositeDevice(this.runtime, pipelines, signal).catch((error: unknown) => { this.#probed = null; throw error; });
     return this.#probed;
   }
@@ -309,7 +422,7 @@ export async function evaluateChartCompositeOnGpu(runtime: WebGpuRuntime, bandBy
   for (let i = 0; i < points.length; i++) {
     if (Math.abs(points[i]!) > MAXIMUM_COORDINATE) throw new ImageKernelExecutionError("unsupported-float32-domain", "Chart points beyond 2^20 frame units are outside the float32 domain.");
   }
-  await uploads.probe(pipelines, abort.signal);
+  const probe = await uploads.probe(pipelines, abort.signal), path = probe.productPath ?? "dekker";
   const uploaded = uploads.get(plan, scene, plan.chart.aspect), table = chartMaterialTable(plan), radianceMode = plan.mode === "radiance";
   const columns = plan.columns, stride = radianceMode ? plan.wavelengthsNanometers.length : columns, count = plan.queryCount;
   const bytesPerQuery = 16 + 4 * columns + 4 + 4, rows = Math.max(1, Math.floor(bandBytes / bytesPerQuery));
@@ -318,7 +431,7 @@ export async function evaluateChartCompositeOnGpu(runtime: WebGpuRuntime, bandBy
   }
   const params = new ArrayBuffer(16), words = new Uint32Array(params);
   words[1] = stride; words[2] = radianceMode ? 1 : 0;
-  const pipeline = await pipelines(CHART_COMPOSITE_LABEL, CHART_COMPOSITE_WGSL);
+  const pipeline = await pipelines(chartCompositeLabel(path), chartCompositeWgsl(path));
   const values = new Float32Array(count * columns), recomputed: number[] = [], split = splitPoints(points);
   const scope = new GpuResourceScope(runtime);
   try {

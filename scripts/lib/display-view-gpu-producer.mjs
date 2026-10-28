@@ -50,6 +50,7 @@ export async function createProducer(context, { repeat = 1, reference = false } 
         // `gpu: "require"`: the engine's reason (unsupported-on-backend, conformance-failed, device-lost, …) instead of a CPU render.
         const error = new Error(`${meta.failure.name}${meta.failure.reason ? ` (${meta.failure.reason})` : ""}: ${meta.failure.message}`);
         error.reason = meta.failure.reason;
+        if (meta.failure.probe) error.probe = meta.failure.probe;
         throw error;
       }
       const wallMs = performance.now() - t0, arrays = {};

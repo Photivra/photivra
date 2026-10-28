@@ -37,7 +37,9 @@ export async function render(json) {
   try { return await renderOnGpu(JSON.parse(json)); }
   catch (error) {
     // The engine's refusal travels back as data, so the harness can tell "the GPU does not cover this request" (its reason) from a crash.
-    return JSON.stringify({ failure: { name: error?.name ?? "Error", reason: typeof error?.reason === "string" ? error.reason : null, message: String(error?.message ?? error) } });
+    return JSON.stringify({ failure: { name: error?.name ?? "Error", reason: typeof error?.reason === "string" ? error.reason : null, message: String(error?.message ?? error),
+      // 2.11.0: a refusal by the composite chart probe carries its record (class, product path, differing components and inputs).
+      probe: typeof error?.probe === "object" && error.probe !== null ? error.probe : null } });
   }
 }
 

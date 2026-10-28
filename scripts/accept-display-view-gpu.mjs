@@ -128,7 +128,10 @@ const fileOf = (c) => `${String(c.id).padStart(2, "0")}-${c.chart}-${c.options}-
 /** The execution label of a candidate render, as recorded (the adapter, the conformance check and the bound; no limitations text). */
 const executionRecord = (r) => r.execution ? { backend: r.execution.backend, fallbackReason: r.execution.fallbackReason, arithmetic: r.execution.arithmetic, adapter: r.execution.adapter,
   softwareAdapter: r.softwareAdapter, conformance: r.execution.conformance ? { passed: r.execution.conformance.passed, cases: r.execution.conformance.cases.length, failedCase: r.execution.conformance.failedCase } : null,
-  errorBound: r.execution.errorBound, diagnosticUncertaintySampleCount: r.execution.diagnosticUncertaintySampleCount, browser: r.browser } : null;
+  errorBound: r.execution.errorBound, diagnosticUncertaintySampleCount: r.execution.diagnosticUncertaintySampleCount, compositeProbe: r.execution.compositeProbe ?? null, browser: r.browser } : null;
+/** 2.11.0: the composite chart probe's record in one phrase (its class and the product path the composite kernel ran with), or null. */
+const probeLine = (probe) => probe ? `composite probe class ${probe.deviceClass}, product path ${probe.productPath ?? "none"}, fma ${probe.fmaFused ? "fused" : "not fused"}` +
+  `${Object.entries(probe.mismatchCounts ?? {}).some(([, n]) => n > 0) ? ` (differing: ${Object.entries(probe.mismatchCounts).filter(([, n]) => n > 0).map(([k, n]) => `${k} ×${n} [${(probe.mismatchedInputs?.[k] ?? []).join(",")}]`).join(", ")})` : ""}` : null;
 
 /** One case, in its own process: both renders, the comparison, the difference image and (with --timing) the reference parts. */
 async function runCase(c) {
@@ -142,7 +145,7 @@ async function runCase(c) {
   try { cand = await candidate.render(caseRequest(engine, c), view); }
   catch (error) {
     if (gpu && c.expectFallback && error?.reason === "unsupported-on-backend")
-      return { ...c, candidate: candidate.name, expectedFallback: true, fallbackReason: error.reason, detail: error.message, node: process.version, commit: commit() };
+      return { ...c, candidate: candidate.name, expectedFallback: true, fallbackReason: error.reason, detail: error.message, probe: error.probe ?? null, node: process.version, commit: commit() };
     throw error;
   } finally { await candidate.close?.(); }
   if (gpu) { const problem = gpuRenderProblem(cand, { requireHardware }); if (problem) throw new Error(`The GPU did not render this view: ${problem}`); }
@@ -240,7 +243,7 @@ function writeRecord(name, records, summary, environment, images, errors = [], f
 
 if (has("--case")) {
   const c = JSON.parse(arg("--case"));
-  try { console.log(JSON.stringify(await runCase(c))); } catch (error) { console.log(JSON.stringify({ id: c.id, error: String(error?.stack ?? error) })); process.exitCode = 1; }
+  try { console.log(JSON.stringify(await runCase(c))); } catch (error) { console.log(JSON.stringify({ id: c.id, error: String(error?.stack ?? error), probe: error?.probe ?? null })); process.exitCode = 1; }
 } else {
   const started = performance.now(), startedAt = new Date().toISOString(), workers = num("--workers", 1), charts = (arg("--charts") ?? FIXTURE_CHARTS.join(",")).split(","), options = (arg("--options") ?? "speed,quality").split(",");
   const sizes = (arg("--sizes") ?? APP_SIZES.map((s) => `${s.width}x${s.height}`).join(",")).split(",").map((s) => { const [w, h] = s.split("x").map(Number); return { width: w, height: h }; }), fNumber = num("--f", 8);
@@ -269,6 +272,9 @@ if (has("--case")) {
         if (r.error) { errors.push(r); console.error(`case ${c.id} failed: ${r.error}`); }
         else if (r.expectedFallback) { fallbacks.push(r); appendFileSync(jsonl, JSON.stringify(r) + "\n"); console.error(`case ${c.id} ${c.chart}: expected fallback, the GPU does not cover it yet (${r.fallbackReason}): ${r.detail}`); }
         else { records.push(r); appendFileSync(jsonl, JSON.stringify(r) + "\n"); }
+        // 2.11.0: the composite chart probe of every case that ran it, on a GPU render and on a refusal alike.
+        const probe = r.probe ?? r.candidateExecution?.compositeProbe ?? null;
+        if (probe) console.error(`case ${c.id} ${c.chart} ${c.options}: ${probeLine(probe)}`);
         const ran = r.candidateExecution;
         console.error(`done ${c.id} ${c.chart} ${c.options} ${c.width}x${c.height}${r.metrics ? ` max ΔE ${f3(r.metrics.maxDeltaE, 4)} max |Δ|/σ ${f3(r.metrics.maxSigma)} identical ${pct(r.metrics.identicalFraction)}` : ""}` +
           `${r.realm ? `; browser vs Node CPU reference: ${r.realm.differingPixels} pixels differ, max ΔE ${f3(r.realm.maxDeltaE, 4)}` : ""}` +
@@ -292,14 +298,14 @@ if (has("--case")) {
   for (const r of summary.cases) for (const k of r.verdict.checks) console.log(`${k.pass ? "pass" : "FAIL"}  case ${r.id} ${r.chart} ${r.options} ${r.width}x${r.height}: ${k.label} (${f3(k.value, 4)})`);
   if (gpu) {
     console.log("\nWhere each candidate render ran (diagnostics.fast.execution):");
-    for (const r of records) { const e = r.candidateExecution; console.log(`  case ${r.id} ${r.chart} ${r.options}: ${e.backend}, fallback ${e.fallbackReason ?? "none"}, adapter ${JSON.stringify(e.adapter)}${e.softwareAdapter ? " (SOFTWARE adapter: not GPU performance)" : ""}, conformance ${e.conformance?.passed ? `passed (${e.conformance.cases} cases)` : "not passed"}, ${e.browser}`); }
+    for (const r of records) { const e = r.candidateExecution; console.log(`  case ${r.id} ${r.chart} ${r.options}: ${e.backend}, fallback ${e.fallbackReason ?? "none"}, adapter ${JSON.stringify(e.adapter)}${e.softwareAdapter ? " (SOFTWARE adapter: not GPU performance)" : ""}, conformance ${e.conformance?.passed ? `passed (${e.conformance.cases} cases)` : "not passed"}${e.compositeProbe ? `, ${probeLine(e.compositeProbe)}` : ""}, ${e.browser}`); }
   }
   if (records.some((r) => r.realm)) {
     console.log("\nThe reference is the CPU display view in the GPU's own browser page. Its difference from Node's CPU reference (the engines' Math.atan2, #471; information, not a threshold):");
     for (const r of records) if (r.realm) console.log(`  case ${r.id} ${r.chart} ${r.options}: ${r.realm.differingPixels} pixels differ, max ΔE2000 ${f3(r.realm.maxDeltaE, 4)}, max |Δ|/σ ${f3(r.realm.maxSigma, 3)}, samples ${r.realm.samplesIdentical ? "identical" : "differ"}`);
   }
   for (const f of fallbacks) console.log(`EXPECTED FALLBACK case ${f.id} ${f.chart} ${f.options} ${f.width}x${f.height}: not compared; the GPU refused it with ${f.fallbackReason} (${f.detail.split("\n")[0]})`);
-  for (const e of errors) console.log(`ERROR case ${e.id}: ${e.error.split("\n")[0]}`);
+  for (const e of errors) console.log(`ERROR case ${e.id}: ${e.error.split("\n")[0]}${e.probe ? ` [${probeLine(e.probe)}]` : ""}`);
   console.log(`\n${summary.pass && !errors.length ? "PASS" : "FAIL"}: ${records.length + errors.length} cases, ${summary.failing.length} failing${errors.length ? `, ${errors.length} errored (an errored case is a failure)` : ""}${fallbacks.length ? `, ${fallbacks.length} expected fallback (not compared)` : ""}; thresholds ${JSON.stringify(thresholds)}; harness wall time ${minutes} min.`);
   console.log(`\nVisual review (not judged by this script): the "no structured difference at 1:1" check is the owner's review of these difference images (|Δ| in 8-bit codes × ${gain}; black is no difference):`);
   for (const r of records) console.log(`  ${r.differenceImage}${r.expectedIdentical ? "  (all black: identical)" : ""}`);
