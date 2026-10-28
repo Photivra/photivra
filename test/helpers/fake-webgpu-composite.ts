@@ -17,7 +17,8 @@
  *   t − (t − a) to a), so TwoSum, Fast2Sum and Veltkamp's split lose their low parts; everything else rounds to nearest.
  */
 import { DIGIT_SEGMENTS, NUMERAL_ADVANCE, SEGMENTS } from "../../src/facade/chart-scenes.js";
-import { fmaF32, probeExpectation, type Dw } from "../../src/gpu/chart-composite-gpu.js";
+import { dwAdd, dwMul, dwMulFma, dwSub, fmaF32, probeExpectation, quickTwoSum as quickTwoSumF32, twoProd, twoProdFma as twoProdFmaF32, twoSum as twoSumF32,
+  type Dw } from "../../src/gpu/chart-composite-gpu.js";
 import { CHART_RECORD_STRIDE, type ChartCompositeProductPath } from "../../src/gpu/wgsl-chart-composite-kernel.js";
 import { DISPLAY_VIEW_LATTICE } from "../../src/gpu/display-view-composite-material-module.js";
 
@@ -46,13 +47,16 @@ interface Ops {
   v(x: V): number;
   fma(a: number, b: number, c: number): number;
   readonly reassociate: boolean;
+  /** Round to nearest in the written order, no fusion, no rewriting (the `nearest` model). */
+  readonly nearest: boolean;
 }
 const round = (x: V): number => (x instanceof Prod ? f(x.a * x.b) : x);
 
 function opsOf(model: CompositeArithmetic): Ops {
   if (model.kind !== "fused-contraction") {
-    return { mul: (a, b) => f(a * b), add: (x, y) => f(round(x) + round(y)), sub: (x, y) => f(round(x) - round(y)), neg: (x) => -round(x), v: round,
-      fma: fmaF32, reassociate: model.kind === "reassociation" };
+    // No operation here returns a `Prod`, so every V is a number: no rounding call per operand (each call costs under V8 coverage).
+    return { mul: (a, b) => f(a * b), add: (x, y) => f((x as number) + (y as number)), sub: (x, y) => f((x as number) - (y as number)), neg: (x) => -(x as number),
+      v: (x) => x as number, fma: fmaF32, reassociate: model.kind === "reassociation", nearest: model.kind === "nearest" };
   }
   const choose = model.choose ?? "first";
   let s = typeof choose === "object" ? (choose.seed >>> 0 || 1) : 1;
@@ -76,7 +80,8 @@ function opsOf(model: CompositeArithmetic): Ops {
     neg: (x) => (x instanceof Prod ? new Prod(-x.a, x.b) : -x),
     v: round,
     fma: model.fma === "unfused" ? (a, b, c): number => f(f(a * b) + c) : fmaF32,
-    reassociate: false
+    reassociate: false,
+    nearest: false
   };
 }
 
@@ -87,6 +92,13 @@ type DV = readonly [V, V];
 function doubleWord(K: Ops, path: ChartCompositeProductPath): {
   twoSum(a: V, b: V): Dw; quickTwoSum(a: V, b: V): Dw; twoProdDekker(a: number, b: number): DV; twoProdFma(a: number, b: number): DV;
   dMulDekker(a: Dw, b: Dw): Dw; dMulFma(a: Dw, b: Dw): Dw; dAdd(a: Dw, b: Dw): Dw; dSub(a: Dw, b: Dw): Dw; dMul(a: Dw, b: Dw): Dw } {
+  // Round to nearest: the engine's float32 building blocks (src/gpu/chart-composite-gpu.ts), operation for operation the ones below
+  // on that model, without a call per operation (see nearestBoundOps).
+  if (K.nearest) {
+    const n = (x: V): number => x as number;
+    return { twoSum: (a, b) => twoSumF32(n(a), n(b)), quickTwoSum: (a, b) => quickTwoSumF32(n(a), n(b)), twoProdDekker: twoProd, twoProdFma: twoProdFmaF32,
+      dMulDekker: dwMul, dMulFma: (a, b) => dwMulFma(a, b), dAdd: dwAdd, dSub: dwSub, dMul: path === "dekker" ? dwMul : (a, b): Dw => dwMulFma(a, b) };
+  }
   const { add, sub, mul } = K;
   const twoSum = (a: V, b: V): Dw => {
     const s = add(a, b);
@@ -174,6 +186,45 @@ interface BoundOps {
   bdiv(a: B, b: B): B; margin(x: B): number; ge0(x: B): boolean; ge(a: B, b: B): boolean; gt(a: B, b: B): boolean; lt(a: B, b: B): boolean; le(a: B, b: B): boolean;
   bfloor(x: B, lo: number, hi: number): number;
 }
+/**
+ * The same bound arithmetic written out in float32 for the round-to-nearest models (`nearest`, `reassociation`: neither fuses nor
+ * rewrites the bound arithmetic), operation for operation as `boundOps` evaluates it there, without a call per operation: V8 coverage
+ * made the per-operation calls about 2.4 times slower (test/display-view-composite-gpu.test.ts, M5 Pro: 95 s before the arithmetic
+ * models, 230 s through `boundOps`).
+ */
+function nearestBoundOps(flag: () => void): BoundOps {
+  const n = (x: V): number => x as number;
+  const bds = (a: Dw, scale: number): B => ({ v: a[0], e: f(f(Math.abs(a[1]) + f(DW * f(f(Math.abs(a[0]) + Math.abs(a[1])) + scale))) + TINY) });
+  const bd = (a: Dw): B => bds(a, 0);
+  const bc = (c: number): B => ({ v: c, e: f(f(E * Math.abs(c)) + TINY) });
+  const bx = (c: number): B => ({ v: c, e: 0 });
+  const badd = (a: B, b: B): B => { const v = f(n(a.v) + n(b.v)); return { v, e: f(f(a.e + b.e) + f(E * Math.abs(v))) }; };
+  const bsub = (a: B, b: B): B => { const v = f(n(a.v) - n(b.v)); return { v, e: f(f(a.e + b.e) + f(E * Math.abs(v))) }; };
+  const bmul = (a: B, b: B): B => {
+    const av = n(a.v), bv = n(b.v), v = f(av * bv);
+    return { v, e: f(f(f(f(Math.abs(av) * b.e) + f(Math.abs(bv) * a.e)) + f(a.e * b.e)) + f(E * Math.abs(v))) };
+  };
+  const bneg = (a: B): B => ({ v: -n(a.v), e: a.e });
+  const babs = (a: B): B => ({ v: Math.abs(n(a.v)), e: a.e });
+  const bdiv = (a: B, b: B): B => {
+    const av = n(a.v), bv = n(b.v), v = f(av / bv), d = f(Math.abs(bv) - f(SAFETY * b.e));
+    if (!(d > 0)) { flag(); return { v, e: f(3e38) }; }
+    const e = f(f(f(a.e + f(f(f(Math.abs(av) + a.e) * b.e) / d)) / Math.abs(bv)) + f(f(5 * E) * Math.abs(v)));
+    return { v, e };
+  };
+  const margin = (x: B): number => f(f(SAFETY * x.e) + f(SLACK * f(Math.abs(n(x.v)) + 1)));
+  const ge0 = (x: B): boolean => { const v = n(x.v); if (!(Math.abs(v) > margin(x))) flag(); return v >= 0; };
+  const ge = (a: B, b: B): boolean => ge0(bsub(a, b)), gt = (a: B, b: B): boolean => !ge0(bsub(b, a)), lt = (a: B, b: B): boolean => !ge0(bsub(a, b)), le = (a: B, b: B): boolean => ge0(bsub(b, a));
+  const bfloor = (x: B, lo: number, hi: number): number => {
+    const xv = n(x.v), fl = Math.floor(xv), m = wgslRound(xv), g = margin(x);
+    if (g >= 0.5) { flag(); return fl; }
+    if (m >= lo && m <= hi && !(Math.abs(f(xv - m)) > g)) flag();
+    return fl;
+  };
+  return { bds, bd, bc, bx, badd, bsub, bmul, bneg, babs, bdiv, margin, ge0, ge, gt, lt, le, bfloor };
+}
+/** The bound arithmetic of a model: written out for the round-to-nearest models, through the model's operations under contraction. */
+function boundsOf(model: CompositeArithmetic, K: Ops, flag: () => void): BoundOps { return model.kind === "fused-contraction" ? boundOps(K, flag) : nearestBoundOps(flag); }
 function boundOps(K: Ops, flag: () => void): BoundOps {
   const { add, sub, mul, v: r } = K;
   const bds = (a: Dw, scale: number): B => ({ v: a[0], e: add(add(Math.abs(a[1]), mul(DW, add(add(Math.abs(a[0]), Math.abs(a[1])), scale))), TINY) });
@@ -213,7 +264,7 @@ export function createCompositeMaterialEmulator(af: Float32Array, ai: Uint32Arra
   model: CompositeArithmetic = NEAREST_COMPOSITE_ARITHMETIC): CompositeMaterialEmulator {
   let flagged = false;
   const K = opsOf(model), r = K.v, { add, sub, mul } = K, D = doubleWord(K, path);
-  const { bds, bd, bc, bx, badd, bsub, bmul, bneg, babs, bdiv, margin, ge0, ge, gt, lt, le, bfloor } = boundOps(K, () => { flagged = true; });
+  const { bds, bd, bc, bx, badd, bsub, bmul, bneg, babs, bdiv, margin, ge0, ge, gt, lt, le, bfloor } = boundsOf(model, K, () => { flagged = true; });
   const parityEven = (i: number, j: number): boolean => (((i | 0) + (j | 0)) & 1) === 0;
   const toI32 = (x: number): number => Math.max(-2147483648, Math.min(2147483647, Math.trunc(x)));
   // --- Taylor cos / sin ---
@@ -443,7 +494,7 @@ export function createCompositeDisplayViewMaterialEmulator(latticeWords: Uint32A
   const scaleU: Dw = [latticeFloats[L.scaleUHi]!, latticeFloats[L.scaleULo]!], scaleV: Dw = [latticeFloats[L.scaleVHi]!, latticeFloats[L.scaleVLo]!];
   const k: Dw = [latticeFloats[L.chartKHi]!, latticeFloats[L.chartKLo]!], aspect = latticeFloats[L.chartAspect]!;
   let uncertain = false;
-  const K = opsOf(model), D = doubleWord(K, path), { bd, bc, bx, babs, le } = boundOps(K, () => { uncertain = true; });
+  const K = opsOf(model), D = doubleWord(K, path), { bd, bc, bx, babs, le } = boundsOf(model, K, () => { uncertain = true; });
   const latticePoint = (p: number, scale: Dw, axis: 0 | 1): Dw => {
     const rough = f(p / scale[0]);
     let best = f(3e38), site = 0, cHi = 0, cLo = 0;

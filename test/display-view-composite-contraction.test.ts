@@ -4,10 +4,14 @@
  * fake device's emulation (test/helpers/fake-webgpu-composite.ts): with a multiply and an add fused into one rounding wherever the
  * dataflow allows (W3C WGSL, § 15.7.5 "Reassociation and Fusion"), the probe picks the fma product path, and the Speed and Quality
  * views of the #491 fixtures (material-layers scenes, the 2.3 elements as plain charts, a fixed-size chart) render inside their
- * a-priori bounds and the #480 acceptance thresholds, measured against the same views on the unfused emulation. The contraction
- * model covers the composite kernel's classification, its probe and the lattice recovery (where the error-free transforms are);
- * the Speed and Quality kernels' own sample arithmetic runs as in the other emulation tests. Through `prepareDisplayView`, the probe
- * record is in `diagnostics.fast.execution.compositeProbe`, on a GPU render and on a refusal's CPU fallback alike.
+ * a-priori bounds and the #480 acceptance thresholds. The unfused (Dekker) renders of the same cases are
+ * test/display-view-composite-gpu.test.ts. The contraction model covers the composite kernel's classification, its probe and the
+ * lattice recovery (where the error-free transforms are); the Speed and Quality kernels' own sample arithmetic runs as in the other
+ * emulation tests. The emulation under contraction is slow (a full 203 × 135 view of a frame-filling chart takes about 40 s per model
+ * without coverage, measured on an M5 Pro), so a frame-filling case renders one fixed 48 × 36 region of the view, as the Quality case
+ * does; the fixed-size charts render the whole view, chart edge and surround. Every query of both composite scenes under contraction
+ * is checked against the reference in test/chart-composite-contraction.test.ts. Through `prepareDisplayView`, the probe record is in
+ * `diagnostics.fast.execution.compositeProbe`, on a GPU render and on a refusal's CPU fallback alike.
  */
 import { afterAll, describe, expect, it } from "vitest";
 import { writeFileSync } from "node:fs";
@@ -28,20 +32,22 @@ const output = { ...SMALL_FRAME, format: "srgb-8" as const };
 const lens = { prime: 50 as const, fNumber: 8 };
 const declared = layeredScene(FIXTURE_ASPECT);
 const placed = { chartSize: { widthM: 0.042 }, subjectDistanceM: 0.63 };
-/** The #491 Speed cases (test/display-view-composite-gpu.test.ts) with their flagged-fraction ceilings. */
-const cases: [string, SimulateCaptureOptions, number][] = [
-  ["composite under the label layer (material-layers), frame-filling", { scene: declared, lens, sensor, output }, 0.06],
-  ["composite under the label layer (material-layers), fixed-size chart with surround", { scene: declared, lens, sensor, output, ...placed }, 0.06],
+/** A 48 × 36 region of the 203 × 135 view at column x, row y. */
+const at = (x: number, y: number): { x: number; y: number; width: number; height: number } => ({ x, y, width: 48, height: 36 });
+/** The #491 Speed cases (test/display-view-composite-gpu.test.ts) with their flagged-fraction ceilings and, for a frame-filling chart, the region rendered. */
+const cases: [string, SimulateCaptureOptions, number, ReturnType<typeof at> | null][] = [
+  ["composite under the label layer (material-layers), frame-filling", { scene: declared, lens, sensor, output }, 0.06, at(78, 50)],
+  ["composite under the label layer (material-layers), fixed-size chart with surround", { scene: declared, lens, sensor, output, ...placed }, 0.06, null],
   ["composite under the label layer (material-layers), Reinhard at the white clip", { scene: declared, lens, sensor, output: { ...output, toneCurve: "positive-reinhard-per-channel" },
-    exposure: { mode: "manual", iso: 100, shutterSeconds: 1 / 30 } }, 0.06],
-  ["zone plate (2.3 element as a plain chart)", { scene: { preset: "zone-plate", maximumCyclesPerPictureHeight: 200 }, lens, sensor, output }, 0.3],
-  ["Siemens star (sine, 64 cycles)", { scene: { preset: "siemens-star", profile: "sine", cycles: 64 }, lens, sensor, output }, 0.05],
-  ["dead leaves", { scene: { preset: "dead-leaves", seed: 491 }, lens, sensor, output }, 0.05],
-  ["bar groups with numerals", { scene: { preset: "bar-groups", numerals: true }, lens, sensor, output }, 0.05],
-  ["checkerboard, fixed-size chart with surround", { scene: { preset: "checkerboard", squaresAcross: 12 }, lens, sensor, output, ...placed }, 0.05]
+    exposure: { mode: "manual", iso: 100, shutterSeconds: 1 / 30 } }, 0.06, at(20, 12)],
+  ["zone plate (2.3 element as a plain chart)", { scene: { preset: "zone-plate", maximumCyclesPerPictureHeight: 200 }, lens, sensor, output }, 0.3, at(120, 40)],
+  ["Siemens star (sine, 64 cycles)", { scene: { preset: "siemens-star", profile: "sine", cycles: 64 }, lens, sensor, output }, 0.05, at(78, 50)],
+  ["dead leaves", { scene: { preset: "dead-leaves", seed: 491 }, lens, sensor, output }, 0.05, at(30, 80)],
+  ["bar groups with numerals", { scene: { preset: "bar-groups", numerals: true }, lens, sensor, output }, 0.05, at(100, 30)],
+  ["checkerboard, fixed-size chart with surround", { scene: { preset: "checkerboard", squaresAcross: 12 }, lens, sensor, output, ...placed }, 0.05, null]
 ];
-const MODELS: [string, CompositeArithmetic][] = [
-  ["unfused", { kind: "nearest" }],
+const UNFUSED: [string, CompositeArithmetic] = ["unfused", { kind: "nearest" }];
+const CONTRACTIONS: [string, CompositeArithmetic][] = [
   ["fused contraction (first product operand)", { kind: "fused-contraction", choose: "first" }],
   ["fused contraction (random per site, seed 7)", { kind: "fused-contraction", choose: { seed: 7 } }]
 ];
@@ -58,15 +64,23 @@ function row(a: DisplayViewAgreement, flagged: number): Record<string, unknown> 
 }
 
 describe("display view with the composite material module under fused contraction (float32 emulation, 2.11.0)", () => {
-  it.each(cases)("%s (Speed): the fma path under contraction renders inside the bounds and the #480 thresholds, as the Dekker path unfused", async (name, options, ceiling) => {
-    const fixture = await displayViewGpuFixture(options, SMALL_VIEW), rows: Record<string, unknown> = {};
-    let unfusedSamples: Uint8Array | Uint16Array | undefined;
-    for (const [model, arithmetic] of MODELS) {
+  it.each(cases)("%s (Speed): the fma path under contraction renders inside the bounds and the #480 thresholds", async (name, options, ceiling, region) => {
+    const fixture = await displayViewGpuFixture(options, region ? { ...SMALL_VIEW, region } : SMALL_VIEW), rows: Record<string, unknown> = {};
+    const width = region?.width ?? fixture.viewWidth, height = region?.height ?? fixture.viewHeight;
+    // The flagged-fraction ceilings are of the whole view (asserted unfused in test/display-view-composite-gpu.test.ts); a region's
+    // fraction depends on what it shows, so there the contracted render may flag no more pixels than the unfused render of the region.
+    let flaggedCeiling = ceiling;
+    if (region) {
+      const runtime = await runtimeOf(createFakeGpu({ compositeArithmetic: UNFUSED[1] }).gpu), gpu = await renderOnGpu(runtime, fixture);
+      flaggedCeiling = gpu.flaggedPixelIndices.length / (width * height);
+      rows[UNFUSED[0]] = { flagged: gpu.flaggedPixelIndices.length, flaggedFraction: flaggedCeiling };
+      runtime.destroy();
+    }
+    for (const [model, arithmetic] of CONTRACTIONS) {
       const runtime = await runtimeOf(createFakeGpu({ compositeArithmetic: arithmetic }).gpu), module = await materialModuleOf(runtime, fixture.input.setup);
-      const path = arithmetic.kind === "nearest" ? "dekker" : "fma";
-      expect(module.id).toBe(chartCompositeMaterialModuleId(path));
-      expect(module.compositeProbe).toMatchObject({ productPath: path, deviceClass: path === "dekker" ? "exact" : "contracted" });
-      const gpu = await renderOnGpu(runtime, fixture), a = compareDisplayViews(fixture.cpu, gpu), { metrics, verdict } = acceptanceOf(fixture.viewWidth, fixture.viewHeight, fixture.cpu, gpu);
+      expect(module.id).toBe(chartCompositeMaterialModuleId("fma"));
+      expect(module.compositeProbe).toMatchObject({ productPath: "fma", deviceClass: "contracted" });
+      const gpu = await renderOnGpu(runtime, fixture), a = compareDisplayViews(fixture.cpu, gpu), { metrics, verdict } = acceptanceOf(width, height, fixture.cpu, gpu);
       rows[model] = { ...row(a, gpu.flaggedPixelIndices.length), acceptance: { withinFraction: metrics.withinFraction, maxDeltaE: metrics.maxDeltaE, maxSigma: metrics.maxSigma, pass: verdict.pass } };
       expect(a.outsideExpectedBound).toBe(0);
       expect(a.outsideVarianceBound).toBe(0);
@@ -76,16 +90,10 @@ describe("display view with the composite material module under fused contractio
       expect(verdict.pass, JSON.stringify(verdict.checks)).toBe(true);
       expect(Array.from(gpu.hostRecomputedPixelIndices)).toEqual(Array.from(gpu.flaggedPixelIndices));
       for (const i of gpu.flaggedPixelIndices) for (let c = 0; c < 3; c++) expect(gpu.expected[3 * i + c]).toBe(fixture.cpu.expected[3 * i + c]);
-      expect(gpu.flaggedPixelIndices.length / a.pixels).toBeLessThanOrEqual(ceiling);
-      if (!unfusedSamples) unfusedSamples = gpu.samples;
-      else {
-        let differing = 0;
-        for (let i = 0; i < gpu.samples.length; i++) if (gpu.samples[i] !== unfusedSamples[i]) differing++;
-        (rows[model] as Record<string, unknown>).samplesDifferingFromUnfused = differing;
-      }
+      expect(gpu.flaggedPixelIndices.length / a.pixels).toBeLessThanOrEqual(flaggedCeiling);
       runtime.destroy();
     }
-    report.push({ case: name + " (Speed)", pixels: fixture.viewWidth * fixture.viewHeight, ...rows });
+    report.push({ case: name + " (Speed)", ...(region ? { region } : {}), pixels: width * height, ...rows });
   }, scaledTimeout(900_000));
 
   it("material-layers (Quality: diffraction, four-spot, AHD; and a fixed-size chart): the fma path under contraction stays inside the bounds", async () => {
@@ -96,7 +104,7 @@ describe("display view with the composite material module under fused contractio
     ];
     for (const [name, options] of variants) {
       const fixture = await displayViewGpuFixture(options, { ...SMALL_VIEW, region }), rows: Record<string, unknown> = {};
-      for (const [model, arithmetic] of MODELS.slice(0, 2)) {
+      for (const [model, arithmetic] of [UNFUSED, CONTRACTIONS[0]!]) {
         const runtime = await runtimeOf(createFakeGpu({ compositeArithmetic: arithmetic }).gpu);
         const module = await qualityMaterialModule(materialModulesOf(runtime), fixture.input.setup.gpu!, new AbortController().signal);
         expect(module.id).toBe(chartCompositeMaterialModuleId(arithmetic.kind === "nearest" ? "dekker" : "fma"));
@@ -120,7 +128,7 @@ describe("display view with the composite material module under fused contractio
       const exact = await prepareDisplayView(options, { gpu: "auto", gpuDevice: createFakeGpu().gpu });
       expect((await exact.render(SMALL_VIEW)).diagnostics.fast.execution.compositeProbe).toMatchObject({ deviceClass: "exact", productPath: "dekker", fmaFused: true });
       exact.dispose();
-      const contracted = await prepareDisplayView(options, { gpu: "require", gpuDevice: createFakeGpu({ compositeArithmetic: MODELS[1]![1] }).gpu });
+      const contracted = await prepareDisplayView(options, { gpu: "require", gpuDevice: createFakeGpu({ compositeArithmetic: CONTRACTIONS[0]![1] }).gpu });
       const execution = (await contracted.render(SMALL_VIEW)).diagnostics.fast.execution;
       expect(execution).toMatchObject({ backend: "webgpu-f32", fallbackReason: null, compositeProbe: { deviceClass: "contracted", productPath: "fma", fmaFused: true } });
       expect(execution.compositeProbe!.mismatchCounts["double-word-multiply"]).toBeGreaterThan(0);
