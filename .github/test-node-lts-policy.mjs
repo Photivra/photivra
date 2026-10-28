@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertMaintainedLts, assertSupportedRuntime, assertSupportedTypes, supportedNodeMajors } from "./node-lts-policy.mjs";
+import { lookAheadFailures, newestRelease } from "./node-lts-lookahead.mjs";
+import { assertMaintainedLts, assertSupportedRuntime, assertSupportedTypes, ltsMarkerGraceDays, supportedNodeMajors } from "./node-lts-policy.mjs";
 
 const reviewedAt = new Date("2026-10-02T12:00:00Z");
 
@@ -46,7 +47,7 @@ test("Current is admitted only within its reviewed stable window", () => {
 test("Current transitions to LTS without losing support or admitting non-LTS builds", () => {
   const transition = new Date("2026-10-28T00:00:00Z");
   assertSupportedRuntime("26.13.0", "LTS", transition);
-  assert.throws(() => assertSupportedRuntime("26.13.0", undefined, transition));
+  assert.throws(() => assertSupportedRuntime("26.13.0", undefined, new Date("2026-11-04T00:00:00Z")));
   assert.throws(() => assertSupportedRuntime("26.13.0", "LTS", new Date("2029-04-30T00:00:00Z")));
 });
 test("stable Current does not admit prereleases, unknown majors or EOL lines", () => {
@@ -55,4 +56,56 @@ test("stable Current does not admit prereleases, unknown majors or EOL lines", (
 });
 test("invalid evaluation dates also reject Current", () => {
   assert.throws(() => assertSupportedRuntime("26.8.1", undefined, new Date("invalid")));
+});
+
+// Recorded from https://nodejs.org/dist/index.json on 2026-10-28 (02:48 UTC): the newest build of
+// each supported major. Node 26 had no LTS build yet on its scheduled LTS date, 2026-10-28.
+const recordedReleases = Object.freeze([
+  { version: "v26.12.1", date: "2026-10-21", lts: false },
+  { version: "v26.12.0", date: "2026-10-14", lts: false },
+  { version: "v22.23.4", date: "2026-10-20", lts: "Jod" },
+  { version: "v24.22.1", date: "2026-10-20", lts: "Krypton" },
+  { version: "v24.22.0", date: "2026-10-14", lts: "Krypton" },
+  { version: "v22.23.3", date: "2026-09-23", lts: "Jod" }
+]);
+
+test("an LTS start without a published LTS build passes only within the grace period", () => {
+  assert.equal(ltsMarkerGraceDays, 7);
+  assertSupportedRuntime("26.12.1", undefined, new Date("2026-10-28T00:00:00Z"));
+  assertSupportedRuntime("26.12.1", undefined, new Date("2026-11-03T23:59:59Z"));
+  assert.throws(() => assertSupportedRuntime("26.12.1", undefined, new Date("2026-11-04T00:00:00Z")), /must carry its LTS marker/);
+});
+test("the grace period admits no other major and keeps the Current and EOL rules", () => {
+  assert.throws(() => assertSupportedRuntime("24.0.0", undefined, new Date("2026-10-28T00:00:00Z")));
+  assert.throws(() => assertSupportedRuntime("26.12.1", "LTS", new Date("2026-10-27T23:59:59Z")), /must not claim/);
+  assert.throws(() => assertSupportedRuntime("26.12.1", undefined, new Date("2029-04-30T00:00:00Z")));
+  assert.throws(() => assertSupportedRuntime("26.12.1-rc.1", undefined, new Date("2026-10-28T00:00:00Z")));
+});
+test("an LTS-marked build passes through and after the grace period as before", () => {
+  for (const at of ["2026-10-28T00:00:00Z", "2026-11-04T00:00:00Z", "2029-04-29T23:59:59Z"])
+    assertSupportedRuntime("26.13.0", "LTS", new Date(at));
+});
+test("the look-ahead picks the newest build of each major by version number", () => {
+  assert.deepEqual(newestRelease(recordedReleases, 22), { version: "22.23.4", parts: [22, 23, 4], lts: "Jod" });
+  assert.deepEqual(newestRelease([{ version: "v26.9.0", lts: false }, { version: "v26.12.1", lts: false }, { version: "v26.12.0", lts: false }], 26)?.version, "26.12.1");
+  assert.equal(newestRelease(recordedReleases, 28), undefined);
+});
+test("the look-ahead reports the end of the grace period 14 days ahead", () => {
+  assert.deepEqual(lookAheadFailures(recordedReleases, new Date("2026-10-20T06:17:00Z")), []);
+  assert.deepEqual(lookAheadFailures(recordedReleases, new Date("2026-10-21T06:17:00Z")), [
+    { major: 26, date: "2026-11-04", version: "26.12.1", reason: "An LTS Node build must carry its LTS marker." }
+  ]);
+  assert.equal(lookAheadFailures(recordedReleases, new Date("2026-10-28T06:17:00Z"))[0].date, "2026-11-04");
+});
+test("the look-ahead passes once the line publishes an LTS-marked build", () => {
+  const published = [{ version: "v26.13.0", date: "2026-10-28", lts: "LTS" }, ...recordedReleases];
+  assert.deepEqual(lookAheadFailures(published, new Date("2026-10-28T06:17:00Z")), []);
+});
+test("the look-ahead reports a supported major with no published build", () => {
+  const without22 = recordedReleases.filter(({ version }) => !version.startsWith("v22."));
+  assert.deepEqual(lookAheadFailures(without22, new Date("2026-10-20T00:00:00Z")).map(({ major, date }) => ({ major, date })), [{ major: 22, date: "2026-10-20" }]);
+});
+test("the look-ahead fails closed on malformed input", () => {
+  assert.throws(() => lookAheadFailures({}, new Date("2026-10-20T00:00:00Z")));
+  assert.throws(() => lookAheadFailures(recordedReleases, new Date("invalid")));
 });
