@@ -60,7 +60,7 @@ const KEPT_SCENES = 4;
 const MODEL_TOLERANCE = 2 ** -48;
 
 /** Layout of the lattice uniform (float32 / u32 words, 48 bytes) and the offsets table (one vec4 per offset: cu hi, cu lo, cv hi, cv lo). */
-export const DISPLAY_VIEW_LATTICE = Object.freeze({ scaleUHi: 0, scaleULo: 1, scaleVHi: 2, scaleVLo: 3, chartKHi: 4, chartKLo: 5, chartAspect: 6, tolerance: 7, offsets: 8, placed: 9, surround: 10, words: 12 });
+export const DISPLAY_VIEW_LATTICE = Object.freeze({ scaleUHi: 0, scaleULo: 1, scaleVHi: 2, scaleVLo: 3, chartKHi: 4, chartKLo: 5, chartAspect: 6, tolerance: 7, offsets: 8, placed: 9, surround: 10, zero: 11, words: 12 });
 
 /**
  * The composite kernel's classification (`material(p: vec4<f32>)` with its bound arithmetic, double-float32, cos polynomial,
@@ -72,14 +72,14 @@ export function chartCompositeMaterialWgsl(path: ChartCompositeProductPath = "de
   const source = chartCompositeWgsl(path);
   const commonStart = source.indexOf("const DW: f32"), commonEnd = source.indexOf("struct Params"), bodyStart = source.indexOf("const SEGMENT_BOX"), bodyEnd = source.indexOf("@compute");
   if (commonStart < 0 || commonEnd < commonStart || bodyStart < commonEnd || bodyEnd < bodyStart) throw new ImageKernelExecutionError("gpu-validation", "The composite chart kernel's material functions were not found.");
-  const rename = (code: string): string => code.replace(/^const SLACK: f32 = [^\n]*\n/mu, "").replace(/\bflagged\b/gu, "material_uncertain").replace(/\bmargin\(/gu, "bmargin(");
+  const rename = (code: string): string => code.replace(/^const SLACK: f32 = [^\n]*\n/mu, "").replace(/\bflagged\b/gu, "material_uncertain").replace(/\bmargin\(/gu, "bmargin(").replace(/\bparams\.zero\b/gu, "lattice.zero");
   return `${rename(source.slice(commonStart, commonEnd))}
 @group(1) @binding(0) var<storage, read> af: array<f32>;
 @group(1) @binding(1) var<storage, read> ai: array<u32>;
 struct LatticeParams {
   scale_u_hi: f32, scale_u_lo: f32, scale_v_hi: f32, scale_v_lo: f32,
   chart_k_hi: f32, chart_k_lo: f32, chart_aspect: f32, tolerance: f32,
-  offsets: u32, placed: u32, surround: u32, pad0: u32,
+  offsets: u32, placed: u32, surround: u32, zero: u32,
 };
 @group(1) @binding(2) var<uniform> lattice: LatticeParams;
 @group(1) @binding(3) var<storage, read> lattice_offsets: array<vec4<f32>>;
@@ -170,6 +170,7 @@ export function displayViewLatticeConstants(signalInput: DisplayViewExpectedSign
   }
   floats[DISPLAY_VIEW_LATTICE.tolerance] = tolerance;
   words[DISPLAY_VIEW_LATTICE.offsets] = offsets.length; words[DISPLAY_VIEW_LATTICE.placed] = placement ? 1 : 0; words[DISPLAY_VIEW_LATTICE.surround] = surroundMaterial;
+  words[DISPLAY_VIEW_LATTICE.zero] = 0; // the rounding barrier's zero (`lattice.zero`)
   const table = new Float32Array(4 * offsets.length);
   for (let o = 0; o < offsets.length; o++) {
     const [uH, uL] = dwSplit(cu[o]!), [vH, vL] = dwSplit(cv[o]!);

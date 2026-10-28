@@ -370,7 +370,10 @@ export async function probeChartCompositeDevice(runtime: WebGpuRuntime, pipeline
   try {
     const input = scope.upload("photivra-chart-probe-in", Float32Array.from(PROBE_INPUTS.flat()), BUFFER_USAGE.STORAGE);
     const output = scope.buffer("photivra-chart-probe-out", bytes, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
-    const bindGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: input } }, { binding: 1, resource: { buffer: output } }] });
+    // The rounding barrier's zero word (CHART_COMPOSITE_PROBE_WGSL `probe_zero`).
+    const zero = scope.upload("photivra-chart-probe-zero", new Uint32Array(4), BUFFER_USAGE.UNIFORM);
+    const bindGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: input } }, { binding: 1, resource: { buffer: output } },
+      { binding: 2, resource: { buffer: zero } }] });
     const [data] = await runComputePass(runtime, scope, pipeline, bindGroup, [PROBE_INPUTS.length, 1], [{ buffer: output, bytes }], signal);
     record = classifyChartCompositeProbe(new Float32Array(data!, 0, CHART_COMPOSITE_PROBE_OUTPUTS * PROBE_INPUTS.length));
   } finally { scope.release(); }
@@ -430,7 +433,7 @@ export async function evaluateChartCompositeOnGpu(runtime: WebGpuRuntime, bandBy
     throw new ImageKernelExecutionError("insufficient-limits", "Chart tables or bands exceed the device's storage binding limit.");
   }
   const params = new ArrayBuffer(16), words = new Uint32Array(params);
-  words[1] = stride; words[2] = radianceMode ? 1 : 0;
+  words[1] = stride; words[2] = radianceMode ? 1 : 0; words[3] = 0; // words[3]: the rounding barrier's zero (chartCompositeWgsl `params.zero`)
   const pipeline = await pipelines(chartCompositeLabel(path), chartCompositeWgsl(path));
   const values = new Float32Array(count * columns), recomputed: number[] = [], split = splitPoints(points);
   const scope = new GpuResourceScope(runtime);
