@@ -45,6 +45,7 @@ import { meterRelativeExposure } from "../exposure/metering.js";
 import { createExposureMeterTargetFromMeteringResult, setExposureCompensationOnMeterTarget } from "../exposure/metering-target.js";
 import { resolveManualExposureMode, resolveAperturePriorityExposureMode, resolveAperturePriorityAutoIsoExposureMode, resolveShutterPriorityExposureMode,
   resolveProgramAutoExposureMode, type AutoIsoBaselinePolicy, type AutoIsoLimits, type ExposureResolutionConstraint } from "../exposure/exposure-mode-resolver.js";
+import { estimateAutoIsoSlowestShutter, GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC } from "../exposure/auto-iso-slowest-shutter.js";
 import { parseExposureProgramLineProfile, type ExposureProgramLineProfile } from "../exposure/program-line.js";
 import { resolveCaptureGeometry } from "../output/capture-geometry.js";
 import { estimateCie1931ColorMatchingFunctions, type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
@@ -148,10 +149,50 @@ export interface SimulateCaptureAutoIsoReport {
   limitingConstraint: ExposureResolutionConstraint;
   /** The resolver's residual, log2(target / achieved exposure), in stops: positive when the exposure is under the meter target, negative when over it. */
   residualStops: number;
-  /** Aperture priority only: the policy and slowest preferred shutter used, and whether the slower-shutter fallback ran. */
+  /**
+   * Aperture priority, and program with a slowest preferred shutter (#504): the policy and slowest preferred shutter used,
+   * and whether the slower-shutter fallback ran.
+   */
   afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum;
   slowestPreferredShutterSeconds?: number;
   afterMaximumIsoFallbackUsed?: boolean;
+  /** #504, program only: whether the program line's shutter was longer than the slowest preferred shutter and was held. */
+  slowestPreferredShutterApplied?: boolean;
+  /** #504: present only with `slowestPreferredShutterSeconds: "auto"`: how the engine derived it (`estimateAutoIsoSlowestShutter`). */
+  automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterReport;
+}
+/**
+ * #504: the settings of `exposure.autoIso.slowestPreferredShutterSeconds: "auto"`. Every field is optional; the defaults are
+ * labelled generic values, recorded as `default` assumptions.
+ */
+export interface SimulateCaptureAutomaticSlowestShutterOptions {
+  /** The bias in whole stops, as cameras' Auto minimum-shutter settings offer: +1 one stop faster, −1 one stop slower; −2 to +2. Default 0. */
+  fasterByStops?: number;
+  /** The shake blur allowed, in sensor pixels of `sensor.pixelPitchMicrometers`. Default 1 (a generic pixel-level budget). */
+  blurBudgetPixels?: number;
+  /**
+   * The hand's constant angular velocity, rad/s (signs as in `motion.angularVelocityRadPerSec`; only the magnitude matters).
+   * Default `GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC`: 4.39 °/s on yaw, a cited generic value for a 100 g phone held in
+   * two hands (Xiao et al., Proc. SPIE 7250, 2009), not a measurement of you or of this camera.
+   */
+  angularVelocityRadPerSec?: { yaw: number; pitch: number };
+  /** Stabilization in equivalent stops (≥ 0, at most 10), scaling the motion by 2^−stops. Default 0: the tiers declare no stabilization. */
+  stabilizationStopsEquivalent?: number;
+}
+/** #504: the automatic slowest preferred shutter in the Auto ISO report. */
+export interface SimulateCaptureAutomaticSlowestShutterReport {
+  /** The exposure time whose camera-shake blur equals the budget (`estimateCameraShakeBlur`), before the bias and the grid. */
+  derivedShutterSeconds: number;
+  fasterByStops: number;
+  /** derivedShutterSeconds · 2^−fasterByStops. */
+  biasedShutterSeconds: number;
+  /** The slowest preferred shutter used: the biased time within the body's shutter range. */
+  shutterSeconds: number;
+  blurBudgetPixels: number;
+  /** The shake blur at `shutterSeconds`, in pixels. */
+  blurAtShutterPixels: number;
+  angularVelocityRadPerSec: { yaw: number; pitch: number };
+  stabilizationStopsEquivalent: number;
 }
 export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" | "dng";
 export type SimulateCaptureWhiteBalance =
@@ -291,17 +332,22 @@ export interface SimulateCaptureOptions {
     /**
      * Auto ISO settings, with `iso: "auto"` only.
      *
-     * - `slowestPreferredShutterSeconds` and `afterMaximumIso` (#516): aperture priority only, where the slowest shutter is
-     *   required. The shutter gets as long as `slowestPreferredShutterSeconds` (seconds, within the body's shutter range)
-     *   at the lowest Auto ISO; beyond it the ISO rises; at the Auto ISO maximum `afterMaximumIso` decides (default
-     *   `"allow-slower-shutter"`).
+     * - `slowestPreferredShutterSeconds` and `afterMaximumIso` (#516): aperture priority, where the slowest shutter is
+     *   required, and (#504) program, where it is optional. The shutter gets as long as `slowestPreferredShutterSeconds`
+     *   (seconds, within the body's shutter range) at the lowest Auto ISO; beyond it the ISO rises; at the Auto ISO maximum
+     *   `afterMaximumIso` decides (default `"allow-slower-shutter"`; in program the shutter then never gets longer than the
+     *   program line's own). Without it, program follows its line as before.
+     * - `slowestPreferredShutterSeconds: "auto"` (#504): the engine derives it from the focal length, the pixel pitch and a
+     *   hand-shake profile with `estimateAutoIsoSlowestShutter` (the camera-shake model, not the 1/focal-length rule of
+     *   thumb); `automaticSlowestShutter` sets the bias, the blur budget, the shake and the stabilization.
      * - `limits` (#505): every mode. The photographer's Auto ISO range `{ maximum, minimum? }`, a choice kept apart from
      *   the body's Auto ISO capability: both are selectable ISOs inside the body's Auto ISO range, `minimum` at most
      *   `maximum` (default: the body's minimum). Outside the body's range or off its ISO grid the request fails; the
      *   engine never clips a limit. When the ISO stops at a limit strictly inside the body's range, the report's
      *   `limitingConstraint` is `"user-iso-maximum"` or `"user-iso-minimum"`.
      */
-    autoIso?: { slowestPreferredShutterSeconds?: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits };
+    autoIso?: { slowestPreferredShutterSeconds?: number | "auto"; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits;
+      automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterOptions };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
@@ -885,10 +931,13 @@ export function bilinearPhaseProfiles(): RawFrameReconstructionPhaseProfile[] {
  * `idealIsoBeforeConstraints`, `isoResolution` and a resolved `targetResidual`; aperture priority adds its fallback flag).
  */
 function autoIsoReport(resolution: unknown, iso: ResolvedGenericEquipmentExposureCapabilities["iso"],
-  aperturePriority: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined,
-  limits: { minimum: number; maximum: number } | undefined): SimulateCaptureAutoIsoReport {
+  shutterPolicy: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined,
+  limits: { minimum: number; maximum: number } | undefined, automatic: SimulateCaptureAutomaticSlowestShutterReport | undefined): SimulateCaptureAutoIsoReport {
   const r = resolution as { idealIsoBeforeConstraints?: unknown; isoResolution?: { clamped?: unknown }; afterMaximumIsoFallbackUsed?: unknown;
+    slowestPreferredShutter?: { applied?: unknown; afterMaximumIsoFallbackUsed?: unknown };
     targetResidual?: { status?: unknown; limitingConstraint?: unknown; residualStops?: unknown } };
+  // Program reports its hold under slowestPreferredShutter (#504); aperture priority at the top level.
+  const program = r.slowestPreferredShutter;
   const ideal = r.idealIsoBeforeConstraints, residual = r.targetResidual?.residualStops, clamped = r.isoResolution?.clamped;
   if (typeof ideal !== "number" || !Number.isFinite(ideal) || typeof residual !== "number" || !Number.isFinite(residual) || r.targetResidual?.status !== "resolved" ||
     (clamped !== false && clamped !== "minimum" && clamped !== "maximum"))
@@ -896,7 +945,9 @@ function autoIsoReport(resolution: unknown, iso: ResolvedGenericEquipmentExposur
   // The resolvers' Auto ISO range: the body's Auto ISO bounds, else its ISO range.
   return { idealIsoBeforeConstraints: ideal, autoIsoMinimum: iso.autoIsoMinimum ?? iso.minimum, autoIsoMaximum: iso.autoIsoMaximum ?? iso.maximum, clamped,
     ...(limits ? { limits: { ...limits } } : {}), limitingConstraint: r.targetResidual.limitingConstraint as ExposureResolutionConstraint, residualStops: residual,
-    ...(aperturePriority ? { ...aperturePriority, afterMaximumIsoFallbackUsed: r.afterMaximumIsoFallbackUsed === true } : {}) };
+    ...(shutterPolicy ? { ...shutterPolicy, afterMaximumIsoFallbackUsed: (program ? program.afterMaximumIsoFallbackUsed : r.afterMaximumIsoFallbackUsed) === true } : {}),
+    ...(program ? { slowestPreferredShutterApplied: program.applied === true } : {}),
+    ...(automatic ? { automaticSlowestShutter: automatic } : {}) };
 }
 /**
  * #505: `exposure.autoIso.limits`, the photographer's Auto ISO range. Both limits are selectable ISOs inside the body's
@@ -918,6 +969,54 @@ function parseAutoIsoLimitsOption(value: unknown, iso: ResolvedGenericEquipmentE
   const maximum = limit("maximum"), minimum = record.minimum === undefined ? bodyMinimum : limit("minimum");
   if (minimum > maximum) fail("exposure.autoIso.limits.minimum (ISO " + minimum + ") must not exceed exposure.autoIso.limits.maximum (ISO " + maximum + ").");
   return { minimum, maximum };
+}
+/**
+ * #504: `exposure.autoIso.slowestPreferredShutterSeconds: "auto"`: the slowest preferred shutter from the camera-shake model
+ * (`estimateAutoIsoSlowestShutter`) for this lens, focus and pixel pitch, within the body's shutter range. Option defects are
+ * configuration errors; the defaults are recorded as `default` assumptions and the derivation as a `model` assumption.
+ */
+function resolveAutomaticSlowestShutterOption(value: unknown, context: { focalLengthMm: number; focusDistanceM: number; pitch: number;
+  shutter: ResolvedGenericEquipmentExposureCapabilities["shutter"];
+  assume: (id: string, kind: SimulateCaptureAssumption["kind"], value: unknown, explanation: string) => void;
+  pick: <T>(record: Record<string, unknown>, key: string, path: string, fallback: T, explanation: string) => T }): SimulateCaptureAutomaticSlowestShutterReport {
+  const path = "exposure.autoIso.automaticSlowestShutter";
+  const record = allowKeys(value, path, ["fasterByStops", "blurBudgetPixels", "angularVelocityRadPerSec", "stabilizationStopsEquivalent"]);
+  const fasterByStops = context.pick<unknown>(record, "fasterByStops", path + ".fasterByStops", 0, "No bias: the derived slowest shutter is used as is.");
+  if (typeof fasterByStops !== "number" || !Number.isInteger(fasterByStops) || Math.abs(fasterByStops) > 2) fail(path + ".fasterByStops must be a whole number of stops from -2 to +2.");
+  const blurBudgetPixels = positive(context.pick<unknown>(record, "blurBudgetPixels", path + ".blurBudgetPixels", 1,
+    "A generic pixel-level blur budget: the shake trace during the exposure may be one pixel long. A choice, not a measured threshold."), path + ".blurBudgetPixels");
+  const angularOption = context.pick<unknown>(record, "angularVelocityRadPerSec", path + ".angularVelocityRadPerSec", { ...GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC },
+    "Generic hand shake: 4.39 °/s (0.0766 rad/s) on yaw, the linear camera-motion rate Xiao, Farrell, Catrysse and Wandell (Proc. SPIE 7250, 2009) use for an average user " +
+    "holding a 100 g mobile handset with two hands. A labelled generic default, not a measurement of this photographer or camera.");
+  const angular = allowKeys(angularOption, path + ".angularVelocityRadPerSec", ["yaw", "pitch"]);
+  for (const axis of ["yaw", "pitch"]) {
+    const v = angular[axis];
+    if (typeof v !== "number" || !Number.isFinite(v) || Math.abs(v) > 100) fail(path + ".angularVelocityRadPerSec." + axis + " must be a finite number within ±100 rad/s.");
+  }
+  const angularVelocityRadPerSec = { yaw: angular.yaw as number, pitch: angular.pitch as number };
+  if (angularVelocityRadPerSec.yaw === 0 && angularVelocityRadPerSec.pitch === 0)
+    fail(path + ".angularVelocityRadPerSec must be non-zero on at least one axis: without shake no slowest shutter follows.");
+  const stabilizationStopsEquivalent = context.pick<unknown>(record, "stabilizationStopsEquivalent", path + ".stabilizationStopsEquivalent", 0,
+    "No stabilization: the generic tiers declare none.");
+  if (typeof stabilizationStopsEquivalent !== "number" || !Number.isFinite(stabilizationStopsEquivalent) || stabilizationStopsEquivalent < 0 || stabilizationStopsEquivalent > 10)
+    fail(path + ".stabilizationStopsEquivalent must be a number of stops from 0 to 10.");
+  let estimate;
+  try {
+    estimate = estimateAutoIsoSlowestShutter({ focalLengthMm: context.focalLengthMm, focusDistanceM: context.focusDistanceM, angularVelocityRadPerSec,
+      stabilizationStopsEquivalent, blurBudget: { kind: "pixels", pixels: blurBudgetPixels, pixelPitchMicrometers: context.pitch }, fasterByStops,
+      shutterCapability: context.shutter }).value;
+  } catch (error) {
+    fail(path + ": " + (error instanceof Error ? error.message : String(error)));
+  }
+  const report: SimulateCaptureAutomaticSlowestShutterReport = { derivedShutterSeconds: estimate.derivedShutterSeconds, fasterByStops,
+    biasedShutterSeconds: estimate.biasedShutterSeconds, shutterSeconds: estimate.shutterSeconds, blurBudgetPixels, blurAtShutterPixels: estimate.blurAtShutterPixels!,
+    angularVelocityRadPerSec, stabilizationStopsEquivalent };
+  context.assume("exposure.autoIso.automaticSlowestShutter", "model", { ...report, angularVelocityRadPerSec: { ...angularVelocityRadPerSec },
+    focalLengthMm: context.focalLengthMm, focusDistanceM: context.focusDistanceM, pixelPitchMicrometers: context.pitch },
+    "Automatic slowest shutter (#504): the exposure time at which estimateCameraShakeBlur()'s on-axis blur (constant angular velocity, thin-lens projection at the focus " +
+    "distance, stabilization as 2^-stops) equals the blur budget, times 2^-fasterByStops, held within the body's shutter range. An approximation; the 1/focal-length " +
+    "reciprocal rule is a rule of thumb and is not used.");
+  return report;
 }
 function defaultProgramLine(): ExposureProgramLineProfile {
   // Generic educational program line written for the engine, relative to the f/8, 1/125 s reference. For less light
@@ -1809,12 +1908,15 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // #505: the photographer's Auto ISO limits, validated against the body's Auto ISO range; absent unless given.
   let autoIsoOptions: Record<string, unknown> = {};
   let autoIsoLimits: { minimum: number; maximum: number } | undefined;
+  // #504: the slowest preferred shutter (aperture priority; optional in program) and, with "auto", how it was derived.
+  let autoIsoShutterPolicy: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined;
+  let automaticSlowestShutter: SimulateCaptureAutomaticSlowestShutterReport | undefined;
   if (automaticIso) {
     if (capabilities.iso.autoIsoAvailability !== "supported")
       fail('exposure.iso "auto" needs a body with Auto ISO; this camera\'s Auto ISO is ' + capabilities.iso.autoIsoAvailability + ".");
-    autoIsoOptions = allowKeys(exposureOptions.autoIso, "exposure.autoIso", ["slowestPreferredShutterSeconds", "afterMaximumIso", "limits"]);
-    if (mode !== "aperture-priority") for (const key of ["slowestPreferredShutterSeconds", "afterMaximumIso"])
-      if (autoIsoOptions[key] !== undefined) fail("exposure.autoIso." + key + ' applies only to exposure.mode "aperture-priority"; omit it.');
+    autoIsoOptions = allowKeys(exposureOptions.autoIso, "exposure.autoIso", ["slowestPreferredShutterSeconds", "afterMaximumIso", "limits", "automaticSlowestShutter"]);
+    if (mode !== "aperture-priority" && mode !== "program") for (const key of ["slowestPreferredShutterSeconds", "afterMaximumIso", "automaticSlowestShutter"])
+      if (autoIsoOptions[key] !== undefined) fail("exposure.autoIso." + key + ' applies only to exposure.mode "aperture-priority" or "program"; omit it.');
     if (autoIsoOptions.limits !== undefined) autoIsoLimits = parseAutoIsoLimitsOption(autoIsoOptions.limits, capabilities.iso);
     assume("exposure.autoIso", "model", { minimum: capabilities.iso.autoIsoMinimum ?? capabilities.iso.minimum, maximum: capabilities.iso.autoIsoMaximum ?? capabilities.iso.maximum,
       ...(autoIsoLimits ? { limits: { ...autoIsoLimits } } : {}), ...autoIsoBaseline },
@@ -1822,17 +1924,33 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       "snapping to the nearest selectable ISO in log2 (the lower on a tie), held at the range's ends. A generic policy, not a manufacturer's Auto ISO." +
       (autoIsoLimits ? " The photographer's limits (exposure.autoIso.limits, #505) narrow that range to ISO " + autoIsoLimits.minimum + " to " + autoIsoLimits.maximum + "." : ""));
   }
-  if (automaticIso && mode === "aperture-priority") {
+  if (automaticIso && mode === "program" && autoIsoOptions.slowestPreferredShutterSeconds === undefined) {
+    for (const key of ["afterMaximumIso", "automaticSlowestShutter"]) if (autoIsoOptions[key] !== undefined)
+      fail("exposure.autoIso." + key + ' in program needs exposure.autoIso.slowestPreferredShutterSeconds; omit it or set the slowest shutter.');
+  }
+  if (automaticIso && (mode === "aperture-priority" || (mode === "program" && autoIsoOptions.slowestPreferredShutterSeconds !== undefined))) {
     if (autoIsoOptions.slowestPreferredShutterSeconds === undefined)
-      fail('exposure.autoIso.slowestPreferredShutterSeconds is required with exposure.mode "aperture-priority" and exposure.iso "auto": the slowest shutter, in seconds, before Auto ISO raises the ISO.');
-    const slowestPreferredShutterSeconds = positive(autoIsoOptions.slowestPreferredShutterSeconds, "exposure.autoIso.slowestPreferredShutterSeconds");
-    if (slowestPreferredShutterSeconds < capabilities.shutter.minimumSeconds || slowestPreferredShutterSeconds > capabilities.shutter.maximumSeconds)
-      fail("exposure.autoIso.slowestPreferredShutterSeconds must be within the body's shutter range, " + capabilities.shutter.minimumSeconds + " s to " + capabilities.shutter.maximumSeconds + " s.");
+      fail('exposure.autoIso.slowestPreferredShutterSeconds is required with exposure.mode "aperture-priority" and exposure.iso "auto": the slowest shutter, in seconds, before Auto ISO raises the ISO, or "auto".');
+    if (autoIsoOptions.automaticSlowestShutter !== undefined && autoIsoOptions.slowestPreferredShutterSeconds !== "auto")
+      fail('exposure.autoIso.automaticSlowestShutter applies only with exposure.autoIso.slowestPreferredShutterSeconds "auto"; omit it.');
+    let slowestPreferredShutterSeconds: number;
+    if (autoIsoOptions.slowestPreferredShutterSeconds === "auto") {
+      automaticSlowestShutter = resolveAutomaticSlowestShutterOption(autoIsoOptions.automaticSlowestShutter, { focalLengthMm, focusDistanceM, pitch,
+        shutter: capabilities.shutter, assume, pick });
+      slowestPreferredShutterSeconds = automaticSlowestShutter.shutterSeconds;
+    } else {
+      if (typeof autoIsoOptions.slowestPreferredShutterSeconds === "string")
+        fail('exposure.autoIso.slowestPreferredShutterSeconds must be a positive number of seconds or "auto".');
+      slowestPreferredShutterSeconds = positive(autoIsoOptions.slowestPreferredShutterSeconds, "exposure.autoIso.slowestPreferredShutterSeconds");
+      if (slowestPreferredShutterSeconds < capabilities.shutter.minimumSeconds || slowestPreferredShutterSeconds > capabilities.shutter.maximumSeconds)
+        fail("exposure.autoIso.slowestPreferredShutterSeconds must be within the body's shutter range, " + capabilities.shutter.minimumSeconds + " s to " + capabilities.shutter.maximumSeconds + " s.");
+    }
     const afterMaximumIso = pick<unknown>(autoIsoOptions, "afterMaximumIso", "exposure.autoIso.afterMaximumIso", "allow-slower-shutter",
       "At the Auto ISO maximum, the shutter may get slower than the slowest preferred shutter to reach the meter target.");
     if (afterMaximumIso !== "allow-slower-shutter" && afterMaximumIso !== "hold-preferred-shutter")
       fail('exposure.autoIso.afterMaximumIso must be "allow-slower-shutter" or "hold-preferred-shutter".');
-    autoIsoAperturePriority = { slowestPreferredShutterSeconds, afterMaximumIso };
+    autoIsoShutterPolicy = { slowestPreferredShutterSeconds, afterMaximumIso };
+    if (mode === "aperture-priority") autoIsoAperturePriority = autoIsoShutterPolicy;
   }
   const limitsPolicy = autoIsoLimits ? { autoIsoLimits: { ...autoIsoLimits } } : {};
   if (mode === "manual") {
@@ -1851,14 +1969,15 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   } else {
     assume("exposure.programLine", "model", "facade-generic-program-line", "Engine-authored generic program line (f/16 1/2000 s … f/8 1/125 s … f/4 1.024 s); not a manufacturer program.");
     resolution = resolveProgramAutoExposureMode({ target, capabilities, referenceExposure: reference, programLine: defaultProgramLine(),
-      isoControl: automaticIso ? { kind: "automatic", ...autoIsoBaseline, ...limitsPolicy } : { kind: "manual", iso } });
+      isoControl: automaticIso ? { kind: "automatic", ...autoIsoBaseline, ...limitsPolicy, ...(autoIsoShutterPolicy ? { slowestPreferredShutter: { ...autoIsoShutterPolicy } } : {}) } :
+        { kind: "manual", iso } });
   }
   if (resolution.status !== "resolved" || !resolution.resolvedSettings) fail("Exposure could not be resolved (" + resolution.status + "); the scene may have no signal.");
   fNumber = resolution.resolvedSettings.aperture ?? fNumber;
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
   if (!Number.isFinite(resolvedIso) || resolvedIso <= 0) fail("Exposure could not be resolved: the resolved ISO is not a positive finite number.");
-  const isoReport = automaticIso ? { isoControl: "automatic" as const, autoIso: autoIsoReport(resolution, capabilities.iso, autoIsoAperturePriority, autoIsoLimits) } : { isoControl: "manual" as const };
+  const isoReport = automaticIso ? { isoControl: "automatic" as const, autoIso: autoIsoReport(resolution, capabilities.iso, autoIsoShutterPolicy, autoIsoLimits, automaticSlowestShutter) } : { isoControl: "manual" as const };
   const exposureDeviationStops = standardExposureDeviationStops(fNumber, shutterSeconds, resolvedIso, meteredLuminance);
   const defocusDisc = defocusModel === undefined ? undefined :
     resolveDefocusOption({ run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch, diffraction: diffractionRadiusOption !== undefined });

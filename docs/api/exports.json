@@ -193,6 +193,16 @@
       "kind": "type"
     },
     {
+      "name": "AUTO_ISO_SLOWEST_SHUTTER_MAXIMUM_BIAS_STOPS",
+      "source": "src/exposure/auto-iso-slowest-shutter.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AUTO_ISO_SLOWEST_SHUTTER_MODEL_VERSION",
+      "source": "src/exposure/auto-iso-slowest-shutter.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "AutoIsoBaselinePolicy",
       "source": "src/exposure/exposure-mode-resolver.ts",
       "kind": "type"
@@ -200,6 +210,16 @@
     {
       "name": "AutoIsoLimits",
       "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AutoIsoSlowestShutterBlurBudget",
+      "source": "src/exposure/auto-iso-slowest-shutter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AutoIsoSlowestShutterEstimate",
+      "source": "src/exposure/auto-iso-slowest-shutter.ts",
       "kind": "type"
     },
     {
@@ -2803,6 +2823,16 @@
       "kind": "type"
     },
     {
+      "name": "estimateAutoIsoSlowestShutter",
+      "source": "src/exposure/auto-iso-slowest-shutter.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateAutoIsoSlowestShutterInput",
+      "source": "src/exposure/auto-iso-slowest-shutter.ts",
+      "kind": "type"
+    },
+    {
       "name": "estimateAutoWhiteBalance",
       "source": "src/color/white-balance.ts",
       "kind": "runtime"
@@ -3330,6 +3360,11 @@
     {
       "name": "GENERIC_EQUIPMENT_TIERS",
       "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC",
+      "source": "src/exposure/auto-iso-slowest-shutter.ts",
       "kind": "runtime"
     },
     {
@@ -5923,6 +5958,11 @@
       "kind": "type"
     },
     {
+      "name": "ProgramSlowestPreferredShutterPolicy",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
       "name": "ProjectedMotionBlur",
       "source": "src/motion/projected-motion.ts",
       "kind": "type"
@@ -8139,6 +8179,16 @@
     },
     {
       "name": "SimulateCaptureAutoIsoReport",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureAutomaticSlowestShutterOptions",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureAutomaticSlowestShutterReport",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },

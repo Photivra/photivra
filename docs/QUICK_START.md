@@ -76,7 +76,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). `"auto"` lets Auto ISO choose it from the meter in any mode (see [Auto ISO](#auto-iso-516)). |
-| `exposure.autoIso` | none | With `iso: "auto"` only. `aperture-priority` requires `{ slowestPreferredShutterSeconds, afterMaximumIso? }`; every mode takes `limits: { maximum, minimum? }`, the photographer's Auto ISO range (see [Auto ISO](#auto-iso-516)). |
+| `exposure.autoIso` | none | With `iso: "auto"` only. `aperture-priority` requires `{ slowestPreferredShutterSeconds, afterMaximumIso? }`, and `program` takes them optionally; the slowest shutter may be `"auto"`, set by `automaticSlowestShutter`. Every mode takes `limits: { maximum, minimum? }`, the photographer's Auto ISO range (see [Auto ISO](#auto-iso-516)). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
 | `exposure.compensationStops` | 0 | Applied to the meter target. |
 | `scene` | required | A chart preset or a caller function (below). |
@@ -400,9 +400,9 @@ Exposure compensation applies to the meter target first, as with a numeric ISO.
 | Mode | With `iso: "auto"` |
 | --- | --- |
 | `manual` | Your aperture and shutter; the ISO makes up the exposure (`resolveManualExposureMode`, automatic ISO). |
-| `aperture-priority` | Your aperture. The shutter follows the meter at the lowest ISO, but no slower than `exposure.autoIso.slowestPreferredShutterSeconds` (required; seconds within the body's shutter range); the ISO makes up the rest. At the Auto ISO maximum, `afterMaximumIso` decides: `"allow-slower-shutter"` (the default) lengthens the shutter to reach the target, `"hold-preferred-shutter"` keeps it and leaves the exposure under target (`resolveAperturePriorityAutoIsoExposureMode`). The engine does not choose a slowest shutter for you. |
+| `aperture-priority` | Your aperture. The shutter follows the meter at the lowest ISO, but no slower than `exposure.autoIso.slowestPreferredShutterSeconds` (required; seconds within the body's shutter range, or `"auto"`, see below); the ISO makes up the rest. At the Auto ISO maximum, `afterMaximumIso` decides: `"allow-slower-shutter"` (the default) lengthens the shutter to reach the target, `"hold-preferred-shutter"` keeps it and leaves the exposure under target (`resolveAperturePriorityAutoIsoExposureMode`). |
 | `shutter-priority` | Your shutter. The aperture is chosen at the lowest ISO, no wider than the target needs, so it stops at the widest aperture; the ISO makes up the rest (`resolveShutterPriorityExposureMode`, policy `minimum-iso-aperture-first`). |
-| `program` | The generic program line at the lowest ISO; beyond the line's end (f/4, 1.024 s) the ISO rises (`resolveProgramAutoExposureMode`, automatic ISO). |
+| `program` | The generic program line at the lowest ISO; beyond the line's end (f/4, 1.024 s) the ISO rises (`resolveProgramAutoExposureMode`, automatic ISO). With `exposure.autoIso.slowestPreferredShutterSeconds` (optional, a number or `"auto"`, #504) the line's shutter is held at it before the ISO rises, and `afterMaximumIso` applies as in aperture priority, never past the line's own shutter. |
 
 The result says what happened. `exposure.settings.iso` is the ISO used and `exposure.isoControl` is `"automatic"`.
 `exposure.autoIso` reports `idealIsoBeforeConstraints`, the Auto ISO range (`autoIsoMinimum`, `autoIsoMaximum`),
@@ -446,6 +446,29 @@ const night = await simulateCapture({
 });
 // ISO 6400, "user-iso-maximum", { minimum: 100, maximum: 6400 }
 console.log(night.exposure.settings.iso, night.exposure.autoIso?.limitingConstraint, night.exposure.autoIso?.limits);
+```
+
+**An automatic slowest shutter (#504).** `slowestPreferredShutterSeconds: "auto"` lets the engine choose it from the lens,
+the pixel pitch and the hand's shake, through its camera-shake model (`estimateAutoIsoSlowestShutter`, see
+[USAGE](USAGE.md#automatic-slowest-shutter-504)). It does not use the 1/focal-length rule of thumb: the shutter is the time
+at which the shake blur equals the budget. `exposure.autoIso.automaticSlowestShutter` sets `fasterByStops` (−2 to +2, as
+cameras' faster/slower bias; default 0), `blurBudgetPixels` (default 1), `angularVelocityRadPerSec` and
+`stabilizationStopsEquivalent` (default 0). The default hand, 4.39 °/s, is a cited generic value for a phone held in two
+hands, not a measurement of you, so pass your own when you know it. `exposure.autoIso.automaticSlowestShutter` in the result
+reports the derived, biased and used times.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const handheld = await simulateCapture({
+  exposure: { mode: "aperture-priority", iso: "auto",
+    autoIso: { slowestPreferredShutterSeconds: "auto", automaticSlowestShutter: { fasterByStops: -1, stabilizationStopsEquivalent: 3 } } },
+  lens: { fNumber: 4 },
+  scene: { preset: "uniform" },
+  illuminanceLux: 20,
+  output: { width: 8, height: 8 }
+});
+console.log(handheld.exposure.autoIso?.automaticSlowestShutter, handheld.exposure.settings);
 ```
 
 ## Scene presets

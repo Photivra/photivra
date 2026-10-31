@@ -5388,6 +5388,107 @@ This policy:
 
 That direction is deliberate. Choosing an aperture wider than the ideal at minimum ISO could overexpose, with no lower ISO left to compensate.
 
+### Automatic slowest shutter (#504)
+
+Cameras let the photographer set the slowest shutter before Auto ISO raises the ISO to "Auto", chosen from the focal
+length, with a bias in 1-stop steps (Sony's ISO AUTO Min. SS: Faster, Fast, Standard, Slow and Slower, 1 EV apart:
+[help guide](https://helpguide.sony.net/ilc/2020/v1/en/contents/TP1000139958.html); Nikon and Fujifilm: see the manuals
+cited above). Those cameras base it on the old reciprocal rule, about 1/focal length. That is a rule of thumb, not physics,
+and the engine does not use it. `estimateAutoIsoSlowestShutter()` derives the threshold from the engine's own camera-shake
+model, `estimateCameraShakeBlur()` ([camera shake](https://github.com/Photivra/photivra/blob/main/docs/STABILIZATION.md#controlled-camera-shake)), the same physics the preview
+shows.
+
+The camera turns at a constant angular velocity ω = (ω_yaw, ω_pitch), reduced by stabilization to r·ω with r = 2^−stops. A
+still point on the optical axis then moves
+
+```text
+b(t) = v · hypot(tan(r·ω_yaw·t), tan(r·ω_pitch·t))
+```
+
+on the sensor, where v is the focal length (or, with `focusDistanceM`, the thin-lens image distance). The derived shutter is
+the time t at which b(t) equals the blur budget. On one axis that is `t = atan(budget / v) / (r·|ω|)` exactly; on two axes
+the engine bisects, which works because b grows strictly with t. Then:
+
+1. the bias: `biased = derived · 2^−fasterByStops`, with `fasterByStops` a whole number from −2 to +2 (+1 is one stop faster);
+2. the grid, optional: with `shutterCapability`, the biased time snaps to the body's shutter grid, never longer, held at its
+   ends.
+
+Composition fragment: requires previously validated bindings `capabilities`. This is an integration sketch, not a standalone runnable program.
+
+```ts
+import {
+  estimateAutoIsoSlowestShutter,
+  GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC
+} from "@photivra/engine";
+
+const slowest =
+  estimateAutoIsoSlowestShutter({
+    focalLengthMm: 50,
+    angularVelocityRadPerSec:
+      GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC,
+    stabilizationStopsEquivalent: 0,
+    blurBudget: {
+      kind: "pixels",
+      pixels: 1,
+      pixelPitchMicrometers: 6
+    },
+    fasterByStops: 0,
+    shutterCapability:
+      capabilities.shutter
+  });
+// slowest.value.shutterSeconds: about 1/640 s for 50 mm, 6 µm pixels and the generic hand.
+```
+
+The result reports `derivedShutterSeconds`, `biasedShutterSeconds`, `shutterSeconds` (after the grid), the blur budget and
+the shake model's blur at the derived and the final shutter, the projection distance and the residual-motion factor, as an
+`approximation` with its assumptions. The blur budget is `{ kind: "pixels", pixels, pixelPitchMicrometers }` or
+`{ kind: "image-diagonal-fraction", fraction, imageWidthMm, imageHeightMm }`.
+
+What the tests check: longer focal lengths give faster thresholds; each stabilization stop doubles the time exactly; the
+bias moves it by exact whole stops; the shake model's blur at the derived time equals the budget; nothing is NaN or
+infinite; invalid input fails with a domain error (no shake, a fractional or out-of-range bias, a non-positive budget, a
+quarter turn of motion).
+
+**The hand-shake profile is an input.** No free source gives one angular velocity for every photographer and camera.
+`GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC` is a **labelled generic default**: 4.39 °/s (≈ 0.0766 rad/s), on yaw. It is the
+linear camera-motion rate F. Xiao, J. Farrell, P. Catrysse and B. Wandell use for an average user holding a typical 100 g
+mobile handset with two hands ("Mobile imaging: the big challenge of the small pixel", Proc. SPIE 7250, Digital
+Photography V, 2009, §2; [author copy](https://web.stanford.edu/~wandell/data/papers/2009-CameraShake-Xiao.pdf)). They
+take it from their earlier gyroscope measurements, F. Xiao et al., "Camera-motion and mobile imaging", Proc. SPIE 6502
+(2007), which report that the motion is close to linear for exposures under about 100 ms. It is one magnitude, so the
+engine puts it on yaw; for small angles the blur length does not depend on the direction. A heavier camera, another grip
+or another photographer moves differently, so pass your own profile when you have one.
+
+**Approximations.** Constant angular velocity, blur on the optical axis only, stabilization as 2^−stops (the educational
+model of `estimateCameraShakeBlur()`, not a CIPA DC-011 rating), no roll, translation or subject motion. The blur budget is
+your choice of sharpness, not a measured threshold.
+
+#### Through `simulateCapture`
+
+`exposure.autoIso.slowestPreferredShutterSeconds: "auto"` (aperture priority; optional in program) calls
+`estimateAutoIsoSlowestShutter()` with the request's focal length, focus distance, pixel pitch and the body's shutter range.
+`exposure.autoIso.automaticSlowestShutter` sets `fasterByStops` (default 0), `blurBudgetPixels` (default 1, a generic
+pixel-level budget), `angularVelocityRadPerSec` (default the generic hand above) and `stabilizationStopsEquivalent` (default 0:
+the tiers declare none). Each default is recorded as a `default` assumption. The report's `exposure.autoIso.automaticSlowestShutter`
+gives the derived, biased and used times and the blur at the used time in pixels.
+
+### Program Auto with Auto ISO: a slowest preferred shutter (#504)
+
+`resolveProgramAutoExposureMode()` optionally takes
+`isoControl.slowestPreferredShutter: { slowestPreferredShutterSeconds, afterMaximumIso }`
+(`ProgramSlowestPreferredShutterPolicy`), the same two-axis policy as Aperture Priority + Auto ISO:
+
+1. Follow the program line at the lowest selectable ISO.
+2. If the line's shutter is longer than `slowestPreferredShutterSeconds`, hold the shutter there (snapped, never longer),
+   keep the line's aperture, and raise the ISO.
+3. At the Auto ISO maximum (the body's or the photographer's `autoIsoLimits`), `"allow-slower-shutter"` lengthens the shutter
+   toward the target, but never past the line's own shutter. `"hold-preferred-shutter"` keeps the shutter there and reports
+   the residual.
+
+The result adds `slowestPreferredShutter: { ..., applied, afterMaximumIsoFallbackUsed }`; `programLineSelection` stays the
+line's own selection. Without the option the resolver behaves as before and reports no such field. Full Auto exposure does
+not take the option.
+
 ### Shared boundaries
 
 These are control policies over the same relative exposure equation. They create no new optics or sensor physics.
@@ -7581,7 +7682,9 @@ With `exposure.iso: "auto"` (#516) the ISO is chosen too, in every mode, by the 
 ([Priority modes with Auto ISO](#priority-modes-with-auto-iso)). Aperture priority then needs the slowest shutter
 before the ISO rises, and takes the policy at the maximum ISO; the result reports the ISO, that it was automatic and
 what limited it. `exposure.autoIso.limits: { maximum, minimum? }` (#505) sets the photographer's Auto ISO range in any
-mode ([photographer-set limits](#photographer-set-auto-iso-limits-505)). See [Auto ISO](QUICK_START.md#auto-iso-516).
+mode ([photographer-set limits](#photographer-set-auto-iso-limits-505)). `slowestPreferredShutterSeconds: "auto"` (#504)
+derives the slowest shutter from the camera-shake model, in aperture priority and, optionally, program
+([automatic slowest shutter](#automatic-slowest-shutter-504)). See [Auto ISO](QUICK_START.md#auto-iso-516).
 
 ```ts
 import { prepareDisplayView, simulateCapture, type SimulateCaptureOptions } from "@photivra/engine";

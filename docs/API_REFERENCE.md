@@ -918,6 +918,20 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`GenericReleaseDriveMode`](api/equipment-release-capabilities.md#genericreleasedrivemode) | Type |
 | [`parseGenericReleaseCapabilityProfile`](api/equipment-release-capabilities.md#parsegenericreleasecapabilityprofile) | Runtime |
 
+## exposure/auto-iso-slowest-shutter.ts
+
+[Detailed contracts](api/exposure-auto-iso-slowest-shutter.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/exposure/auto-iso-slowest-shutter.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`AUTO_ISO_SLOWEST_SHUTTER_MAXIMUM_BIAS_STOPS`](api/exposure-auto-iso-slowest-shutter.md#auto_iso_slowest_shutter_maximum_bias_stops) | Runtime |
+| [`AUTO_ISO_SLOWEST_SHUTTER_MODEL_VERSION`](api/exposure-auto-iso-slowest-shutter.md#auto_iso_slowest_shutter_model_version) | Runtime |
+| [`AutoIsoSlowestShutterBlurBudget`](api/exposure-auto-iso-slowest-shutter.md#autoisoslowestshutterblurbudget) | Type |
+| [`AutoIsoSlowestShutterEstimate`](api/exposure-auto-iso-slowest-shutter.md#autoisoslowestshutterestimate) | Type |
+| [`estimateAutoIsoSlowestShutter`](api/exposure-auto-iso-slowest-shutter.md#estimateautoisoslowestshutter) | Runtime |
+| [`EstimateAutoIsoSlowestShutterInput`](api/exposure-auto-iso-slowest-shutter.md#estimateautoisoslowestshutterinput) | Type |
+| [`GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC`](api/exposure-auto-iso-slowest-shutter.md#generic_handheld_angular_velocity_rad_per_sec) | Runtime |
+
 ## exposure/exposure-duration-control.ts
 
 [Detailed contracts](api/exposure-exposure-duration-control.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/exposure/exposure-duration-control.ts)
@@ -953,6 +967,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ProgramAutoExposureModeResolution`](api/exposure-exposure-mode-resolver.md#programautoexposuremoderesolution) | Type |
 | [`ProgramAutoIsoControl`](api/exposure-exposure-mode-resolver.md#programautoisocontrol) | Type |
 | [`ProgramLineSelectionDiagnostics`](api/exposure-exposure-mode-resolver.md#programlineselectiondiagnostics) | Type |
+| [`ProgramSlowestPreferredShutterPolicy`](api/exposure-exposure-mode-resolver.md#programslowestpreferredshutterpolicy) | Type |
 | [`RelativeExposureControlAnchor`](api/exposure-exposure-mode-resolver.md#relativeexposurecontrolanchor) | Type |
 | [`resolveAperturePriorityAutoIsoExposureMode`](api/exposure-exposure-mode-resolver.md#resolveaperturepriorityautoisoexposuremode) | Runtime |
 | [`ResolveAperturePriorityAutoIsoExposureModeInput`](api/exposure-exposure-mode-resolver.md#resolveaperturepriorityautoisoexposuremodeinput) | Type |
@@ -1240,6 +1255,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
 | [`SimulateCaptureAutoIsoAfterMaximum`](api/facade-simulate-capture.md#simulatecaptureautoisoaftermaximum) | Type |
 | [`SimulateCaptureAutoIsoReport`](api/facade-simulate-capture.md#simulatecaptureautoisoreport) | Type |
+| [`SimulateCaptureAutomaticSlowestShutterOptions`](api/facade-simulate-capture.md#simulatecaptureautomaticslowestshutteroptions) | Type |
+| [`SimulateCaptureAutomaticSlowestShutterReport`](api/facade-simulate-capture.md#simulatecaptureautomaticslowestshutterreport) | Type |
 | [`SimulateCaptureBorderHandling`](api/facade-simulate-capture.md#simulatecaptureborderhandling) | Type |
 | [`SimulateCaptureColorEncoding`](api/facade-simulate-capture.md#simulatecapturecolorencoding) | Type |
 | [`SimulateCaptureCostOption`](api/facade-simulate-capture.md#simulatecapturecostoption) | Type |

@@ -35,6 +35,8 @@ If you supply pixel pitch, the same displacement is also reported in sensor pixe
 
 The shake profile you supply is synthetic input. The model makes no empirical claim about how much any particular photographer shakes.
 
+`estimateAutoIsoSlowestShutter()` (#504) solves this model backwards: the exposure time at which the stabilized blur equals a blur budget, for Auto ISO's automatic slowest shutter. Its generic hand-shake default, `GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC`, is a cited, labelled value (4.39 °/s for a 100 g phone held in two hands, Xiao et al., Proc. SPIE 7250, 2009), not a claim about any particular photographer. See [Automatic slowest shutter](USAGE.md#automatic-slowest-shutter-504).
+
 ### Spatial limitation and the separate rotation primitive
 
 `estimateCameraShakeBlur()` deliberately stays as one global yaw/pitch vector on the image plane. This keeps it backwards compatible with the existing stabilisation-stops teaching model.
