@@ -32,18 +32,19 @@
 
 import { markInternalNativeTileReader, markInternalSceneRadianceEvaluator, registerInternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { InvalidScientificResultError } from "../core/validation.js";
 import { requireInputObject } from "../core/record-validation.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
 import { GENERIC_TIER_ASSETS, type GenericEquipmentTier, type GenericEquipmentTierPreset } from "../equipment/generic-tier-assets.js";
 import { parseCallerCameraPreset } from "./camera-preset.js";
 import { createHostYield } from "./host-yield.js";
-import { resolveGenericEquipmentExposureCapabilities } from "../equipment/exposure-capabilities.js";
+import { resolveGenericEquipmentExposureCapabilities, type ResolvedGenericEquipmentExposureCapabilities } from "../equipment/exposure-capabilities.js";
 import { resolveGenericIsoSignalChain } from "../sensor/iso-signal-chain.js";
 import { meterRelativeExposure } from "../exposure/metering.js";
 import { createExposureMeterTargetFromMeteringResult, setExposureCompensationOnMeterTarget } from "../exposure/metering-target.js";
-import { resolveManualExposureMode, resolveAperturePriorityExposureMode, resolveShutterPriorityExposureMode,
-  resolveProgramAutoExposureMode } from "../exposure/exposure-mode-resolver.js";
+import { resolveManualExposureMode, resolveAperturePriorityExposureMode, resolveAperturePriorityAutoIsoExposureMode, resolveShutterPriorityExposureMode,
+  resolveProgramAutoExposureMode, type AutoIsoBaselinePolicy, type ExposureResolutionConstraint } from "../exposure/exposure-mode-resolver.js";
 import { parseExposureProgramLineProfile, type ExposureProgramLineProfile } from "../exposure/program-line.js";
 import { resolveCaptureGeometry } from "../output/capture-geometry.js";
 import { estimateCie1931ColorMatchingFunctions, type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
@@ -112,6 +113,37 @@ import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlan
 export const SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const;
 
 export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shutter-priority" | "program";
+/**
+ * #516: what aperture priority does with Auto ISO once the ISO reaches the body's Auto ISO maximum and the exposure is
+ * still under the meter target: `"allow-slower-shutter"` lengthens the shutter past the slowest preferred shutter to reach
+ * the target; `"hold-preferred-shutter"` keeps the preferred shutter and leaves the exposure under target.
+ */
+export type SimulateCaptureAutoIsoAfterMaximum = "allow-slower-shutter" | "hold-preferred-shutter";
+/**
+ * #516: how Auto ISO chose the ISO (`exposure.iso: "auto"`), reported in the result's `exposure.autoIso`. The full
+ * resolver output stays in the capture's `exposure.resolution`.
+ */
+export interface SimulateCaptureAutoIsoReport {
+  /** The ISO the meter target asked for at the resolved aperture and shutter, before the Auto ISO range and the ISO grid. */
+  idealIsoBeforeConstraints: number;
+  /** The Auto ISO range the ISO was chosen in: the body's Auto ISO bounds, or its ISO range when it declares none (the tiers: ISO 100 to their maximum). */
+  autoIsoMinimum: number;
+  autoIsoMaximum: number;
+  /** Whether the ISO was held at an end of the Auto ISO range. */
+  clamped: false | "minimum" | "maximum";
+  /**
+   * The constraint that limited the resolved exposure: the resolver's `targetResidual.limitingConstraint`, for example
+   * `"iso-maximum"` (the exposure stays under target at the Auto ISO maximum), `"iso-grid-quantization"` (the nearest
+   * selectable ISO) or `"none"` (on target).
+   */
+  limitingConstraint: ExposureResolutionConstraint;
+  /** The resolver's residual, log2(target / achieved exposure), in stops: positive when the exposure is under the meter target, negative when over it. */
+  residualStops: number;
+  /** Aperture priority only: the policy and slowest preferred shutter used, and whether the slower-shutter fallback ran. */
+  afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum;
+  slowestPreferredShutterSeconds?: number;
+  afterMaximumIsoFallbackUsed?: boolean;
+}
 export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" | "dng";
 export type SimulateCaptureWhiteBalance =
   | "scene-illuminant"
@@ -238,8 +270,21 @@ export interface SimulateCaptureOptions {
   exposure?: {
     /** Default "manual". */
     mode?: SimulateCaptureExposureMode;
-    /** Default 100. */
-    iso?: number;
+    /**
+     * Default 100. #516: `"auto"` lets the body's Auto ISO choose the ISO from the meter target, within its Auto ISO range
+     * (the tiers: ISO 100 to their maximum), in every mode: manual keeps the aperture and shutter; aperture priority keeps the
+     * aperture and follows `autoIso`; shutter priority picks the aperture at the lowest Auto ISO (no wider than the target
+     * needs, so at most the widest) and raises the ISO for the rest; program picks the program line at the lowest Auto ISO and
+     * raises the ISO beyond the line's end. The result reports the ISO in `exposure.settings.iso` and how it was chosen in
+     * `exposure.autoIso`.
+     */
+    iso?: number | "auto";
+    /**
+     * #516: aperture priority with `iso: "auto"` only (required there). The shutter gets as long as
+     * `slowestPreferredShutterSeconds` (seconds, within the body's shutter range) at the lowest Auto ISO; beyond it the ISO
+     * rises; at the Auto ISO maximum `afterMaximumIso` decides (default `"allow-slower-shutter"`).
+     */
+    autoIso?: { slowestPreferredShutterSeconds: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
@@ -457,6 +502,10 @@ export interface SimulateCaptureResult {
     settings: { fNumber: number; shutterSeconds: number; iso: number };
     /** Exposure value at ISO 100 of the settings, log2(N²/t). */
     ev100: number;
+    /** #516: `"automatic"` when the request asked for `iso: "auto"`, else `"manual"`. */
+    isoControl: "manual" | "automatic";
+    /** #516: present with `iso: "auto"`: how Auto ISO chose `settings.iso` and what limited it. */
+    autoIso?: SimulateCaptureAutoIsoReport;
     meteredSceneLuminanceCdPerSquareMeter: number;
     /** Full output of the existing exposure-mode resolver. */
     resolution: unknown;
@@ -794,6 +843,23 @@ export function bilinearPhaseProfiles(): RawFrameReconstructionPhaseProfile[] {
     kernels: CHANNELS.map((c) => ({ outputChannelId: c, contributions: kernels[px + "," + py]![c] })), evidence: FACADE_EVIDENCE,
     limitations: ["Bilinear interpolation of the RGGB mosaic; no edge-directed demosaic, false-colour suppression or calibration."] } })) as unknown as RawFrameReconstructionPhaseProfile[];
 }
+/**
+ * #516: the result's Auto ISO report, read from a resolved Auto ISO resolution (every mode's resolved Auto ISO branch carries
+ * `idealIsoBeforeConstraints`, `isoResolution` and a resolved `targetResidual`; aperture priority adds its fallback flag).
+ */
+function autoIsoReport(resolution: unknown, iso: ResolvedGenericEquipmentExposureCapabilities["iso"],
+  aperturePriority: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined): SimulateCaptureAutoIsoReport {
+  const r = resolution as { idealIsoBeforeConstraints?: unknown; isoResolution?: { clamped?: unknown }; afterMaximumIsoFallbackUsed?: unknown;
+    targetResidual?: { status?: unknown; limitingConstraint?: unknown; residualStops?: unknown } };
+  const ideal = r.idealIsoBeforeConstraints, residual = r.targetResidual?.residualStops, clamped = r.isoResolution?.clamped;
+  if (typeof ideal !== "number" || !Number.isFinite(ideal) || typeof residual !== "number" || !Number.isFinite(residual) || r.targetResidual?.status !== "resolved" ||
+    (clamped !== false && clamped !== "minimum" && clamped !== "maximum"))
+    throw new InvalidScientificResultError("Auto ISO resolution did not report a finite ideal ISO and residual.");
+  // The resolvers' Auto ISO range: the body's Auto ISO bounds, else its ISO range.
+  return { idealIsoBeforeConstraints: ideal, autoIsoMinimum: iso.autoIsoMinimum ?? iso.minimum, autoIsoMaximum: iso.autoIsoMaximum ?? iso.maximum, clamped,
+    limitingConstraint: r.targetResidual.limitingConstraint as ExposureResolutionConstraint, residualStops: residual,
+    ...(aperturePriority ? { ...aperturePriority, afterMaximumIsoFallbackUsed: r.afterMaximumIsoFallbackUsed === true } : {}) };
+}
 function defaultProgramLine(): ExposureProgramLineProfile {
   // Generic educational program line written for the engine, relative to the f/8, 1/125 s reference. For less light
   // it first opens the aperture toward f/4, then lengthens the shutter. For more light it first closes toward
@@ -1034,7 +1100,9 @@ export interface IdealReferenceResult {
   engineApiVersion: string;
   image: { width: number; height: number; format: SimulateCaptureOutputFormat; samples: Uint8Array | Uint16Array; png?: Uint8Array; colorEncoding?: SimulateCaptureColorEncoding };
   /** The resolved exposure of the capture this reference matches. */
-  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number;
+    /** #516: as in the capture result. */
+    isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
   region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number };
   diagnostics: { sampleCount: number; timingsMs: { reference: number; total: number } };
@@ -1074,7 +1142,9 @@ export interface DisplayViewResult {
   view: { width: number; height: number; frameWidth: number; frameHeight: number; scaleX: number; scaleY: number; samplesPerAxis: number;
     region?: { x: number; y: number; width: number; height: number } };
   /** The resolved exposure of the capture this view shows. */
-  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number;
+    /** #516: as in the capture result. */
+    isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
   /**
    * Work done: real pixels sampled, real-site expectations evaluated, scene queries, display pixels sampled in full (detail) or with
@@ -1131,6 +1201,8 @@ export interface DisplayViewRunContext {
   provider: PlanarSceneRadianceProvider;
   regimeByChannel: Record<"red" | "green" | "blue", { readoutProfile: ReadoutProfile; regimeId: string; }>;
   resolvedIso: number;
+  /** #516: how the ISO was chosen, reported in the view's `exposure`. */
+  isoReport: { isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   sceneOption: unknown;
   scenePreset: "composite" | "uniform" | "patches" | "slanted-edge" | "siemens-star" | "step-wedge" | "grey-ramp" | "checkerboard" | "point-grid" | "dead-leaves" | "bar-groups" | "hyperbolic-wedge" | "zone-plate" | "slanted-squares" | "line-grid" | "fiducial" | "reflectance-function" | "radiance-function" | "material-function";
   shutterSeconds: number;
@@ -1620,10 +1692,16 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the engine's analytic CIE 1931 ȳ fit.");
 
   // Metering (CIPA DC-004 standard output sensitivity and camera equation) and exposure-mode resolution
-  const exposureOptions = allowKeys(top.exposure, "exposure", ["mode", "iso", "shutterSeconds", "compensationStops"]);
+  const exposureOptions = allowKeys(top.exposure, "exposure", ["mode", "iso", "shutterSeconds", "compensationStops", "autoIso"]);
   const mode = pick<SimulateCaptureExposureMode>(exposureOptions, "mode", "exposure.mode", "manual", "Manual exposure.");
   if (!["manual", "aperture-priority", "shutter-priority", "program"].includes(mode)) fail("Unknown exposure mode.");
-  const iso = positive(pick(exposureOptions, "iso", "exposure.iso", DEFAULTS.iso, "ISO 100, the tiers' base ISO."), "exposure.iso");
+  const isoOption = pick<unknown>(exposureOptions, "iso", "exposure.iso", DEFAULTS.iso, "ISO 100, the tiers' base ISO.");
+  // #516: "auto" resolves the ISO with the mode's Auto ISO resolver; NaN marks the ISO as not yet known.
+  const automaticIso = isoOption === "auto";
+  if (typeof isoOption === "string" && !automaticIso) fail('exposure.iso must be a positive finite number or "auto".');
+  const iso = automaticIso ? NaN : positive(isoOption, "exposure.iso");
+  if (exposureOptions.autoIso !== undefined && !(automaticIso && mode === "aperture-priority"))
+    fail('exposure.autoIso applies only to exposure.mode "aperture-priority" with exposure.iso "auto"; omit it.');
   const compensation = exposureOptions.compensationStops === undefined ? DEFAULTS.compensationStops : exposureOptions.compensationStops;
   if (typeof compensation !== "number" || !Number.isFinite(compensation) || Math.abs(compensation) > 10) fail("exposure.compensationStops must be within ±10.");
   if (exposureOptions.compensationStops === undefined) assume("exposure.compensationStops", "default", 0, "No exposure compensation.");
@@ -1665,23 +1743,53 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     if (exposureOptions.shutterSeconds !== undefined) fail("exposure.shutterSeconds is resolved automatically in " + mode + " mode; omit it.");
     shutterSeconds = NaN;
   }
+  // #516: the resolvers' Auto ISO policies; their baseline is the lowest selectable ISO in the body's Auto ISO range.
+  const autoIsoBaseline: AutoIsoBaselinePolicy = { isoBaseline: "minimum-selectable", isoQuantizationPolicy: "nearest-log2-lower-on-tie" };
+  let autoIsoAperturePriority: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined;
+  if (automaticIso) {
+    if (capabilities.iso.autoIsoAvailability !== "supported")
+      fail('exposure.iso "auto" needs a body with Auto ISO; this camera\'s Auto ISO is ' + capabilities.iso.autoIsoAvailability + ".");
+    assume("exposure.autoIso", "model", { minimum: capabilities.iso.autoIsoMinimum ?? capabilities.iso.minimum, maximum: capabilities.iso.autoIsoMaximum ?? capabilities.iso.maximum, ...autoIsoBaseline },
+      "Auto ISO: the engine's exposure-mode resolver chooses the ISO from the meter target, starting from the lowest selectable ISO in the body's Auto ISO range and " +
+      "snapping to the nearest selectable ISO in log2 (the lower on a tie), held at the range's ends. A generic policy, not a manufacturer's Auto ISO.");
+  }
+  if (automaticIso && mode === "aperture-priority") {
+    const autoIsoOptions = allowKeys(exposureOptions.autoIso, "exposure.autoIso", ["slowestPreferredShutterSeconds", "afterMaximumIso"]);
+    if (autoIsoOptions.slowestPreferredShutterSeconds === undefined)
+      fail('exposure.autoIso.slowestPreferredShutterSeconds is required with exposure.mode "aperture-priority" and exposure.iso "auto": the slowest shutter, in seconds, before Auto ISO raises the ISO.');
+    const slowestPreferredShutterSeconds = positive(autoIsoOptions.slowestPreferredShutterSeconds, "exposure.autoIso.slowestPreferredShutterSeconds");
+    if (slowestPreferredShutterSeconds < capabilities.shutter.minimumSeconds || slowestPreferredShutterSeconds > capabilities.shutter.maximumSeconds)
+      fail("exposure.autoIso.slowestPreferredShutterSeconds must be within the body's shutter range, " + capabilities.shutter.minimumSeconds + " s to " + capabilities.shutter.maximumSeconds + " s.");
+    const afterMaximumIso = pick<unknown>(autoIsoOptions, "afterMaximumIso", "exposure.autoIso.afterMaximumIso", "allow-slower-shutter",
+      "At the Auto ISO maximum, the shutter may get slower than the slowest preferred shutter to reach the meter target.");
+    if (afterMaximumIso !== "allow-slower-shutter" && afterMaximumIso !== "hold-preferred-shutter")
+      fail('exposure.autoIso.afterMaximumIso must be "allow-slower-shutter" or "hold-preferred-shutter".');
+    autoIsoAperturePriority = { slowestPreferredShutterSeconds, afterMaximumIso };
+  }
   if (mode === "manual") {
     resolution = resolveManualExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber, manualShutterSeconds: shutterSeconds,
-      isoControl: { kind: "manual", iso } });
+      isoControl: automaticIso ? { kind: "automatic", quantizationPolicy: autoIsoBaseline.isoQuantizationPolicy } : { kind: "manual", iso } });
+  } else if (autoIsoAperturePriority) {
+    resolution = resolveAperturePriorityAutoIsoExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber,
+      policy: { kind: "minimum-iso-until-slowest-preferred-shutter", ...autoIsoBaseline, shutterSelectionPolicy: "not-longer-than-target", ...autoIsoAperturePriority } });
   } else if (mode === "aperture-priority") {
     resolution = resolveAperturePriorityExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber, manualIso: iso,
       shutterQuantizationPolicy: "nearest-log2-shorter-on-tie" });
   } else if (mode === "shutter-priority") {
     resolution = resolveShutterPriorityExposureMode({ target, capabilities, referenceExposure: reference, manualShutterSeconds: shutterSeconds,
-      isoControl: { kind: "manual", iso, apertureQuantizationPolicy: "nearest-log2-narrower-on-tie" } });
+      isoControl: automaticIso ? { kind: "automatic", policy: { kind: "minimum-iso-aperture-first", apertureSelectionPolicy: "not-wider-than-target", ...autoIsoBaseline } } :
+        { kind: "manual", iso, apertureQuantizationPolicy: "nearest-log2-narrower-on-tie" } });
   } else {
     assume("exposure.programLine", "model", "facade-generic-program-line", "Engine-authored generic program line (f/16 1/2000 s … f/8 1/125 s … f/4 1.024 s); not a manufacturer program.");
-    resolution = resolveProgramAutoExposureMode({ target, capabilities, referenceExposure: reference, programLine: defaultProgramLine(), isoControl: { kind: "manual", iso } });
+    resolution = resolveProgramAutoExposureMode({ target, capabilities, referenceExposure: reference, programLine: defaultProgramLine(),
+      isoControl: automaticIso ? { kind: "automatic", ...autoIsoBaseline } : { kind: "manual", iso } });
   }
   if (resolution.status !== "resolved" || !resolution.resolvedSettings) fail("Exposure could not be resolved (" + resolution.status + "); the scene may have no signal.");
   fNumber = resolution.resolvedSettings.aperture ?? fNumber;
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
+  if (!Number.isFinite(resolvedIso) || resolvedIso <= 0) fail("Exposure could not be resolved: the resolved ISO is not a positive finite number.");
+  const isoReport = automaticIso ? { isoControl: "automatic" as const, autoIso: autoIsoReport(resolution, capabilities.iso, autoIsoAperturePriority) } : { isoControl: "manual" as const };
   const defocusDisc = defocusModel === undefined ? undefined :
     resolveDefocusOption({ run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch, diffraction: diffractionRadiusOption !== undefined });
   // #492: the capture applies the disc as an object-space convolution, which needs every disc point a site sees to be another site's scene point.
@@ -2116,7 +2224,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
-  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, defocus: displayViewDefocus, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, defocus: displayViewDefocus, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, isoReport, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();
@@ -2180,7 +2288,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
         "Each pixel samples the scene at its centre, like the capture's default point aperture; use sensor.pixelAperture \"box\" for photosite-averaged pixels.");
     return Object.freeze({ kind: "ideal-reference" as const, label: "Ideal reference (no camera effects); not a capture.", facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
       image: { width: outputWidth, height: outputHeight, format, samples, ...(png ? { png, colorEncoding: colorEncoding! } : {}) },
-      exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds) },
+      exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds), ...isoReport },
       scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
         illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
         framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },
@@ -2442,7 +2550,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     ...(region && regionNative ? { region: { ...region, frameWidth: width, frameHeight: height, nativeRect: { ...regionNative } } } : {}),
     request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState,
       ...(diffraction ? { diffraction: { profile: diffraction, psf: diffractionPsf!, execution: diffractionObjectSpace ? "object-space-convolution" as const : "environment-psf-quadrature" as const } } : {}) },
-    exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds),
+    exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds), ...isoReport,
       meteredSceneLuminanceCdPerSquareMeter: meteredLuminance, resolution },
     scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
