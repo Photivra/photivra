@@ -48,7 +48,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `raw` | The packed native RAW: codes, black levels, saturation flags and per-phase white levels |
 | `plan` | The native RAW plan the engine executed |
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
-| `exposure` | Mode, resolved settings, EV100, `isoControl` (`"manual"` or `"automatic"`) and, with `iso: "auto"`, `autoIso` (how the ISO was chosen and what limited it), metered scene luminance and the exposure-mode resolver's full output |
+| `exposure` | Mode, resolved settings, EV100, `isoControl` (`"manual"` or `"automatic"`) and, with `iso: "auto"`, `autoIso` (how the ISO was chosen and what limited it), metered scene luminance, the deviation from the standard exposure in stops (`standardExposureDeviationStops`) and the exposure-mode resolver's full output |
 | `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
 | `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Cost of each option](#cost-of-each-option) |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
@@ -360,6 +360,14 @@ The facade meters the scene like a reflected-light meter:
   10·64·125/(0.65·100) = 80 000/65 ≈ 1230.77 cd/m².
 - The meter target then goes through the engine's existing exposure-mode resolver.
 - In `program` mode, a generic program line written by the engine chooses the aperture and shutter.
+- `exposure.standardExposureDeviationStops` (#515) says how far the exposure used is from the standard exposure for
+  the metered luminance L, in stops, from the same two relations:
+  Δ = log₂(N²/t) − log₂(0.65·L·S/10) = `ev100` − log₂(0.65·L·S/10). Positive is darker than the standard exposure
+  (under), negative brighter (over). With the defaults it is 0; the marked f/11 gives log₂(11²/8²) ≈ +0.92, the marked
+  1/60 s gives log₂(60/125) ≈ −1.06 and ISO 200 gives −1. In an automatic mode it is that of the exposure the engine
+  used: minus the compensation (−⅔ for +⅔ stop), plus any step or limit the resolver hit (the slowest shutter, the ISO
+  range). It is `null` only when the metered luminance is 0, which has no standard exposure. The display view reports
+  the same value.
 
 DC-004 ties the reference level to an 18 % grey (Explanation 1 and 2.2). The default illuminance
 puts an 18 % Lambertian grey card, whose luminance is L = 0.18·E/π, exactly at that luminance:

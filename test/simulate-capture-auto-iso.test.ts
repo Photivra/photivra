@@ -147,8 +147,10 @@ describe("a capture, its display view, its ideal reference and its region parts 
     const view = { width: 8, height: 6, samplesPerAxis: 1 };
     const direct = await simulateDisplayView(options, view), prepared = await (await prepareDisplayView(options)).render(view);
     const reference = await simulateIdealReference(options);
-    expect(direct.exposure).toEqual(shared);
-    expect(prepared.exposure).toEqual(shared);
+    // The display view also reports the capture's deviation from the standard exposure (#515); the ideal reference does not.
+    const viewExposure = { ...shared, standardExposureDeviationStops: capture.exposure.standardExposureDeviationStops };
+    expect(direct.exposure).toEqual(viewExposure);
+    expect(prepared.exposure).toEqual(viewExposure);
     expect(reference.exposure).toEqual(shared);
     const width = 16, height = 12, samples = new Array<number>(width * height * 3).fill(-1);
     for (const region of [{ x: 0, y: 0, width: 7, height: 5 }, { x: 7, y: 0, width: 9, height: 5 }, { x: 0, y: 5, width: 16, height: 7 }]) {
@@ -188,5 +190,20 @@ describe("Auto ISO option validation (#516)", () => {
   for (const [name, exposure] of bad) it(name + " fails with a domain error", async () => {
     await expect(simulateCapture({ ...small, exposure })).rejects.toThrow(InvalidConfigurationError);
     await expect(prepareDisplayView({ ...small, exposure })).rejects.toThrow(InvalidConfigurationError);
+  });
+});
+
+describe("the deviation from the standard exposure under Auto ISO (#515 with #516)", () => {
+  it("equals the Auto ISO report's residual on an 18 % grey scene, in each mode", async () => {
+    const cases: readonly NonNullable<SimulateCaptureOptions["exposure"]>[] = [
+      { mode: "manual", iso: "auto" },
+      { mode: "program", iso: "auto" },
+      { mode: "aperture-priority", iso: "auto", autoIso: { slowestPreferredShutterSeconds: 1 / 250, afterMaximumIso: "hold-preferred-shutter" } }
+    ];
+    for (const [i, exposure] of cases.entries()) {
+      const result = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 8, height: 6 }, illuminanceLux: [LUX / 8, LUX / 50, LUX / 50][i]!, exposure });
+      // Two independent computations: the meter's log₂ ratio (#515) and the resolver's residual to its target (#516).
+      expect(result.exposure.standardExposureDeviationStops).toBeCloseTo(result.exposure.autoIso!.residualStops, 9);
+    }
   });
 });

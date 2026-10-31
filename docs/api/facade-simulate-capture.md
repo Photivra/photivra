@@ -21,8 +21,8 @@ export interface DisplayViewResult {
    */
   view: { width: number; height: number; frameWidth: number; frameHeight: number; scaleX: number; scaleY: number; samplesPerAxis: number;
     region?: { x: number; y: number; width: number; height: number } };
-  /** The resolved exposure of the capture this view shows. */
-  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number;
+  /** The resolved exposure of the capture this view shows; `standardExposureDeviationStops` as in {@link SimulateCaptureResult}. */
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number; standardExposureDeviationStops: number | null;
     /** #516: as in the capture result. */
     isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
@@ -609,6 +609,13 @@ export interface SimulateCaptureResult {
     /** #516: present with `iso: "auto"`: how Auto ISO chose `settings.iso` and what limited it. */
     autoIso?: SimulateCaptureAutoIsoReport;
     meteredSceneLuminanceCdPerSquareMeter: number;
+    /**
+     * #515: deviation, in stops, of the exposure used from the CIPA DC-004-2020 standard exposure for the metered luminance L:
+     * log2(N²/t) − log2(0.65·L·S/10). Positive is darker than the standard exposure (under), negative brighter (over). In an
+     * automatic mode it is the compensation with the opposite sign plus any step or limit the resolver hit. Finite, or null when
+     * the metered luminance is 0 (a black scene has no standard exposure).
+     */
+    standardExposureDeviationStops: number | null;
     /** Full output of the existing exposure-mode resolver. */
     resolution: unknown;
   };
