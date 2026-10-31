@@ -17,7 +17,7 @@ const ARM64_DISPLAY_VIEW_HASHES: Readonly<Record<string, string>> = {
   "3c4d6097d5358111358165c7a820eab707b41eb5621c4ba5f2fe51bd004fb3b0": "ac0e3d1c116e0f3fc82be7d9d7d055a2859ba2d4209da55bbeb139d6533b20e4",
   "d1f47df34a757135ce4335656e9294b1a6995429e28183451d0386b5a03de451": "cbad28f5bdfd0027959c074acb149682bf358cfa7aaf7aa5357cfd51f4216552",
   "992eec6e7a1d8d3ec4817baf703156c46f9dda4a8dd340624dac8d1b8f439b77": "c92d880f0fff487be141eba45bc103f28e404c3ca2282c9ee9e3bf93ce5d69c8",
-  "0c459f1395213976a4c29d2441161749757141e6dada2a6e49997fa9f4954f68": "d55d0e4ac705ae57e2cccb86c7f1ab8a8909b82c8069e90fee72ad9474a901a4"
+  "80b0ee70106adfde5dbc6aad21d90de700e27a65ede35cc60d147d639d9ff153": "ca1bee1dd655c892c68a02c52abe9b6759255d5b03b3cb9ebddd4bd26f72b807"
 };
 
 const decode = (code: number, maximum: number): number => { const e = code / maximum; return e <= 0.04045 ? e / 12.92 : ((e + 0.055) / 1.055) ** 2.4; };
@@ -222,6 +222,9 @@ describe("simulateDisplayView", () => {
     // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics (timings removed).
     // Re-recorded for #393 (exact area mean): the cases whose footprints hold at most 25 real pixels changed; the first two
     // and the last two (coarser views, stratified estimator) keep their 2.6.0 hashes.
+    // Re-recorded for #457 (AHD's choice on the noise-free mosaic): the AHD dead-leaves case (fifth) only, whose expected values
+    // moved by up to 1.73 8-bit codes toward the capture (0.37 → 0.16 codes RMS against 16 reference captures); the others,
+    // the uniform AHD case included, keep their hashes. Recorded on Linux x64 (CI); see #508 for macOS arm64.
     // Each case exercises one path: non-uniform and uniform diffraction sites, the AHD correction, spectral materials with
     // mirror borders, a radiance scene, AHD with a tone curve, and Speed. The display view's own arithmetic and its
     // illuminant use only correctly rounded operations and the engine's portable functions (src/core/portable-math.ts), so
@@ -245,7 +248,7 @@ describe("simulateDisplayView", () => {
         sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, "992eec6e7a1d8d3ec4817baf703156c46f9dda4a8dd340624dac8d1b8f439b77"],
       [{ scene: { preset: "dead-leaves" }, lens: { fNumber: 11, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 4 },
         output: { width: 300, height: 200, demosaic: "ahd", toneCurve: "positive-reinhard-per-channel" } }, { width: 30, height: 20, region: { x: 5, y: 4, width: 9, height: 7 }, format: "srgb-16" },
-      "0c459f1395213976a4c29d2441161749757141e6dada2a6e49997fa9f4954f68"],
+      "80b0ee70106adfde5dbc6aad21d90de700e27a65ede35cc60d147d639d9ff153"],
       [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 300, height: 200 } }, { width: 30, height: 20 }, "c3c2809d9aab37e7c8269a97804d14d930fd7bf06f29eedb02f1141dcded03e8"]
     ];
     for (const [options, view, expected] of cases) {

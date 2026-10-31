@@ -21,7 +21,8 @@
  *    the footprint, the demosaic candidates (one bilinear, or AHD's two directional linear candidates, each with its full
  *    camera-channel covariance), white balance and the highlight clip, the colour matrix, the tone curve and the clip to
  *    [0, 1] with the skewness term, the candidates' average, the Stein covariance with the closed-form B_c, the independent
- *    residual, AHD's choice variance ¼·Var(H − V), and the low-signal correction interpolated trilinearly between the grid
+ *    residual, AHD's choice variance ¼·Var(H − V), the flag for AHD's choice on the noise-free mosaic, which the reference takes and
+ *    the kernel does not (#457), and the low-signal correction interpolated trilinearly between the grid
  *    states of a table the host uploaded (the states themselves are computed on the host, #447; the kernel records every
  *    grid key it needs in a bitmap and flags a display pixel whose state the table lacks).
  *
@@ -90,9 +91,21 @@ export const DISPLAY_VIEW_QUALITY_FLAG = Object.freeze({
   thresholdTie: 8,
   /** Informational: the pixel's expected value includes the low-signal correction. */
   corrected: 16,
+  /**
+   * #457: the reference takes AHD's choice on the noise-free mosaic (one candidate, or their average on a tie), which the kernel
+   * does not compute; it renders the average. The pixel is flagged (recompute) when Σ_j a_j·½|h(H) − h(V)| of some component
+   * exceeds `DISPLAY_VIEW_QUALITY_CHOICE_SIGMA` times the pixel's noise standard deviation.
+   */
+  ahdChoice: 32,
   /** The bits that require the host's recomputation. */
-  recompute: 15
+  recompute: 47
 });
+/**
+ * #457: the largest move, in units of the display pixel's own noise σ, that AHD's choice between its candidates may make to a pixel
+ * the kernel keeps (it renders the candidates' average and its bound carries the move); a larger one is recomputed on the host. A
+ * design tolerance, not a measurement: 2^-10 σ is a tenth of the 0.01 σ to which the float32 tests hold the GPU to the reference.
+ */
+export const DISPLAY_VIEW_QUALITY_CHOICE_SIGMA = 2 ** -10;
 /** Words of the grid-key bitmap: one bit per grid key (AHD_KEY_LEVELS³ keys). */
 export const DISPLAY_VIEW_QUALITY_BITMAP_WORDS = Math.ceil(AHD_KEY_LEVELS ** 3 / 32);
 /**
@@ -495,6 +508,8 @@ const FLAG_OUTSIDE: u32 = ${DISPLAY_VIEW_QUALITY_FLAG.siteOutsideWindow}u;
 const FLAG_STATE: u32 = ${DISPLAY_VIEW_QUALITY_FLAG.stateMissing}u;
 const FLAG_TIE: u32 = ${DISPLAY_VIEW_QUALITY_FLAG.thresholdTie}u;
 const FLAG_CORRECTED: u32 = ${DISPLAY_VIEW_QUALITY_FLAG.corrected}u;
+const FLAG_CHOICE: u32 = ${DISPLAY_VIEW_QUALITY_FLAG.ahdChoice}u;
+const CHOICE_SIGMA: f32 = ${literal(DISPLAY_VIEW_QUALITY_CHOICE_SIGMA)};
 @group(0) @binding(1) var<storage, read> aux: array<f32>;
 @group(0) @binding(2) var<storage, read> geometry: array<f32>;
 @group(0) @binding(3) var<storage, read> sites: array<f32>;
@@ -610,6 +625,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   var s = array<vec2<f32>, 3>(vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0));
   var cov = array<vec2<f32>, 6>(vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0));
   var res = array<vec2<f32>, 3>(vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0));
+  // #457: Σ_j a_j·½|h(H) − h(V)| per component, how far the reference's choice can move the value from the candidates' average.
+  var choice = array<f32, 3>(0.0, 0.0, 0.0);
   for (var j = 0u; j < ny; j = j + 1u) {
     let ay = geometry[row + 2u + j];
     for (var ii = 0u; ii < nx; ii = ii + 1u) {
@@ -638,6 +655,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
       var pixel_variance = vec2<f32>(0.0, 0.0);
       var bs: array<vec2<f32>, 3>; var hs: array<vec2<f32>, 3>;
       var hv: array<vec2<f32>, 3>;
+      // #457: each candidate's rendered mean, for the reference's choice between them.
+      var h_cand = array<vec2<f32>, 6>(vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0), vec2<f32>(0.0));
       for (var d = 0u; d < count; d = d + 1u) {
         // Camera-channel mean and covariance of candidate d from its dense weights over the window.
         var cm: array<vec2<f32>, 3>;
@@ -706,6 +725,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
             moments = unit_clip(mean, variance, skew);
           }
           hm[comp] = moments.mean; hv[comp] = moments.variance; hs[comp] = moments.slope;
+          h_cand[d * 3u + comp] = moments.mean;
           e_mean[comp] = b_add(e_mean[comp], b_scale(moments.mean, share));
           pixel_variance = vec2<f32>(max(pixel_variance.x, moments.variance.x), max(pixel_variance.y, moments.variance.y));
         }
@@ -731,6 +751,17 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
           }
           let t = vec2<f32>(share * max(0.0, hv[comp].x - l.x), share * (hv[comp].y + l.y));
           res[comp] = b_add(res[comp], b_mul(b_mul(aj, aj), t));
+        }
+      }
+      if (count == 2u) {
+        // #457: the reference takes AHD's choice on the noise-free mosaic, one candidate or (a tie) their average, so its value
+        // lies within half the candidates' difference plus their bounds of the average: the bound carries that, and the move
+        // accumulates in choice, which flags the pixel below when it exceeds CHOICE_SIGMA of the pixel's noise σ.
+        for (var comp = 0u; comp < 3u; comp = comp + 1u) {
+          let diff = abs(h_cand[comp].x - h_cand[3u + comp].x);
+          let both = h_cand[comp].y + h_cand[3u + comp].y;
+          choice[comp] = choice[comp] + aj.x * 0.5 * diff;
+          e_mean[comp].y = e_mean[comp].y + 0.5 * (diff + both);
         }
       }
       for (var comp = 0u; comp < 3u; comp = comp + 1u) { s[comp] = b_add(s[comp], b_mul(aj, e_mean[comp])); }
@@ -764,6 +795,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
       }
     }
   }
+  // #457: a pixel whose candidates' choice could move it by more than CHOICE_SIGMA of its own noise σ is recomputed on the host.
+  if (choice[0] > CHOICE_SIGMA * sqrt(max(cov[0].x + res[0].x, 0.0)) || choice[1] > CHOICE_SIGMA * sqrt(max(cov[3].x + res[1].x, 0.0)) ||
+      choice[2] > CHOICE_SIGMA * sqrt(max(cov[5].x + res[2].x, 0.0))) { pixel_flags = pixel_flags | FLAG_CHOICE; }
   let o = i * ${DISPLAY_VIEW_QUALITY_OUTPUT_FLOATS}u;
   out[o] = s[0].x; out[o + 1u] = s[1].x; out[o + 2u] = s[2].x;
   out[o + 3u] = cov[0].x + res[0].x; out[o + 4u] = cov[3].x + res[1].x; out[o + 5u] = cov[5].x + res[2].x;
