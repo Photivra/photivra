@@ -1,6 +1,6 @@
-# 2.12.0 release candidate
+# 2.12.0 release
 
-> **Prepared October 31, 2026; proposed, awaiting owner approval; not published.** Publishing runs only from the owner's `v2.12.0` tag, after `main` CI on the tagged commit has passed (see [Release gates](#release-gates)).
+> **Published October 31, 2026.** The `v2.12.0` tag is on `9d29475` (#519), after `main` CI on that commit had passed; npm publishing ran from the tag ([Publication](#publication)).
 
 ## At a glance
 
@@ -69,7 +69,18 @@ No network, persistence or telemetry is added.
 - [x] Version surfaces aligned at 2.12.0 (`npm run release:prepare -- 2.12.0`). Root exports 1,767.
 - [x] Fingerprint against `v2.11.1`: bytes identical in all 17 results (above).
 - [x] #514 (the 2.11.1 publication record) merged (`50dfe3e`).
-- [ ] Owner's review of this record.
-- [ ] Green CI on this pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.12.0`** on the `main` commit that merges this record.
-- [ ] After publication: npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on this pull request, then on `main` after merge ([CI run 41226055418](https://github.com/Photivra/photivra/actions/runs/41226055418) on `9d29475`).
+- [x] **The owner's explicit approval to tag `v2.12.0`** on `9d29475`.
+- [x] After publication: npm version, dist-tag, integrity and provenance verified ([Publication](#publication)); publication dates updated in `CHANGELOG.md`, `SECURITY.md` and this record by the 2.13.0 release preparation, since `README.md` and `docs/DEVELOPERS.md` now describe 2.13.0.
+- [ ] GitHub release notes for `v2.12.0` (the owner's step; none was published as of the 2.13.0 preparation).
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.12.0` → `9d2947552834f9704b9395fbe1105354e4b671f7` (#519), after `main` CI on that commit passed ([CI run 41226055418](https://github.com/Photivra/photivra/actions/runs/41226055418)) |
+| Publish workflow | [Publish npm run 31](https://github.com/Photivra/photivra/actions/runs/41226629956): coverage shards (5–10 s each) and gate passed on the coverage proof, `verify` passed 17:52:32–17:55:15 UTC, `publish` passed 17:55:18–17:55:32 UTC |
+| npm | `@photivra/engine@2.12.0`, dist-tag `latest`, registry time 18:01:40 UTC |
+| Integrity | `sha512-y738czaXtoangqsD1s2FzNEaCY9SGuxQUinHbYZ2tzeHk5kcg2C1G4X+8clWURm75OOnT0w8huCTfpB4BMh7ZQ==` (shasum `93efbdb5133a546b2278f8dfe02ebe5a36178640`, 904 files) |
+| Provenance | The registry lists an SLSA v1 provenance attestation for 2.12.0 |
