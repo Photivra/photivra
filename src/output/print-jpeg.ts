@@ -229,7 +229,8 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
             cacheBottom+=bandHeight;
           }
         };
-        const blocksX=Math.ceil(plan.outputWidth/8),sums=new Float64Array(blocksX*192);
+        // One block's 192 samples, reused for every block: each is an integer 0–255, written before the block is coded.
+        const blocksX=Math.ceil(plan.outputWidth/8),sums=new Float64Array(blocksX*192),samples=new Uint8Array(192);
         // At 1:1 every output pixel is one source pixel with weight exactly 1, so its sum is exactly lut[code] and its
         // sample is a function of the code alone: the same bytes from a 256-entry table, without the accumulation.
         const identity=scaleX===1&&scaleY===1;
@@ -238,10 +239,10 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
           check();
           const height=Math.min(8,plan.outputHeight-by);await ensureRows(plan.crop.y+by,height);check();
           for(let bx=0;bx<plan.outputWidth;bx+=8){
-            const width=Math.min(8,plan.outputWidth-bx),samples:number[]=[];
-            for(let y=0;y<8;y++){
+            const width=Math.min(8,plan.outputWidth-bx);
+            for(let y=0,o=0;y<8;y++){
               const row=(plan.crop.y+by+Math.min(y,height-1)-cacheTop)*rowBytes+bx*3;
-              for(let x=0;x<8;x++){const index=row+Math.min(x,width-1)*3;samples.push(direct[cache[index]!]!,direct[cache[index+1]!]!,direct[cache[index+2]!]!);}
+              for(let x=0;x<8;x++,o+=3){const index=row+Math.min(x,width-1)*3;samples[o]=direct[cache[index]!]!;samples[o+1]=direct[cache[index+1]!]!;samples[o+2]=direct[cache[index+2]!]!;}
             }
             check();encoder.writeRgbBlock(samples);if(++blocks%32===0){await yieldControl(abort.signal);check();}
           }
@@ -272,11 +273,11 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
             }
           }
           for(let bx=0,block=0;bx<plan.outputWidth;bx+=8,block++){
-            const width=Math.min(8,plan.outputWidth-bx),base=block*192,samples:number[]=[];
-            for(let y=0;y<8;y++)for(let x=0;x<8;x++)for(let c=0;c<3;c++){
+            const width=Math.min(8,plan.outputWidth-bx),base=block*192;
+            for(let y=0,o=0;y<8;y++)for(let x=0;x<8;x++)for(let c=0;c<3;c++,o++){
               const value=sums[base+(Math.min(y,height-1)*8+Math.min(x,width-1))*3+c]!;
               // Nearest code, ties up. Math.round is used because floor(x+0.5) wrongly rounds 0.49999999999999994 up.
-              samples.push(Math.min(255,Math.max(0,Math.round(encodeSrgbComponent(value)*255))));
+              samples[o]=Math.min(255,Math.max(0,Math.round(encodeSrgbComponent(value)*255)));
             }
             check();encoder.writeRgbBlock(samples);if(++blocks%32===0){await yieldControl(abort.signal);check();}
           }

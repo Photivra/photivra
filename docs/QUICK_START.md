@@ -807,6 +807,11 @@ The optics options feed only what the environment site contract accepts:
     scene; a test checks it to 1e-12 per site. With camera rotation, a projection or distortion, or
     vignetting, the per-tap quadrature runs instead (much slower). `request.diffraction` holds the profile,
     the equivalent `sampled-local` PSF and which execution ran.
+  - The convolution runs in 32-row bands and computes only each band's own values, not the 2R rows and
+    columns of padding around it (#419; the values are bit-identical to the full-grid convolution's). On a
+    function scene with the Quality options at 1 µm and f/16 (R 32), 96 × 72, `diagnostics.timingsMs.diffraction`
+    went from 6.3 s to 0.62 s (medians of 5, one thread, a shared Mac); the tabulated capture's four
+    verification sites went from medians of 0.41–0.54 s to 4–5 ms at R 29–32.
   - Not modelled: defocus, aberrations, pupil clipping, a polygonal (bladed) aperture (the tiers declare
     no blade count) and, unless `sensor.pixelAperture` is `"box"` (2.3), the pixel aperture (each site
     is sampled at its centre). It cannot be
@@ -898,7 +903,7 @@ The optics options feed only what the environment site contract accepts:
       request fails and names the radius it needed.
     - A 24 MP frame costs proportionally more. Render it in parts across workers, as for diffraction.
     - Off the tabulated path (caller reflectance or radiance functions), the provider gathers only each 32-row band's
-      own values, not the 2R extra rows `calculateIrradianceConvolution` would return (#419). On a 256 × 171
+      own values, not the 2R extra rows a full-grid convolution would return (#419). On a 256 × 171
       function scene the convolution took 0.3 s at R 8, 3.5 s at R 32 and 12.9 s at R 64.
   - It cannot be combined with `lens.pupilSampling` (the rays already render defocus) or `lens.psf` (a caller PSF
     declares its own defocus). It can be combined with `lens.diffraction`.

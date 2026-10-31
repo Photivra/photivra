@@ -201,7 +201,7 @@ const EXPORT_JPEG_MAXIMUM_OUTPUT_BYTES=scaleBudgetCeiling(256_000_000,FULL_RESOL
  * APP0 keeps units=0 with a 1:1 pixel aspect ratio and states no physical size.
  */
 export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> & {maximumOutputBytes:number;icc?:Uint8Array;densityDotsPerInch?:number}): {
-  writeRgbBlock(samples:readonly number[]):void; appendStrip(strip:JpegStripBits):void; finish():Uint8Array; dispose():void;
+  writeRgbBlock(samples:readonly number[]|Uint8Array):void; appendStrip(strip:JpegStripBits):void; finish():Uint8Array; dispose():void;
 } {
   const {width,height,quantizationStep:q}=input;
   if(![width,height,q,input.maximumOutputBytes].every(Number.isSafeInteger)||width<1||height<1||width>65535||height>65535||q<1||q>255||input.maximumOutputBytes<1||input.maximumOutputBytes>EXPORT_JPEG_MAXIMUM_OUTPUT_BYTES)
@@ -256,9 +256,10 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
   const previous=[0,0,0];
   const totalBlocks=Math.ceil(width/8)*Math.ceil(height/8);
   return {
-    writeRgbBlock(samples:readonly number[]):void {
+    writeRgbBlock(samples:readonly number[]|Uint8Array):void {
       let valid=!disposed&&blocks<totalBlocks&&samples.length===192;
-      for(let i=0;valid&&i<192;i++){const v=samples[i]!;valid=Number.isInteger(v)&&v>=0&&v<=255;}
+      // A Uint8Array holds only integers 0–255, so only an array's entries need the scan.
+      if(!(samples instanceof Uint8Array))for(let i=0;valid&&i<192;i++){const v=samples[i]!;valid=Number.isInteger(v)&&v>=0&&v<=255;}
       if(!valid)throw new InvalidConfigurationError("JPEG requires complete bounded RGB coding blocks.");
       coder.transform(samples,coefficients); coder.code(coefficients,previous);
       blocks++;
