@@ -6882,6 +6882,31 @@ try { parseDngRawImage({ bytes: png }); } catch { rejected = true; }
 if (!rejected) throw new Error('A PNG must not parse as a DNG');
 ```
 
+## Text metadata on a file you encoded
+
+`addJpegTextMetadata(jpeg, metadata)` and `addPngTextMetadata(png, metadata)` (#388) add the caller's text to a JPEG
+or PNG that was encoded without `output.metadata`: for example a full-size file joined from `output.region` parts
+and encoded with `composePrintJpegStrips` or `serializePngImage`. They are the functions that `output.metadata`
+calls, so for the same file and text the bytes are the same as a whole-frame `simulateCapture` with
+`output.metadata`. The text is checked as `output.metadata` is (see
+[Text metadata](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md#text-metadata-24)); invalid text or a
+malformed file fails with `InvalidConfigurationError`. The input array is not changed.
+
+```ts
+import { addJpegTextMetadata, addPngTextMetadata, serializePngImage, simulateCapture } from '@photivra/engine';
+
+const text = { description: 'Siemens star at f/8', software: 'My Viewer 1.0', comment: 'Test run 3' };
+// A PNG the caller encoded (here one sRGB pixel) gets the PNG text chunks.
+const png = addPngTextMetadata(serializePngImage({ width: 1, height: 1, bitDepth: 8, samples: Uint8Array.of(255, 128, 0),
+  colourEncoding: { kind: 'srgb', renderingIntent: 'perceptual' } }), text);
+// A JPEG written without output.metadata and tagged afterwards has the bytes of one written with it.
+const plain = await simulateCapture({ scene: { preset: 'siemens-star' }, output: { width: 8, height: 8, format: 'jpeg' } });
+const direct = await simulateCapture({ scene: { preset: 'siemens-star' }, output: { width: 8, height: 8, format: 'jpeg', metadata: text } });
+const tagged = addJpegTextMetadata(plain.image.jpeg!, text);
+const same = tagged.length === direct.image.jpeg!.length && tagged.every((byte, i) => byte === direct.image.jpeg![i]);
+console.log(png.length, same);
+```
+
 ## Native-only Print planning
 
 - [Registered linear statistics](https://github.com/Photivra/photivra/blob/main/docs/PRINT_REGION_STATISTICS.md) tell apart changes caused by processing the same capture from variation between repeated captures at each site.

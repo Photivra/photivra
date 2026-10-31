@@ -25,6 +25,9 @@
  * bytes, with no unpaired UTF-16 surrogate (so it encodes to valid UTF-8 without replacement), no NUL or other
  * C0/C1 control character except line feed, and no U+FFFE/U+FFFF (not XML 1.0 characters). Line breaks are a
  * single line feed, as the PNG text chunks require.
+ * Root exports (#388): `addJpegTextMetadata` and `addPngTextMetadata` add the text to a JPEG or PNG that the caller
+ * encoded (for example a file assembled from `output.region` parts and `composePrintJpegStrips` or `serializePngImage`),
+ * with the same bytes as `simulateCapture`'s `output.metadata`, which calls the same two functions.
  * @see docs/QUICK_START.md "Text metadata (2.4)".
  */
 
@@ -118,12 +121,29 @@ function startsWith(bytes: Uint8Array, offset: number, prefix: Uint8Array): bool
   return true;
 }
 
+/** The checked metadata of a root writer: an object of the given fields, `metadata` in the messages. */
+function requireTextMetadata(value: unknown, writer: string): Readonly<OutputTextMetadata> {
+  if (value === undefined) throw new InvalidConfigurationError(writer + " metadata must be an object.");
+  return parseOutputTextMetadata(value, writer + " metadata")!;
+}
+
 /**
  * Returns a copy of a baseline JPEG with the text fields added: merged into its XMP APP1 packet (or a new packet
  * after the last leading APPn segment when it has none), plus a COM segment for `comment`. Every other byte,
- * including the entropy-coded data, is unchanged. Reads marker segments only up to SOS.
+ * including the entropy-coded data, is unchanged. Reads marker segments only up to SOS. The engine's own
+ * `output.metadata` path calls this function, so for the same JPEG and text the bytes are the same.
+ *
+ * Root export (#388). `metadata` is checked as `output.metadata` is (see the module notes); a JPEG without SOI,
+ * a malformed or truncated segment before SOS, an XMP APP1 segment after a non-APPn segment, an XMP packet that is
+ * not UTF-8 or has no `rdf:RDF`, or text that makes the packet larger than one APP1 segment fails with
+ * `InvalidConfigurationError`. The input is not changed.
+ * @param jpeg A baseline JPEG stream, for example `createPrintJpegTask`'s or `composePrintJpegStrips`'s bytes.
+ * @param metadata The text: at least one of description, software, copyright and comment.
+ * @returns A new array holding the JPEG with the text.
  */
 export function addJpegTextMetadata(jpeg: Uint8Array, metadata: Readonly<OutputTextMetadata>): Uint8Array {
+  if (!(jpeg instanceof Uint8Array)) throw new InvalidConfigurationError("addJpegTextMetadata jpeg must be a Uint8Array.");
+  const text = requireTextMetadata(metadata, "addJpegTextMetadata");
   if (jpeg.length < 4 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8) throw new InvalidConfigurationError("JPEG text metadata needs a JPEG stream starting with SOI.");
   const identifier = encoder.encode(XMP_IDENTIFIER);
   let offset = 2, xmp: { start: number; end: number } | undefined, appEnd = 2, inLeadingApps = true;
@@ -131,23 +151,32 @@ export function addJpegTextMetadata(jpeg: Uint8Array, metadata: Readonly<OutputT
     if (offset + 4 > jpeg.length || jpeg[offset] !== 0xff) throw new InvalidConfigurationError("JPEG text metadata found a malformed marker segment.");
     const marker = jpeg[offset + 1]!;
     if (marker === 0xda) break;
-    const end = offset + 2 + ((jpeg[offset + 2]! << 8) | jpeg[offset + 3]!);
+    // Before SOS every marker has a length (T.81 B.1.1.4): SOI, EOI, RSTm, TEM and fill bytes there are malformed.
+    const length = (jpeg[offset + 2]! << 8) | jpeg[offset + 3]!;
+    if (marker === 0xff || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9) || length < 2) throw new InvalidConfigurationError("JPEG text metadata found a malformed marker segment.");
+    const end = offset + 2 + length;
     if (end > jpeg.length) throw new InvalidConfigurationError("JPEG text metadata found a truncated marker segment.");
-    if (marker === 0xe1 && !xmp && startsWith(jpeg, offset + 4, identifier)) xmp = { start: offset, end };
+    if (marker === 0xe1 && !xmp && startsWith(jpeg, offset + 4, identifier)) {
+      // The packet is rewritten in place, so it must lie in the leading APPn run that the COM segment follows.
+      if (!inLeadingApps) throw new InvalidConfigurationError("JPEG text metadata found an XMP APP1 segment after a non-APPn segment.");
+      xmp = { start: offset, end };
+    }
     if (inLeadingApps && marker >= 0xe0 && marker <= 0xef) appEnd = end; else inLeadingApps = false;
     offset = end;
   }
-  const description = xmpTextMetadataDescription(metadata);
+  const description = xmpTextMetadataDescription(text);
   let xmpPacket: Uint8Array;
   if (xmp) {
-    const packet = new TextDecoder("utf-8", { fatal: true }).decode(jpeg.subarray(xmp.start + 4 + identifier.length, xmp.end));
+    let packet: string;
+    try { packet = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(jpeg.subarray(xmp.start + 4 + identifier.length, xmp.end)); }
+    catch { throw new InvalidConfigurationError("JPEG text metadata found an XMP packet that is not valid UTF-8."); }
     const close = packet.lastIndexOf("</rdf:RDF>");
     if (close < 0) throw new InvalidConfigurationError("JPEG text metadata found an XMP packet without rdf:RDF.");
     xmpPacket = encoder.encode(packet.slice(0, close) + description + packet.slice(close));
-  } else xmpPacket = xmpTextMetadataPacket(metadata);
+  } else xmpPacket = xmpTextMetadataPacket(text);
   if (xmpPacket.length > JPEG_XMP_MAXIMUM_PACKET_BYTES) throw new InvalidConfigurationError("The text metadata makes the JPEG XMP packet " + xmpPacket.length + " bytes; one APP1 segment holds at most " + JPEG_XMP_MAXIMUM_PACKET_BYTES + ".");
   const xmpSegment = segment(0xe1, concat([identifier, xmpPacket]));
-  const com = metadata.comment === undefined ? new Uint8Array(0) : segment(0xfe, encoder.encode(metadata.comment));
+  const com = text.comment === undefined ? new Uint8Array(0) : segment(0xfe, encoder.encode(text.comment));
   if (xmp) return concat([jpeg.subarray(0, xmp.start), xmpSegment, jpeg.subarray(xmp.end, appEnd), com, jpeg.subarray(appEnd)]);
   return concat([jpeg.subarray(0, appEnd), xmpSegment, com, jpeg.subarray(appEnd)]);
 }
@@ -171,14 +200,27 @@ export function pngTextMetadataChunks(metadata: Readonly<OutputTextMetadata>): U
   });
 }
 
-/** Returns a copy of a PNG with one text chunk per field inserted before the first IDAT chunk. Other chunks are unchanged. */
+/**
+ * Returns a copy of a PNG with one text chunk per field inserted before the first IDAT chunk. Other chunks are
+ * unchanged. The engine's own `output.metadata` path calls this function, so for the same PNG and text the bytes
+ * are the same.
+ *
+ * Root export (#388). `metadata` is checked as `output.metadata` is (see the module notes); a file without the PNG
+ * signature, or without an IDAT chunk inside its bytes, fails with `InvalidConfigurationError`. Chunk CRCs before
+ * IDAT are not checked. The input is not changed.
+ * @param png A PNG file, for example `serializePngImage`'s bytes.
+ * @param metadata The text: at least one of description, software, copyright and comment.
+ * @returns A new array holding the PNG with the text.
+ */
 export function addPngTextMetadata(png: Uint8Array, metadata: Readonly<OutputTextMetadata>): Uint8Array {
+  if (!(png instanceof Uint8Array)) throw new InvalidConfigurationError("addPngTextMetadata png must be a Uint8Array.");
+  const text = requireTextMetadata(metadata, "addPngTextMetadata");
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
   if (png.length < 8 || signature.some((b, i) => png[i] !== b)) throw new InvalidConfigurationError("PNG text metadata needs a PNG signature.");
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
   for (let offset = 8; offset + 12 <= png.length;) {
     const length = view.getUint32(offset), type = String.fromCharCode(...png.subarray(offset + 4, offset + 8));
-    if (type === "IDAT") return concat([png.subarray(0, offset), ...pngTextMetadataChunks(metadata), png.subarray(offset)]);
+    if (type === "IDAT") return concat([png.subarray(0, offset), ...pngTextMetadataChunks(text), png.subarray(offset)]);
     offset += 12 + length;
   }
   throw new InvalidConfigurationError("PNG text metadata found no IDAT chunk.");
