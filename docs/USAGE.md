@@ -7507,7 +7507,9 @@ In `aperture-priority` mode, the shutter comes from the meter (CIPA DC-004 relat
 `exposure.standardExposureDeviationStops` is the exposure used minus the standard exposure for the metered luminance L, in stops,
 log₂(N²/t) − log₂(0.65·L·S/10) from the same relations: positive is darker (under), negative brighter (over). In an automatic
 mode it is minus the compensation plus any limit the resolver hit; it is `null` only for a scene with no metered luminance.
-The display view's `exposure` carries the same value.
+`exposure.standardExposureIlluminanceLux` is the illuminance at which those settings give the standard exposure, E·2^Δ for the
+request's illuminance E (a reflective scene's metered luminance is proportional to E); `null` for a black scene or a
+`radiance-function` scene. The display view's `exposure` carries the same values.
 
 With `exposure.iso: "auto"` (#516) the ISO is chosen too, in every mode, by the resolvers' Auto ISO branches
 ([Priority modes with Auto ISO](#priority-modes-with-auto-iso)). Aperture priority then needs the slowest shutter

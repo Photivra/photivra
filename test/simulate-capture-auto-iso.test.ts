@@ -148,7 +148,8 @@ describe("a capture, its display view, its ideal reference and its region parts 
     const direct = await simulateDisplayView(options, view), prepared = await (await prepareDisplayView(options)).render(view);
     const reference = await simulateIdealReference(options);
     // The display view also reports the capture's deviation from the standard exposure (#515); the ideal reference does not.
-    const viewExposure = { ...shared, standardExposureDeviationStops: capture.exposure.standardExposureDeviationStops };
+    const viewExposure = { ...shared, standardExposureDeviationStops: capture.exposure.standardExposureDeviationStops,
+      standardExposureIlluminanceLux: capture.exposure.standardExposureIlluminanceLux };
     expect(direct.exposure).toEqual(viewExposure);
     expect(prepared.exposure).toEqual(viewExposure);
     expect(reference.exposure).toEqual(shared);
