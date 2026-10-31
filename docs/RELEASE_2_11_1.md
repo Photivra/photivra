@@ -1,6 +1,6 @@
-# 2.11.1 release candidate
+# 2.11.1 release
 
-> **Prepared October 31, 2026; proposed, awaiting owner approval; not published.** Publishing runs only from the owner's `v2.11.1` tag, after `main` CI on the tagged commit has passed (see [Release gates](#release-gates)).
+> **Published October 31, 2026.** The owner approved the `v2.11.1` tag on `c90bea0` (#512) after `main` CI on that commit had passed; npm publishing ran from the tag ([Publication](#publication)).
 
 ## At a glance
 
@@ -32,7 +32,7 @@ Every pull request merged since `v2.11.0` (`git log v2.11.0..origin/main`), and 
 - `publish` needs both `verify` and `coverage gate`, so the package is published only from a tree that passed every gate, as before.
 - A shard skips its work only when `ci.yml` passed the whole suite under coverage on this exact tree and Node.js release (`.github/ci-proof.mjs`); otherwise it runs.
 
-**Measured on #511's pull-request CI** ([run 41204851499](https://github.com/Photivra/photivra/actions/runs/41204851499), the same split on `lts/*`, Node 26.13.0): the four coverage shards took 12.9, 10.0, 9.2 and 7.3 minutes, and the merged gate 2.1 minutes. Each shard's time is its slowest single file (713, 544, 491 and 389 s), which a split by files cannot shorten. **Not yet measured:** the publish workflow itself, which runs only from a release tag and runs coverage on Node 24, so its first run is this release's; the shards are expected near those times, inside their 25-minute limit.
+**Measured on #511's pull-request CI** ([run 41204851499](https://github.com/Photivra/photivra/actions/runs/41204851499), the same split on `lts/*`, which setup-node resolved to Node 24.22.1; corrected from "26.13.0" in the prepared record): the four coverage shards took 12.9, 10.0, 9.2 and 7.3 minutes, and the merged gate 2.1 minutes. Each shard's time is its slowest single file (713, 544, 491 and 389 s), which a split by files cannot shorten. **The publish run** ([Publish npm run 30](https://github.com/Photivra/photivra/actions/runs/41208610115)) ran coverage on Node 24.22.1, the same release as CI's `lts/*`, so each shard found ci.yml's coverage proof for the tagged tree (`aef5199…`, from #512's CI run 41206921252) and skipped its tests (6–9 s per shard; the gate 6 s). `verify` took 2 min 42 s and `publish` 14 s: 3 min 2 s from tag to published, against 2.11.0's cancelled 25-minute verify job. The sharded coverage path has not yet run in full inside the publish workflow; a release whose tree has no proof runs it.
 
 ### Same package
 
@@ -67,7 +67,18 @@ No network, persistence or telemetry is added to the package. The publish workfl
 - [x] #511 merged with the fixed publish workflow (`2865835`).
 - [x] Version surfaces aligned at 2.11.1 (`npm run release:prepare -- 2.11.1`). Root exports unchanged at 1,765.
 - [x] Same package as `v2.11.0` apart from version fields and release documentation (above).
-- [ ] Owner's review of this record.
-- [ ] Green CI on this pull request, then on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.11.1`** on the `main` commit that merges this record.
-- [ ] After publication: the publish run's shard and job times recorded here; npm version, dist-tag, integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.
+- [x] Owner's review of this record.
+- [x] Green CI on #512, then on `main` after merge ([CI run](https://github.com/Photivra/photivra/actions/runs/41208472234) on `c90bea0`: `main smoke` passed on the PR's coverage proof).
+- [x] **The owner's explicit approval to tag `v2.11.1`** on `c90bea0`.
+- [x] After publication: the publish run's job times recorded above; npm version, dist-tag, integrity and provenance verified ([Publication](#publication)); publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md`, `docs/DEVELOPERS.md` and this record.
+- [ ] GitHub release notes for `v2.11.1` (the owner's step).
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.11.1` → `c90bea0464327e5c1f515f57e8da5558794be103` (#512), after `main` CI on that commit passed ([CI run 41208472234](https://github.com/Photivra/photivra/actions/runs/41208472234)) |
+| Publish workflow | [Publish npm run 30](https://github.com/Photivra/photivra/actions/runs/41208610115): coverage shards and gate passed on the coverage proof, `verify` passed 14:06:51–14:09:33 UTC, `publish` passed 14:09:36–14:09:50 UTC |
+| npm | `@photivra/engine@2.11.1`, dist-tag `latest`, registry time 14:13:58 UTC |
+| Integrity | `sha512-GGnpv2zjGFpBzcsIYviCQ5tnIMU5zhoqyI4ZPtJ+eu+rOcUOLluYyTa8GwFrAtbGMGJDN0KT6Pr61qExLFLcnw==` (shasum `8fae8e624793a183e10df90b98cf21393885171b`, 904 files), the same as the publish log and as a local pack of `c90bea0` |
+| Provenance | Signed provenance statement from GitHub Actions for the tag, published to the Sigstore transparency log ([log index 3614254685](https://search.sigstore.dev/?logIndex=3614254685)); the registry lists an attestation for 2.11.1 |
