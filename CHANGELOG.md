@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.12.0 — unreleased (prepared October 31, 2026)
+
+A minor release for the app's Beta camera: Auto ISO through the one-call API, and the deviation from the standard exposure for an exposure meter. With `iso` absent or a number, samples, RAW codes and files are the same as 2.11.1; the exposure result gains `isoControl` and `standardExposureDeviationStops`.
+- **New:** `exposure.iso: "auto"` in every exposure mode, with `exposure.autoIso` in aperture priority and an Auto ISO report in the result (#516, #518); `exposure.standardExposureDeviationStops` (#515, #517).
+- **Compatibility:** two new root type exports (1,767), none removed; `exposure.iso` widens to `number | "auto"`; new result fields only.
 
 ### Added
 
