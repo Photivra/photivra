@@ -76,6 +76,7 @@ jobs:
         # The policy guard below runs before install, so an alias that moves to
         # an unreviewed or end-of-life major fails instead of being adopted.
         # lts/* is the primary leg, the coverage shards and `verify-primary` below.
+        # `node` is resolved to the newest stable release (first step below).
         node-version:
           - "22.13.0"
           - "lts/-1"
@@ -88,10 +89,17 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Resolve the newest stable release for the node leg
+        # setup-node's `node` alias takes the first entry of Node's release index, which can be
+        # a prerelease (v27.0.0-alpha.0.0.0 from 2026-10-29); the leg tests the newest stable
+        # release instead, and the policy guard below still checks it. Runs on the runner's Node.
+        id: newest
+        if: matrix.node-version == 'node'
+        run: node .github/node-lts-lookahead.mjs --newest-stable
       - name: Use Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ steps.newest.outputs.version || matrix.node-version }}
       - name: Verify Node.js support policy
         run: |
           node --test .github/test-node-lts-policy.mjs

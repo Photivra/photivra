@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lookAheadFailures, newestRelease } from "./node-lts-lookahead.mjs";
+import { lookAheadFailures, newestRelease, newestStableRelease } from "./node-lts-lookahead.mjs";
 import { assertMaintainedLts, assertSupportedRuntime, assertSupportedTypes, ltsMarkerGraceDays, supportedNodeMajors } from "./node-lts-policy.mjs";
 
 const reviewedAt = new Date("2026-10-02T12:00:00Z");
@@ -108,4 +108,16 @@ test("the look-ahead reports a supported major with no published build", () => {
 test("the look-ahead fails closed on malformed input", () => {
   assert.throws(() => lookAheadFailures({}, new Date("2026-10-20T00:00:00Z")));
   assert.throws(() => lookAheadFailures(recordedReleases, new Date("invalid")));
+});
+test("the CI `node` leg takes the newest stable release, never a prerelease listed first", () => {
+  const index = [
+    { version: "v27.0.0-alpha.0.0.0", lts: false },
+    { version: "v26.13.0", lts: "Lithium" },
+    { version: "v26.12.1", lts: false },
+    { version: "v24.19.0", lts: "Krypton" }
+  ];
+  assert.equal(newestStableRelease(index)?.version, "26.13.0");
+  assert.equal(newestStableRelease([{ version: "v26.9.0" }, { version: "v26.12.1" }, { version: "v27.0.0" }, { version: "v26.13.0" }])?.version, "27.0.0");
+  assert.equal(newestStableRelease([{ version: "v26.10.0" }, { version: "v26.9.9" }])?.version, "26.10.0");
+  assert.equal(newestStableRelease([{ version: "v27.0.0-rc.1" }]), undefined);
 });

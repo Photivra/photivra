@@ -5,6 +5,7 @@
 // fails the required CI checks. Run daily by .github/workflows/node-lts-lookahead.yml.
 import assert from "node:assert/strict";
 import { error, log } from "node:console";
+import { appendFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { assertSupportedRuntime, supportedNodeMajors } from "./node-lts-policy.mjs";
@@ -26,6 +27,19 @@ export function newestRelease(releases, major) {
     if (!release || release.parts[0] !== major) continue;
     if (!newest || release.parts[1] > newest.parts[1] || (release.parts[1] === newest.parts[1] && release.parts[2] > newest.parts[2]))
       newest = release;
+  }
+  return newest;
+}
+
+// The newest stable release of any major: what the CI `node` leg tests. setup-node's own `node`
+// alias takes the first entry of the index, which can be a prerelease (v27.0.0-alpha.0.0.0 was
+// listed first on 2026-10-29, #510), and the policy guard rightly refuses a prerelease.
+export function newestStableRelease(releases) {
+  let newest;
+  for (const release of releases.map(parseRelease)) {
+    if (!release) continue;
+    const i = newest ? release.parts.findIndex((part, k) => part !== newest.parts[k]) : -1;
+    if (!newest || (i !== -1 && release.parts[i] > newest.parts[i])) newest = release;
   }
   return newest;
 }
@@ -61,6 +75,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const response = await globalThis.fetch(nodeReleaseIndexUrl);
   assert.ok(response.ok, `Fetching ${nodeReleaseIndexUrl} failed: HTTP ${response.status}.`);
   const releases = await response.json();
+  if (process.argv[2] === "--newest-stable") {
+    // `node .github/node-lts-lookahead.mjs --newest-stable` prints version=<x.y.z> for CI.
+    const newest = newestStableRelease(releases);
+    assert.ok(newest, "The Node release index lists no stable release.");
+    log(`version=${newest.version}`);
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `version=${newest.version}\n`);
+    process.exit(0);
+  }
   const from = new Date();
   const failures = lookAheadFailures(releases, from);
   for (const { major, date, version, reason } of failures)
