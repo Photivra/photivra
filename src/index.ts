@@ -1572,6 +1572,7 @@ export {
   type AperturePriorityAutoIsoPolicy,
   type AperturePriorityExposureModeResolution,
   type AutoIsoBaselinePolicy,
+  type AutoIsoLimits,
   type ExposureResolutionConstraint,
   type ExposureTargetResidual,
   type ExposureTargetResidualState,

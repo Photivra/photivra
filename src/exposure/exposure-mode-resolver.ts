@@ -29,7 +29,7 @@ import {
   parseExposureProgramLineProfile,
   type ExposureProgramLineProfile
 } from "./program-line.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -43,6 +43,27 @@ export interface RelativeExposureControlAnchor {
   iso: number;
 }
 
+/**
+ * #505: the photographer's Auto ISO limits, a policy choice kept separate from what the body allows
+ * (`capabilities.iso.autoIsoMinimum`/`autoIsoMaximum`, else the ISO range). Cameras let the
+ * photographer cap Auto ISO, and some also raise its floor (for example the Nikon D850's "maximum
+ * sensitivity", Fujifilm's per-preset default and maximum sensitivity, and Panasonic's separate upper
+ * and lower Auto ISO limits; makers' manuals, see docs/USAGE.md).
+ *
+ * Both values are ISO settings: inside the body's Auto ISO range and, on a discrete ISO grid, one of
+ * its values, with `minimum` at most `maximum`. Anything else fails with
+ * `InvalidScientificInputError`; the engine never clips a limit silently. When a limit is strictly
+ * inside the body's range and the ISO is held there, the limiting constraint is `user-iso-maximum` or
+ * `user-iso-minimum`; a limit equal to the body's bound adds nothing, and the body's `iso-maximum` or
+ * `iso-minimum` is reported.
+ */
+export interface AutoIsoLimits {
+  /** The highest ISO Auto ISO may choose. */
+  maximum: number;
+  /** The lowest ISO Auto ISO may choose, and so its baseline. Default: the body's Auto ISO minimum. */
+  minimum?: number;
+}
+
 export type ManualIsoControl =
   | {
       kind: "manual";
@@ -52,6 +73,8 @@ export type ManualIsoControl =
       kind: "automatic";
       quantizationPolicy:
         "nearest-log2-lower-on-tie";
+      /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+      autoIsoLimits?: AutoIsoLimits;
     };
 
 export interface ResolveManualExposureModeInput {
@@ -87,6 +110,8 @@ export type ExposureResolutionConstraint =
   | "none"
   | "iso-minimum"
   | "iso-maximum"
+  | "user-iso-minimum"
+  | "user-iso-maximum"
   | "iso-grid-quantization"
   | "shutter-minimum"
   | "shutter-maximum"
@@ -317,6 +342,8 @@ export interface AutoIsoBaselinePolicy {
   isoBaseline: "minimum-selectable";
   isoQuantizationPolicy:
     "nearest-log2-lower-on-tie";
+  /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+  autoIsoLimits?: AutoIsoLimits;
 }
 
 export interface AperturePriorityAutoIsoPolicy
@@ -622,6 +649,8 @@ export type ProgramAutoIsoControl =
         "minimum-selectable";
       isoQuantizationPolicy:
         "nearest-log2-lower-on-tie";
+      /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+      autoIsoLimits?: AutoIsoLimits;
     };
 
 export interface ResolveProgramAutoExposureModeInput {
@@ -645,6 +674,8 @@ export interface FullAutoExposurePolicy {
     "minimum-selectable";
   isoQuantizationPolicy:
     "nearest-log2-lower-on-tie";
+  /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+  autoIsoLimits?: AutoIsoLimits;
 }
 
 export interface ResolveFullAutoExposureModeInput {
@@ -1541,7 +1572,18 @@ function nearestDiscreteIso(
   };
 }
 
-function autoIsoBounds(
+interface EffectiveAutoIsoBounds {
+  minimum: number;
+  maximum: number;
+  minimumConstraint:
+    | "iso-minimum"
+    | "user-iso-minimum";
+  maximumConstraint:
+    | "iso-maximum"
+    | "user-iso-maximum";
+}
+
+function bodyAutoIsoBounds(
   capabilities:
     ResolvedGenericEquipmentExposureCapabilities
 ): {
@@ -1560,10 +1602,133 @@ function autoIsoBounds(
   };
 }
 
+/**
+ * #505: the Auto ISO range a resolver chooses in: the body's Auto ISO range, narrowed by the
+ * photographer's validated limits when given. A limit outside the body's range, or off a discrete
+ * ISO grid, fails; it is never clipped.
+ */
+function autoIsoBounds(
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities,
+  limits?: unknown,
+  path = "autoIsoLimits"
+): EffectiveAutoIsoBounds {
+  const body =
+    bodyAutoIsoBounds(capabilities);
+  if (limits === undefined) {
+    return {
+      ...body,
+      minimumConstraint:
+        "iso-minimum",
+      maximumConstraint:
+        "iso-maximum"
+    };
+  }
+  const record = requireRecord(
+    limits,
+    path
+  );
+  rejectUnknownFields(
+    record,
+    ["maximum", "minimum"],
+    path
+  );
+  const check = (
+    value: unknown,
+    field: string
+  ): number => {
+    const iso =
+      requirePositiveFinite(
+        value,
+        path + "." + field
+      );
+    if (
+      iso < body.minimum ||
+      iso > body.maximum
+    ) {
+      throw new InvalidScientificInputError(
+        path +
+          "." +
+          field +
+          " (ISO " +
+          iso +
+          ") lies outside the body's Auto ISO range, ISO " +
+          body.minimum +
+          " to " +
+          body.maximum +
+          "."
+      );
+    }
+    const grid =
+      capabilities.iso.settingGrid;
+    if (
+      grid.kind ===
+        "discrete-values" &&
+      !grid.values.some(
+        (candidate) =>
+          settingEquals(
+            candidate,
+            iso
+          )
+      )
+    ) {
+      throw new InvalidScientificInputError(
+        path +
+          "." +
+          field +
+          " (ISO " +
+          iso +
+          ") is not a selectable ISO of the resolved discrete ISO grid."
+      );
+    }
+    return iso;
+  };
+  const maximum = check(
+    record.maximum,
+    "maximum"
+  );
+  const minimum =
+    record.minimum === undefined
+      ? body.minimum
+      : check(
+          record.minimum,
+          "minimum"
+        );
+  if (minimum > maximum) {
+    throw new InvalidScientificInputError(
+      path +
+        ".minimum must not exceed " +
+        path +
+        ".maximum."
+    );
+  }
+  return {
+    minimum,
+    maximum,
+    minimumConstraint:
+      minimum > body.minimum &&
+      !settingEquals(
+        minimum,
+        body.minimum
+      )
+        ? "user-iso-minimum"
+        : "iso-minimum",
+    maximumConstraint:
+      maximum < body.maximum &&
+      !settingEquals(
+        maximum,
+        body.maximum
+      )
+        ? "user-iso-maximum"
+        : "iso-maximum"
+  };
+}
+
 function resolveAutomaticIso(
   idealIso: number,
   capabilities:
-    ResolvedGenericEquipmentExposureCapabilities
+    ResolvedGenericEquipmentExposureCapabilities,
+  bounds: EffectiveAutoIsoBounds
 ): {
   iso: number;
   kind:
@@ -1579,10 +1744,6 @@ function resolveAutomaticIso(
 } {
   const grid =
     capabilities.iso.settingGrid;
-  const bounds =
-    autoIsoBounds(
-      capabilities
-    );
 
   if (
     grid.kind ===
@@ -1608,6 +1769,14 @@ function resolveAutomaticIso(
       );
     return {
       ...discrete,
+      limitingConstraint:
+        discrete.clamped ===
+        "minimum"
+          ? bounds.minimumConstraint
+          : discrete.clamped ===
+              "maximum"
+            ? bounds.maximumConstraint
+            : discrete.limitingConstraint,
       kind: "discrete"
     };
   }
@@ -1623,7 +1792,7 @@ function resolveAutomaticIso(
       quantized: false,
       clamped: "minimum",
       limitingConstraint:
-        "iso-minimum"
+        bounds.minimumConstraint
     };
   }
   if (
@@ -1637,7 +1806,7 @@ function resolveAutomaticIso(
       quantized: false,
       clamped: "maximum",
       limitingConstraint:
-        "iso-maximum"
+        bounds.maximumConstraint
     };
   }
 
@@ -1822,14 +1991,11 @@ function resolveAutomaticShutter(
 
 function minimumSelectableIso(
   capabilities:
-    ResolvedGenericEquipmentExposureCapabilities
+    ResolvedGenericEquipmentExposureCapabilities,
+  bounds: EffectiveAutoIsoBounds
 ): number {
   const grid =
     capabilities.iso.settingGrid;
-  const bounds =
-    autoIsoBounds(
-      capabilities
-    );
   if (
     grid.kind ===
     "continuous-within-range"
@@ -2679,6 +2845,16 @@ export function resolveManualExposureMode(
       'isoControl.quantizationPolicy must be "nearest-log2-lower-on-tie".'
     );
   }
+  const autoBounds =
+    input.isoControl.kind ===
+    "automatic"
+      ? autoIsoBounds(
+          input.capabilities,
+          input.isoControl
+            .autoIsoLimits,
+          "isoControl.autoIsoLimits"
+        )
+      : undefined;
 
   if (
     input.isoControl.kind ===
@@ -2807,7 +2983,8 @@ export function resolveManualExposureMode(
   const automatic =
     resolveAutomaticIso(
       idealIso,
-      input.capabilities
+      input.capabilities,
+      autoBounds!
     );
 
   const achievedScale =
@@ -3213,6 +3390,12 @@ export function resolveAperturePriorityAutoIsoExposureMode(
       "policy.slowestPreferredShutterSeconds lies outside the resolved shutter capability range."
     );
   }
+  const autoBounds =
+    autoIsoBounds(
+      input.capabilities,
+      policy.autoIsoLimits,
+      "policy.autoIsoLimits"
+    );
 
   const availability =
     validateAutoIsoAvailability(
@@ -3264,7 +3447,8 @@ export function resolveAperturePriorityAutoIsoExposureMode(
 
   const baselineIso =
     minimumSelectableIso(
-      input.capabilities
+      input.capabilities,
+      autoBounds
     );
   const factorAtReferenceShutter =
     opticalExposureFactor(
@@ -3313,7 +3497,14 @@ export function resolveAperturePriorityAutoIsoExposureMode(
       isoControl: {
         kind: "automatic",
         quantizationPolicy:
-          policy.isoQuantizationPolicy
+          policy.isoQuantizationPolicy,
+        ...(policy.autoIsoLimits ===
+        undefined
+          ? {}
+          : {
+              autoIsoLimits:
+                policy.autoIsoLimits
+            })
       }
     });
 
@@ -3680,6 +3871,12 @@ export function resolveShutterPriorityExposureMode(
       "Shutter Priority Auto ISO policy is invalid."
     );
   }
+  const autoBounds =
+    autoIsoBounds(
+      input.capabilities,
+      policy.autoIsoLimits,
+      "isoControl.policy.autoIsoLimits"
+    );
 
   const availability =
     validateAutoIsoAvailability(
@@ -3736,7 +3933,8 @@ export function resolveShutterPriorityExposureMode(
 
   const baselineIso =
     minimumSelectableIso(
-      input.capabilities
+      input.capabilities,
+      autoBounds
     );
   const idealAtBaseline =
     idealApertureForTarget(
@@ -3763,7 +3961,14 @@ export function resolveShutterPriorityExposureMode(
       isoControl: {
         kind: "automatic",
         quantizationPolicy:
-          policy.isoQuantizationPolicy
+          policy.isoQuantizationPolicy,
+        ...(policy.autoIsoLimits ===
+        undefined
+          ? {}
+          : {
+              autoIsoLimits:
+                policy.autoIsoLimits
+            })
       }
     });
 
@@ -3994,6 +4199,13 @@ export function resolveProgramAutoExposureMode(
       "Program Auto ISO policy is invalid."
     );
   }
+  const autoBounds =
+    autoIsoBounds(
+      input.capabilities,
+      input.isoControl
+        .autoIsoLimits,
+      "isoControl.autoIsoLimits"
+    );
 
   const availability =
     validateAutoIsoAvailability(
@@ -4036,7 +4248,8 @@ export function resolveProgramAutoExposureMode(
 
   const baselineIso =
     minimumSelectableIso(
-      input.capabilities
+      input.capabilities,
+      autoBounds
     );
   const requestedOpticalStops =
     target
@@ -4066,7 +4279,16 @@ export function resolveProgramAutoExposureMode(
         kind: "automatic",
         quantizationPolicy:
           input.isoControl
-            .isoQuantizationPolicy
+            .isoQuantizationPolicy,
+        ...(input.isoControl
+          .autoIsoLimits ===
+        undefined
+          ? {}
+          : {
+              autoIsoLimits:
+                input.isoControl
+                  .autoIsoLimits
+            })
       }
     });
 
@@ -4160,6 +4382,12 @@ export function resolveFullAutoExposureMode(
       "Full Auto exposure policy is invalid."
     );
   }
+  const autoBounds =
+    autoIsoBounds(
+      input.capabilities,
+      input.policy.autoIsoLimits,
+      "policy.autoIsoLimits"
+    );
 
   const programLine =
     validateProgramLineForResolution(
@@ -4235,7 +4463,8 @@ export function resolveFullAutoExposureMode(
 
   const baselineIso =
     minimumSelectableIso(
-      input.capabilities
+      input.capabilities,
+      autoBounds
     );
   const requestedOpticalStops =
     target
@@ -4265,7 +4494,16 @@ export function resolveFullAutoExposureMode(
         kind: "automatic",
         quantizationPolicy:
           input.policy
-            .isoQuantizationPolicy
+            .isoQuantizationPolicy,
+        ...(input.policy
+          .autoIsoLimits ===
+        undefined
+          ? {}
+          : {
+              autoIsoLimits:
+                input.policy
+                  .autoIsoLimits
+            })
       }
     });
 

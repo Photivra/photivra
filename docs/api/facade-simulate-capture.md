@@ -188,15 +188,24 @@ resolver output stays in the capture's `exposure.resolution`.
 export interface SimulateCaptureAutoIsoReport {
   /** The ISO the meter target asked for at the resolved aperture and shutter, before the Auto ISO range and the ISO grid. */
   idealIsoBeforeConstraints: number;
-  /** The Auto ISO range the ISO was chosen in: the body's Auto ISO bounds, or its ISO range when it declares none (the tiers: ISO 100 to their maximum). */
+  /**
+   * The body's Auto ISO range: its Auto ISO bounds, or its ISO range when it declares none (the tiers: ISO 100 to their
+   * maximum). Without `limits` the ISO was chosen in this range.
+   */
   autoIsoMinimum: number;
   autoIsoMaximum: number;
+  /**
+   * #505: present only with `exposure.autoIso.limits`: the photographer's Auto ISO range the ISO was chosen in, inside the
+   * body's (`minimum` is the body's Auto ISO minimum when the option omits it).
+   */
+  limits?: { minimum: number; maximum: number };
   /** Whether the ISO was held at an end of the Auto ISO range. */
   clamped: false | "minimum" | "maximum";
   /**
    * The constraint that limited the resolved exposure: the resolver's `targetResidual.limitingConstraint`, for example
-   * `"iso-maximum"` (the exposure stays under target at the Auto ISO maximum), `"iso-grid-quantization"` (the nearest
-   * selectable ISO) or `"none"` (on target).
+   * `"iso-maximum"` (the exposure stays under target at the body's Auto ISO maximum), `"user-iso-maximum"` (#505: at the
+   * photographer's `limits.maximum`, below the body's), `"iso-grid-quantization"` (the nearest selectable ISO) or `"none"`
+   * (on target).
    */
   limitingConstraint: ExposureResolutionConstraint;
   /** The resolver's residual, log2(target / achieved exposure), in stops: positive when the exposure is under the meter target, negative when over it. */
@@ -393,11 +402,19 @@ export interface SimulateCaptureOptions {
      */
     iso?: number | "auto";
     /**
-     * #516: aperture priority with `iso: "auto"` only (required there). The shutter gets as long as
-     * `slowestPreferredShutterSeconds` (seconds, within the body's shutter range) at the lowest Auto ISO; beyond it the ISO
-     * rises; at the Auto ISO maximum `afterMaximumIso` decides (default `"allow-slower-shutter"`).
+     * Auto ISO settings, with `iso: "auto"` only.
+     *
+     * - `slowestPreferredShutterSeconds` and `afterMaximumIso` (#516): aperture priority only, where the slowest shutter is
+     *   required. The shutter gets as long as `slowestPreferredShutterSeconds` (seconds, within the body's shutter range)
+     *   at the lowest Auto ISO; beyond it the ISO rises; at the Auto ISO maximum `afterMaximumIso` decides (default
+     *   `"allow-slower-shutter"`).
+     * - `limits` (#505): every mode. The photographer's Auto ISO range `{ maximum, minimum? }`, a choice kept apart from
+     *   the body's Auto ISO capability: both are selectable ISOs inside the body's Auto ISO range, `minimum` at most
+     *   `maximum` (default: the body's minimum). Outside the body's range or off its ISO grid the request fails; the
+     *   engine never clips a limit. When the ISO stops at a limit strictly inside the body's range, the report's
+     *   `limitingConstraint` is `"user-iso-maximum"` or `"user-iso-minimum"`.
      */
-    autoIso?: { slowestPreferredShutterSeconds: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum };
+    autoIso?: { slowestPreferredShutterSeconds?: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
