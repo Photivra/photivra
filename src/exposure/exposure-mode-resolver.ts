@@ -651,7 +651,28 @@ export type ProgramAutoIsoControl =
         "nearest-log2-lower-on-tie";
       /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
       autoIsoLimits?: AutoIsoLimits;
+      /**
+       * #504: optionally hold the program line's shutter at or faster than a slowest preferred shutter
+       * before the ISO rises (for example from `estimateAutoIsoSlowestShutter()`). Absent, the program line
+       * is followed as before.
+       */
+      slowestPreferredShutter?: ProgramSlowestPreferredShutterPolicy;
     };
+
+/**
+ * #504: Program + Auto ISO's slowest preferred shutter, the two-axis policy of Aperture Priority + Auto
+ * ISO applied to the program line. When the line asks for a longer shutter than
+ * `slowestPreferredShutterSeconds`, the shutter is held there (snapped, never longer) with the line's
+ * aperture, and Auto ISO makes up the rest. At the Auto ISO maximum, `afterMaximumIso` decides:
+ * `"allow-slower-shutter"` lengthens the shutter toward the target, but never past the program line's
+ * own shutter; `"hold-preferred-shutter"` keeps it and leaves the exposure under target.
+ */
+export interface ProgramSlowestPreferredShutterPolicy {
+  slowestPreferredShutterSeconds: number;
+  afterMaximumIso:
+    | "allow-slower-shutter"
+    | "hold-preferred-shutter";
+}
 
 export interface ResolveProgramAutoExposureModeInput {
   target: ExposureMeterTarget;
@@ -782,6 +803,16 @@ export type ProgramAutoExposureModeResolution =
           ExposureTargetResidual,
           { status: "resolved" }
         >;
+      /**
+       * #504: present only with `isoControl.slowestPreferredShutter`. `applied` is true when the line's
+       * shutter was longer than the slowest preferred shutter and was held; `afterMaximumIsoFallbackUsed`
+       * when the slower-shutter fallback ran at the Auto ISO maximum. `programLineSelection` stays the
+       * line's own selection.
+       */
+      slowestPreferredShutter?: ProgramSlowestPreferredShutterPolicy & {
+        applied: boolean;
+        afterMaximumIsoFallbackUsed: boolean;
+      };
     })
   | {
       resolverVersion:
@@ -4206,6 +4237,12 @@ export function resolveProgramAutoExposureMode(
         .autoIsoLimits,
       "isoControl.autoIsoLimits"
     );
+  const holdPolicy =
+    validateProgramSlowestPreferredShutter(
+      input.isoControl
+        .slowestPreferredShutter,
+      input.capabilities
+    );
 
   const availability =
     validateAutoIsoAvailability(
@@ -4264,41 +4301,145 @@ export function resolveProgramAutoExposureMode(
       programLine,
       input.capabilities
     );
-  const isoPass =
-    resolveManualExposureMode({
-      target,
-      capabilities:
-        input.capabilities,
-      referenceExposure,
-      manualAperture:
-        selection.resolvedAperture,
-      manualShutterSeconds:
-        selection
-          .resolvedShutterSeconds,
-      isoControl: {
-        kind: "automatic",
-        quantizationPolicy:
-          input.isoControl
-            .isoQuantizationPolicy,
-        ...(input.isoControl
-          .autoIsoLimits ===
-        undefined
-          ? {}
-          : {
-              autoIsoLimits:
-                input.isoControl
-                  .autoIsoLimits
-            })
-      }
-    });
+  const isoControl =
+    input.isoControl;
+  const autoIsoPass = (
+    shutterSeconds: number
+  ): Extract<
+    ManualExposureModeResolution,
+    { status: "resolved"; isoControl: "automatic" }
+  > => {
+    const pass =
+      resolveManualExposureMode({
+        target,
+        capabilities:
+          input.capabilities,
+        referenceExposure,
+        manualAperture:
+          selection.resolvedAperture,
+        manualShutterSeconds:
+          shutterSeconds,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            isoControl
+              .isoQuantizationPolicy,
+          ...(isoControl
+            .autoIsoLimits ===
+          undefined
+            ? {}
+            : {
+                autoIsoLimits:
+                  isoControl
+                    .autoIsoLimits
+              })
+        }
+      });
+    if (
+      pass.status !== "resolved" ||
+      pass.isoControl !== "automatic"
+    ) {
+      throw new InvalidScientificInputError(
+        "Program Auto could not resolve its Auto ISO pass."
+      );
+    }
+    return pass;
+  };
 
-  if (
-    isoPass.status !== "resolved" ||
-    isoPass.isoControl !== "automatic"
-  ) {
-    throw new InvalidScientificInputError(
-      "Program Auto could not resolve its Auto ISO pass."
+  // #504: hold the line's shutter at or faster than the slowest preferred shutter before the ISO rises.
+  const lineShutterSeconds =
+    selection
+      .resolvedShutterSeconds;
+  const holdApplied =
+    holdPolicy !== undefined &&
+    lineShutterSeconds >
+      holdPolicy
+        .slowestPreferredShutterSeconds &&
+    !settingEquals(
+      lineShutterSeconds,
+      holdPolicy
+        .slowestPreferredShutterSeconds
     );
+  const heldShutterSeconds =
+    holdApplied
+      ? selectShutterNotLongerThanTarget(
+          holdPolicy!
+            .slowestPreferredShutterSeconds,
+          input.capabilities
+        ).shutterSeconds
+      : lineShutterSeconds;
+  const isoPass =
+    autoIsoPass(
+      heldShutterSeconds
+    );
+  let resolvedSettings =
+    isoPass.resolvedSettings;
+  let residual =
+    isoPass.targetResidual;
+  let fallbackUsed = false;
+  if (
+    holdApplied &&
+    holdPolicy!.afterMaximumIso ===
+      "allow-slower-shutter" &&
+    isoPass.isoResolution.clamped ===
+      "maximum" &&
+    isoPass.targetResidual.state ===
+      "under-target"
+  ) {
+    // At the Auto ISO maximum the shutter may lengthen toward the target, but not past the line's own shutter.
+    const maxIso =
+      isoPass.resolvedSettings.iso;
+    const atReference =
+      opticalExposureFactor(
+        selection.resolvedAperture,
+        referenceExposure
+          .shutterSeconds,
+        referenceExposure
+      ) *
+      (maxIso /
+        referenceExposure.iso);
+    const idealShutter =
+      referenceExposure
+        .shutterSeconds *
+      (target
+        .requiredExposureScaleToTarget /
+        atReference);
+    const beyondLine =
+      idealShutter >=
+      lineShutterSeconds;
+    const shutter =
+      beyondLine
+        ? {
+            shutterSeconds:
+              lineShutterSeconds,
+            limitingConstraint:
+              isoPass.targetResidual
+                .limitingConstraint
+          }
+        : resolveAutomaticShutter(
+            idealShutter,
+            input.capabilities
+          );
+    fallbackUsed = true;
+    resolvedSettings = {
+      aperture:
+        selection.resolvedAperture,
+      shutterSeconds:
+        shutter.shutterSeconds,
+      iso: maxIso
+    };
+    residual =
+      targetResidual(
+        target,
+        opticalExposureFactor(
+          selection.resolvedAperture,
+          shutter.shutterSeconds,
+          referenceExposure
+        ) *
+          (maxIso /
+            referenceExposure.iso),
+        shutter.limitingConstraint
+      );
   }
 
   return {
@@ -4331,10 +4472,70 @@ export function resolveProgramAutoExposureMode(
         .idealIsoBeforeConstraints,
     isoResolution:
       isoPass.isoResolution,
-    resolvedSettings:
-      isoPass.resolvedSettings,
-    targetResidual:
-      isoPass.targetResidual
+    resolvedSettings,
+    targetResidual: residual,
+    ...(holdPolicy === undefined
+      ? {}
+      : {
+          slowestPreferredShutter: {
+            ...holdPolicy,
+            applied: holdApplied,
+            afterMaximumIsoFallbackUsed:
+              fallbackUsed
+          }
+        })
+  };
+}
+
+function validateProgramSlowestPreferredShutter(
+  value: unknown,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): ProgramSlowestPreferredShutterPolicy | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const record = requireRecord(
+    value,
+    "isoControl.slowestPreferredShutter"
+  );
+  rejectUnknownFields(
+    record,
+    ["slowestPreferredShutterSeconds", "afterMaximumIso"],
+    "isoControl.slowestPreferredShutter"
+  );
+  if (
+    record.afterMaximumIso !==
+      "allow-slower-shutter" &&
+    record.afterMaximumIso !==
+      "hold-preferred-shutter"
+  ) {
+    throw new InvalidConfigurationError(
+      'isoControl.slowestPreferredShutter.afterMaximumIso must be "allow-slower-shutter" or "hold-preferred-shutter".'
+    );
+  }
+  const seconds =
+    requirePositiveFinite(
+      record.slowestPreferredShutterSeconds,
+      "isoControl.slowestPreferredShutter.slowestPreferredShutterSeconds"
+    );
+  if (
+    seconds <
+      capabilities.shutter
+        .minimumSeconds ||
+    seconds >
+      capabilities.shutter
+        .maximumSeconds
+  ) {
+    throw new InvalidScientificInputError(
+      "isoControl.slowestPreferredShutter.slowestPreferredShutterSeconds lies outside the resolved shutter capability range."
+    );
+  }
+  return {
+    slowestPreferredShutterSeconds:
+      seconds,
+    afterMaximumIso:
+      record.afterMaximumIso
   };
 }
 

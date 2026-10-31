@@ -5,8 +5,9 @@
  * capture, its display view and its region parts resolve the same exposure, and the option validation.
  */
 import { describe, expect, it } from "vitest";
-import { InvalidConfigurationError, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX as LUX, prepareDisplayView, resolveGenericEquipmentTierCatalog, simulateCapture,
-  simulateDisplayView, simulateIdealReference, type SimulateCaptureOptions } from "../src/index.js";
+import { calculateThinLensImageDistance, estimateAutoIsoSlowestShutter, GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC, InvalidConfigurationError,
+  SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX as LUX, prepareDisplayView, resolveGenericEquipmentTierCatalog, simulateCapture, simulateDisplayView,
+  simulateIdealReference, type SimulateCaptureOptions } from "../src/index.js";
 
 const small = { scene: { preset: "uniform" as const }, output: { width: 8, height: 8 } };
 type AperturePriorityAutoIso = { mode: "aperture-priority"; iso: "auto"; autoIso: { slowestPreferredShutterSeconds: number; afterMaximumIso?: "allow-slower-shutter" | "hold-preferred-shutter" } };
@@ -276,6 +277,85 @@ describe("photographer-set Auto ISO limits: exposure.autoIso.limits (#505)", () 
     ["an unknown limits key", { iso: "auto", autoIso: { limits: { maximum: 800, flash: 400 } as never } }],
     ["limits that are not an object", { iso: "auto", autoIso: { limits: 800 as never } }],
     ["afterMaximumIso outside aperture priority", { mode: "program", iso: "auto", autoIso: { afterMaximumIso: "hold-preferred-shutter", limits: { maximum: 800 } } }]
+  ];
+  for (const [name, exposure] of bad) it(name + " fails with a domain error", async () => {
+    await expect(simulateCapture({ ...small, exposure })).rejects.toThrow(InvalidConfigurationError);
+    await expect(prepareDisplayView({ ...small, exposure })).rejects.toThrow(InvalidConfigurationError);
+  });
+});
+
+describe("the automatic slowest shutter: slowestPreferredShutterSeconds \"auto\" (#504)", () => {
+  // The defaults: the tier's 50 mm lens focused at 5 m, 6 µm pixels, a 1-pixel budget and the generic 4.39 °/s hand.
+  const v = calculateThinLensImageDistance({ focalLengthMm: 50, objectDistanceM: 5 }).value.imageDistanceMm;
+  const derived = Math.atan(0.006 / v) / GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC.yaw;
+  const auto = (extra: Record<string, unknown> = {}, mode: "aperture-priority" | "program" = "aperture-priority"): NonNullable<SimulateCaptureOptions["exposure"]> =>
+    ({ mode, iso: "auto", autoIso: { slowestPreferredShutterSeconds: "auto", ...extra } });
+  it("aperture priority: the shutter is held at the derived threshold and the report says how it was derived", async () => {
+    const r = await simulateCapture({ ...small, exposure: auto() });
+    const a = r.exposure.autoIso!.automaticSlowestShutter!;
+    expect(a.derivedShutterSeconds).toBeCloseTo(derived, 15);
+    expect(a).toMatchObject({ fasterByStops: 0, blurBudgetPixels: 1, stabilizationStopsEquivalent: 0, angularVelocityRadPerSec: { ...GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC } });
+    expect(a.blurAtShutterPixels).toBeCloseTo(1, 9);
+    expect(r.exposure.autoIso!.slowestPreferredShutterSeconds).toBe(a.shutterSeconds);
+    // 1/125 s would meet the default scene at ISO 100; the threshold (about 1/648 s) is faster, so the ISO rises.
+    expect(r.exposure.settings.shutterSeconds).toBeCloseTo(a.shutterSeconds, 15);
+    expect(r.exposure.settings.iso).toBeGreaterThan(100);
+    const ids = r.assumptions.map((x) => x.id);
+    for (const id of ["exposure.autoIso.automaticSlowestShutter", "exposure.autoIso.automaticSlowestShutter.angularVelocityRadPerSec",
+      "exposure.autoIso.automaticSlowestShutter.blurBudgetPixels", "exposure.autoIso.automaticSlowestShutter.fasterByStops"]) expect(ids).toContain(id);
+  });
+  it("equals estimateAutoIsoSlowestShutter for the request's lens and sensor", async () => {
+    const options = { fasterByStops: -1, blurBudgetPixels: 2, stabilizationStopsEquivalent: 3, angularVelocityRadPerSec: { yaw: 0.05, pitch: 0.03 } };
+    const r = await simulateCapture({ ...small, lens: { prime: 85 }, sensor: { pixelPitchMicrometers: 4 }, exposure: auto({ automaticSlowestShutter: options }) });
+    const focalLengthMm = (r.assumptions.find((x) => x.id === "lens.prime")!.value as { focalLengthMm: number }).focalLengthMm;
+    const direct = estimateAutoIsoSlowestShutter({ focalLengthMm, focusDistanceM: 5, angularVelocityRadPerSec: options.angularVelocityRadPerSec,
+      stabilizationStopsEquivalent: 3, blurBudget: { kind: "pixels", pixels: 2, pixelPitchMicrometers: 4 }, fasterByStops: -1 }).value;
+    const a = r.exposure.autoIso!.automaticSlowestShutter!;
+    expect(a.derivedShutterSeconds).toBe(direct.derivedShutterSeconds);
+    expect(a.biasedShutterSeconds).toBe(direct.biasedShutterSeconds);
+    expect(a.shutterSeconds).toBe(direct.biasedShutterSeconds);
+    // One stop slower doubles the time: about twice the 2-pixel budget (tan is not linear at this short physical focal length on the 8 × 8 frame).
+    expect(a.blurAtShutterPixels).toBeGreaterThan(4);
+    expect(a.blurAtShutterPixels).toBeCloseTo(4, 1);
+  });
+  it("a longer lens gives a faster threshold; the bias moves it by whole stops", async () => {
+    const at = async (prime: number, fasterByStops = 0): Promise<number> =>
+      (await simulateCapture({ ...small, lens: { prime }, exposure: auto({ automaticSlowestShutter: { fasterByStops } }) })).exposure.autoIso!.slowestPreferredShutterSeconds!;
+    expect(await at(200)).toBeLessThan(await at(50));
+    expect(await at(50, -2) / await at(50)).toBeCloseTo(4, 12);
+    expect(await at(50) / await at(50, 1)).toBeCloseTo(2, 12);
+  });
+  it("program: a number or \"auto\" holds the program line's shutter before the ISO rises", async () => {
+    // At 1/64 of the default light the generic line lengthens the shutter past 1/250 s; a 1/250 s floor holds it there and raises the ISO.
+    const dark = { ...small, illuminanceLux: LUX / 64 };
+    const free = await simulateCapture({ ...dark, exposure: { mode: "program", iso: "auto" } });
+    const held = await simulateCapture({ ...dark, exposure: { mode: "program", iso: "auto", autoIso: { slowestPreferredShutterSeconds: 1 / 250 } } });
+    expect(free.exposure.settings.shutterSeconds).toBeGreaterThan(1 / 250);
+    expect(held.exposure.settings.shutterSeconds).toBeCloseTo(1 / 250, 12);
+    expect(held.exposure.settings.fNumber).toBe(free.exposure.settings.fNumber);
+    expect(held.exposure.settings.iso).toBeGreaterThan(free.exposure.settings.iso);
+    expect(held.exposure.autoIso).toMatchObject({ slowestPreferredShutterApplied: true, afterMaximumIso: "allow-slower-shutter", afterMaximumIsoFallbackUsed: false });
+    expect(free.exposure.autoIso).not.toHaveProperty("slowestPreferredShutterApplied");
+    const automatic = await simulateCapture({ ...dark, exposure: auto({}, "program") });
+    expect(automatic.exposure.settings.shutterSeconds).toBeCloseTo(automatic.exposure.autoIso!.automaticSlowestShutter!.shutterSeconds, 12);
+  });
+  it("the display view reports the same derivation", async () => {
+    const options: SimulateCaptureOptions = { ...small, exposure: auto({ automaticSlowestShutter: { fasterByStops: -2 } }) };
+    const capture = await simulateCapture(options), view = await simulateDisplayView(options, { width: 4, height: 4, samplesPerAxis: 1 });
+    expect(view.exposure.autoIso).toEqual(capture.exposure.autoIso);
+  });
+  const bad: [string, NonNullable<SimulateCaptureOptions["exposure"]>][] = [
+    ["a string other than auto", auto({ slowestPreferredShutterSeconds: "AUTO" })],
+    ["automaticSlowestShutter with a numeric slowest shutter", { mode: "aperture-priority", iso: "auto", autoIso: { slowestPreferredShutterSeconds: 1 / 60, automaticSlowestShutter: {} } }],
+    ["a fractional bias", auto({ automaticSlowestShutter: { fasterByStops: 0.5 } })],
+    ["a bias of three stops", auto({ automaticSlowestShutter: { fasterByStops: 3 } })],
+    ["a zero blur budget", auto({ automaticSlowestShutter: { blurBudgetPixels: 0 } })],
+    ["no shake", auto({ automaticSlowestShutter: { angularVelocityRadPerSec: { yaw: 0, pitch: 0 } } })],
+    ["a NaN shake", auto({ automaticSlowestShutter: { angularVelocityRadPerSec: { yaw: NaN, pitch: 0 } } })],
+    ["negative stabilization", auto({ automaticSlowestShutter: { stabilizationStopsEquivalent: -1 } })],
+    ["an unknown automaticSlowestShutter key", auto({ automaticSlowestShutter: { budgetMm: 0.01 } })],
+    ["auto in shutter priority", { mode: "shutter-priority", iso: "auto", autoIso: { slowestPreferredShutterSeconds: "auto" } }],
+    ["afterMaximumIso in program without a slowest shutter", { mode: "program", iso: "auto", autoIso: { afterMaximumIso: "hold-preferred-shutter" } }]
   ];
   for (const [name, exposure] of bad) it(name + " fails with a domain error", async () => {
     await expect(simulateCapture({ ...small, exposure })).rejects.toThrow(InvalidConfigurationError);
