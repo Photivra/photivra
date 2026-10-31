@@ -193,6 +193,23 @@ export function calculateIrradianceConvolution(input: IrradianceConvolutionInput
   return { plan, values };
 }
 
+/** Validates each call of a runner: the first in full, later ones by their own arrays against the first call's plan (#453). */
+function createRunnerValidation(geometry: Omit<IrradianceConvolutionInput, "samples" | "kernels">):
+  (samples: Float32Array | Float64Array, kernels: Float32Array | Float64Array) => IrradianceConvolutionPlan {
+  let plan: IrradianceConvolutionPlan | undefined;
+  return (samples, kernels) => {
+    if (plan === undefined) return (plan = calculateIrradianceConvolutionPlan({ ...geometry, samples, kernels }));
+    const patchCount = plan.patchColumns * plan.patchRows;
+    if (!(samples instanceof Float32Array || samples instanceof Float64Array) || samples.length !== plan.width * plan.height ||
+        !(kernels instanceof Float32Array || kernels instanceof Float64Array) || kernels.length !== patchCount * plan.tapCount) {
+      throw new InvalidConfigurationError("Irradiance convolution arrays do not match the declared geometry.");
+    }
+    checkedMaximumSampleMagnitude(samples);
+    checkedMaximumKernelSum(kernels, patchCount, plan.tapCount);
+    return plan;
+  };
+}
+
 /**
  * Internal (#453; not exported from the package): runs several convolutions that share one geometry (width, height,
  * kernel radius, patch size, boundary, pixel limit) with one validation of that geometry. The first call is
@@ -205,22 +222,42 @@ export function calculateIrradianceConvolution(input: IrradianceConvolutionInput
  */
 export function createIrradianceConvolutionRunner(geometry: Omit<IrradianceConvolutionInput, "samples" | "kernels">):
   (samples: Float32Array | Float64Array, kernels: Float32Array | Float64Array) => Float64Array {
-  let plan: IrradianceConvolutionPlan | undefined;
+  const validate = createRunnerValidation(geometry);
   return (samples, kernels) => {
-    if (plan === undefined) {
-      const first = calculateIrradianceConvolution({ ...geometry, samples, kernels });
-      plan = first.plan;
-      return first.values;
-    }
-    const patchCount = plan.patchColumns * plan.patchRows;
-    if (!(samples instanceof Float32Array || samples instanceof Float64Array) || samples.length !== plan.width * plan.height ||
-        !(kernels instanceof Float32Array || kernels instanceof Float64Array) || kernels.length !== patchCount * plan.tapCount) {
-      throw new InvalidConfigurationError("Irradiance convolution arrays do not match the declared geometry.");
-    }
-    checkedMaximumSampleMagnitude(samples);
-    checkedMaximumKernelSum(kernels, patchCount, plan.tapCount);
-    const values = new Float64Array(plan.width * plan.height);
+    const plan = validate(samples, kernels), values = new Float64Array(plan.width * plan.height);
     convolveIrradianceRows(plan, samples, kernels, 0, plan.height, values);
+    return values;
+  };
+}
+
+/**
+ * Internal (#419; not exported from the package): `createIrradianceConvolutionRunner` for one patch (patch = grid), returning only
+ * the interior, the values at least `kernelRadius` sites from every edge: (width − 2r) × (height − 2r), row-major. Every call is
+ * validated exactly as the runner validates it (the first in full, with `calculateIrradianceConvolution`'s checks and messages).
+ * Each interior value is the runner's value bit for bit: no tap of it leaves the grid, so `convolveIrradianceRows`'s boundary
+ * tests skip nothing, its patch is the only one (index 0), and this gather adds the same products (sample × weight) in the same
+ * order (v outer, u inner, both ascending, every tap). Only the 2r edge rows and columns, which the caller discards, are not computed.
+ * @internal
+ */
+export function createIrradianceConvolutionInteriorRunner(geometry: Omit<IrradianceConvolutionInput, "samples" | "kernels">):
+  (samples: Float32Array | Float64Array, kernels: Float32Array | Float64Array) => Float64Array {
+  const validate = createRunnerValidation(geometry);
+  return (samples, kernels) => {
+    const plan = validate(samples, kernels), { width, height, kernelRadius: r, kernelSize } = plan;
+    if (plan.patchColumns !== 1 || plan.patchRows !== 1 || width <= 2 * r || height <= 2 * r) {
+      throw new InvalidConfigurationError("The interior convolution needs one patch and a grid wider and taller than 2r.");
+    }
+    const innerWidth = width - 2 * r, values = new Float64Array(innerWidth * (height - 2 * r));
+    for (let y = r; y < height - r; y++) {
+      for (let x = r; x < width - r; x++) {
+        let sum = 0;
+        for (let v = -r; v <= r; v++) {
+          const sampleRow = (y - v) * width + x, kernelRow = (v + r) * kernelSize + r;
+          for (let u = -r; u <= r; u++) sum += samples[sampleRow - u]! * kernels[kernelRow + u]!;
+        }
+        values[(y - r) * innerWidth + x - r] = sum;
+      }
+    }
     return values;
   };
 }
