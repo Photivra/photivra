@@ -11,6 +11,8 @@ concurrency:
 
 permissions:
   contents: read
+  # The verify job looks up ci.yml's coverage proof (.github/ci-proof.mjs) through the API.
+  actions: read
 
 jobs:
   verify:
@@ -107,7 +109,17 @@ jobs:
       - name: Verify static and policy gates
         run: npm run check:static
 
+      - name: Coverage proof of the tagged tree
+        # The tag points at current main (checked above). When ci.yml's `verify (lts/*)` passed
+        # the whole suite under coverage on this exact tree and this exact Node.js release (its
+        # merge-queue run, #510), the gate below would repeat that run; any other case runs it.
+        id: proof
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .github/ci-proof.mjs find coverage .github/workflows/ci.yml
+
       - name: Coverage gate
+        if: steps.proof.outputs.found != 'true'
         run: npm run coverage
 
       - name: Build
