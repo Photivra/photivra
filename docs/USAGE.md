@@ -7600,6 +7600,12 @@ console.log(ran.backend, ran.fallbackReason, ran.assurance, ran.errorBound, ran.
 prepared.dispose(); // releases a device the view acquired; a shared accelerator's device stays its owner's
 ```
 
+The GPU code (the session, the renderers and their WGSL, about 52 kB gzip) is imported only when `gpu` is `"auto"` or
+`"require"`, so a bundler that splits dynamic imports leaves it out of a page's first load. A build that cannot split inlines
+it: Vite builds workers as `iife` by default, so a worker that calls `prepareDisplayView` carries it; build workers as ES
+modules (`worker: { format: "es" }`, with `new Worker(url, { type: "module" })`) to keep it out. Measured sizes:
+[Bundle size](https://github.com/Photivra/photivra/blob/main/docs/DISPLAY_VIEW.md#bundle-size).
+
 #### Sharing AHD correction states between workers
 
 With `output.demosaic: "ahd"`, low-signal display pixels read correction states that each realm (a page, a Web Worker)
