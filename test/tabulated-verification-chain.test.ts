@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { CHART_SCENE_PRESETS, InvalidConfigurationError, createPlanarSceneRadianceProvider, simulateCapture, type ChartScene, type SimulateCaptureOptions,
   type SimulateCaptureResult } from "../src/index.js";
 import { setTabulatedNativeRawEnabled, setTabulatedVerificationTestHook, tabulatedVerificationStatistics } from "../src/capture/native-environment-tabulated.js";
-import { calculateIrradianceConvolution, createIrradianceConvolutionRunner } from "../src/optics/irradiance-convolution.js";
+import { calculateIrradianceConvolution, createIrradianceConvolutionInteriorRunner, createIrradianceConvolutionRunner } from "../src/optics/irradiance-convolution.js";
 import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
 import { CHART_PRESET_SCENES } from "./helpers/chart-radiance-fixtures.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
@@ -179,5 +179,56 @@ describe("createIrradianceConvolutionRunner (#453)", () => {
       expect(() => run(s, k)).toThrow(InvalidConfigurationError);
       expect(() => run(s, k)).toThrow(expected);
     }
+  });
+});
+
+describe("createIrradianceConvolutionInteriorRunner (#419)", () => {
+  // Grids of several sizes and radii, including r = 0, a one-value interior and the 32-site limit.
+  const shapes = [[9, 7, 2], [5, 5, 2], [6, 4, 0], [11, 3, 1], [70, 67, 32], [66, 96, 32]] as const;
+  const kernel = (r: number, seed: number): Float64Array => {
+    const k = Float64Array.from({ length: (2 * r + 1) ** 2 }, (_, i) => ((i * 7 + seed) % 11) + 1 + Math.sin(i + seed) * 0.3);
+    const sum = k.reduce((a, b) => a + b, 0);
+    return k.map((w) => w / sum);
+  };
+  const samples = (n: number, seed: number): Float64Array => Float64Array.from({ length: n }, (_, i) => Math.abs(Math.sin(i * 1.7 + seed)) * 3.5 * (i % 13 === 0 ? 0 : 1));
+  const geometryOf = (width: number, height: number, r: number): Parameters<typeof createIrradianceConvolutionInteriorRunner>[0] => ({ schemaVersion: "0.1.0" as const, width, height, kernelRadius: r, patchWidth: width, patchHeight: height,
+    boundary: "zero-outside-grid" as const });
+
+  it("gives calculateIrradianceConvolution's interior values bit for bit on every call", () => {
+    for (const [width, height, r] of shapes) {
+      const geometry = geometryOf(width, height, r), run = createIrradianceConvolutionInteriorRunner(geometry), innerWidth = width - 2 * r;
+      for (let s = 0; s < 3; s++) {
+        const full = calculateIrradianceConvolution({ ...geometry, samples: samples(width * height, s), kernels: kernel(r, s) }).values;
+        const interior = run(samples(width * height, s), kernel(r, s));
+        expect(interior.length).toBe(innerWidth * (height - 2 * r));
+        expect(Array.from(interior).every((v, i) => Object.is(v, full[(Math.floor(i / innerWidth) + r) * width + (i % innerWidth) + r]))).toBe(true);
+      }
+    }
+  });
+
+  it("validates every call as the runner does, with the full validation's messages", () => {
+    const geometry = geometryOf(9, 7, 2), run = createIrradianceConvolutionInteriorRunner(geometry);
+    const negative = samples(63, 1); negative[5] = -1;
+    const nan = kernel(2, 1); nan[3] = NaN;
+    const energy = kernel(2, 1); energy[0]! += 0.5;
+    const cases = [[negative, kernel(2, 1)], [samples(63, 1), nan], [samples(63, 1), energy], [samples(63, 1).subarray(1), kernel(2, 1)], [samples(63, 1), new Float64Array(24)]] as const;
+    // The first call is validated in full, every later one by its own arrays.
+    for (const first of [true, false]) for (const [s, k] of cases) {
+      const fresh = createIrradianceConvolutionInteriorRunner(geometry);
+      if (!first) fresh(samples(63, 0), kernel(2, 0));
+      let expected = "";
+      try { calculateIrradianceConvolution({ ...geometry, samples: s, kernels: k }); } catch (error) { expected = (error as Error).message; }
+      expect(expected).not.toBe("");
+      expect(() => fresh(s, k)).toThrow(InvalidConfigurationError);
+      expect(() => fresh(s, k)).toThrow(expected);
+    }
+    expect(() => createIrradianceConvolutionInteriorRunner({ ...geometry, kernelRadius: 33 })(samples(63, 0), kernel(33, 0))).toThrow(InvalidConfigurationError);
+    run(samples(63, 0), kernel(2, 0));
+  });
+
+  it("refuses several patches and a grid without an interior", () => {
+    expect(() => createIrradianceConvolutionInteriorRunner({ ...geometryOf(9, 7, 2), patchWidth: 4 })(samples(63, 0), new Float64Array(75).fill(0.01)))
+      .toThrow("The interior convolution needs one patch");
+    expect(() => createIrradianceConvolutionInteriorRunner(geometryOf(4, 7, 2))(samples(28, 0), kernel(2, 0))).toThrow("The interior convolution needs one patch");
   });
 });
