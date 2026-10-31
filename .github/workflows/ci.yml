@@ -132,8 +132,9 @@ jobs:
 
   verify:
     # The required `verify (<line>)` checks. They run even when a part failed (a skipped
-    # required check would count as passing) and pass only when every part of every line
-    # passed: GitHub reports one result for a matrix, so one line's failure fails all three.
+    # required check would count as passing) and pass only when all three parts of their own
+    # line passed in this run attempt, read from the run's job list (GitHub reports one
+    # `needs` result for the whole matrix, which would let one line's failure fail all three).
     name: verify (${{ matrix.node-version }})
     needs: test
     if: ${{ !cancelled() && github.event_name != 'push' }}
@@ -143,12 +144,17 @@ jobs:
       matrix:
         node-version: ["22.13.0", "lts/-1", "node"]
     steps:
-      - name: Require every test part to have passed
+      - name: Require every part of this line to have passed
         env:
-          PARTS: ${{ needs.test.result }}
+          GH_TOKEN: ${{ github.token }}
+          LINE: ${{ matrix.node-version }}
         run: |
-          if [ "$PARTS" != "success" ]; then
-            echo "::error title=Tests::A test part did not pass ($PARTS)."
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
+            --jq '.jobs[] | [.name, .conclusion // "none"] | @tsv' > jobs.tsv
+          PARTS="$(awk -F '\t' -v prefix="test ($LINE, " 'index($1, prefix) == 1' jobs.tsv)"
+          printf '%s\n' "$PARTS"
+          if [ "$(printf '%s\n' "$PARTS" | grep -c .)" != "3" ] || printf '%s\n' "$PARTS" | awk -F '\t' '$2 != "success"' | grep -q .; then
+            echo "::error title=Tests::Not every test part of Node.js $LINE passed."
             exit 1
           fi
 
