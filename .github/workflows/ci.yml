@@ -389,8 +389,9 @@ jobs:
   hash-locks-macos:
     # Informational portability check for the bit-identity hash locks, which
     # were recorded on Linux x64 (docs/NUMERICAL_CORRECTNESS.md, "Test hash
-    # locks and platforms"). It does not block the required verify gate; a
-    # failure is a portability finding to investigate. GitHub-hosted macOS
+    # locks and platforms"); three of them hold on x64 only and are checked here
+    # against their recorded arm64 hashes (#508). It does not block the required
+    # verify gate; a failure is a portability finding to investigate. GitHub-hosted macOS
     # minutes are free for this public repository. It is a required check, so it also
     # reports on merge-queue entries; there it skips on a proof of the same tree.
     name: hash locks (macos-latest)
@@ -429,11 +430,12 @@ jobs:
           test/canonical-json-identity.test.ts
           test/jpeg-reference-byte-parity.test.ts
           test/poc-projection-reuse.test.ts
-      - name: Hash locks that differ on an Apple M5 Pro (photivra/photivra#508)
-        # Informational until #508 is resolved: a failure here tells "macOS arm64" apart
-        # from "one machine", and does not fail this job.
+      - name: x64 hash locks, checked against their arm64 hashes (photivra/photivra#508)
+        # These three files lock bytes that differ between arm64 and x64 by one-ulp Math
+        # results (#508); on arm64 they assert their own recorded arm64 hashes, so a
+        # failure here is a real failure of this step (docs/NUMERICAL_CORRECTNESS.md,
+        # "Test hash locks and platforms").
         if: steps.proof.outputs.found != 'true'
-        continue-on-error: true
         run: >-
           npx vitest run
           test/display-view.test.ts

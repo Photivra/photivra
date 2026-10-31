@@ -17,7 +17,9 @@
  * So E(q, λ) = T·B(q, λ) with B = K_λ ⊛ L sampled on that lattice: the same sum, in a different floating-point
  * order. B is computed once per spectral node with the engine's isoplanatic convolution
  * (`calculateIrradianceConvolution`, kernels from `resolveLensPsfConvolutionKernels`, exact site sampling) over a
- * grid that holds every source (the native raster plus the kernel radius on each side), in row bands. The
+ * grid that holds every source (the native raster plus the kernel radius on each side), in row bands; each band gathers only
+ * its own values, the grid's interior (#419, `createIrradianceConvolutionInteriorRunner`: each value bit-identical to
+ * `calculateIrradianceConvolution`'s there, without the 2R rows and columns of the band's grid that no query reads). The
  * provider then answers each site-centre query with B instead of L, and the environment request declares no
  * PSF. Incoherent imaging is a linear superposition of intensity PSFs, so convolving radiance on the object
  * plane and convolving irradiance on the image plane agree for a planar object and a space-invariant PSF
@@ -34,7 +36,7 @@
  * plus the largest offset on each side) are convolved, over a grid that adds the kernel radius on each side. Every
  * output value is the same gather as in the whole render: the grid always holds every tap of every value it keeps
  * (real scene radiance out to the kernel radius, never a truncated edge), the single kernel patch does not depend on
- * the grid's origin, and `convolveIrradianceRows` sums each value in a fixed tap order (v outer, u inner). Narrowing
+ * the grid's origin, and the gather (`convolveIrradianceRows`, and its interior form) sums each value in a fixed tap order (v outer, u inner). Narrowing
  * the grid therefore removes only values that no query reads, and the kept values are bit-identical.
  *
  * A query that does not land on one of the lattices (within 1e-6 site) is refused rather than approximated: the
@@ -44,14 +46,14 @@
  * passes `siteKernels` instead (the geometric defocus disc, or each node's diffraction kernel convolved with it). Their radius
  * may exceed the public 32-site convolution limit, so this path does not call `calculateIrradianceConvolution`: it checks the
  * samples and the kernel sums as that function does and gathers only the band's own values (`gatherInterior`), each summed
- * over the taps in the same fixed order (v outer, u inner, ascending; zero taps skipped, which adds exact zeros only). It
- * does not compute the 2R grid rows above and below a band that `calculateIrradianceConvolution` would also return (#419).
+ * over the taps in the same fixed order (v outer, u inner, ascending; zero taps skipped, which adds exact zeros only). Like
+ * the diffraction path (#419), it does not compute the 2R grid rows and columns around a band.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { isInternalSceneRadianceEvaluator, markInternalSceneRadianceEvaluator, registerInternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
-import { createIrradianceConvolutionRunner } from "../optics/irradiance-convolution.js";
+import { createIrradianceConvolutionInteriorRunner } from "../optics/irradiance-convolution.js";
 import { siteDiffractionKernel } from "../optics/site-diffraction-kernel.js";
 import type { ResolveLensSampledPsfInput } from "../optics/lens-psf-profile.js";
 import type { PlanarSceneRadianceProvider } from "./scene-radiance.js";
@@ -134,9 +136,10 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
     if (cached) { bands.delete(b); bands.set(b, cached); return cached; }
     const started = input.onConvolution ? now() : 0;
     const y0 = ly0 + b * BAND_ROWS, rows = Math.min(BAND_ROWS, ly1 - y0), gridHeight = rows + 2 * R, size = gridWidth * gridHeight;
-    // #453: the band's shifts × spectral nodes convolutions share one geometry, validated once (the first runs the full
-    // calculateIrradianceConvolution; every later one still checks its samples and kernel).
-    const convolve = siteKernels ? undefined : createIrradianceConvolutionRunner({ schemaVersion: "0.1.0", width: gridWidth, height: gridHeight, kernelRadius: R,
+    // #453: the band's shifts × spectral nodes convolutions share one geometry, validated once (the first with every check of
+    // calculateIrradianceConvolution; every later one still checks its samples and kernel). #419: only the band's own rows × NW
+    // values are gathered (the grid's interior), each bit-identical to calculateIrradianceConvolution's value there.
+    const convolve = siteKernels ? undefined : createIrradianceConvolutionInteriorRunner({ schemaVersion: "0.1.0", width: gridWidth, height: gridHeight, kernelRadius: R,
       patchWidth: gridWidth, patchHeight: gridHeight, boundary: "zero-outside-grid" });
     const values = shifts.map((shift) => {
       // The plane point of lattice grid sample (gx, gy) of this shift, the same expressions for both fills below.
@@ -170,10 +173,7 @@ export function createDiffractedPlanarProvider(input: DiffractedPlanarProviderIn
           }
         }
         if (!convolve) return gatherInterior(samples, taps[w]!, gridWidth, NW, rows, R);
-        const blurred = convolve(samples, kernels[w]!);
-        const out = new Float64Array(NW * rows);
-        for (let y = 0; y < rows; y++) out.set(blurred.subarray((y + R) * gridWidth + R, (y + R) * gridWidth + R + NW), y * NW);
-        return out;
+        return convolve(samples, kernels[w]!);
       });
     });
     bands.set(b, values);

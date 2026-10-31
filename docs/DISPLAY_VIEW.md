@@ -994,6 +994,11 @@ Bun/JavaScriptCore) those inputs, and with them the expected values and noise, d
 the six requests were identical there too. The capture's own floating-point results differ in the same browsers (for
 example its diffraction kernels), while its samples were identical in every case tested.
 
+Those Node.js measurements were on x64. V8's `Math` also differs by one ulp between arm64 and x64 for some arguments
+(#508: `sin`, `cos`, `asin`, `atan2` and `log`; first `Math.log(14)` in the first hash-locked request), so on arm64 (Apple
+silicon, Linux arm64) five of the six hash-locked requests give other bytes, the same on macOS and Linux. The tests lock
+them to their own arm64 hashes ([numerical correctness](NUMERICAL_CORRECTNESS.md), "Test hash locks and platforms").
+
 ## Rendering on the GPU
 
 2.11 (#481) adds the engine API through which a prepared display view chooses between a WebGPU renderer and the CPU
