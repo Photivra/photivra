@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.11.1 — unreleased (prepared October 31, 2026)
+## 2.11.1 — published October 31, 2026
 
 A patch release that publishes 2.11.0's engine to npm. The owner tagged `v2.11.0` on `6bef763` and published its GitHub release on October 28, 2026, but its npm publish run (40636849817) was cancelled at the verify job's 25-minute limit while the single-job coverage gate was still running, so `@photivra/engine@2.11.0` was never published; npm `latest` is 2.10.0. A published tag runs the publish workflow of its own commit, so 2.11.0 cannot be published again; 2.11.1 carries the fixed workflow.
 - **No API, behaviour or value change from 2.11.0:** `src/` differs only in `ENGINE_API_VERSION`; the packed files differ only in the version fields and the release documentation (docs/RELEASE_2_11_1.md, "Same package").
