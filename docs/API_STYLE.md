@@ -122,6 +122,7 @@ Use the existing verb family that matches what the operation does. Do not invent
 - `create*` — build a new record, snapshot or manifest whose identity is part of the contract.
 - `prepare*` — validate and canonicalize fairly static context for repeated later use. Prepared state must own its immutable validated dependencies and define when it can be reused and when it becomes invalid. Preparing is not permission to cache results that depend on the request. See the [browser-native prepared-state contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md) (issues #224/#233).
 - `serialize*` — convert an authoritative value to its documented, deterministic serialized form.
+- `add*` — return a copy of an already-encoded file with caller-supplied data inserted into its container. Every other byte is kept, and nothing is decoded or encoded again (#388: `addJpegTextMetadata`, `addPngTextMetadata`). It differs from `serialize*`, which encodes a value, and from `compose*` and `bind*`, which build or attach engine state rather than edit a file.
 - `compose*` — combine several independently meaningful inputs or stages into a higher-level result.
 - `integrate*` / `reduce*` — mathematically aggregate explicit measures or samples under a documented model.
 - `distribute*` — split an integrated quantity across explicitly normalized fractions, keeping its quantity domain. This does not create a continuous density from discrete spectral lines.

@@ -118,7 +118,9 @@ describe("root exports reject malformed input with domain errors (API review #4)
     // #447: the AHD correction states of the display view: no argument, and an array of { key, gridKeys, values } entries.
     "serializeDisplayViewCorrectionStates", "bindDisplayViewCorrectionStates",
     // #474: the realm's WebGPU switch: no argument, and one boolean.
-    "getWebGpuEnabled", "setWebGpuEnabled"
+    "getWebGpuEnabled", "setWebGpuEnabled",
+    // #388: the text writers take a file's raw bytes and the text; the text rejects unknown fields as output.metadata does.
+    "addJpegTextMetadata", "addPngTextMetadata"
   ]);
   /*
    * 2.0.0: the parse*() record parsers and the functions that take a whole engine or versioned record

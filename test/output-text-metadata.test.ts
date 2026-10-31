@@ -2,9 +2,9 @@
 import { createHash } from "node:crypto";
 import { crc32 } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
-import { ENGINE_API_VERSION, InvalidConfigurationError, parseDngRawImage, serializeNativeRawDng, simulateCapture, simulateIdealReference,
-  type OutputTextMetadata, type SimulateCaptureOptions } from "../src/index.js";
-import { addJpegTextMetadata, addPngTextMetadata, parseOutputTextMetadata } from "../src/output/text-metadata.js";
+import { addJpegTextMetadata, addPngTextMetadata, ENGINE_API_VERSION, InvalidConfigurationError, parseDngRawImage, serializeNativeRawDng, serializePngImage,
+  simulateCapture, simulateIdealReference, type OutputTextMetadata, type SimulateCaptureOptions } from "../src/index.js";
+import { parseOutputTextMetadata } from "../src/output/text-metadata.js";
 
 const sha = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
 const utf8 = new TextDecoder("utf-8", { fatal: true });
@@ -257,5 +257,106 @@ describe("output.metadata (2.4)", { timeout: 120_000 }, () => {
     const colorProfile = shot.request.development.colorProfile;
     await expect(serializeNativeRawDng({ raw: shot.raw, colorProfile, textMetadata: { comment: "\u0007" } }))
       .rejects.toThrow("Native RAW DNG: textMetadata.comment must not contain control characters");
+  });
+});
+
+/**
+ * #388: the root exports. The app (Photivra/apps 0.26, `src/export/textMetadata.ts`) carries an adapted copy of these two
+ * writers; the vectors below are the app's own text (`exportMetadata` and the encoder test's `{ description: "x" }`) and
+ * this file's META and UNICODE.
+ */
+const APP_TEXT = { description: "Simulated capture by Photivra", software: "Photivra 0.21.0 (photivra.com) with @photivra/engine 2.6.0",
+  comment: "Capture 3: Siemens star, f/8, 1/125 s, ISO 100, Full frame 36 × 24 mm, 24 MP, 50 mm lens (full-frame equivalent), Speed, " +
+    "full-size capture: 6000 × 4000 pixels (the sensor's full resolution). A simulated capture made by the Photivra engine, not a photograph from a real camera." } as const satisfies OutputTextMetadata;
+const TEXTS = { app: APP_TEXT, x: { description: "x" }, meta: META, unicode: UNICODE } as const satisfies Record<string, OutputTextMetadata>;
+type TextName = keyof typeof TEXTS;
+/**
+ * SHA-256 of each file with each text. Recorded on October 31, 2026 (Node 24.19.0) three ways, all equal: the app's copy
+ * (Photivra/apps `src/export/textMetadata.ts`, run unmodified on these inputs), `simulateCapture` with `output.metadata`
+ * at origin/main 50dfe3e (engine 2.11.1, before the export), and the exported functions. `bareJpeg` is the JPEG without
+ * its XMP APP1 segment (the new-packet path); the app's copy was not run through `simulateCapture`, so it has no entry
+ * for the ideal reference.
+ */
+const TAGGED_SHA256: Record<"jpeg" | "bareJpeg" | "png" | "png16", Record<TextName, string>> = {
+  jpeg: { app: "712ea47614d04865f642abff89cd9e83da0e51d99ac0ae5469fbc7bbe0c553ae", x: "0a85176d53691da9a12e1d56f6be05e2d5523f80f1e23a0d19333026f837326d",
+    meta: "6894c7926a3df885631515c150345d82a1fb5d7a4e7566ab2344be510c5a5e72", unicode: "951b10969d682acf9cbd884b7d3f97224e0d5b1b8608695098688bd347f905f0" },
+  bareJpeg: { app: "99e37545817e781213f0867db0b95fb439a990b819c445a886a9c236ea8609c2", x: "c3d9b81bfbf4450f181d2c8b79e45b8c670e186b929105c33a61099d16f667fe",
+    meta: "f806c6946de806da0a1bef6e60f1a37e7eb7fd66b68592ddc1e67086885fcb53", unicode: "9279750bd9eec99a77922126d8953f4b5bc13874cc0a260bd1677f264a3b773b" },
+  png: { app: "6382a3786ace004af2126880efe1b3a155de62ce423d9e5d1bde92e8844fd7e0", x: "06b585ec58ae142737136e7065b3216f51f21a44681e5b63afa3d89039123c48",
+    meta: "ed4f30e9abbc70b868adf2d415815bc951098ba96ca733ebcd16e60f5eeb9d22", unicode: "6540765cc7d532e020c68294331a7ddc510cc6dcfec6718a1e07c093142f988d" },
+  png16: { app: "880c7cc7b67c84ac3218d8200a4475d1eab745e30c0f37f82443bbfe45bad10d", x: "e18cfa73c0ab8bb2a22d9d77442132f16a101fa59b2ffca1283efb602a8044c9",
+    meta: "6b8e200993cf751d44afbcb7536e30b3b091e2a35ebabcca47fc746745767d10", unicode: "b9afbab757de243bdb0fc7c07355e8e2e2b0b7179c8da7a76aa43a1e976d0279" }
+};
+const BARE_JPEG_SHA256 = "e0f55f9f3de03a7e98e37df730626736c7872680b02f4cabb0641479420fd8da";
+/** The JPEG without its XMP APP1 segment. */
+function withoutXmp(jpeg: Uint8Array): Uint8Array {
+  const { segments, tail } = jpegSegments(jpeg);
+  const keep = segments.filter((s) => !(s.marker === 0xe1 && latin1.decode(s.payload.subarray(0, XMP_ID.length)) === XMP_ID));
+  return Uint8Array.from(Buffer.concat([Uint8Array.of(0xff, 0xd8), ...keep.map((s) => s.bytes), tail]));
+}
+
+describe("addJpegTextMetadata and addPngTextMetadata root exports (#388)", { timeout: 120_000 }, () => {
+  it("give the bytes of simulateCapture's output.metadata, and of the app's copy, for the same file and text", async () => {
+    const files = [["jpeg", V2_3_0_FILES[0]!], ["png", V2_3_0_FILES[1]!], ["png16", V2_3_0_FILES[2]!]] as const;
+    for (const [name, c] of files) {
+      const plain = (await simulateCapture(c.options)).image[c.file]!;
+      expect(sha(plain), name).toBe(c.sha256);
+      const add = c.file === "jpeg" ? addJpegTextMetadata : addPngTextMetadata;
+      for (const [textName, text] of Object.entries(TEXTS) as [TextName, OutputTextMetadata][]) {
+        const engineFile = (await simulateCapture(withMetadata(c.options, text))).image[c.file]!;
+        const exported = add(plain, text);
+        expect(Buffer.from(exported).equals(Buffer.from(engineFile)), name + "/" + textName).toBe(true);
+        expect(sha(exported), name + "/" + textName).toBe(TAGGED_SHA256[name][textName]);
+      }
+      expect(sha(plain), "the input is not changed").toBe(c.sha256);
+    }
+    const reference = V2_3_0_FILES[4]!, referencePlain = (await simulateIdealReference(reference.options)).image.png!;
+    expect(Buffer.from(addPngTextMetadata(referencePlain, APP_TEXT)).equals(Buffer.from((await simulateIdealReference(withMetadata(reference.options, APP_TEXT))).image.png!))).toBe(true);
+    // A JPEG without an XMP packet (the new-packet path), against the app's copy.
+    const bare = withoutXmp((await simulateCapture(V2_3_0_FILES[0]!.options)).image.jpeg!);
+    expect(sha(bare)).toBe(BARE_JPEG_SHA256);
+    for (const [textName, text] of Object.entries(TEXTS) as [TextName, OutputTextMetadata][]) expect(sha(addJpegTextMetadata(bare, text)), textName).toBe(TAGGED_SHA256.bareJpeg[textName]);
+  });
+
+  it("accept a subarray view and a caller-encoded PNG, and return a new array", () => {
+    const png = serializePngImage({ width: 1, height: 1, bitDepth: 8, samples: Uint8Array.of(255, 128, 0), colourEncoding: { kind: "srgb", renderingIntent: "perceptual" } });
+    const padded = new Uint8Array(png.length + 7); padded.set(png, 3);
+    const view = padded.subarray(3, 3 + png.length), tagged = addPngTextMetadata(view, { comment: "x" });
+    expect(Buffer.from(tagged).equals(Buffer.from(addPngTextMetadata(png, { comment: "x" })))).toBe(true);
+    expect(tagged.buffer).not.toBe(padded.buffer);
+    expect(pngChunks(tagged).filter((c) => c.type === "tEXt").map(pngText)).toEqual([{ keyword: "Comment", text: "x" }]);
+  });
+
+  it("reject malformed bytes and invalid text with InvalidConfigurationError", async () => {
+    const jpeg = (await simulateCapture(V2_3_0_FILES[0]!.options)).image.jpeg!, png = (await simulateCapture(V2_3_0_FILES[1]!.options)).image.png!;
+    const bad: [() => unknown, RegExp][] = [
+      [(): unknown => addJpegTextMetadata([0xff, 0xd8] as unknown as Uint8Array, { comment: "x" }), /addJpegTextMetadata jpeg must be a Uint8Array/],
+      [(): unknown => addJpegTextMetadata(new Uint16Array(8) as unknown as Uint8Array, { comment: "x" }), /addJpegTextMetadata jpeg must be a Uint8Array/],
+      [(): unknown => addPngTextMetadata("png" as unknown as Uint8Array, { comment: "x" }), /addPngTextMetadata png must be a Uint8Array/],
+      [(): unknown => addJpegTextMetadata(jpeg, undefined as unknown as OutputTextMetadata), /addJpegTextMetadata metadata must be an object/],
+      [(): unknown => addPngTextMetadata(png, null as unknown as OutputTextMetadata), /addPngTextMetadata metadata must be an object/],
+      [(): unknown => addPngTextMetadata(png, {}), /addPngTextMetadata metadata must set at least one of/],
+      [(): unknown => addJpegTextMetadata(jpeg, { title: "x" } as unknown as OutputTextMetadata), /Unknown addJpegTextMetadata metadata field: title/],
+      [(): unknown => addJpegTextMetadata(jpeg, { comment: "a\tb" }), /addJpegTextMetadata metadata\.comment must not contain control characters/],
+      [(): unknown => addPngTextMetadata(png, { description: "x".repeat(2049) }), /at most 2048 UTF-8 bytes/],
+      [(): unknown => addPngTextMetadata(png, { software: "\ud800" }), /unpaired UTF-16 surrogate/],
+      // SOI followed by EOI, a zero segment length, and fill bytes before SOS.
+      [(): unknown => addJpegTextMetadata(Uint8Array.of(0xff, 0xd8, 0xff, 0xd9, 0, 0), { comment: "x" }), /malformed marker segment/],
+      [(): unknown => addJpegTextMetadata(Uint8Array.of(0xff, 0xd8, 0xff, 0xe0, 0, 0, 0xff, 0xda), { comment: "x" }), /malformed marker segment/],
+      [(): unknown => addJpegTextMetadata(Uint8Array.of(0xff, 0xd8, 0xff, 0xff, 0, 4, 0, 0), { comment: "x" }), /malformed marker segment/],
+      [(): unknown => addJpegTextMetadata(jpeg.subarray(0, 30), { comment: "x" }), /truncated marker segment|malformed marker segment/]
+    ];
+    for (const [call, message] of bad) {
+      expect(call, String(message)).toThrow(InvalidConfigurationError);
+      expect(call).toThrow(message);
+    }
+    // An XMP packet after a non-APPn segment cannot be rewritten in place, and a packet that is not UTF-8 is not text.
+    const { segments, tail } = jpegSegments(jpeg), xmp = segments.find((s) => s.marker === 0xe1 && latin1.decode(s.payload.subarray(0, XMP_ID.length)) === XMP_ID)!;
+    const others = segments.filter((s) => s !== xmp), dqt = others.findIndex((s) => s.marker === 0xdb);
+    const late = Uint8Array.from(Buffer.concat([Uint8Array.of(0xff, 0xd8), ...others.slice(0, dqt + 1).map((s) => s.bytes), xmp.bytes, ...others.slice(dqt + 1).map((s) => s.bytes), tail]));
+    expect(() => addJpegTextMetadata(late, { comment: "x" })).toThrow(new InvalidConfigurationError("JPEG text metadata found an XMP APP1 segment after a non-APPn segment."));
+    const broken = Uint8Array.from(jpeg), at = jpeg.indexOf(0x3c, xmp.bytes.byteOffset - jpeg.byteOffset + 4 + XMP_ID.length); // the packet's first "<"
+    broken[at] = 0xff;
+    expect(() => addJpegTextMetadata(broken, { comment: "x" })).toThrow(new InvalidConfigurationError("JPEG text metadata found an XMP packet that is not valid UTF-8."));
   });
 });
