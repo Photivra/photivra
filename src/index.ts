@@ -1768,7 +1768,7 @@ export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, typ
 
 export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, SIMULATE_CAPTURE_COST_OPTIONS, simulateCapture,
   type SimulateCaptureOptions, type SimulateCaptureResult, type SimulateCaptureAssumption, type SimulateCaptureProgress,
-  type SimulateCaptureExposureMode, type SimulateCaptureOutputFormat, type SimulateCaptureWhiteBalance, type SimulateCaptureColorEncoding,
+  type SimulateCaptureExposureMode, type SimulateCaptureAutoIsoAfterMaximum, type SimulateCaptureAutoIsoReport, type SimulateCaptureOutputFormat, type SimulateCaptureWhiteBalance, type SimulateCaptureColorEncoding,
   type SimulateCaptureDemosaic, type SimulateCaptureBorderHandling, type SimulateCaptureLensDistortion, type SimulateCaptureMotion,
   type SimulateCaptureSensorAntiAliasing, type SimulateCaptureCostOption, type SimulateCapturePixelAperture, SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES,
   SIMULATE_CAPTURE_FAST_OPTIONS, type SimulateCaptureFastOption, type SimulateCaptureFastReport, type SimulateCaptureDemosaicRecord,

@@ -8128,6 +8128,16 @@
       "kind": "type"
     },
     {
+      "name": "SimulateCaptureAutoIsoAfterMaximum",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureAutoIsoReport",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
       "name": "SimulateCaptureBorderHandling",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"

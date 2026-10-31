@@ -7509,6 +7509,30 @@ log₂(N²/t) − log₂(0.65·L·S/10) from the same relations: positive is dar
 mode it is minus the compensation plus any limit the resolver hit; it is `null` only for a scene with no metered luminance.
 The display view's `exposure` carries the same value.
 
+With `exposure.iso: "auto"` (#516) the ISO is chosen too, in every mode, by the resolvers' Auto ISO branches
+([Priority modes with Auto ISO](#priority-modes-with-auto-iso)). Aperture priority then needs the slowest shutter
+before the ISO rises, and takes the policy at the maximum ISO; the result reports the ISO, that it was automatic and
+what limited it. See [Auto ISO](QUICK_START.md#auto-iso-516).
+
+```ts
+import { prepareDisplayView, simulateCapture, type SimulateCaptureOptions } from "@photivra/engine";
+
+const request: SimulateCaptureOptions = {
+  exposure: { mode: "aperture-priority", iso: "auto", autoIso: { slowestPreferredShutterSeconds: 1 / 125 } },
+  lens: { fNumber: 4 },
+  scene: { preset: "siemens-star" },
+  illuminanceLux: 50,
+  output: { width: 16, height: 12 }
+};
+const capture = await simulateCapture(request);
+const { settings, isoControl, autoIso } = capture.exposure;
+// For example "ISO 3200 · Auto", and why: "iso-grid-quantization", or "iso-maximum" with the shutter held.
+console.log(`ISO ${settings.iso} · ${isoControl === "automatic" ? "Auto" : ""}`, autoIso?.limitingConstraint, autoIso?.afterMaximumIsoFallbackUsed);
+// The display view of the same request resolves the same exposure.
+const view = await (await prepareDisplayView(request)).render({ width: 8, height: 6 });
+console.log(view.exposure.settings.iso === settings.iso);
+```
+
 The chart presets are also available on their own:
 
 - `resolveChartScene()` gives the analytic reflectance at any point in the frame.

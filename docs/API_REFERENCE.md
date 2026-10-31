@@ -1237,6 +1237,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS`](api/facade-simulate-capture.md#simulate_display_view_default_samples_per_axis) | Runtime |
 | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Runtime |
 | [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
+| [`SimulateCaptureAutoIsoAfterMaximum`](api/facade-simulate-capture.md#simulatecaptureautoisoaftermaximum) | Type |
+| [`SimulateCaptureAutoIsoReport`](api/facade-simulate-capture.md#simulatecaptureautoisoreport) | Type |
 | [`SimulateCaptureBorderHandling`](api/facade-simulate-capture.md#simulatecaptureborderhandling) | Type |
 | [`SimulateCaptureColorEncoding`](api/facade-simulate-capture.md#simulatecapturecolorencoding) | Type |
 | [`SimulateCaptureCostOption`](api/facade-simulate-capture.md#simulatecapturecostoption) | Type |

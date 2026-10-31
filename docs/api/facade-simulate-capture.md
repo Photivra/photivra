@@ -22,7 +22,9 @@ export interface DisplayViewResult {
   view: { width: number; height: number; frameWidth: number; frameHeight: number; scaleX: number; scaleY: number; samplesPerAxis: number;
     region?: { x: number; y: number; width: number; height: number } };
   /** The resolved exposure of the capture this view shows; `standardExposureDeviationStops` as in {@link SimulateCaptureResult}. */
-  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number; standardExposureDeviationStops: number | null };
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number; standardExposureDeviationStops: number | null;
+    /** #516: as in the capture result. */
+    isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
   /**
    * Work done: real pixels sampled, real-site expectations evaluated, scene queries, display pixels sampled in full (detail) or with
@@ -53,7 +55,9 @@ export interface IdealReferenceResult {
   engineApiVersion: string;
   image: { width: number; height: number; format: SimulateCaptureOutputFormat; samples: Uint8Array | Uint16Array; png?: Uint8Array; colorEncoding?: SimulateCaptureColorEncoding };
   /** The resolved exposure of the capture this reference matches. */
-  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number;
+    /** #516: as in the capture result. */
+    isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
   region?: { x: number; y: number; width: number; height: number; frameWidth: number; frameHeight: number };
   diagnostics: { sampleCount: number; timingsMs: { reference: number; total: number } };
@@ -160,6 +164,45 @@ export interface SimulateCaptureAssumption {
   kind: "default" | "derived" | "model";
   value: unknown;
   explanation: string;
+}
+```
+
+## SimulateCaptureAutoIsoAfterMaximum
+
+#516: what aperture priority does with Auto ISO once the ISO reaches the body's Auto ISO maximum and the exposure is
+still under the meter target: `"allow-slower-shutter"` lengthens the shutter past the slowest preferred shutter to reach
+the target; `"hold-preferred-shutter"` keeps the preferred shutter and leaves the exposure under target.
+
+```ts
+export type SimulateCaptureAutoIsoAfterMaximum = "allow-slower-shutter" | "hold-preferred-shutter";
+```
+
+## SimulateCaptureAutoIsoReport
+
+#516: how Auto ISO chose the ISO (`exposure.iso: "auto"`), reported in the result's `exposure.autoIso`. The full
+resolver output stays in the capture's `exposure.resolution`.
+
+```ts
+export interface SimulateCaptureAutoIsoReport {
+  /** The ISO the meter target asked for at the resolved aperture and shutter, before the Auto ISO range and the ISO grid. */
+  idealIsoBeforeConstraints: number;
+  /** The Auto ISO range the ISO was chosen in: the body's Auto ISO bounds, or its ISO range when it declares none (the tiers: ISO 100 to their maximum). */
+  autoIsoMinimum: number;
+  autoIsoMaximum: number;
+  /** Whether the ISO was held at an end of the Auto ISO range. */
+  clamped: false | "minimum" | "maximum";
+  /**
+   * The constraint that limited the resolved exposure: the resolver's `targetResidual.limitingConstraint`, for example
+   * `"iso-maximum"` (the exposure stays under target at the Auto ISO maximum), `"iso-grid-quantization"` (the nearest
+   * selectable ISO) or `"none"` (on target).
+   */
+  limitingConstraint: ExposureResolutionConstraint;
+  /** The resolver's residual, log2(target / achieved exposure), in stops: positive when the exposure is under the meter target, negative when over it. */
+  residualStops: number;
+  /** Aperture priority only: the policy and slowest preferred shutter used, and whether the slower-shutter fallback ran. */
+  afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum;
+  slowestPreferredShutterSeconds?: number;
+  afterMaximumIsoFallbackUsed?: boolean;
 }
 ```
 
@@ -338,8 +381,21 @@ export interface SimulateCaptureOptions {
   exposure?: {
     /** Default "manual". */
     mode?: SimulateCaptureExposureMode;
-    /** Default 100. */
-    iso?: number;
+    /**
+     * Default 100. #516: `"auto"` lets the body's Auto ISO choose the ISO from the meter target, within its Auto ISO range
+     * (the tiers: ISO 100 to their maximum), in every mode: manual keeps the aperture and shutter; aperture priority keeps the
+     * aperture and follows `autoIso`; shutter priority picks the aperture at the lowest Auto ISO (no wider than the target
+     * needs, so at most the widest) and raises the ISO for the rest; program picks the program line at the lowest Auto ISO and
+     * raises the ISO beyond the line's end. The result reports the ISO in `exposure.settings.iso` and how it was chosen in
+     * `exposure.autoIso`.
+     */
+    iso?: number | "auto";
+    /**
+     * #516: aperture priority with `iso: "auto"` only (required there). The shutter gets as long as
+     * `slowestPreferredShutterSeconds` (seconds, within the body's shutter range) at the lowest Auto ISO; beyond it the ISO
+     * rises; at the Auto ISO maximum `afterMaximumIso` decides (default `"allow-slower-shutter"`).
+     */
+    autoIso?: { slowestPreferredShutterSeconds: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
@@ -548,6 +604,10 @@ export interface SimulateCaptureResult {
     settings: { fNumber: number; shutterSeconds: number; iso: number };
     /** Exposure value at ISO 100 of the settings, log2(N²/t). */
     ev100: number;
+    /** #516: `"automatic"` when the request asked for `iso: "auto"`, else `"manual"`. */
+    isoControl: "manual" | "automatic";
+    /** #516: present with `iso: "auto"`: how Auto ISO chose `settings.iso` and what limited it. */
+    autoIso?: SimulateCaptureAutoIsoReport;
     meteredSceneLuminanceCdPerSquareMeter: number;
     /**
      * #515: deviation, in stops, of the exposure used from the CIPA DC-004-2020 standard exposure for the metered luminance L:
