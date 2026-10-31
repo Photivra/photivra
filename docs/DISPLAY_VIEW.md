@@ -951,6 +951,38 @@ pixels per display pixel and longer above (1.1–1.2× at 36, 1.4–1.5× at 64,
 real pixel while the estimator takes a quarter of its samples per axis where the pilot finds no detail. The validation
 cases are re-run on this reference before the release.
 
+## Bundle size
+
+Measured October 31, 2026 (#383) on 2.11.1 with rolldown 1.2.9, the bundler Vite 8 uses: consumers that import only the named
+root exports of the built package, minified, gzip level 9; `test/capture-bundle.test.ts` measures the same bundles from `src/`.
+
+| Consumer imports | Split ESM (a page): first load | One file, no splitting (Vite's default `iife` worker) |
+| --- | --- | --- |
+| `simulateCapture`, `simulateIdealReference` | 846,928 B / 229,007 B gzip | 851,205 B / 230,679 B gzip |
+| the same and `simulateDisplayView` | 889,156 B / 245,895 B gzip | 893,562 B / 247,758 B gzip |
+| `simulateCapture`, `simulateDisplayView`, `prepareDisplayView` | 892,566 B / 247,193 B gzip | 1,055,900 B / 302,217 B gzip |
+
+- **The display view adds 42,228 B minified and 16,888 B gzip (16.5 KiB) to a capture bundle** (42,239 B and 16,888 B in
+  the test's build from `src/`), the "about 16.9 KiB" of #383. By rendered (unminified) size the addition is the renderer `facade/display-view.ts` (55 %), its setup and result in
+  `facade/simulate-display-view.ts` (21 %, much of it the assumptions' explanations, which are part of the result), the
+  portable functions of [Same bytes in every engine](#same-bytes-in-every-engine) (13 %), and shared readout, chart and
+  illuminant code and the GPU option parsing (11 %). #383's target, 40 % of the gzip addition (6.8 kB), is about three
+  quarters of the renderer if its gzip share follows its rendered share; the renderer's repeated site loops are written out
+  for speed (#441, #442, #444), so the target is not met here: no smaller form was found that keeps every result's bytes and
+  the measured render times. #457's AHD choice (#527) then added 3,307 B minified and 1,294 B gzip, all in the renderer
+  (rendered 55,908 → 64,855 B): the test's build measures 45,546 B and 18,186 B gzip. The test keeps the addition within
+  46,500 B minified and 18,550 B gzip (about 2 % above the measured size; 43,100 B and 17,250 B before #527); a change that
+  adds to the display view raises the budget there and records its delta.
+- **The GPU display view is loaded on demand.** `prepareDisplayView` imports `facade/display-view-gpu-session.ts` (the GPU
+  session, the Speed and Quality renderers and their WGSL) dynamically, and only when `gpu` is `"auto"` or `"require"`, so a
+  bundler that splits dynamic imports puts it in a chunk the default `gpu: "off"` never loads (52 kB gzip, 15 `src/gpu`
+  modules). The package is `"sideEffects": false` and the root barrel's GPU exports drop out when they are not imported. A
+  build that cannot split inlines every dynamic import: Vite builds workers as `iife` by default, which adds the GPU code to a
+  worker that calls `prepareDisplayView` (55 kB gzip above). Build such workers as ES modules (Vite: `worker: { format: "es" }`;
+  the worker must then be created with `{ type: "module" }`) to keep it out. Measured on the Photivra app's production build
+  (Vite 8.3.2, engine 2.11.1): its capture worker went from 1,093,459 B / 317,120 B gzip to 921,285 B / 258,618 B gzip, with
+  the GPU session in a separate chunk, and its page entry was unchanged.
+
 ## Same bytes in every engine
 
 ECMAScript defines `+`, `−`, `×`, `÷` and `Math.sqrt` as correctly rounded binary64 operations, but leaves `Math.pow`
