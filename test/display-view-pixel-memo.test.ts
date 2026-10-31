@@ -4,6 +4,8 @@
  * same real pixel. Views barely smaller than the frame put most of a display pixel's samples on a few real pixels. Their
  * hashes were recorded before the memo on 2.6.0 (abb8b27), where the memo changed no byte; since #393 these views take the
  * exact area mean (each footprint at most 25 real pixels), and the hashes were re-recorded with that deliberate reference change.
+ * The AHD case was re-recorded for #457 (AHD's choice on the noise-free mosaic): its expected values moved by up to 11.3 8-bit
+ * codes, toward the capture (1.51 → 0.61 codes RMS against 16 reference captures). Recorded on Linux x64 (CI; #508).
  */
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -18,7 +20,7 @@ describe("display view per-real-pixel memo (#392)", () => {
       [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 60, height: 40 } }, { width: 50, height: 33 }, "bcdc0088bf3e1f5ccc4957f0049e4a511fdf9ad9bdfb9fd91a70b00e72abe411"],
       // Chart materials with diffraction (the filled path and the site ring) and the 2 × 2 box, with AHD.
       [{ scene: { preset: "siemens-star" }, lens: { fNumber: 11, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 3, pixelAperture: { kind: "box", samplesPerAxis: 2 } },
-        output: { width: 60, height: 40, demosaic: "ahd" } }, { width: 50, height: 33 }, "33218dfc294a4d566054d63b52872d4ba277fab2c1d32551208aa3f9c4225188"]
+        output: { width: 60, height: 40, demosaic: "ahd" } }, { width: 50, height: 33 }, "5870e8213ac3bfa793c89df260a489d0b2b3279e651adc6f3dce98141c6dc045"]
     ];
     for (const [options, view, expected] of cases) {
       const { result, internals } = await simulateDisplayViewWithInternals(options, view);

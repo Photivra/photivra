@@ -82,7 +82,10 @@ describe("display view without diffraction keeps its bytes (#444)", () => {
     materialAt: (p: { u: number; v: number }): number => ((Math.floor(p.u * 3) + Math.floor(p.v * 2)) % 3 + 3) % 3 };
   const speed = { pixelPitchMicrometers: 6, pixelAperture: { kind: "box" as const, samplesPerAxis: 2 } };
   // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics without timings and the
-  // additive `fast` block (sceneLookups and siteEvaluations included), recorded on 75dda59, before the change.
+  // additive `fast` block (sceneLookups and siteEvaluations included), recorded on 75dda59, before the change. The AHD case was
+  // re-recorded for #457 (AHD's choice on the noise-free mosaic, which reads 5 sites around each real pixel: sceneLookups
+  // 26400 → 28252): 60 of its 360 expected components, at the patch edge, moved by up to 40 8-bit codes, toward the capture
+  // (7.56 → 3.88 codes RMS, 55.1 → 17.7 at most, against 16 reference captures).
   const cases: [string, SimulateCaptureOptions, SimulateDisplayViewOptions, string][] = [
     ["caller material scene, mirror borders, exact area mean", { scene: checker, sensor: speed, output: { width: 240, height: 160, borderHandling: "mirror" } },
       { width: 80, height: 54 }, "eeb959184aa0e0e6405a0673ab6c92cf9da2bde9f27c36b23a2e59e7e1e750e7"],
@@ -91,7 +94,7 @@ describe("display view without diffraction keeps its bytes (#444)", () => {
     ["caller material scene, stratified estimator", { scene: checker, sensor: speed, output: { width: 240, height: 160 } }, { width: 24, height: 16 }, "3100226e327338d6c535251e29c9ae43b40d8085fb2acbf6cf52479cc7d99d59"],
     ["chart preset, AHD at ISO 3200, 1.4 µm", { scene: { preset: "patches", patches: [{ patchId: "a", reflectance: 0.18 }, { patchId: "b", reflectance: 0.6 }], columns: 2 }, exposure: { mode: "manual", iso: 3200, shutterSeconds: 1 / 4000 },
       sensor: { pixelPitchMicrometers: 1.4, pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 120, height: 90, demosaic: "ahd" } },
-      { width: 40, height: 30, region: { x: 14, y: 10, width: 12, height: 10 } }, "27c894e3ac8d4771d29f89eec1bf605ac1c50ccfd9d3925405ab42b4e6e8fcfe"],
+      { width: 40, height: 30, region: { x: 14, y: 10, width: 12, height: 10 } }, "60b8ead044870fd4e248f5a777c52996f440d71aa740cf33a36f7f37a0836cf1"],
     ["radiance scene (not tracked)", { scene: { kind: "radiance-function", sceneId: "speed-radiance-lock", evaluate: (p: { u: number; v: number }) => 0.02 * (1.25 + 0.5 * Math.floor(4 * p.u) / 4 - 0.25 * Math.floor(3 * p.v) / 3) },
       sensor: speed, output: { width: 120, height: 80 } }, { width: 40, height: 27 }, "724e9bcb5028c54d6d6c29ea085a9a6c790edc92711dead5085132b8cb47321f"]
   ];
