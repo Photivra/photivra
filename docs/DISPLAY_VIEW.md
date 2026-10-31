@@ -969,8 +969,10 @@ root exports of the built package, minified, gzip level 9; `test/capture-bundle.
   illuminant code and the GPU option parsing (11 %). #383's target, 40 % of the gzip addition (6.8 kB), is about three
   quarters of the renderer if its gzip share follows its rendered share; the renderer's repeated site loops are written out
   for speed (#441, #442, #444), so the target is not met here: no smaller form was found that keeps every result's bytes and
-  the measured render times. The test keeps the addition within 43,100 B minified and 17,250 B gzip; a change that adds to
-  the display view raises the budget there and records its delta.
+  the measured render times. #457's AHD choice (#527) then added 3,307 B minified and 1,294 B gzip, all in the renderer
+  (rendered 55,908 → 64,855 B): the test's build measures 45,546 B and 18,186 B gzip. The test keeps the addition within
+  46,500 B minified and 18,550 B gzip (about 2 % above the measured size; 43,100 B and 17,250 B before #527); a change that
+  adds to the display view raises the budget there and records its delta.
 - **The GPU display view is loaded on demand.** `prepareDisplayView` imports `facade/display-view-gpu-session.ts` (the GPU
   session, the Speed and Quality renderers and their WGSL) dynamically, and only when `gpu` is `"auto"` or `"require"`, so a
   bundler that splits dynamic imports puts it in a chunk the default `gpu: "off"` never loads (52 kB gzip, 15 `src/gpu`

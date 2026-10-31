@@ -77,10 +77,12 @@ describe("display-view bundles", () => {
   // Issue #383: the size simulateDisplayView adds to a capture bundle, measured October 31, 2026 on 2.11.1's display view
   // (rolldown 1.2.9, Node.js zlib level 9) at 42,239 B minified and 16,888 B gzip. The budgets allow about 2 % for compressor
   // and bundler versions; a change that adds to the display view raises them here and records its delta in CHANGELOG.md.
+  // Raised for #457's AHD choice (#527): measured October 31, 2026 at 45,546 B minified and 18,186 B gzip (+3,307 B and
+  // +1,294 B, all in facade/display-view.ts); the budgets are about 2 % above that.
   it("keep the display view's added size within its budget", async () => {
     const base = await bundle(["simulateCapture", "simulateIdealReference"]);
     const view = await bundle(["simulateCapture", "simulateIdealReference", "simulateDisplayView"]);
-    expect(view.minified - base.minified).toBeLessThanOrEqual(43_100);
-    expect(view.gzip - base.gzip).toBeLessThanOrEqual(17_250);
+    expect(view.minified - base.minified).toBeLessThanOrEqual(46_500);
+    expect(view.gzip - base.gzip).toBeLessThanOrEqual(18_550);
   }, testTimeout(120_000));
 });
