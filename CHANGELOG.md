@@ -1,6 +1,13 @@
 # Changelog
 
-## 2.11.0 — unreleased (prepared October 27, 2026)
+## 2.11.1 — unreleased (prepared October 31, 2026)
+
+A patch release that publishes 2.11.0's engine to npm. The owner tagged `v2.11.0` on `6bef763` and published its GitHub release on October 28, 2026, but its npm publish run (40636849817) was cancelled at the verify job's 25-minute limit while the single-job coverage gate was still running, so `@photivra/engine@2.11.0` was never published; npm `latest` is 2.10.0. A published tag runs the publish workflow of its own commit, so 2.11.0 cannot be published again; 2.11.1 carries the fixed workflow.
+- **No API, behaviour or value change from 2.11.0:** `src/` differs only in `ENGINE_API_VERSION`; the packed files differ only in the version fields and the release documentation (docs/RELEASE_2_11_1.md, "Same package").
+- **Publish workflow (#511):** coverage runs as four time-balanced shards in parallel with `verify`; `coverage gate` merges them and enforces the thresholds on the whole suite; `publish` needs both. A shard skips only on ci.yml's coverage proof of the exact tree and Node.js release.
+- **For users of 2.11.0's GitHub release:** the features and compatibility notes are those of 2.11.0 below.
+
+## 2.11.0 — tagged October 28, 2026; not published to npm (see 2.11.1)
 
 A minor release: the GPU preview. `prepareDisplayView(request, { gpu, gpuDevice })` renders the display view on WebGPU (the Speed and Quality kernels, every engine chart and declared `material-layers` scene, and `lens.defocus`) and labels which backend ran; `simulateCapture` and the display view render `lens.defocus` out of focus; one switch turns the engine's GPU use off for a realm. With the default `gpu: "off"` and without `lens.defocus`, samples, RAW codes and files are the same as 2.10.0; display views gain `diagnostics.fast.execution`.
 - **New:** `setWebGpuEnabled`/`getWebGpuEnabled` and the accelerator's `webgpu` boolean (#474); `prepareDisplayView(request, { gpu, gpuDevice })`, `dispose()` and `diagnostics.fast.execution` (#481); the GPU display view in Speed (#478) and Quality (#479), with composite charts and `material-layers` scenes (#477, #491) and defocus (#492); `lens.defocus: { model: "geometric-disc" }` in captures and display views (#492, an approximation).
