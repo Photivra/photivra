@@ -48,7 +48,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `raw` | The packed native RAW: codes, black levels, saturation flags and per-phase white levels |
 | `plan` | The native RAW plan the engine executed |
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
-| `exposure` | Mode, resolved settings, EV100, `isoControl` (`"manual"` or `"automatic"`) and, with `iso: "auto"`, `autoIso` (how the ISO was chosen and what limited it), metered scene luminance, the deviation from the standard exposure in stops (`standardExposureDeviationStops`) and the exposure-mode resolver's full output |
+| `exposure` | Mode, resolved settings, EV100, `isoControl` (`"manual"` or `"automatic"`) and, with `iso: "auto"`, `autoIso` (how the ISO was chosen and what limited it), metered scene luminance, the deviation from the standard exposure in stops (`standardExposureDeviationStops`), the illuminance at which the settings give the standard exposure (`standardExposureIlluminanceLux`) and the exposure-mode resolver's full output |
 | `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
 | `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Cost of each option](#cost-of-each-option) |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
@@ -368,6 +368,13 @@ The facade meters the scene like a reflected-light meter:
   used: minus the compensation (−⅔ for +⅔ stop), plus any step or limit the resolver hit (the slowest shutter, the ISO
   range). It is `null` only when the metered luminance is 0, which has no standard exposure. The display view reports
   the same value.
+- `exposure.standardExposureIlluminanceLux` is the illuminance at which the settings used give that standard exposure:
+  E·L_ref/L = E·2^Δ, with E the request's `illuminanceLux` and L_ref = 10·N²/(0.65·t·S). A chart, reflectance function
+  or material scene has radiance reflectance × E-scaled illuminant / π, so its metered luminance is proportional to E,
+  and the same request at this illuminance meters at Δ = 0 (to rounding: the metering quadrature is the same at both
+  illuminances). With the defaults it is the default illuminance; the marked f/11 gives 2^0.919 times it, about
+  40 612 lux. It is `null` for a black scene and for a `radiance-function` scene, whose radiance does not depend on the
+  illuminance. It can exceed the 1e7 lux `illuminanceLux` accepts. The display view reports the same value.
 
 DC-004 ties the reference level to an 18 % grey (Explanation 1 and 2.2). The default illuminance
 puts an 18 % Lambertian grey card, whose luminance is L = 0.18·E/π, exactly at that luminance:
