@@ -553,6 +553,16 @@ export type ProgramAutoExposureModeResolution =
           ExposureTargetResidual,
           { status: "resolved" }
         >;
+      /**
+       * #504: present only with `isoControl.slowestPreferredShutter`. `applied` is true when the line's
+       * shutter was longer than the slowest preferred shutter and was held; `afterMaximumIsoFallbackUsed`
+       * when the slower-shutter fallback ran at the Auto ISO maximum. `programLineSelection` stays the
+       * line's own selection.
+       */
+      slowestPreferredShutter?: ProgramSlowestPreferredShutterPolicy & {
+        applied: boolean;
+        afterMaximumIsoFallbackUsed: boolean;
+      };
     })
   | {
       resolverVersion:
@@ -607,6 +617,12 @@ export type ProgramAutoIsoControl =
         "nearest-log2-lower-on-tie";
       /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
       autoIsoLimits?: AutoIsoLimits;
+      /**
+       * #504: optionally hold the program line's shutter at or faster than a slowest preferred shutter
+       * before the ISO rises (for example from `estimateAutoIsoSlowestShutter()`). Absent, the program line
+       * is followed as before.
+       */
+      slowestPreferredShutter?: ProgramSlowestPreferredShutterPolicy;
     };
 ```
 
@@ -642,6 +658,24 @@ export interface ProgramLineSelectionDiagnostics {
     | false
     | "minimum"
     | "maximum";
+}
+```
+
+## ProgramSlowestPreferredShutterPolicy
+
+#504: Program + Auto ISO's slowest preferred shutter, the two-axis policy of Aperture Priority + Auto
+ISO applied to the program line. When the line asks for a longer shutter than
+`slowestPreferredShutterSeconds`, the shutter is held there (snapped, never longer) with the line's
+aperture, and Auto ISO makes up the rest. At the Auto ISO maximum, `afterMaximumIso` decides:
+`"allow-slower-shutter"` lengthens the shutter toward the target, but never past the program line's
+own shutter; `"hold-preferred-shutter"` keeps it and leaves the exposure under target.
+
+```ts
+export interface ProgramSlowestPreferredShutterPolicy {
+  slowestPreferredShutterSeconds: number;
+  afterMaximumIso:
+    | "allow-slower-shutter"
+    | "hold-preferred-shutter";
 }
 ```
 

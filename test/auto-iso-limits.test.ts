@@ -3,6 +3,7 @@
  * #505: photographer-set Auto ISO limits (`autoIsoLimits: { maximum, minimum? }`) on every Auto ISO resolver, kept
  * separate from the body's Auto ISO capability. A limit strictly inside the body's range that holds the ISO is reported
  * as `user-iso-maximum` / `user-iso-minimum`; a limit outside the body's range or off its ISO grid fails.
+ * The last block covers #504: Program + Auto ISO holding the line's shutter at a slowest preferred shutter.
  *
  * Exposure H ∝ t·S/N² (reciprocity), so at the reference f/4, 1/125 s, ISO 100 a target k times the reference exposure
  * needs ISO 100·k at f/4, 1/125 s; every expected ISO below follows from that.
@@ -212,5 +213,62 @@ describe("limits outside the body's Auto ISO range or off its grid fail (#505)",
   it("the message names the field and the body's range", () => {
     expect(() => resolvers.manual!(targetForScale(1), body, { maximum: 12800 })).toThrow(
       "isoControl.autoIsoLimits.maximum (ISO 12800) lies outside the body's Auto ISO range, ISO 200 to 6400.");
+  });
+});
+
+describe("Program + Auto ISO: holding the line's shutter at a slowest preferred shutter (#504)", () => {
+  // The line reaches f/4, 4/125 s at +2 stops; beyond it Auto ISO rises.
+  type ProgramHold = Resolved & { slowestPreferredShutter?: { applied: boolean; afterMaximumIsoFallbackUsed: boolean } };
+  const program = (scale: number, hold?: { slowestPreferredShutterSeconds: number; afterMaximumIso: "allow-slower-shutter" | "hold-preferred-shutter" },
+    autoIsoLimits?: AutoIsoLimits): ProgramHold => resolved(resolveProgramAutoExposureMode({ target: targetForScale(scale), capabilities: capabilities(), referenceExposure,
+    programLine: programLine(), isoControl: { kind: "automatic", ...baseline, ...limitsField(autoIsoLimits), ...(hold ? { slowestPreferredShutter: hold } : {}) } })) as ProgramHold;
+  const allow = { slowestPreferredShutterSeconds: 1 / 125, afterMaximumIso: "allow-slower-shutter" as const };
+  const hold = { slowestPreferredShutterSeconds: 1 / 125, afterMaximumIso: "hold-preferred-shutter" as const };
+  it("absent, nothing changes and nothing is reported", () => {
+    const r = program(4);
+    expect(r.resolvedSettings).toEqual({ aperture: 4, shutterSeconds: 4 / 125, iso: 100 });
+    expect(r).not.toHaveProperty("slowestPreferredShutter");
+  });
+  it("a line shutter slower than the threshold is held there and the ISO rises", () => {
+    const r = program(4, allow);
+    expect(r.resolvedSettings.aperture).toBe(4);
+    expect(r.resolvedSettings.shutterSeconds).toBeCloseTo(1 / 125, 15);
+    expect(r.resolvedSettings.iso).toBe(400);
+    expect(r.targetResidual.state).toBe("matched");
+    expect(r.slowestPreferredShutter).toEqual({ ...allow, applied: true, afterMaximumIsoFallbackUsed: false });
+  });
+  it("a line shutter at or faster than the threshold is untouched", () => {
+    const free = program(1 / 4), held = program(1 / 4, allow);
+    expect(held.resolvedSettings).toEqual(free.resolvedSettings);
+    expect(held.targetResidual).toEqual(free.targetResidual);
+    expect(held.slowestPreferredShutter!.applied).toBe(false);
+  });
+  it("at the Auto ISO maximum, allow-slower-shutter lengthens the shutter to the target", () => {
+    // Target ×16 needs ISO 1600 at f/4, 1/125 s; capped at 800, the shutter doubles to 2/125 s (shorter than the line's 4/125 s).
+    const r = program(16, allow, { maximum: 800 });
+    expect(r.resolvedSettings.iso).toBe(800);
+    expect(r.resolvedSettings.shutterSeconds).toBeCloseTo(2 / 125, 12);
+    expect(r.targetResidual.state).toBe("matched");
+    expect(r.slowestPreferredShutter!.afterMaximumIsoFallbackUsed).toBe(true);
+  });
+  it("allow-slower-shutter never goes past the line's own shutter: then it equals the line without the hold", () => {
+    const free = program(64, undefined, { maximum: 800 }), held = program(64, allow, { maximum: 800 });
+    expect(held.resolvedSettings).toEqual(free.resolvedSettings);
+    expect(held.targetResidual.residualStops).toBeCloseTo(free.targetResidual.residualStops, 12);
+    expect(held.targetResidual.limitingConstraint).toBe("user-iso-maximum");
+  });
+  it("hold-preferred-shutter keeps the threshold and reports the residual", () => {
+    const r = program(16, hold, { maximum: 800 });
+    expect(r.resolvedSettings.iso).toBe(800);
+    expect(r.resolvedSettings.shutterSeconds).toBeCloseTo(1 / 125, 15);
+    expect(r.targetResidual).toMatchObject({ state: "under-target", limitingConstraint: "user-iso-maximum" });
+    expect(r.targetResidual.residualStops).toBeCloseTo(1, 12);
+    expect(r.slowestPreferredShutter!.afterMaximumIsoFallbackUsed).toBe(false);
+  });
+  it("invalid holds fail with a domain error", () => {
+    expect(() => program(4, { slowestPreferredShutterSeconds: 60, afterMaximumIso: "allow-slower-shutter" })).toThrow(InvalidScientificInputError);
+    expect(() => program(4, { slowestPreferredShutterSeconds: NaN, afterMaximumIso: "allow-slower-shutter" })).toThrow(InvalidScientificInputError);
+    expect(() => program(4, { slowestPreferredShutterSeconds: 1 / 60, afterMaximumIso: "allow" as never })).toThrow(InvalidConfigurationError);
+    expect(() => program(4, { slowestPreferredShutterSeconds: 1 / 60, afterMaximumIso: "allow-slower-shutter", extra: 1 } as never)).toThrow(InvalidConfigurationError);
   });
 });

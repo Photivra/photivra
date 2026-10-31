@@ -210,10 +210,60 @@ export interface SimulateCaptureAutoIsoReport {
   limitingConstraint: ExposureResolutionConstraint;
   /** The resolver's residual, log2(target / achieved exposure), in stops: positive when the exposure is under the meter target, negative when over it. */
   residualStops: number;
-  /** Aperture priority only: the policy and slowest preferred shutter used, and whether the slower-shutter fallback ran. */
+  /**
+   * Aperture priority, and program with a slowest preferred shutter (#504): the policy and slowest preferred shutter used,
+   * and whether the slower-shutter fallback ran.
+   */
   afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum;
   slowestPreferredShutterSeconds?: number;
   afterMaximumIsoFallbackUsed?: boolean;
+  /** #504, program only: whether the program line's shutter was longer than the slowest preferred shutter and was held. */
+  slowestPreferredShutterApplied?: boolean;
+  /** #504: present only with `slowestPreferredShutterSeconds: "auto"`: how the engine derived it (`estimateAutoIsoSlowestShutter`). */
+  automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterReport;
+}
+```
+
+## SimulateCaptureAutomaticSlowestShutterOptions
+
+#504: the settings of `exposure.autoIso.slowestPreferredShutterSeconds: "auto"`. Every field is optional; the defaults are
+labelled generic values, recorded as `default` assumptions.
+
+```ts
+export interface SimulateCaptureAutomaticSlowestShutterOptions {
+  /** The bias in whole stops, as cameras' Auto minimum-shutter settings offer: +1 one stop faster, −1 one stop slower; −2 to +2. Default 0. */
+  fasterByStops?: number;
+  /** The shake blur allowed, in sensor pixels of `sensor.pixelPitchMicrometers`. Default 1 (a generic pixel-level budget). */
+  blurBudgetPixels?: number;
+  /**
+   * The hand's constant angular velocity, rad/s (signs as in `motion.angularVelocityRadPerSec`; only the magnitude matters).
+   * Default `GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC`: 4.39 °/s on yaw, a cited generic value for a 100 g phone held in
+   * two hands (Xiao et al., Proc. SPIE 7250, 2009), not a measurement of you or of this camera.
+   */
+  angularVelocityRadPerSec?: { yaw: number; pitch: number };
+  /** Stabilization in equivalent stops (≥ 0, at most 10), scaling the motion by 2^−stops. Default 0: the tiers declare no stabilization. */
+  stabilizationStopsEquivalent?: number;
+}
+```
+
+## SimulateCaptureAutomaticSlowestShutterReport
+
+#504: the automatic slowest preferred shutter in the Auto ISO report.
+
+```ts
+export interface SimulateCaptureAutomaticSlowestShutterReport {
+  /** The exposure time whose camera-shake blur equals the budget (`estimateCameraShakeBlur`), before the bias and the grid. */
+  derivedShutterSeconds: number;
+  fasterByStops: number;
+  /** derivedShutterSeconds · 2^−fasterByStops. */
+  biasedShutterSeconds: number;
+  /** The slowest preferred shutter used: the biased time within the body's shutter range. */
+  shutterSeconds: number;
+  blurBudgetPixels: number;
+  /** The shake blur at `shutterSeconds`, in pixels. */
+  blurAtShutterPixels: number;
+  angularVelocityRadPerSec: { yaw: number; pitch: number };
+  stabilizationStopsEquivalent: number;
 }
 ```
 
@@ -404,17 +454,22 @@ export interface SimulateCaptureOptions {
     /**
      * Auto ISO settings, with `iso: "auto"` only.
      *
-     * - `slowestPreferredShutterSeconds` and `afterMaximumIso` (#516): aperture priority only, where the slowest shutter is
-     *   required. The shutter gets as long as `slowestPreferredShutterSeconds` (seconds, within the body's shutter range)
-     *   at the lowest Auto ISO; beyond it the ISO rises; at the Auto ISO maximum `afterMaximumIso` decides (default
-     *   `"allow-slower-shutter"`).
+     * - `slowestPreferredShutterSeconds` and `afterMaximumIso` (#516): aperture priority, where the slowest shutter is
+     *   required, and (#504) program, where it is optional. The shutter gets as long as `slowestPreferredShutterSeconds`
+     *   (seconds, within the body's shutter range) at the lowest Auto ISO; beyond it the ISO rises; at the Auto ISO maximum
+     *   `afterMaximumIso` decides (default `"allow-slower-shutter"`; in program the shutter then never gets longer than the
+     *   program line's own). Without it, program follows its line as before.
+     * - `slowestPreferredShutterSeconds: "auto"` (#504): the engine derives it from the focal length, the pixel pitch and a
+     *   hand-shake profile with `estimateAutoIsoSlowestShutter` (the camera-shake model, not the 1/focal-length rule of
+     *   thumb); `automaticSlowestShutter` sets the bias, the blur budget, the shake and the stabilization.
      * - `limits` (#505): every mode. The photographer's Auto ISO range `{ maximum, minimum? }`, a choice kept apart from
      *   the body's Auto ISO capability: both are selectable ISOs inside the body's Auto ISO range, `minimum` at most
      *   `maximum` (default: the body's minimum). Outside the body's range or off its ISO grid the request fails; the
      *   engine never clips a limit. When the ISO stops at a limit strictly inside the body's range, the report's
      *   `limitingConstraint` is `"user-iso-maximum"` or `"user-iso-minimum"`.
      */
-    autoIso?: { slowestPreferredShutterSeconds?: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits };
+    autoIso?: { slowestPreferredShutterSeconds?: number | "auto"; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits;
+      automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterOptions };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
