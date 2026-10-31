@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **The illuminance at which the settings give the standard exposure.** `simulateCapture`'s and the display view's `exposure` gain `standardExposureIlluminanceLux`, next to `standardExposureDeviationStops`: E·L_ref(N, t, S)/L = E·2^Δ, with E the request's `illuminanceLux`, L the metered scene luminance and L_ref = 10·N²/(0.65·t·S) (CIPA DC-004-2020, as for Δ). A chart, reflectance-function or material scene's radiance is reflectance × k(E)·S(λ)/π with k proportional to E, so its metered luminance is proportional to E and the same request at this illuminance meters at Δ = 0. It is `null` for a black scene (L = 0) and for a `radiance-function` scene, whose radiance does not follow the illuminance; it may exceed the 1e7 lux that `illuminanceLux` accepts. No sample, RAW code or other result changes; every hash lock holds.
+  - Tests (`test/exposure-standard-illuminance.test.ts`): re-running at the reported illuminance gives |Δ| < 1e-9 stops (≈ 2e-15 measured; the 16 × 16-zone, 5 nm metering quadrature is the same at both illuminances and cancels) for the default request at f/11 (40 612 lux) and a 3200 K Siemens star at 5000 lux (10 557 lux); with the defaults it is the default illuminance to 1e-4 (the quadrature's ≈ 1.2 × 10⁻⁵ stop); aperture priority equals manual at the settings it resolved, shutter priority and program are E·2^Δ, the display view equals the capture; `null` for a black and a radiance scene. `test/simulate-capture-auto-iso.test.ts` expects the new field in the display view's exposure.
+
 ## 2.12.0 — unreleased (prepared October 31, 2026)
 
 A minor release for the app's Beta camera: Auto ISO through the one-call API, and the deviation from the standard exposure for an exposure meter. With `iso` absent or a number, samples, RAW codes and files are the same as 2.11.1; the exposure result gains `isoControl` and `standardExposureDeviationStops`.
