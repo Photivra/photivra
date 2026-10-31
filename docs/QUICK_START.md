@@ -48,7 +48,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `raw` | The packed native RAW: codes, black levels, saturation flags and per-phase white levels |
 | `plan` | The native RAW plan the engine executed |
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
-| `exposure` | Mode, resolved settings, EV100, metered scene luminance and the exposure-mode resolver's full output |
+| `exposure` | Mode, resolved settings, EV100, `isoControl` (`"manual"` or `"automatic"`) and, with `iso: "auto"`, `autoIso` (how the ISO was chosen and what limited it), metered scene luminance, the deviation from the standard exposure in stops (`standardExposureDeviationStops`) and the exposure-mode resolver's full output |
 | `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
 | `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Cost of each option](#cost-of-each-option) |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
@@ -75,7 +75,8 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). `simulateCapture` and `simulateDisplayView` render it. |
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
-| `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
+| `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). `"auto"` lets Auto ISO choose it from the meter in any mode (see [Auto ISO](#auto-iso-516)). |
+| `exposure.autoIso` | none | `aperture-priority` with `iso: "auto"` only, and required there: `{ slowestPreferredShutterSeconds, afterMaximumIso? }` (see [Auto ISO](#auto-iso-516)). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
 | `exposure.compensationStops` | 0 | Applied to the meter target. |
 | `scene` | required | A chart preset or a caller function (below). |
@@ -359,6 +360,14 @@ The facade meters the scene like a reflected-light meter:
   10·64·125/(0.65·100) = 80 000/65 ≈ 1230.77 cd/m².
 - The meter target then goes through the engine's existing exposure-mode resolver.
 - In `program` mode, a generic program line written by the engine chooses the aperture and shutter.
+- `exposure.standardExposureDeviationStops` (#515) says how far the exposure used is from the standard exposure for
+  the metered luminance L, in stops, from the same two relations:
+  Δ = log₂(N²/t) − log₂(0.65·L·S/10) = `ev100` − log₂(0.65·L·S/10). Positive is darker than the standard exposure
+  (under), negative brighter (over). With the defaults it is 0; the marked f/11 gives log₂(11²/8²) ≈ +0.92, the marked
+  1/60 s gives log₂(60/125) ≈ −1.06 and ISO 200 gives −1. In an automatic mode it is that of the exposure the engine
+  used: minus the compensation (−⅔ for +⅔ stop), plus any step or limit the resolver hit (the slowest shutter, the ISO
+  range). It is `null` only when the metered luminance is 0, which has no standard exposure. The display view reports
+  the same value.
 
 DC-004 ties the reference level to an 18 % grey (Explanation 1 and 2.2). The default illuminance
 puts an 18 % Lambertian grey card, whose luminance is L = 0.18·E/π, exactly at that luminance:
@@ -380,6 +389,43 @@ With these defaults, the green RAW level of an 18 % grey card is about 13.1 % of
 reflector would then sit at about 73 % of white, roughly half a stop below clipping. DC-004 defines
 only the mid-grey reference level, not highlight headroom: this half stop is a property of the
 engine's generic tier presets, documented here, and the tier values were not tuned to get it.
+
+### Auto ISO (#516)
+
+`exposure.iso: "auto"` hands the ISO to the exposure-mode resolver's Auto ISO branch for the mode. The ISO starts
+at the lowest selectable ISO of the body's Auto ISO range (the tiers: ISO 100 to their maximum, 6400, 12 800 or
+25 600), snaps to the nearest selectable ISO in stops (the lower on a tie) and is held at the ends of the range.
+Exposure compensation applies to the meter target first, as with a numeric ISO.
+
+| Mode | With `iso: "auto"` |
+| --- | --- |
+| `manual` | Your aperture and shutter; the ISO makes up the exposure (`resolveManualExposureMode`, automatic ISO). |
+| `aperture-priority` | Your aperture. The shutter follows the meter at the lowest ISO, but no slower than `exposure.autoIso.slowestPreferredShutterSeconds` (required; seconds within the body's shutter range); the ISO makes up the rest. At the Auto ISO maximum, `afterMaximumIso` decides: `"allow-slower-shutter"` (the default) lengthens the shutter to reach the target, `"hold-preferred-shutter"` keeps it and leaves the exposure under target (`resolveAperturePriorityAutoIsoExposureMode`). The engine does not choose a slowest shutter for you. |
+| `shutter-priority` | Your shutter. The aperture is chosen at the lowest ISO, no wider than the target needs, so it stops at the widest aperture; the ISO makes up the rest (`resolveShutterPriorityExposureMode`, policy `minimum-iso-aperture-first`). |
+| `program` | The generic program line at the lowest ISO; beyond the line's end (f/4, 1.024 s) the ISO rises (`resolveProgramAutoExposureMode`, automatic ISO). |
+
+The result says what happened. `exposure.settings.iso` is the ISO used and `exposure.isoControl` is `"automatic"`.
+`exposure.autoIso` reports `idealIsoBeforeConstraints`, the Auto ISO range (`autoIsoMinimum`, `autoIsoMaximum`),
+`clamped`, `limitingConstraint` and `residualStops`. The last two are the resolver's: for example `"iso-maximum"` when
+the exposure stays under target at the maximum ISO, `"iso-grid-quantization"` for the nearest selectable ISO, or
+`"none"`. A positive residual is under target. In aperture priority the report also repeats `afterMaximumIso` and
+`slowestPreferredShutterSeconds`, and says whether the slower-shutter fallback ran (`afterMaximumIsoFallbackUsed`).
+A display view, an ideal reference and every `output.region` part of the same request meter the whole frame, so
+they resolve the same exposure and report the same values. Requests without `"auto"` are unchanged: their
+`isoControl` is `"manual"` and they have no `autoIso`.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const dusk = await simulateCapture({
+  exposure: { mode: "aperture-priority", iso: "auto", autoIso: { slowestPreferredShutterSeconds: 1 / 60, afterMaximumIso: "hold-preferred-shutter" } },
+  lens: { fNumber: 8 },
+  scene: { preset: "uniform" },
+  illuminanceLux: 200,
+  output: { width: 8, height: 8 }
+});
+console.log(dusk.exposure.settings, dusk.exposure.isoControl, dusk.exposure.autoIso?.limitingConstraint);
+```
 
 ## Scene presets
 
