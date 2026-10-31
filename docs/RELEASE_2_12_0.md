@@ -68,7 +68,7 @@ No network, persistence or telemetry is added.
 - [x] #517 and #518 merged with their changelog entries.
 - [x] Version surfaces aligned at 2.12.0 (`npm run release:prepare -- 2.12.0`). Root exports 1,767.
 - [x] Fingerprint against `v2.11.1`: bytes identical in all 17 results (above).
-- [ ] #514 (the 2.11.1 publication record) merged; this record is stacked on it.
+- [x] #514 (the 2.11.1 publication record) merged (`50dfe3e`).
 - [ ] Owner's review of this record.
 - [ ] Green CI on this pull request, then on `main` after merge.
 - [ ] **The owner's explicit approval to tag `v2.12.0`** on the `main` commit that merges this record.
