@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from "vitest/config";
+import WeightedShardSequencer from "./test/helpers/weighted-shard-sequencer.js";
 
 /*
  * V8 coverage instrumentation slows the heavy numerical fixtures by roughly 3-4x on a
@@ -25,6 +26,8 @@ export default defineConfig({
     testTimeout: 5_000 * timeoutScale,
     hookTimeout: 10_000 * timeoutScale,
     env: { PHOTIVRA_TEST_TIMEOUT_SCALE: String(timeoutScale) },
+    // `--shard=k/n` balanced by measured per-file time (test/helpers/weighted-shard-sequencer.ts).
+    sequence: { sequencer: WeightedShardSequencer },
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
