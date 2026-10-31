@@ -10,6 +10,15 @@ import { describe, expect, it } from "vitest";
 import { simulateDisplayViewWithInternals } from "../src/facade/simulate-display-view.js";
 import type { SimulateCaptureOptions, SimulateDisplayViewOptions } from "../src/index.js";
 import { scaledTimeout as testTimeout } from "./helpers/test-timeout.js";
+import { hashLockOnThisArchitecture } from "./helpers/architecture-hash-locks.js";
+
+// #508: the hashes were recorded on x64 and hold there. The diffraction case takes Math.sin, Math.cos and others from the
+// capture's diffraction kernels, whose results differ by one ulp between V8 on arm64 and on x64, so on arm64 (Apple silicon,
+// Linux arm64) it is locked to its own arm64 hash, keyed by the x64 lock (docs/NUMERICAL_CORRECTNESS.md, "Test hash locks
+// and platforms"). The Speed case is the same on both.
+const ARM64_PIXEL_MEMO_HASHES: Readonly<Record<string, string>> = {
+  "33218dfc294a4d566054d63b52872d4ba277fab2c1d32551208aa3f9c4225188": "3563a6f26bcc806fe5ba109657c06653c6cd26d62957918664d553b25c44659c"
+};
 
 describe("display view per-real-pixel memo (#392)", () => {
   it("keeps the bytes of views where samples share real pixels", async () => {
@@ -29,7 +38,7 @@ describe("display view per-real-pixel memo (#392)", () => {
       delete diagnostics.fast;
       for (const a of [result.image.samples, internals.expected, internals.noiseStd]) hash.update(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
       hash.update(JSON.stringify(diagnostics));
-      expect(hash.digest("hex")).toBe(expected);
+      expect(hash.digest("hex")).toBe(hashLockOnThisArchitecture(expected, ARM64_PIXEL_MEMO_HASHES));
     }
   }, testTimeout(120_000));
 });

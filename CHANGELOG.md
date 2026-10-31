@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Tests and CI: three hash locks are x64 locks, with recorded arm64 hashes (#508).** No engine output, package content or x64 hash lock changes. The display view's "keeps its bytes" locks, the pixel-memo locks and the Airy cell construction locks were recorded on x64; on arm64 (Apple silicon and Linux arm64, Node 24.19.0 and 24.22.1) 13 of their 17 digests differ, because V8's `Math` `sin`, `cos`, `asin`, `atan2` and `log` return results one ulp apart on the two architectures for some arguments (first a `Math.cos` in the β = 12.5 Airy cells and `Math.log(14)` in the display view; neither architecture is the more accurate). On x64 the tests assert the locks exactly as before; on arm64 (`process.arch === "arm64"`) each differing lock is asserted against its own recorded arm64 hash (`test/helpers/architecture-hash-locks.ts`), so arm64 is locked too, and the whole suite passes on Apple silicon. The display-view test no longer claims "the same on every JavaScript engine". The `hash locks (macos-latest)` job's step for these three files no longer has `continue-on-error`, so a failure there fails the step instead of showing as passed. Docs: `docs/NUMERICAL_CORRECTNESS.md` ("Test hash locks and platforms", which also corrects the macOS job to eight test files) and `docs/DISPLAY_VIEW.md` ("Same bytes in every engine").
+
 ## 2.12.0 — unreleased (prepared October 31, 2026)
 
 A minor release for the app's Beta camera: Auto ISO through the one-call API, and the deviation from the standard exposure for an exposure meter. With `iso` absent or a number, samples, RAW codes and files are the same as 2.11.1; the exposure result gains `isoControl` and `standardExposureDeviationStops`.
