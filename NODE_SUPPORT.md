@@ -90,11 +90,9 @@ For **7 days** from a line's LTS start, the guard therefore accepts a build of t
 - Other majors, prereleases and end-of-life dates are checked as before.
 - A build that carries the LTS marker passes as before.
 
-### Early warning
+### Checking ahead
 
-`.github/workflows/node-lts-lookahead.yml` runs daily and on manual dispatch. It does not run on pull requests and is not a required check. It fetches `https://nodejs.org/dist/index.json`, takes the newest stable release of each supported major, and runs the policy guard against it at 00:00 UTC on today and each of the next 14 days (`.github/node-lts-lookahead.mjs`). If any date fails, the job fails and names the major, the first failing date, the build and the reason. That leaves two weeks to act before the required checks fail.
-
-The warning is expected once a year: from 7 days before a line's LTS start until Node publishes its first LTS build, it reports the end of the grace period. It clears by itself when the LTS build appears. If it stays red near the end of the grace period, review the snapshot against the official schedule. Do not widen a window just to clear it. An end of life inside the next 14 days fails it the same way.
+No scheduled job checks the policy ahead of time; the guard in every CI job is the check, so a date boundary first shows as a failing required check on the first run after it. To see a boundary coming, for example before a release, run `node .github/node-lts-lookahead.mjs`. It fetches `https://nodejs.org/dist/index.json`, takes the newest stable release of each supported major, and runs the policy guard against it at 00:00 UTC on today and each of the next 14 days. A failing date names the major, the first failing date, the build and the reason. Do not widen a window just to clear it.
 
 Routine minor and patch updates within an approved major may follow normal green-PR rules. Do not auto-merge a major upgrade of the Node runtime, a Node image, or `@types/node` on its own. Where Dependabot is configured, keep Node typings major upgrades out of its routine queue, while still allowing updates within supported majors.
 
