@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-// Early warning for the Node support policy: evaluates the newest published build of each
-// supported major against node-lts-policy.mjs for today and the next days, so a date boundary
-// (an LTS start, the end of the LTS marker grace period, an end of life) is seen before it
-// fails the required CI checks. Run daily by .github/workflows/node-lts-lookahead.yml.
+// Node release-index helpers for the support policy. `--newest-stable` gives CI's `node` leg its
+// version. Without arguments it evaluates the newest published build of each supported major
+// against node-lts-policy.mjs for today and the next days, so a date boundary (an LTS start,
+// the end of the LTS marker grace period, an end of life) can be checked before it fails the
+// required CI checks; run it by hand (`node .github/node-lts-lookahead.mjs`), for example
+// before a release. No scheduled workflow runs it.
 import assert from "node:assert/strict";
 import { error, log } from "node:console";
 import { appendFileSync } from "node:fs";

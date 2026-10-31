@@ -23,8 +23,8 @@ const currentWindows = new Map([
 // from Node 4 to Node 24 is dated on its scheduled LTS date (0 days late, 11 of 11 lines), and
 // setup-node can only offer it after that. For this many days from the LTS start, a build of
 // that major without the marker is still accepted. Seven days is a margin over that record (a
-// full week for a slipped release), not a measured delay; the look-ahead in
-// node-lts-lookahead.mjs warns 14 days before it ends if no LTS build has appeared.
+// full week for a slipped release), not a measured delay; `node .github/node-lts-lookahead.mjs`,
+// run by hand, reports 14 days ahead when it will end with no LTS build published.
 export const ltsMarkerGraceDays = 7;
 const dayMs = 86_400_000;
 
