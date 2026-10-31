@@ -21,8 +21,10 @@ export interface DisplayViewResult {
    */
   view: { width: number; height: number; frameWidth: number; frameHeight: number; scaleX: number; scaleY: number; samplesPerAxis: number;
     region?: { x: number; y: number; width: number; height: number } };
-  /** The resolved exposure of the capture this view shows; `standardExposureDeviationStops` as in {@link SimulateCaptureResult}. */
+  /** The resolved exposure of the capture this view shows; `standardExposureDeviationStops` and `standardExposureIlluminanceLux` as in {@link SimulateCaptureResult}. */
   exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number; standardExposureDeviationStops: number | null;
+    /** As in the capture result. */
+    standardExposureIlluminanceLux: number | null;
     /** #516: as in the capture result. */
     isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
@@ -633,6 +635,13 @@ export interface SimulateCaptureResult {
      * the metered luminance is 0 (a black scene has no standard exposure).
      */
     standardExposureDeviationStops: number | null;
+    /**
+     * The illuminance, lux, at which the settings used give the standard exposure: E·L_ref(N, t, S)/L = E·2^Δ, with E the
+     * request's `illuminanceLux`. Exact for a reflective scene (a chart, a reflectance function or a material scene), whose
+     * metered luminance is proportional to E. Null for a black scene (L = 0) and for a radiance-function scene, whose
+     * radiance does not depend on the illuminance. It may exceed the 1e7 lux that `illuminanceLux` accepts.
+     */
+    standardExposureIlluminanceLux: number | null;
     /** Full output of the existing exposure-mode resolver. */
     resolution: unknown;
   };
