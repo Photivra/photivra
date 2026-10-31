@@ -28,6 +28,16 @@
       "kind": "type"
     },
     {
+      "name": "addJpegTextMetadata",
+      "source": "src/output/text-metadata.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "addPngTextMetadata",
+      "source": "src/output/text-metadata.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "AffineGeometricTransform",
       "source": "src/output/geometric-transforms.ts",
       "kind": "type"

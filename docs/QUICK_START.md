@@ -717,6 +717,10 @@ console.log(shot.image.png?.length, shot.assumptions.find((a) => a.id === "outpu
 | `copyright` | XMP `dc:rights` | `Copyright` | Copyright tag (ASCII only); XMP `dc:rights` |
 | `comment` | COM segment and XMP `exif:UserComment` | `Comment` | XMP `exif:UserComment` |
 
+To add the same text to a JPEG or PNG you encoded yourself (for example a full-size file joined from
+`output.region` parts), call `addJpegTextMetadata(jpeg, metadata)` or `addPngTextMetadata(png, metadata)` (#388).
+They are the functions `output.metadata` uses, so the bytes are the same, and they check the text by the same rules.
+
 Each field is optional, but at least one must be set. A field is a non-empty string of at most
 2048 UTF-8 bytes. Lone UTF-16 surrogates (which have no UTF-8 form), NUL, U+FFFE, U+FFFF and control
 characters other than line feed (`\n`) are rejected with an `InvalidConfigurationError` that names the

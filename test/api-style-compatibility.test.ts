@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import * as engine from "../src/index.js";
 
 const APPROVED_PUBLIC_VERB_PREFIXES = [
+  "add",
   "assess",
   "bind",
   "calculate",

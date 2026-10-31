@@ -2173,6 +2173,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`addJpegTextMetadata`](api/output-text-metadata.md#addjpegtextmetadata) | Runtime |
+| [`addPngTextMetadata`](api/output-text-metadata.md#addpngtextmetadata) | Runtime |
 | [`OutputTextMetadata`](api/output-text-metadata.md#outputtextmetadata) | Type |
 
 ## processing/demosaic.ts
