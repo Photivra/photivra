@@ -32,7 +32,7 @@ Every pull request merged since `v2.11.0` (`git log v2.11.0..origin/main`), and 
 - `publish` needs both `verify` and `coverage gate`, so the package is published only from a tree that passed every gate, as before.
 - A shard skips its work only when `ci.yml` passed the whole suite under coverage on this exact tree and Node.js release (`.github/ci-proof.mjs`); otherwise it runs.
 
-**Not yet measured:** the new publish workflow runs only from a release tag, so its first run is this release's. Its shards run the same split that #511's pull-request CI runs and times.
+**Measured on #511's pull-request CI** ([run 41204851499](https://github.com/Photivra/photivra/actions/runs/41204851499), the same split on `lts/*`, Node 26.13.0): the four coverage shards took 12.9, 10.0, 9.2 and 7.3 minutes, and the merged gate 2.1 minutes. Each shard's time is its slowest single file (713, 544, 491 and 389 s), which a split by files cannot shorten. **Not yet measured:** the publish workflow itself, which runs only from a release tag and runs coverage on Node 24, so its first run is this release's; the shards are expected near those times, inside their 25-minute limit.
 
 ### Same package
 
@@ -64,7 +64,7 @@ No network, persistence or telemetry is added to the package. The publish workfl
 
 ## Remaining release checklist
 
-- [ ] #511 merged with the fixed publish workflow (required before this record merges).
+- [x] #511 merged with the fixed publish workflow (`2865835`).
 - [x] Version surfaces aligned at 2.11.1 (`npm run release:prepare -- 2.11.1`). Root exports unchanged at 1,765.
 - [x] Same package as `v2.11.0` apart from version fields and release documentation (above).
 - [ ] Owner's review of this record.
