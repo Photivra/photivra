@@ -32,6 +32,7 @@
 
 import { markInternalNativeTileReader, markInternalSceneRadianceEvaluator, registerInternalRadianceAccess } from "../core/internal-radiance-evaluator.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { InvalidScientificResultError } from "../core/validation.js";
 import { requireInputObject } from "../core/record-validation.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
@@ -458,6 +459,13 @@ export interface SimulateCaptureResult {
     /** Exposure value at ISO 100 of the settings, log2(N²/t). */
     ev100: number;
     meteredSceneLuminanceCdPerSquareMeter: number;
+    /**
+     * #515: deviation, in stops, of the exposure used from the CIPA DC-004-2020 standard exposure for the metered luminance L:
+     * log2(N²/t) − log2(0.65·L·S/10). Positive is darker than the standard exposure (under), negative brighter (over). In an
+     * automatic mode it is the compensation with the opposite sign plus any step or limit the resolver hit. Finite, or null when
+     * the metered luminance is 0 (a black scene has no standard exposure).
+     */
+    standardExposureDeviationStops: number | null;
     /** Full output of the existing exposure-mode resolver. */
     resolution: unknown;
   };
@@ -538,6 +546,19 @@ const GREY_CARD_REFLECTANCE = 0.18;
 /** Scene luminance (cd/m²) whose focal-plane exposure 0.65·L·t/N² equals the SOS reference exposure 10/S. */
 function sosReferenceLuminance(fNumber: number, shutterSeconds: number, iso: number): number {
   return SOS_REFERENCE_EXPOSURE_NUMERATOR_LUX_SECONDS * fNumber ** 2 / (CAMERA_EQUATION_CONSTANT * shutterSeconds * iso);
+}
+/**
+ * #515: deviation, in stops, of the exposure the settings give from the CIPA DC-004-2020 standard exposure for the metered
+ * luminance L: Δ = log2(N²/t) − log2(0.65·L·S/10) = log2(L_ref(N, t, S) / L), with L_ref the luminance that the settings
+ * expose at H = 10/S (S = 10/H, §3.2; H = 0.65·L·t/N², §5.5 (4)). Positive is darker than the standard exposure (under).
+ * A scene with no metered luminance (L = 0, which manual mode still captures) has no standard exposure: null, never ±Infinity.
+ */
+function standardExposureDeviationStops(fNumber: number, shutterSeconds: number, iso: number, meteredLuminance: number): number | null {
+  if (!(meteredLuminance > 0)) return null;
+  const deviation = Math.log2(sosReferenceLuminance(fNumber, shutterSeconds, iso) / meteredLuminance);
+  if (!Number.isFinite(deviation)) throw new InvalidScientificResultError("exposure.standardExposureDeviationStops is not finite (metered scene luminance " +
+    meteredLuminance + " cd/m²).");
+  return deviation;
 }
 /**
  * Default illuminance, lux: an 18 % Lambertian grey card (L = 0.18·E/π) then gets exactly the CIPA DC-004 standard
@@ -1073,8 +1094,8 @@ export interface DisplayViewResult {
    */
   view: { width: number; height: number; frameWidth: number; frameHeight: number; scaleX: number; scaleY: number; samplesPerAxis: number;
     region?: { x: number; y: number; width: number; height: number } };
-  /** The resolved exposure of the capture this view shows. */
-  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number };
+  /** The resolved exposure of the capture this view shows; `standardExposureDeviationStops` as in {@link SimulateCaptureResult}. */
+  exposure: { mode: SimulateCaptureExposureMode; settings: { fNumber: number; shutterSeconds: number; iso: number }; ev100: number; standardExposureDeviationStops: number | null };
   scene: SimulateCaptureResult["scene"];
   /**
    * Work done: real pixels sampled, real-site expectations evaluated, scene queries, display pixels sampled in full (detail) or with
@@ -1131,6 +1152,8 @@ export interface DisplayViewRunContext {
   provider: PlanarSceneRadianceProvider;
   regimeByChannel: Record<"red" | "green" | "blue", { readoutProfile: ReadoutProfile; regimeId: string; }>;
   resolvedIso: number;
+  /** #515: the capture's `exposure.standardExposureDeviationStops`. */
+  standardExposureDeviationStops: number | null;
   sceneOption: unknown;
   scenePreset: "composite" | "uniform" | "patches" | "slanted-edge" | "siemens-star" | "step-wedge" | "grey-ramp" | "checkerboard" | "point-grid" | "dead-leaves" | "bar-groups" | "hyperbolic-wedge" | "zone-plate" | "slanted-squares" | "line-grid" | "fiducial" | "reflectance-function" | "radiance-function" | "material-function";
   shutterSeconds: number;
@@ -1682,6 +1705,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   fNumber = resolution.resolvedSettings.aperture ?? fNumber;
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
+  const exposureDeviationStops = standardExposureDeviationStops(fNumber, shutterSeconds, resolvedIso, meteredLuminance);
   const defocusDisc = defocusModel === undefined ? undefined :
     resolveDefocusOption({ run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch, diffraction: diffractionRadiusOption !== undefined });
   // #492: the capture applies the disc as an object-space convolution, which needs every disc point a site sees to be another site's scene point.
@@ -2116,7 +2140,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
-  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, defocus: displayViewDefocus, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, defocus: displayViewDefocus, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, standardExposureDeviationStops: exposureDeviationStops, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();
@@ -2443,7 +2467,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState,
       ...(diffraction ? { diffraction: { profile: diffraction, psf: diffractionPsf!, execution: diffractionObjectSpace ? "object-space-convolution" as const : "environment-psf-quadrature" as const } } : {}) },
     exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds),
-      meteredSceneLuminanceCdPerSquareMeter: meteredLuminance, resolution },
+      meteredSceneLuminanceCdPerSquareMeter: meteredLuminance, standardExposureDeviationStops: exposureDeviationStops, resolution },
     scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
       framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, ...(chartReport ? { chart: chartReport } : {}), sourceSha256 },

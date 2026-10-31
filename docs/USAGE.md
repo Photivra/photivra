@@ -7497,13 +7497,17 @@ const star = await simulateCapture({
   output: { width: 12, height: 8, toneCurve: "positive-reinhard-per-channel", whiteBalance: { kelvin: 5000 } }
 });
 
-console.log(star.exposure.settings.shutterSeconds, star.exposure.ev100);
+console.log(star.exposure.settings.shutterSeconds, star.exposure.ev100, star.exposure.standardExposureDeviationStops);
 console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id));
 console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
 ```
 
 In `aperture-priority` mode, the shutter comes from the meter (CIPA DC-004 relations S = 10/H and H = 0.65·L·t/N²) through
 `resolveAperturePriorityExposureMode()`.
+`exposure.standardExposureDeviationStops` is the exposure used minus the standard exposure for the metered luminance L, in stops,
+log₂(N²/t) − log₂(0.65·L·S/10) from the same relations: positive is darker (under), negative brighter (over). In an automatic
+mode it is minus the compensation plus any limit the resolver hit; it is `null` only for a scene with no metered luminance.
+The display view's `exposure` carries the same value.
 
 The chart presets are also available on their own:
 
