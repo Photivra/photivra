@@ -1,6 +1,6 @@
 # 2.11.0 release candidate
 
-> **Prepared October 27, 2026; proposed, awaiting owner approval; not published.** Publishing runs only from the owner's `v2.11.0` tag, after `main` CI on the tagged commit has passed and after the owner's hardware acceptance of the GPU preview on an Apple M5 Pro (see [Release gates](#release-gates)).
+> **Tagged October 28, 2026; not published to npm.** The owner tagged `v2.11.0` on `6bef763` and published the GitHub release, after the Apple M5 Pro hardware acceptance (see [Release gates](#release-gates)). The npm publish run (40636849817) was cancelled at its verify job's 25-minute limit while the coverage gate was still running, so `@photivra/engine@2.11.0` is not on npm. The same engine is proposed as [2.11.1](RELEASE_2_11_1.md), with the publish workflow fixed.
 
 ## At a glance
 
