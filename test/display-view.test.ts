@@ -17,7 +17,7 @@ const ARM64_DISPLAY_VIEW_HASHES: Readonly<Record<string, string>> = {
   "3c4d6097d5358111358165c7a820eab707b41eb5621c4ba5f2fe51bd004fb3b0": "ac0e3d1c116e0f3fc82be7d9d7d055a2859ba2d4209da55bbeb139d6533b20e4",
   "d1f47df34a757135ce4335656e9294b1a6995429e28183451d0386b5a03de451": "cbad28f5bdfd0027959c074acb149682bf358cfa7aaf7aa5357cfd51f4216552",
   "992eec6e7a1d8d3ec4817baf703156c46f9dda4a8dd340624dac8d1b8f439b77": "c92d880f0fff487be141eba45bc103f28e404c3ca2282c9ee9e3bf93ce5d69c8",
-  "0c459f1395213976a4c29d2441161749757141e6dada2a6e49997fa9f4954f68": "d55d0e4ac705ae57e2cccb86c7f1ab8a8909b82c8069e90fee72ad9474a901a4"
+  "80b0ee70106adfde5dbc6aad21d90de700e27a65ede35cc60d147d639d9ff153": "ca1bee1dd655c892c68a02c52abe9b6759255d5b03b3cb9ebddd4bd26f72b807"
 };
 
 const decode = (code: number, maximum: number): number => { const e = code / maximum; return e <= 0.04045 ? e / 12.92 : ((e + 0.055) / 1.055) ** 2.4; };

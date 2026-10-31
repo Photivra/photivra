@@ -19,7 +19,7 @@ import { hashLockOnThisArchitecture } from "./helpers/architecture-hash-locks.js
 // Linux arm64) it is locked to its own arm64 hash, keyed by the x64 lock (docs/NUMERICAL_CORRECTNESS.md, "Test hash locks
 // and platforms"). The Speed case is the same on both.
 const ARM64_PIXEL_MEMO_HASHES: Readonly<Record<string, string>> = {
-  "33218dfc294a4d566054d63b52872d4ba277fab2c1d32551208aa3f9c4225188": "3563a6f26bcc806fe5ba109657c06653c6cd26d62957918664d553b25c44659c"
+  "5870e8213ac3bfa793c89df260a489d0b2b3279e651adc6f3dce98141c6dc045": "cb1f476f33be0ee29c43d0b443f891a328fe0b9b0dc9cd8ef96670e70c66c0f1"
 };
 
 describe("display view per-real-pixel memo (#392)", () => {
