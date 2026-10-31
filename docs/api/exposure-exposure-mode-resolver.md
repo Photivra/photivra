@@ -198,6 +198,32 @@ export interface AutoIsoBaselinePolicy {
   isoBaseline: "minimum-selectable";
   isoQuantizationPolicy:
     "nearest-log2-lower-on-tie";
+  /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+  autoIsoLimits?: AutoIsoLimits;
+}
+```
+
+## AutoIsoLimits
+
+#505: the photographer's Auto ISO limits, a policy choice kept separate from what the body allows
+(`capabilities.iso.autoIsoMinimum`/`autoIsoMaximum`, else the ISO range). Cameras let the
+photographer cap Auto ISO, and some also raise its floor (for example the Nikon D850's "maximum
+sensitivity", Fujifilm's per-preset default and maximum sensitivity, and Panasonic's separate upper
+and lower Auto ISO limits; makers' manuals, see docs/USAGE.md).
+
+Both values are ISO settings: inside the body's Auto ISO range and, on a discrete ISO grid, one of
+its values, with `minimum` at most `maximum`. Anything else fails with
+`InvalidScientificInputError`; the engine never clips a limit silently. When a limit is strictly
+inside the body's range and the ISO is held there, the limiting constraint is `user-iso-maximum` or
+`user-iso-minimum`; a limit equal to the body's bound adds nothing, and the body's `iso-maximum` or
+`iso-minimum` is reported.
+
+```ts
+export interface AutoIsoLimits {
+  /** The highest ISO Auto ISO may choose. */
+  maximum: number;
+  /** The lowest ISO Auto ISO may choose, and so its baseline. Default: the body's Auto ISO minimum. */
+  minimum?: number;
 }
 ```
 
@@ -219,6 +245,8 @@ export type ExposureResolutionConstraint =
   | "none"
   | "iso-minimum"
   | "iso-maximum"
+  | "user-iso-minimum"
+  | "user-iso-maximum"
   | "iso-grid-quantization"
   | "shutter-minimum"
   | "shutter-maximum"
@@ -366,6 +394,8 @@ export interface FullAutoExposurePolicy {
     "minimum-selectable";
   isoQuantizationPolicy:
     "nearest-log2-lower-on-tie";
+  /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+  autoIsoLimits?: AutoIsoLimits;
 }
 ```
 
@@ -467,6 +497,8 @@ export type ManualIsoControl =
       kind: "automatic";
       quantizationPolicy:
         "nearest-log2-lower-on-tie";
+      /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+      autoIsoLimits?: AutoIsoLimits;
     };
 ```
 
@@ -573,6 +605,8 @@ export type ProgramAutoIsoControl =
         "minimum-selectable";
       isoQuantizationPolicy:
         "nearest-log2-lower-on-tie";
+      /** #505: optional photographer-set Auto ISO limits inside the body's Auto ISO range. */
+      autoIsoLimits?: AutoIsoLimits;
     };
 ```
 

@@ -76,7 +76,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). `"auto"` lets Auto ISO choose it from the meter in any mode (see [Auto ISO](#auto-iso-516)). |
-| `exposure.autoIso` | none | `aperture-priority` with `iso: "auto"` only, and required there: `{ slowestPreferredShutterSeconds, afterMaximumIso? }` (see [Auto ISO](#auto-iso-516)). |
+| `exposure.autoIso` | none | With `iso: "auto"` only. `aperture-priority` requires `{ slowestPreferredShutterSeconds, afterMaximumIso? }`; every mode takes `limits: { maximum, minimum? }`, the photographer's Auto ISO range (see [Auto ISO](#auto-iso-516)). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
 | `exposure.compensationStops` | 0 | Applied to the meter target. |
 | `scene` | required | A chart preset or a caller function (below). |
@@ -414,6 +414,14 @@ A display view, an ideal reference and every `output.region` part of the same re
 they resolve the same exposure and report the same values. Requests without `"auto"` are unchanged: their
 `isoControl` is `"manual"` and they have no `autoIso`.
 
+**Your own limits (#505).** `exposure.autoIso.limits: { maximum, minimum? }` caps Auto ISO, and optionally raises its
+floor, in any mode, as cameras' "maximum sensitivity" settings do. It is your choice, kept apart from the body's Auto
+ISO range: both limits must be selectable ISOs of the body inside that range (`minimum` at most `maximum`, default the
+body's minimum), or the request fails with `InvalidConfigurationError`; nothing is clipped. When the ISO stops at your
+limit, `limitingConstraint` is `"user-iso-maximum"` (or `"user-iso-minimum"`), distinct from the body's `"iso-maximum"`,
+and `exposure.autoIso.limits` repeats the range used. In aperture priority, `afterMaximumIso` applies at your maximum
+just as at the body's. Without `limits` nothing changes. A separate cap for flash is not part of this.
+
 ```ts
 import { simulateCapture } from "@photivra/engine";
 
@@ -425,6 +433,19 @@ const dusk = await simulateCapture({
   output: { width: 8, height: 8 }
 });
 console.log(dusk.exposure.settings, dusk.exposure.isoControl, dusk.exposure.autoIso?.limitingConstraint);
+```
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const night = await simulateCapture({
+  exposure: { mode: "program", iso: "auto", autoIso: { limits: { maximum: 6400 } } },
+  scene: { preset: "uniform" },
+  illuminanceLux: 0.5,
+  output: { width: 8, height: 8 }
+});
+// ISO 6400, "user-iso-maximum", { minimum: 100, maximum: 6400 }
+console.log(night.exposure.settings.iso, night.exposure.autoIso?.limitingConstraint, night.exposure.autoIso?.limits);
 ```
 
 ## Scene presets

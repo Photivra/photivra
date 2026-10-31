@@ -207,3 +207,77 @@ describe("the deviation from the standard exposure under Auto ISO (#515 with #51
     }
   });
 });
+
+describe("photographer-set Auto ISO limits: exposure.autoIso.limits (#505)", () => {
+  // The professional tier: Auto ISO 100 to 25600 on a full-stop grid.
+  const dark = { ...small, illuminanceLux: LUX / 1e4 };
+  it("manual: the ISO stops at the photographer's maximum, reported as user-iso-maximum", async () => {
+    const r = await simulateCapture({ ...dark, exposure: { iso: "auto", autoIso: { limits: { maximum: 6400 } } } });
+    expect(r.exposure.settings.iso).toBe(6400);
+    expect(r.exposure.autoIso).toMatchObject({ autoIsoMinimum: 100, autoIsoMaximum: 25600, limits: { minimum: 100, maximum: 6400 }, clamped: "maximum",
+      limitingConstraint: "user-iso-maximum" });
+    expect(r.exposure.autoIso!.residualStops).toBeCloseTo(Math.log2(1e4 / 64), 3);
+    expect(r.assumptions.find((a) => a.id === "exposure.autoIso")?.value).toMatchObject({ limits: { minimum: 100, maximum: 6400 } });
+  });
+  it("manual: a capped capture is byte-identical to that manual ISO", async () => {
+    const auto = await simulateCapture({ ...dark, exposure: { iso: "auto", autoIso: { limits: { maximum: 6400 } } } });
+    const manual = await simulateCapture({ ...dark, exposure: { iso: 6400 } });
+    expect(Array.from(auto.image.samples)).toEqual(Array.from(manual.image.samples));
+  });
+  it("manual: a bright scene holds at the photographer's minimum, reported as user-iso-minimum", async () => {
+    const r = await simulateCapture({ ...small, illuminanceLux: LUX * 8, exposure: { iso: "auto", autoIso: { limits: { maximum: 3200, minimum: 400 } } } });
+    expect(r.exposure.settings.iso).toBe(400);
+    expect(r.exposure.autoIso).toMatchObject({ clamped: "minimum", limitingConstraint: "user-iso-minimum", limits: { minimum: 400, maximum: 3200 } });
+    expect(r.exposure.autoIso!.residualStops).toBeCloseTo(-5, 3);
+  });
+  it("limits equal to the body's range report the body's constraints and give the same image", async () => {
+    const free = await simulateCapture({ ...dark, exposure: { iso: "auto" } });
+    const same = await simulateCapture({ ...dark, exposure: { iso: "auto", autoIso: { limits: { maximum: 25600, minimum: 100 } } } });
+    expect(same.exposure.autoIso!.limitingConstraint).toBe("iso-maximum");
+    expect(same.exposure.settings).toEqual(free.exposure.settings);
+    expect(Array.from(same.image.samples)).toEqual(Array.from(free.image.samples));
+    expect(free.exposure.autoIso).not.toHaveProperty("limits");
+  });
+  it("aperture priority: both afterMaximumIso policies treat the photographer's cap like the body's", async () => {
+    const allow = await simulateCapture({ ...dark, exposure: { mode: "aperture-priority", iso: "auto",
+      autoIso: { slowestPreferredShutterSeconds: 1 / 125, afterMaximumIso: "allow-slower-shutter", limits: { maximum: 3200 } } } });
+    expect(allow.exposure.settings.iso).toBe(3200);
+    expect(allow.exposure.settings.shutterSeconds).toBeCloseTo(1e4 / 125 / 32, 4);
+    expect(allow.exposure.autoIso).toMatchObject({ clamped: "maximum", afterMaximumIsoFallbackUsed: true, limitingConstraint: "none" });
+    const hold = await simulateCapture({ ...dark, exposure: { mode: "aperture-priority", iso: "auto",
+      autoIso: { slowestPreferredShutterSeconds: 1 / 125, afterMaximumIso: "hold-preferred-shutter", limits: { maximum: 3200 } } } });
+    expect(hold.exposure.settings).toEqual({ fNumber: 8, shutterSeconds: 1 / 125, iso: 3200 });
+    expect(hold.exposure.autoIso).toMatchObject({ afterMaximumIsoFallbackUsed: false, limitingConstraint: "user-iso-maximum" });
+    expect(hold.exposure.autoIso!.residualStops).toBeCloseTo(Math.log2(1e4 / 32), 3);
+  });
+  it("shutter priority and program stop at the photographer's maximum", async () => {
+    for (const mode of ["shutter-priority", "program"] as const) {
+      const r = await simulateCapture({ ...small, illuminanceLux: LUX / 1e7, exposure: { mode, iso: "auto", autoIso: { limits: { maximum: 1600 } } } });
+      expect(r.exposure.settings.iso).toBe(1600);
+      expect(r.exposure.autoIso).toMatchObject({ clamped: "maximum", limitingConstraint: "user-iso-maximum" });
+    }
+  });
+  it("the display view and the ideal reference report the same limits", async () => {
+    const options: SimulateCaptureOptions = { ...dark, exposure: { mode: "program", iso: "auto", autoIso: { limits: { maximum: 3200, minimum: 200 } } } };
+    const capture = await simulateCapture(options);
+    const view = await simulateDisplayView(options, { width: 4, height: 4, samplesPerAxis: 1 });
+    expect(view.exposure.autoIso).toEqual(capture.exposure.autoIso);
+    expect((await simulateIdealReference(options)).exposure.autoIso).toEqual(capture.exposure.autoIso);
+  });
+  const bad: [string, NonNullable<SimulateCaptureOptions["exposure"]>][] = [
+    ["limits with a numeric ISO", { iso: 400, autoIso: { limits: { maximum: 3200 } } }],
+    ["a maximum above the body's Auto ISO maximum", { iso: "auto", autoIso: { limits: { maximum: 51200 } } }],
+    ["a maximum below the body's Auto ISO minimum", { iso: "auto", autoIso: { limits: { maximum: 50 } } }],
+    ["a maximum off the ISO grid", { iso: "auto", autoIso: { limits: { maximum: 5000 } } }],
+    ["a minimum above the maximum", { iso: "auto", autoIso: { limits: { maximum: 800, minimum: 1600 } } }],
+    ["a missing maximum", { iso: "auto", autoIso: { limits: { minimum: 200 } as never } }],
+    ["a NaN maximum", { iso: "auto", autoIso: { limits: { maximum: NaN } } }],
+    ["an unknown limits key", { iso: "auto", autoIso: { limits: { maximum: 800, flash: 400 } as never } }],
+    ["limits that are not an object", { iso: "auto", autoIso: { limits: 800 as never } }],
+    ["afterMaximumIso outside aperture priority", { mode: "program", iso: "auto", autoIso: { afterMaximumIso: "hold-preferred-shutter", limits: { maximum: 800 } } }]
+  ];
+  for (const [name, exposure] of bad) it(name + " fails with a domain error", async () => {
+    await expect(simulateCapture({ ...small, exposure })).rejects.toThrow(InvalidConfigurationError);
+    await expect(prepareDisplayView({ ...small, exposure })).rejects.toThrow(InvalidConfigurationError);
+  });
+});

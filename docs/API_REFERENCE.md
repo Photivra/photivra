@@ -941,6 +941,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`AperturePriorityAutoIsoPolicy`](api/exposure-exposure-mode-resolver.md#aperturepriorityautoisopolicy) | Type |
 | [`AperturePriorityExposureModeResolution`](api/exposure-exposure-mode-resolver.md#aperturepriorityexposuremoderesolution) | Type |
 | [`AutoIsoBaselinePolicy`](api/exposure-exposure-mode-resolver.md#autoisobaselinepolicy) | Type |
+| [`AutoIsoLimits`](api/exposure-exposure-mode-resolver.md#autoisolimits) | Type |
 | [`EXPOSURE_MODE_RESOLVER_VERSION`](api/exposure-exposure-mode-resolver.md#exposure_mode_resolver_version) | Runtime |
 | [`ExposureResolutionConstraint`](api/exposure-exposure-mode-resolver.md#exposureresolutionconstraint) | Type |
 | [`ExposureTargetResidual`](api/exposure-exposure-mode-resolver.md#exposuretargetresidual) | Type |

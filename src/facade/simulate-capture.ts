@@ -44,7 +44,7 @@ import { resolveGenericIsoSignalChain } from "../sensor/iso-signal-chain.js";
 import { meterRelativeExposure } from "../exposure/metering.js";
 import { createExposureMeterTargetFromMeteringResult, setExposureCompensationOnMeterTarget } from "../exposure/metering-target.js";
 import { resolveManualExposureMode, resolveAperturePriorityExposureMode, resolveAperturePriorityAutoIsoExposureMode, resolveShutterPriorityExposureMode,
-  resolveProgramAutoExposureMode, type AutoIsoBaselinePolicy, type ExposureResolutionConstraint } from "../exposure/exposure-mode-resolver.js";
+  resolveProgramAutoExposureMode, type AutoIsoBaselinePolicy, type AutoIsoLimits, type ExposureResolutionConstraint } from "../exposure/exposure-mode-resolver.js";
 import { parseExposureProgramLineProfile, type ExposureProgramLineProfile } from "../exposure/program-line.js";
 import { resolveCaptureGeometry } from "../output/capture-geometry.js";
 import { estimateCie1931ColorMatchingFunctions, type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
@@ -126,15 +126,24 @@ export type SimulateCaptureAutoIsoAfterMaximum = "allow-slower-shutter" | "hold-
 export interface SimulateCaptureAutoIsoReport {
   /** The ISO the meter target asked for at the resolved aperture and shutter, before the Auto ISO range and the ISO grid. */
   idealIsoBeforeConstraints: number;
-  /** The Auto ISO range the ISO was chosen in: the body's Auto ISO bounds, or its ISO range when it declares none (the tiers: ISO 100 to their maximum). */
+  /**
+   * The body's Auto ISO range: its Auto ISO bounds, or its ISO range when it declares none (the tiers: ISO 100 to their
+   * maximum). Without `limits` the ISO was chosen in this range.
+   */
   autoIsoMinimum: number;
   autoIsoMaximum: number;
+  /**
+   * #505: present only with `exposure.autoIso.limits`: the photographer's Auto ISO range the ISO was chosen in, inside the
+   * body's (`minimum` is the body's Auto ISO minimum when the option omits it).
+   */
+  limits?: { minimum: number; maximum: number };
   /** Whether the ISO was held at an end of the Auto ISO range. */
   clamped: false | "minimum" | "maximum";
   /**
    * The constraint that limited the resolved exposure: the resolver's `targetResidual.limitingConstraint`, for example
-   * `"iso-maximum"` (the exposure stays under target at the Auto ISO maximum), `"iso-grid-quantization"` (the nearest
-   * selectable ISO) or `"none"` (on target).
+   * `"iso-maximum"` (the exposure stays under target at the body's Auto ISO maximum), `"user-iso-maximum"` (#505: at the
+   * photographer's `limits.maximum`, below the body's), `"iso-grid-quantization"` (the nearest selectable ISO) or `"none"`
+   * (on target).
    */
   limitingConstraint: ExposureResolutionConstraint;
   /** The resolver's residual, log2(target / achieved exposure), in stops: positive when the exposure is under the meter target, negative when over it. */
@@ -280,11 +289,19 @@ export interface SimulateCaptureOptions {
      */
     iso?: number | "auto";
     /**
-     * #516: aperture priority with `iso: "auto"` only (required there). The shutter gets as long as
-     * `slowestPreferredShutterSeconds` (seconds, within the body's shutter range) at the lowest Auto ISO; beyond it the ISO
-     * rises; at the Auto ISO maximum `afterMaximumIso` decides (default `"allow-slower-shutter"`).
+     * Auto ISO settings, with `iso: "auto"` only.
+     *
+     * - `slowestPreferredShutterSeconds` and `afterMaximumIso` (#516): aperture priority only, where the slowest shutter is
+     *   required. The shutter gets as long as `slowestPreferredShutterSeconds` (seconds, within the body's shutter range)
+     *   at the lowest Auto ISO; beyond it the ISO rises; at the Auto ISO maximum `afterMaximumIso` decides (default
+     *   `"allow-slower-shutter"`).
+     * - `limits` (#505): every mode. The photographer's Auto ISO range `{ maximum, minimum? }`, a choice kept apart from
+     *   the body's Auto ISO capability: both are selectable ISOs inside the body's Auto ISO range, `minimum` at most
+     *   `maximum` (default: the body's minimum). Outside the body's range or off its ISO grid the request fails; the
+     *   engine never clips a limit. When the ISO stops at a limit strictly inside the body's range, the report's
+     *   `limitingConstraint` is `"user-iso-maximum"` or `"user-iso-minimum"`.
      */
-    autoIso?: { slowestPreferredShutterSeconds: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum };
+    autoIso?: { slowestPreferredShutterSeconds?: number; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
@@ -868,7 +885,8 @@ export function bilinearPhaseProfiles(): RawFrameReconstructionPhaseProfile[] {
  * `idealIsoBeforeConstraints`, `isoResolution` and a resolved `targetResidual`; aperture priority adds its fallback flag).
  */
 function autoIsoReport(resolution: unknown, iso: ResolvedGenericEquipmentExposureCapabilities["iso"],
-  aperturePriority: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined): SimulateCaptureAutoIsoReport {
+  aperturePriority: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined,
+  limits: { minimum: number; maximum: number } | undefined): SimulateCaptureAutoIsoReport {
   const r = resolution as { idealIsoBeforeConstraints?: unknown; isoResolution?: { clamped?: unknown }; afterMaximumIsoFallbackUsed?: unknown;
     targetResidual?: { status?: unknown; limitingConstraint?: unknown; residualStops?: unknown } };
   const ideal = r.idealIsoBeforeConstraints, residual = r.targetResidual?.residualStops, clamped = r.isoResolution?.clamped;
@@ -877,8 +895,29 @@ function autoIsoReport(resolution: unknown, iso: ResolvedGenericEquipmentExposur
     throw new InvalidScientificResultError("Auto ISO resolution did not report a finite ideal ISO and residual.");
   // The resolvers' Auto ISO range: the body's Auto ISO bounds, else its ISO range.
   return { idealIsoBeforeConstraints: ideal, autoIsoMinimum: iso.autoIsoMinimum ?? iso.minimum, autoIsoMaximum: iso.autoIsoMaximum ?? iso.maximum, clamped,
-    limitingConstraint: r.targetResidual.limitingConstraint as ExposureResolutionConstraint, residualStops: residual,
+    ...(limits ? { limits: { ...limits } } : {}), limitingConstraint: r.targetResidual.limitingConstraint as ExposureResolutionConstraint, residualStops: residual,
     ...(aperturePriority ? { ...aperturePriority, afterMaximumIsoFallbackUsed: r.afterMaximumIsoFallbackUsed === true } : {}) };
+}
+/**
+ * #505: `exposure.autoIso.limits`, the photographer's Auto ISO range. Both limits are selectable ISOs inside the body's
+ * Auto ISO range, `minimum` at most `maximum`; anything else fails (the resolvers check the same, but an option defect
+ * is a configuration error here). `minimum` defaults to the body's Auto ISO minimum.
+ */
+function parseAutoIsoLimitsOption(value: unknown, iso: ResolvedGenericEquipmentExposureCapabilities["iso"]): { minimum: number; maximum: number } {
+  const record = allowKeys(value, "exposure.autoIso.limits", ["maximum", "minimum"]);
+  if (record.maximum === undefined) fail("exposure.autoIso.limits.maximum is required: the highest ISO Auto ISO may choose.");
+  const bodyMinimum = iso.autoIsoMinimum ?? iso.minimum, bodyMaximum = iso.autoIsoMaximum ?? iso.maximum;
+  const limit = (field: "maximum" | "minimum"): number => {
+    const v = positive(record[field], "exposure.autoIso.limits." + field);
+    if (v < bodyMinimum || v > bodyMaximum)
+      fail("exposure.autoIso.limits." + field + " (ISO " + v + ") must be within the body's Auto ISO range, ISO " + bodyMinimum + " to " + bodyMaximum + ".");
+    if (iso.settingGrid.kind === "discrete-values" && !iso.settingGrid.values.includes(v))
+      fail("exposure.autoIso.limits." + field + " (ISO " + v + ") must be a selectable ISO of the body: " + iso.settingGrid.values.join(", ") + ".");
+    return v;
+  };
+  const maximum = limit("maximum"), minimum = record.minimum === undefined ? bodyMinimum : limit("minimum");
+  if (minimum > maximum) fail("exposure.autoIso.limits.minimum (ISO " + minimum + ") must not exceed exposure.autoIso.limits.maximum (ISO " + maximum + ").");
+  return { minimum, maximum };
 }
 function defaultProgramLine(): ExposureProgramLineProfile {
   // Generic educational program line written for the engine, relative to the f/8, 1/125 s reference. For less light
@@ -1722,8 +1761,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const automaticIso = isoOption === "auto";
   if (typeof isoOption === "string" && !automaticIso) fail('exposure.iso must be a positive finite number or "auto".');
   const iso = automaticIso ? NaN : positive(isoOption, "exposure.iso");
-  if (exposureOptions.autoIso !== undefined && !(automaticIso && mode === "aperture-priority"))
-    fail('exposure.autoIso applies only to exposure.mode "aperture-priority" with exposure.iso "auto"; omit it.');
+  if (exposureOptions.autoIso !== undefined && !automaticIso) fail('exposure.autoIso applies only with exposure.iso "auto"; omit it.');
   const compensation = exposureOptions.compensationStops === undefined ? DEFAULTS.compensationStops : exposureOptions.compensationStops;
   if (typeof compensation !== "number" || !Number.isFinite(compensation) || Math.abs(compensation) > 10) fail("exposure.compensationStops must be within ±10.");
   if (exposureOptions.compensationStops === undefined) assume("exposure.compensationStops", "default", 0, "No exposure compensation.");
@@ -1768,15 +1806,23 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // #516: the resolvers' Auto ISO policies; their baseline is the lowest selectable ISO in the body's Auto ISO range.
   const autoIsoBaseline: AutoIsoBaselinePolicy = { isoBaseline: "minimum-selectable", isoQuantizationPolicy: "nearest-log2-lower-on-tie" };
   let autoIsoAperturePriority: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined;
+  // #505: the photographer's Auto ISO limits, validated against the body's Auto ISO range; absent unless given.
+  let autoIsoOptions: Record<string, unknown> = {};
+  let autoIsoLimits: { minimum: number; maximum: number } | undefined;
   if (automaticIso) {
     if (capabilities.iso.autoIsoAvailability !== "supported")
       fail('exposure.iso "auto" needs a body with Auto ISO; this camera\'s Auto ISO is ' + capabilities.iso.autoIsoAvailability + ".");
-    assume("exposure.autoIso", "model", { minimum: capabilities.iso.autoIsoMinimum ?? capabilities.iso.minimum, maximum: capabilities.iso.autoIsoMaximum ?? capabilities.iso.maximum, ...autoIsoBaseline },
+    autoIsoOptions = allowKeys(exposureOptions.autoIso, "exposure.autoIso", ["slowestPreferredShutterSeconds", "afterMaximumIso", "limits"]);
+    if (mode !== "aperture-priority") for (const key of ["slowestPreferredShutterSeconds", "afterMaximumIso"])
+      if (autoIsoOptions[key] !== undefined) fail("exposure.autoIso." + key + ' applies only to exposure.mode "aperture-priority"; omit it.');
+    if (autoIsoOptions.limits !== undefined) autoIsoLimits = parseAutoIsoLimitsOption(autoIsoOptions.limits, capabilities.iso);
+    assume("exposure.autoIso", "model", { minimum: capabilities.iso.autoIsoMinimum ?? capabilities.iso.minimum, maximum: capabilities.iso.autoIsoMaximum ?? capabilities.iso.maximum,
+      ...(autoIsoLimits ? { limits: { ...autoIsoLimits } } : {}), ...autoIsoBaseline },
       "Auto ISO: the engine's exposure-mode resolver chooses the ISO from the meter target, starting from the lowest selectable ISO in the body's Auto ISO range and " +
-      "snapping to the nearest selectable ISO in log2 (the lower on a tie), held at the range's ends. A generic policy, not a manufacturer's Auto ISO.");
+      "snapping to the nearest selectable ISO in log2 (the lower on a tie), held at the range's ends. A generic policy, not a manufacturer's Auto ISO." +
+      (autoIsoLimits ? " The photographer's limits (exposure.autoIso.limits, #505) narrow that range to ISO " + autoIsoLimits.minimum + " to " + autoIsoLimits.maximum + "." : ""));
   }
   if (automaticIso && mode === "aperture-priority") {
-    const autoIsoOptions = allowKeys(exposureOptions.autoIso, "exposure.autoIso", ["slowestPreferredShutterSeconds", "afterMaximumIso"]);
     if (autoIsoOptions.slowestPreferredShutterSeconds === undefined)
       fail('exposure.autoIso.slowestPreferredShutterSeconds is required with exposure.mode "aperture-priority" and exposure.iso "auto": the slowest shutter, in seconds, before Auto ISO raises the ISO.');
     const slowestPreferredShutterSeconds = positive(autoIsoOptions.slowestPreferredShutterSeconds, "exposure.autoIso.slowestPreferredShutterSeconds");
@@ -1788,30 +1834,31 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
       fail('exposure.autoIso.afterMaximumIso must be "allow-slower-shutter" or "hold-preferred-shutter".');
     autoIsoAperturePriority = { slowestPreferredShutterSeconds, afterMaximumIso };
   }
+  const limitsPolicy = autoIsoLimits ? { autoIsoLimits: { ...autoIsoLimits } } : {};
   if (mode === "manual") {
     resolution = resolveManualExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber, manualShutterSeconds: shutterSeconds,
-      isoControl: automaticIso ? { kind: "automatic", quantizationPolicy: autoIsoBaseline.isoQuantizationPolicy } : { kind: "manual", iso } });
+      isoControl: automaticIso ? { kind: "automatic", quantizationPolicy: autoIsoBaseline.isoQuantizationPolicy, ...limitsPolicy } : { kind: "manual", iso } });
   } else if (autoIsoAperturePriority) {
     resolution = resolveAperturePriorityAutoIsoExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber,
-      policy: { kind: "minimum-iso-until-slowest-preferred-shutter", ...autoIsoBaseline, shutterSelectionPolicy: "not-longer-than-target", ...autoIsoAperturePriority } });
+      policy: { kind: "minimum-iso-until-slowest-preferred-shutter", ...autoIsoBaseline, shutterSelectionPolicy: "not-longer-than-target", ...autoIsoAperturePriority, ...limitsPolicy } });
   } else if (mode === "aperture-priority") {
     resolution = resolveAperturePriorityExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber, manualIso: iso,
       shutterQuantizationPolicy: "nearest-log2-shorter-on-tie" });
   } else if (mode === "shutter-priority") {
     resolution = resolveShutterPriorityExposureMode({ target, capabilities, referenceExposure: reference, manualShutterSeconds: shutterSeconds,
-      isoControl: automaticIso ? { kind: "automatic", policy: { kind: "minimum-iso-aperture-first", apertureSelectionPolicy: "not-wider-than-target", ...autoIsoBaseline } } :
+      isoControl: automaticIso ? { kind: "automatic", policy: { kind: "minimum-iso-aperture-first", apertureSelectionPolicy: "not-wider-than-target", ...autoIsoBaseline, ...limitsPolicy } } :
         { kind: "manual", iso, apertureQuantizationPolicy: "nearest-log2-narrower-on-tie" } });
   } else {
     assume("exposure.programLine", "model", "facade-generic-program-line", "Engine-authored generic program line (f/16 1/2000 s … f/8 1/125 s … f/4 1.024 s); not a manufacturer program.");
     resolution = resolveProgramAutoExposureMode({ target, capabilities, referenceExposure: reference, programLine: defaultProgramLine(),
-      isoControl: automaticIso ? { kind: "automatic", ...autoIsoBaseline } : { kind: "manual", iso } });
+      isoControl: automaticIso ? { kind: "automatic", ...autoIsoBaseline, ...limitsPolicy } : { kind: "manual", iso } });
   }
   if (resolution.status !== "resolved" || !resolution.resolvedSettings) fail("Exposure could not be resolved (" + resolution.status + "); the scene may have no signal.");
   fNumber = resolution.resolvedSettings.aperture ?? fNumber;
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
   if (!Number.isFinite(resolvedIso) || resolvedIso <= 0) fail("Exposure could not be resolved: the resolved ISO is not a positive finite number.");
-  const isoReport = automaticIso ? { isoControl: "automatic" as const, autoIso: autoIsoReport(resolution, capabilities.iso, autoIsoAperturePriority) } : { isoControl: "manual" as const };
+  const isoReport = automaticIso ? { isoControl: "automatic" as const, autoIso: autoIsoReport(resolution, capabilities.iso, autoIsoAperturePriority, autoIsoLimits) } : { isoControl: "manual" as const };
   const exposureDeviationStops = standardExposureDeviationStops(fNumber, shutterSeconds, resolvedIso, meteredLuminance);
   const defocusDisc = defocusModel === undefined ? undefined :
     resolveDefocusOption({ run, assume, focalLengthMm, fNumber, focusDistanceM, subjectDistanceM, pitch, diffraction: diffractionRadiusOption !== undefined });

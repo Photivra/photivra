@@ -174,7 +174,7 @@
   },
   {
     "file": "docs/USAGE.md",
-    "block": 73,
+    "block": 72,
     "bindings": [
       "capabilities",
       "target"
@@ -182,28 +182,36 @@
   },
   {
     "file": "docs/USAGE.md",
-    "block": 101,
+    "block": 74,
     "bindings": [
-      "spectralResponseProfile"
+      "capabilities",
+      "target"
     ]
   },
   {
     "file": "docs/USAGE.md",
     "block": 102,
     "bindings": [
-      "illumination"
+      "spectralResponseProfile"
     ]
   },
   {
     "file": "docs/USAGE.md",
     "block": 103,
     "bindings": [
-      "illuminationProfile"
+      "illumination"
     ]
   },
   {
     "file": "docs/USAGE.md",
     "block": 104,
+    "bindings": [
+      "illuminationProfile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 105,
     "bindings": [
       "cameraJson",
       "sceneJson"

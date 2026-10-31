@@ -198,6 +198,11 @@
       "kind": "type"
     },
     {
+      "name": "AutoIsoLimits",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
       "name": "AxisSamplingPitchMicrometers",
       "source": "src/motion/camera-rotation.ts",
       "kind": "type"

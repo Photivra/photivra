@@ -1,0 +1,216 @@
+// SPDX-License-Identifier: Apache-2.0
+/*
+ * #505: photographer-set Auto ISO limits (`autoIsoLimits: { maximum, minimum? }`) on every Auto ISO resolver, kept
+ * separate from the body's Auto ISO capability. A limit strictly inside the body's range that holds the ISO is reported
+ * as `user-iso-maximum` / `user-iso-minimum`; a limit outside the body's range or off its ISO grid fails.
+ *
+ * Exposure H ∝ t·S/N² (reciprocity), so at the reference f/4, 1/125 s, ISO 100 a target k times the reference exposure
+ * needs ISO 100·k at f/4, 1/125 s; every expected ISO below follows from that.
+ */
+import { describe, expect, it } from "vitest";
+
+import {
+  createExposureMeterTargetFromMeteringResult, InvalidConfigurationError, InvalidScientificInputError, meterRelativeExposure,
+  parseExposureMeteringProfile, parseExposureProgramLineProfile, parseGenericBodyExposureCapabilityProfile, parseGenericLensExposureCapabilityProfile,
+  resolveAperturePriorityAutoIsoExposureMode, resolveCaptureGeometry, resolveFullAutoExposureMode, resolveGenericEquipmentExposureCapabilities,
+  resolveManualExposureMode, resolveProgramAutoExposureMode, resolveShutterPriorityExposureMode, type AutoIsoLimits, type ExposureMeterTarget, type ExposureProgramLineProfile,
+  type ResolvedGenericEquipmentExposureCapabilities
+} from "../src/index.js";
+
+const evidence = (ref: string) => [{ sourceOrigin: "photivra" as const, sourceReference: ref, reuseStatus: "photivra-owned" as const }] as const;
+
+const capabilities = (options: { isoValues?: readonly number[]; isoGrid?: "continuous"; bodyAuto?: { minimum: number; maximum: number } } = {}):
+  ResolvedGenericEquipmentExposureCapabilities => {
+  const isoValues = options.isoValues ?? [100, 200, 400, 800, 1600, 3200, 6400, 12800];
+  const body = parseGenericBodyExposureCapabilityProfile({ schemaVersion: "0.1.0", profileId: "body", profileVersion: "1.0.0", scientificStatus: "approximation",
+    evidence: evidence("body"),
+    shutter: { durationSecondsRange: { value: { minimum: 1 / 8000, maximum: 30 }, evidence: evidence("shutter") }, settingGrid: { kind: "continuous-within-range" } },
+    iso: { range: { value: { minimum: 100, maximum: isoValues[isoValues.length - 1]! }, evidence: evidence("iso") },
+      settingGrid: options.isoGrid === "continuous" ? { kind: "continuous-within-range" } : { kind: "discrete-values", values: { value: isoValues, evidence: evidence("iso-grid") } },
+      autoIso: { value: "supported", evidence: evidence("auto") } } });
+  const lens = parseGenericLensExposureCapabilityProfile({ schemaVersion: "0.1.0", profileId: "lens", profileVersion: "1.0.0", scientificStatus: "approximation",
+    evidence: evidence("lens"), focalLengthMmRange: { value: { minimum: 50, maximum: 50 }, evidence: evidence("focal") },
+    aperture: { widestAvailableFNumber: { kind: "constant", fNumber: { value: 1.8, evidence: evidence("wide") } }, narrowestAvailableFNumber: { value: 16, evidence: evidence("narrow") },
+      settingGrid: { kind: "continuous-within-range" } } });
+  const resolved = resolveGenericEquipmentExposureCapabilities({ bodyProfile: body, lensProfile: lens, selectedFocalLengthMm: 50 });
+  return options.bodyAuto ? { ...resolved, iso: { ...resolved.iso, autoIsoMinimum: options.bodyAuto.minimum, autoIsoMaximum: options.bodyAuto.maximum } } : resolved;
+};
+
+const targetForScale = (scale: number): ExposureMeterTarget => {
+  const profile = parseExposureMeteringProfile({ schemaVersion: "0.1.0", profileId: "meter", scientificStatus: "approximation",
+    inputDomain: "relative-pre-exposure-linear-signal", captureRegion: "oriented-active-capture", policy: { kind: "multi-zone-uniform" },
+    target: { kind: "relative-signal-reference", targetRelativeSignal: 1, evidence: evidence("target") }, evidence: evidence("meter"), limitations: ["test"] });
+  const meter = meterRelativeExposure({ profile, sampleSet: { measurementId: "m", sceneStateId: "s", inputDomain: "relative-pre-exposure-linear-signal",
+    captureRegion: "oriented-active-capture",
+    captureGeometry: resolveCaptureGeometry({ imagingArea: { widthMm: 36, heightMm: 24 }, nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 }, orientation: "landscape" }).value,
+    processingState: { exposureSettingsApplied: false, whiteBalanceApplied: false, toneMappingApplied: false, displayGammaApplied: false, sharpeningApplied: false },
+    samples: [{ sampleId: "z", positionOrientedCaptureUv: { u: 0.5, v: 0.5 }, relativeLinearSignal: 1 / scale, areaWeight: 1 }] } }).value;
+  return createExposureMeterTargetFromMeteringResult({ targetId: "target", meterResult: meter });
+};
+
+// The program line ends at f/4, 4/125 s: 2 stops more light than the reference; Auto ISO makes up the rest.
+const programLine = (): ExposureProgramLineProfile => parseExposureProgramLineProfile({ schemaVersion: "0.1.0", profileId: "line", profileVersion: "1.0.0", scientificStatus: "approximation",
+  policyKind: "generic-program-line", interpolation: "log2-aperture-shutter", evidence: evidence("line"), limitations: ["Generic test line."],
+  nodes: [{ nodeId: "a", opticalExposureStopsFromReference: -2, aperture: 8, shutterSeconds: 1 / 125 },
+    { nodeId: "b", opticalExposureStopsFromReference: 0, aperture: 4, shutterSeconds: 1 / 125 },
+    { nodeId: "c", opticalExposureStopsFromReference: 2, aperture: 4, shutterSeconds: 4 / 125 }] });
+
+const referenceExposure = { aperture: 4, shutterSeconds: 1 / 125, iso: 100 };
+const baseline = { isoBaseline: "minimum-selectable" as const, isoQuantizationPolicy: "nearest-log2-lower-on-tie" as const };
+const limitsField = (autoIsoLimits?: AutoIsoLimits): { autoIsoLimits?: AutoIsoLimits } => (autoIsoLimits === undefined ? {} : { autoIsoLimits });
+
+type Resolved = { status: string; baselineIso?: number; resolvedSettings: { aperture: number; shutterSeconds: number; iso: number };
+  isoResolution: { clamped: false | "minimum" | "maximum" }; afterMaximumIsoFallbackUsed?: boolean;
+  targetResidual: { state: string; residualStops: number; limitingConstraint: string } };
+const resolved = (r: unknown): Resolved => {
+  expect((r as Resolved).status).toBe("resolved");
+  return r as Resolved;
+};
+
+// The five Auto ISO entry points, each with optional limits.
+type Caps = ResolvedGenericEquipmentExposureCapabilities;
+const resolvers: Record<string, (target: ExposureMeterTarget, caps: Caps, limits?: AutoIsoLimits) => unknown> = {
+  manual: (target, caps, limits) => resolveManualExposureMode({ target, capabilities: caps, referenceExposure, manualAperture: 4, manualShutterSeconds: 1 / 125,
+    isoControl: { kind: "automatic", quantizationPolicy: "nearest-log2-lower-on-tie", ...limitsField(limits) } }),
+  "aperture priority": (target, caps, limits) => resolveAperturePriorityAutoIsoExposureMode({ target, capabilities: caps, referenceExposure, manualAperture: 4,
+    policy: { kind: "minimum-iso-until-slowest-preferred-shutter", slowestPreferredShutterSeconds: 1 / 125, shutterSelectionPolicy: "not-longer-than-target",
+      afterMaximumIso: "hold-preferred-shutter", ...baseline, ...limitsField(limits) } }),
+  "shutter priority": (target, caps, limits) => resolveShutterPriorityExposureMode({ target, capabilities: caps, referenceExposure, manualShutterSeconds: 1 / 125,
+    isoControl: { kind: "automatic", policy: { kind: "minimum-iso-aperture-first", apertureSelectionPolicy: "not-wider-than-target", ...baseline, ...limitsField(limits) } } }),
+  program: (target, caps, limits) => resolveProgramAutoExposureMode({ target, capabilities: caps, referenceExposure, programLine: programLine(),
+    isoControl: { kind: "automatic", ...baseline, ...limitsField(limits) } }),
+  "full auto": (target, caps, limits) => resolveFullAutoExposureMode({ target, capabilities: caps, referenceExposure,
+    policy: { kind: "generic-program-line-minimum-iso", programLine: programLine(), ...baseline, ...limitsField(limits) } })
+};
+
+describe("the photographer's maximum stops Auto ISO and reports user-iso-maximum (#505)", () => {
+  // Ideal ISO with no limit: manual and aperture priority (f/4, 1/125 s) 100·64 = 6400; shutter priority opens to f/1.8,
+  // 100·64·(1.8/4)² = 1296 → 1600 on the grid; program and full auto use the line's +2 stops, 100·64/4 = 1600.
+  const unlimitedIso: Record<string, number> = { manual: 6400, "aperture priority": 6400, "shutter priority": 1600, program: 1600, "full auto": 1600 };
+  for (const [name, resolve] of Object.entries(resolvers)) it(name, () => {
+    const free = resolved(resolve(targetForScale(64), capabilities()));
+    expect(free.resolvedSettings.iso).toBe(unlimitedIso[name]);
+    const capped = resolved(resolve(targetForScale(64), capabilities(), { maximum: 800 }));
+    expect(capped.resolvedSettings.iso).toBe(800);
+    expect(capped.isoResolution.clamped).toBe("maximum");
+    expect(capped.targetResidual).toMatchObject({ state: "under-target", limitingConstraint: "user-iso-maximum" });
+    // The same aperture and shutter, so the residual is the ISO ratio exactly (shutter priority: its 1296 → 800).
+    const ideal = name === "shutter priority" ? 1296 : unlimitedIso[name]!;
+    expect(capped.targetResidual.residualStops).toBeCloseTo(Math.log2(ideal / 800), 9);
+    expect(capped.resolvedSettings.aperture).toBe(free.resolvedSettings.aperture);
+    expect(capped.resolvedSettings.shutterSeconds).toBe(free.resolvedSettings.shutterSeconds);
+  });
+  it("a maximum equal to the body's reports the body's iso-maximum and changes nothing", () => {
+    for (const resolve of Object.values(resolvers)) {
+      const atBody = resolved(resolve(targetForScale(1e4), capabilities(), { maximum: 12800 }));
+      const free = resolved(resolve(targetForScale(1e4), capabilities()));
+      expect(atBody.targetResidual.limitingConstraint).toBe("iso-maximum");
+      expect(atBody.resolvedSettings).toEqual(free.resolvedSettings);
+      expect(atBody.targetResidual).toEqual(free.targetResidual);
+    }
+  });
+  it("below the cap the ISO is unchanged", () => {
+    for (const resolve of Object.values(resolvers)) {
+      const free = resolved(resolve(targetForScale(4), capabilities())), capped = resolved(resolve(targetForScale(4), capabilities(), { maximum: 3200 }));
+      expect(capped.resolvedSettings).toEqual(free.resolvedSettings);
+      expect(capped.targetResidual).toEqual(free.targetResidual);
+    }
+  });
+  it("a continuous ISO grid stops at any maximum inside the body's range", () => {
+    const r = resolved(resolvers.manual!(targetForScale(64), capabilities({ isoGrid: "continuous" }), { maximum: 1000 }));
+    expect(r.resolvedSettings.iso).toBe(1000);
+    expect(r.targetResidual.limitingConstraint).toBe("user-iso-maximum");
+    expect(r.targetResidual.residualStops).toBeCloseTo(Math.log2(6.4), 12);
+  });
+});
+
+describe("the photographer's minimum raises the Auto ISO baseline and reports user-iso-minimum (#505)", () => {
+  it("manual: a bright scene holds at the user's minimum", () => {
+    const free = resolved(resolvers.manual!(targetForScale(1 / 4), capabilities()));
+    expect(free.targetResidual.limitingConstraint).toBe("iso-minimum");
+    const floored = resolved(resolvers.manual!(targetForScale(1 / 4), capabilities(), { maximum: 6400, minimum: 400 }));
+    expect(floored.resolvedSettings.iso).toBe(400);
+    expect(floored.isoResolution.clamped).toBe("minimum");
+    expect(floored.targetResidual).toMatchObject({ state: "over-target", limitingConstraint: "user-iso-minimum" });
+    expect(floored.targetResidual.residualStops).toBeCloseTo(Math.log2(25 / 400), 9);
+  });
+  it("every priority and program resolver starts from the user's minimum", () => {
+    for (const [name, resolve] of Object.entries(resolvers)) {
+      if (name === "manual") continue;
+      const r = resolved(resolve(targetForScale(1), capabilities(), { maximum: 6400, minimum: 400 }));
+      expect(r.baselineIso).toBe(400);
+      expect(r.resolvedSettings.iso).toBeGreaterThanOrEqual(400);
+    }
+  });
+  it("a minimum equal to the body's reports the body's iso-minimum", () => {
+    const r = resolved(resolvers.manual!(targetForScale(1 / 4), capabilities({ bodyAuto: { minimum: 200, maximum: 6400 } }), { maximum: 3200, minimum: 200 }));
+    expect(r.resolvedSettings.iso).toBe(200);
+    expect(r.targetResidual.limitingConstraint).toBe("iso-minimum");
+  });
+});
+
+describe("aperture priority treats the user's cap like the body's cap (#505)", () => {
+  // Body capped at 800 by capability versus a 12800 body capped at 800 by the photographer.
+  const bodyCap = capabilities({ isoValues: [100, 200, 400, 800] }), wideBody = capabilities();
+  const ap = (caps: Caps, afterMaximumIso: "allow-slower-shutter" | "hold-preferred-shutter", autoIsoLimits?: AutoIsoLimits): Resolved =>
+    resolved(resolveAperturePriorityAutoIsoExposureMode({ target: targetForScale(100), capabilities: caps, referenceExposure, manualAperture: 4,
+      policy: { kind: "minimum-iso-until-slowest-preferred-shutter", slowestPreferredShutterSeconds: 1 / 60, shutterSelectionPolicy: "not-longer-than-target",
+        afterMaximumIso, ...baseline, ...limitsField(autoIsoLimits) } }));
+  it("allow-slower-shutter lengthens the shutter past the preferred one in the same way", () => {
+    const byBody = ap(bodyCap, "allow-slower-shutter"), byUser = ap(wideBody, "allow-slower-shutter", { maximum: 800 });
+    expect(byUser.resolvedSettings).toEqual(byBody.resolvedSettings);
+    expect(byUser.resolvedSettings.iso).toBe(800);
+    expect(byUser.resolvedSettings.shutterSeconds).toBeCloseTo(1 / 1.25 / 8, 12);
+    expect(byUser.afterMaximumIsoFallbackUsed).toBe(true);
+    expect(byBody.afterMaximumIsoFallbackUsed).toBe(true);
+    expect(byUser.targetResidual).toEqual(byBody.targetResidual);
+  });
+  it("hold-preferred-shutter keeps the preferred shutter and leaves the same residual", () => {
+    const byBody = ap(bodyCap, "hold-preferred-shutter"), byUser = ap(wideBody, "hold-preferred-shutter", { maximum: 800 });
+    expect(byUser.resolvedSettings).toEqual(byBody.resolvedSettings);
+    expect(byUser.resolvedSettings.shutterSeconds).toBeCloseTo(1 / 60, 12);
+    expect(byUser.afterMaximumIsoFallbackUsed).toBe(false);
+    expect(byUser.targetResidual.residualStops).toBeCloseTo(byBody.targetResidual.residualStops, 12);
+    expect(byBody.targetResidual.limitingConstraint).toBe("iso-maximum");
+    expect(byUser.targetResidual.limitingConstraint).toBe("user-iso-maximum");
+  });
+});
+
+describe("absent limits change nothing (#505)", () => {
+  it("each resolver's result equals that with limits equal to the body's range, apart from the echoed policy", () => {
+    for (const scale of [1 / 8, 1, 64, 1e5]) for (const resolve of Object.values(resolvers)) {
+      const free = resolve(targetForScale(scale), capabilities()) as Record<string, unknown>;
+      const same = resolve(targetForScale(scale), capabilities(), { maximum: 12800, minimum: 100 }) as Record<string, unknown>;
+      const withoutPolicy = (r: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(r).filter(([key]) => key !== "policy"));
+      expect(withoutPolicy(same)).toEqual(withoutPolicy(free));
+    }
+  });
+});
+
+describe("limits outside the body's Auto ISO range or off its grid fail (#505)", () => {
+  const body = capabilities({ bodyAuto: { minimum: 200, maximum: 6400 } });
+  const scientific: [string, AutoIsoLimits][] = [
+    ["a maximum above the body's Auto ISO maximum", { maximum: 12800 }],
+    ["a maximum below the body's Auto ISO minimum", { maximum: 100 }],
+    ["a minimum below the body's Auto ISO minimum", { maximum: 3200, minimum: 100 }],
+    ["a minimum above the maximum", { maximum: 800, minimum: 1600 }],
+    ["a maximum off the discrete ISO grid", { maximum: 1000 }],
+    ["a NaN maximum", { maximum: NaN }],
+    ["an infinite maximum", { maximum: Infinity }],
+    ["a zero minimum", { maximum: 800, minimum: 0 }],
+    ["a missing maximum", {} as AutoIsoLimits]
+  ];
+  const configuration: [string, unknown][] = [["a non-object", 800], ["null", null], ["an array", [800]], ["an unknown field", { maximum: 800, flashMaximum: 400 }]];
+  for (const [name, resolve] of Object.entries(resolvers)) {
+    it(name + ": out-of-range or off-grid numbers fail with InvalidScientificInputError", () => {
+      for (const [, limits] of scientific) expect(() => resolve(targetForScale(1), body, limits)).toThrow(InvalidScientificInputError);
+    });
+    it(name + ": a malformed record fails with InvalidConfigurationError", () => {
+      for (const [, limits] of configuration) expect(() => resolve(targetForScale(1), body, limits as AutoIsoLimits)).toThrow(InvalidConfigurationError);
+    });
+  }
+  it("the message names the field and the body's range", () => {
+    expect(() => resolvers.manual!(targetForScale(1), body, { maximum: 12800 })).toThrow(
+      "isoControl.autoIsoLimits.maximum (ISO 12800) lies outside the body's Auto ISO range, ISO 200 to 6400.");
+  });
+});

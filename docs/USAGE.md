@@ -5089,9 +5089,71 @@ The limiting constraint is reported as one of:
 - `none`;
 - `iso-minimum`;
 - `iso-maximum`;
+- `user-iso-minimum` and `user-iso-maximum` (#505, [photographer-set limits](#photographer-set-auto-iso-limits-505));
 - `iso-grid-quantization`.
 
 If Auto ISO capability is `unsupported` or `unknown`, the resolver returns a blocked result. Unknown is not treated as supported.
+
+### Photographer-set Auto ISO limits (#505)
+
+Cameras let the photographer cap Auto ISO, and some also raise its floor: the Nikon D850 has a maximum sensitivity
+([Auto ISO control](https://imaging.nikon.com/support/digitutor/d850/functions/autoisocontrol.html)), Fujifilm a default and a
+maximum sensitivity per preset ([ISO Auto setting](https://fujifilm-dsc.com/en/manual/x-pro2/menu_shooting/iso_auto_setting/index.html)),
+and Panasonic separate upper and lower Auto ISO limits
+([GH5 II manual](https://eww.pavc.panasonic.co.jp/dscoi/DC-GH5M2/html/DC-GH5M2_DVQP2464_eng/0062.html)). That is the
+photographer's choice, so the engine keeps it apart from what the body allows (`capabilities.iso.autoIsoMinimum` and
+`autoIsoMaximum`, or the ISO range when the body declares none).
+
+Every Auto ISO entry point takes an optional `autoIsoLimits: { maximum, minimum? }` (`AutoIsoLimits`):
+
+| Resolver | Where |
+| --- | --- |
+| `resolveManualExposureMode` | `isoControl.autoIsoLimits` (automatic ISO) |
+| `resolveAperturePriorityAutoIsoExposureMode` | `policy.autoIsoLimits` |
+| `resolveShutterPriorityExposureMode` | `isoControl.policy.autoIsoLimits` (automatic ISO) |
+| `resolveProgramAutoExposureMode` | `isoControl.autoIsoLimits` (automatic ISO) |
+| `resolveFullAutoExposureMode` | `policy.autoIsoLimits` |
+
+Composition fragment: requires previously validated bindings `capabilities`, `target`. This is an integration sketch, not a standalone runnable program.
+
+```ts
+import {
+  resolveManualExposureMode
+} from "@photivra/engine";
+
+const capped =
+  resolveManualExposureMode({
+    target,
+    capabilities,
+    referenceExposure: {
+      aperture: 4,
+      shutterSeconds: 1 / 125,
+      iso: 100
+    },
+    manualAperture: 4,
+    manualShutterSeconds: 1 / 125,
+    isoControl: {
+      kind: "automatic",
+      quantizationPolicy:
+        "nearest-log2-lower-on-tie",
+      autoIsoLimits: { maximum: 6400 }
+    }
+  });
+```
+
+The rules:
+
+- Both limits are ISO settings: inside the body's Auto ISO range and, on a discrete ISO grid, one of its values, with
+  `minimum` at most `maximum`. `minimum` defaults to the body's Auto ISO minimum. A limit outside the body's range or off
+  the grid fails with `InvalidScientificInputError`, and a malformed record (not an object, an unknown field) with
+  `InvalidConfigurationError`. The engine never clips a limit silently.
+- The ISO is chosen in the narrowed range, and the baseline of the priority, program and Full Auto policies (the lowest
+  selectable ISO) is the first selectable ISO at or above `minimum`.
+- When the ISO is held at a limit strictly inside the body's range, the limiting constraint is `user-iso-maximum` or
+  `user-iso-minimum`, with the residual to the target as usual. A limit equal to the body's bound adds nothing; the body's
+  `iso-maximum` or `iso-minimum` is reported.
+- Without `autoIsoLimits` every result is unchanged.
+- A separate, lower cap for flash is not part of this: it belongs with flash-aware exposure.
 
 A `no-signal` meter target also blocks Auto ISO, instead of selecting maximum ISO or infinity.
 
@@ -5257,6 +5319,12 @@ The policy is explicit:
 4. If ISO reaches its maximum while the target is still underexposed, the policy explicitly chooses either:
    - `allow-slower-shutter`; or
    - `hold-preferred-shutter` and return residual underexposure.
+
+With `policy.autoIsoLimits` ([photographer-set limits](#photographer-set-auto-iso-limits-505), #505) the maximum in step 4
+is the photographer's `maximum`, and both choices behave there exactly as at the body's maximum: the same settings and
+residual, with `user-iso-maximum` in place of `iso-maximum` when the policy holds the shutter. Shutter Priority
+(`isoControl.policy.autoIsoLimits`), Program Auto (`isoControl.autoIsoLimits`) and Full Auto (`policy.autoIsoLimits`) take
+the same limits.
 
 For discrete shutter grids, the shutter chosen before ISO is raised is never longer than the requested or preferred duration. Otherwise rounding to the grid could overexpose, and undoing that would need an ISO below the supported minimum.
 
@@ -7512,7 +7580,8 @@ The display view's `exposure` carries the same value.
 With `exposure.iso: "auto"` (#516) the ISO is chosen too, in every mode, by the resolvers' Auto ISO branches
 ([Priority modes with Auto ISO](#priority-modes-with-auto-iso)). Aperture priority then needs the slowest shutter
 before the ISO rises, and takes the policy at the maximum ISO; the result reports the ISO, that it was automatic and
-what limited it. See [Auto ISO](QUICK_START.md#auto-iso-516).
+what limited it. `exposure.autoIso.limits: { maximum, minimum? }` (#505) sets the photographer's Auto ISO range in any
+mode ([photographer-set limits](#photographer-set-auto-iso-limits-505)). See [Auto ISO](QUICK_START.md#auto-iso-516).
 
 ```ts
 import { prepareDisplayView, simulateCapture, type SimulateCaptureOptions } from "@photivra/engine";
