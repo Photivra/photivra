@@ -12,7 +12,7 @@ import { renderDisplayView } from "../src/facade/display-view.js";
 import { CorrectionStateStore, DISPLAY_VIEW_QUALITY_CONFORMANCE_CASE, DISPLAY_VIEW_QUALITY_DEFOCUS_CONFORMANCE_CASE, createDisplayViewGpuRenderer, displayViewQualityGpuSupports, displayViewQualityGpuUnsupportedReason,
   registerDisplayViewGpuRenderer } from "../src/gpu/display-view-quality-gpu.js";
 import { DISPLAY_VIEW_SPEED_CONFORMANCE_CASE } from "../src/gpu/display-view-speed-gpu.js";
-import { DISPLAY_VIEW_QUALITY_FLAG, DISPLAY_VIEW_QUALITY_LATTICE_WGSL, DISPLAY_VIEW_QUALITY_PIXELS_WGSL, DISPLAY_VIEW_QUALITY_SITES_WGSL, assembleDisplayViewQualityLatticeWgsl } from "../src/gpu/wgsl-display-view-quality-kernel.js";
+import { DISPLAY_VIEW_QUALITY_CHOICE_SIGMA, DISPLAY_VIEW_QUALITY_FLAG, DISPLAY_VIEW_QUALITY_LATTICE_WGSL, DISPLAY_VIEW_QUALITY_PIXELS_WGSL, DISPLAY_VIEW_QUALITY_SITES_WGSL, assembleDisplayViewQualityLatticeWgsl } from "../src/gpu/wgsl-display-view-quality-kernel.js";
 import { setDisplayViewGpuRendererFactory } from "../src/facade/display-view-gpu.js";
 import { chartPresetMaterialWgsl } from "../src/gpu/display-view-chart-material-module.js";
 import { prepareDisplayView, type SimulateCaptureOptions } from "../src/index.js";
@@ -103,6 +103,27 @@ describe("display view Quality kernels (float32 emulation) vs the CPU reference"
     let uncertain = 0;
     for (const i of raw.flaggedPixelIndices) if ((raw.pixelFlags[i]! & DISPLAY_VIEW_QUALITY_FLAG.materialUncertain) !== 0) uncertain++;
     expect(uncertain).toBeGreaterThan(0);
+    runtime.destroy();
+  }, scaledTimeout(600_000));
+
+  it("#457: where AHD's choice can move a pixel the kernel flags it (recompute) instead of keeping the candidates' average", async () => {
+    // The star's centre: the reference takes AHD's choice on the noise-free mosaic there, which the kernel does not compute.
+    const fixture = await displayViewGpuFixture(QUALITY_CASES[1]![1], { ...SMALL_VIEW, region: { x: 80, y: 50, width: 40, height: 30 } }), runtime = await runtimeOf(createFakeGpu().gpu);
+    const raw = await renderOnGpuQuality(runtime, fixture, undefined, false);
+    let choice = 0, moved = 0;
+    for (let i = 0; i < raw.pixelFlags.length; i++) {
+      if ((raw.pixelFlags[i]! & DISPLAY_VIEW_QUALITY_FLAG.ahdChoice) === 0) continue;
+      choice++;
+      // Kept unrecomputed, such a pixel is the candidates' average; some of them differ from the reference by more than the
+      // tolerance the flag guards (DISPLAY_VIEW_QUALITY_CHOICE_SIGMA of the pixel's noise σ).
+      for (let c = 0; c < 3; c++) if (Math.abs(raw.expected[3 * i + c]! - fixture.cpu.expected[3 * i + c]!) > DISPLAY_VIEW_QUALITY_CHOICE_SIGMA * fixture.cpu.noiseStd[3 * i + c]!) { moved++; break; }
+    }
+    expect(choice).toBeGreaterThan(0);
+    expect(moved).toBeGreaterThan(0);
+    // A uniform patch never flags it: its two candidates are equal everywhere.
+    const flat = await displayViewGpuFixture({ ...QUALITY_CASES[0]![1], scene: { preset: "uniform", reflectance: 0.18 } }, { ...SMALL_VIEW, region: { x: 80, y: 50, width: 16, height: 12 } });
+    const uniform = await renderOnGpuQuality(runtime, flat, undefined, false);
+    expect(uniform.pixelFlags.every((flag) => (flag & DISPLAY_VIEW_QUALITY_FLAG.ahdChoice) === 0)).toBe(true);
     runtime.destroy();
   }, scaledTimeout(600_000));
 

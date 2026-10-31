@@ -245,8 +245,69 @@ disjoint sites, so they are uncorrelated.
 or the columns with the 5-tap filter, red and blue from colour differences. Each candidate is linear in
 the mosaic (`ahdCandidateKernels` derives its kernels as responses to unit sites, reach 3); AHD's only
 non-linear step is choosing one per pixel by CIELAB homogeneity. The view propagates both candidates
-with their full channel covariance (the colour differences correlate the channels) and averages the
-results.
+with their full channel covariance (the colour differences correlate the channels). Their expected value
+then follows AHD's choice on the noise-free mosaic ([below](#ahds-choice-where-the-scene-decides-it-457)):
+the chosen candidate's where the scene decides the choice, the average of the two on a tie, which is every
+flat neighbourhood, where the noise decides it.
+
+### AHD's choice where the scene decides it (#457)
+
+Until this change the view averaged the two candidates' rendered results everywhere. That is right where the
+noise decides AHD's choice, but at structure finer than a few sites (a Siemens star's centre, a sharp edge
+without the anti-aliasing filter) the scene decides it: on the noise-free mosaic one candidate is
+markedly more homogeneous, and with ISO 100 noise the capture takes that candidate in nearly every
+realization. The average then differs from the capture's colour by up to half the candidates' difference.
+Validation set F found it: on the 24 MP full frame at 2028 wide (2.96 real pixels per display pixel) the
+expected value at the star's centre was 5.1 codes RMS and up to 34 codes from the capture, against the
+2-code limit; with AHD alone 19.3 codes RMS against the seven-reference mean, where one reference is 3.08
+from that mean. Diffraction and the four-spot filter alone matched within 0.2 code, and the miss shrank
+as the footprint grew (7.7 codes at 800 wide).
+
+**Model.** For each real pixel whose two candidates' camera-channel means differ, the view runs AHD's own
+steps on the expected normalized site values, clipped at white (`createAhdDirectionPlane`: the directional
+greens, the candidates, their CIELAB with the white-balanced homogeneity matrix, the homogeneity counts
+with their adaptive tolerances and the 3 × 3 sums, reading neighbours at their reflect-101 positions as
+`createAhdDemosaicTask` does). A decided direction takes that candidate's rendered mean; a tie keeps the
+average. Each position's greens, candidates, CIELAB and homogeneity are computed once per render and
+kept in rings of native rows (the exact path keeps the region's columns, the stratified estimator one
+display pixel's footprint at a time). One-material samples, whose candidates are equal up to rounding,
+skip it. This is a first-order model of the expectation: it takes the noise-free choice as the capture's
+choice. Where the noise can flip the choice (a near-tie at a structure, or low signal) the capture's mean
+lies between the chosen candidate and the average; the low-signal correction below stays the bias of a
+flat neighbourhood, added as before. **The noise terms are unchanged** (the candidates' averaged
+covariance and the independent choice variance; see the [known limit](#known-limit-quality-noise-at-small-footprints)).
+
+**Evidence.**
+
+- *The direction is the task's.* On a 64 × 48 random mosaic and a 64 × 48 star mosaic the view's direction
+  equals `createAhdDemosaicTask`'s direction map at all 3 072 pixels of each, borders included (the task
+  keeps its planes in float32, the view in binary64; no decision differed), and equals the centre steps of
+  the low-signal correction at every interior pixel (`test/display-view-ahd-choice.test.ts`).
+- *Against the capture* (`node scripts/validate-display-view.mjs --options quality` and `--set F`, seven
+  reference seeds, limits unchanged; October 31, 2026, Node 24.19.0, macOS arm64; `main` at `50dfe3e`
+  against this change):
+  - Set F, star centre, 24 MP at 2028 wide: 5.13 → 0.78 codes RMS (limit 2), at most 34.4 → 9.5; false
+    colour 16.72 → 13.32 codes against the reference's 13.32; mean error 0.27 → 0.01 code.
+    100 MP at 4000 wide: 3.60 → 1.02 codes RMS, at most 21.7 → 7.5; false colour difference +3.03 → +0.12.
+    Against the seven-reference mean the full frame's error is 0.41 codes RMS, below one reference's
+    0.67 from that mean. AHD alone: 19.3 → 2.84 codes RMS against the mean (one reference: 3.08).
+  - The default 155-case matrix: 50 of its 75 Quality cases change, no Speed case and no uniform patch
+    changes, and no metric moves outside its limit. Star centres at ISO 100: expected-value RMS 1.02 →
+    0.77 (24 MP, 384 wide), 1.64 → 0.82 (24 MP, 800 wide), 0.88 → 0.73 (100 MP, 800 wide), 2.00 → 1.95
+    (1.4 µm, 800 wide); their false-colour differences go from −0.06…+0.77 to −0.24…+0.13 codes. Case 17
+    (bar groups, 1.4 µm, 384 wide): false colour +0.41 → +0.01; case 92 (slanted edge, 1.4 µm, 800 wide):
+    +0.48 → +0.41 (#379), MTF50 +1.1 % → −0.1 %. The largest mean error of a Quality chart at ISO 100 falls
+    from 0.30 to 0.25 code. At ISO 1600 and 6400 the mean errors and expected-value RMS change by at most
+    0.01 code.
+  - The three re-recorded hash-lock cases against 16 reference captures each: AHD dead leaves with the
+    Reinhard curve 0.37 → 0.16 codes RMS; the AHD star of the per-real-pixel memo 1.51 → 0.61; the AHD
+    patch edge at ISO 3200 without diffraction 7.56 → 3.88 (at most 55.1 → 17.7), and at ISO 100
+    7.50 → 0.68 (at most 40.2 → 2.35).
+- *Cost* (`node scripts/benchmark-display-view.mjs`, Node 24.19.0, Apple M5 Pro, three interleaved repeats,
+  load average 1.3–6): the app's Quality request (`--app`, 2028 × 1352 in 96 × 96 parts) 23.4–24.4 s →
+  26.9–28.0 s for the whole view extrapolated (+12–15 %), part median 60–64 → 66–69 ms; whole Quality
+  views on the stratified estimator +12 % to +21 % (24 MP star at 192, 384 and 800 wide, dead leaves at
+  384). Speed is unchanged.
 
 **Development.** White balance multiplies each channel; the highlight clip at the smallest gain uses
 the same clipped-normal moments; the colour matrix (camera → XYZ → linear sRGB) combines the channels
@@ -457,7 +518,10 @@ patches (the [known limit](#known-limit-quality-noise-at-small-footprints), #379
 value is 5.1 codes RMS, at most 34 codes, from the capture (full frame; 3.6 / 22 on the medium format) against the 2-code
 limit, because the view's AHD result differs from the capture's where the pattern is finer than the sensor resolves.
 Diffraction and the four-spot filter match the capture there within 0.2 code; the AHD miss shrinks with the footprint
-(19.3 codes RMS with AHD alone at 2028 wide, 7.7 at 800). Set F is outside the default run.
+(19.3 codes RMS with AHD alone at 2028 wide, 7.7 at 800). Set F is outside the default run. **Since #457** the view takes
+[AHD's choice on the noise-free mosaic](#ahds-choice-where-the-scene-decides-it-457) and the star centre is within the
+limit: 0.78 codes RMS, at most 9.5 (full frame), and 1.02 / 7.5 (medium format), with seven reference seeds (October 31,
+2026); the uniform patches are unchanged, so the noise miss (#379) remains.
 
 **2.8.0 re-run (October 25, 2026, `de77074`; [record](validation/display-view-2026-10-25/README.md)).** 145 cases are
 identical to the October 19 results below. The 10 cases on the [exact area mean](#exact-area-mean), the phone at 800
@@ -533,7 +597,7 @@ B − G +15 %, and a green–blue correlation of −0.06 where the capture has +
 G 1.133, B 1.030, outside the 0.85–1.15 noise limit. On the slanted edge (case 92) R − G is +9 % and B − G +18 %, and the false colour
 exceeds the reference's by +0.48 code (+0.49 ± 0.05 over seven view and reference seeds; with the reference's own noise
 added to the view's expected image instead of the view's draw, +0.04): the expected value is right and the drawn
-noise is not. Speed (bilinear) is exact. On the 6 µm and 3.76 µm sensors at 800 pixels wide or less, and on the 1.4 µm sensor at
+noise is not. Since AHD's choice on the noise-free mosaic (#457) case 92's false-colour difference is +0.41 code. Speed (bilinear) is exact. On the 6 µm and 3.76 µm sensors at 800 pixels wide or less, and on the 1.4 µm sensor at
 384 pixels wide or less, the predicted noise is within 0.89–1.08. At device-pixel widths, about 3 × 3 real pixels per
 display pixel, the 6 µm and 3.76 µm sensors reach 1.13–1.20 as well (set F, October 26, 2026). A redesign of the Quality noise model, from the autocovariance of
 the real AHD output, is planned for 2.7.0 (#379).
@@ -552,6 +616,8 @@ What changed during validation (each found by this matrix and checked again on i
 4. Thin edge slivers in a footprint's corner were missed by the pilot (one pixel 10.8 codes off); neighbouring pilots
    now count.
 5. The clipped noise draw biased very noisy display pixels upward (+3.5 codes); its centre is now adjusted.
+6. At structure finer than a few sites the candidates' average missed the capture's colour by up to 34 codes at device-pixel
+   widths (set F); the expected value now follows AHD's choice on the noise-free mosaic (#457).
 
 ## Preview acceptance
 
@@ -885,6 +951,38 @@ pixels per display pixel and longer above (1.1–1.2× at 36, 1.4–1.5× at 64,
 real pixel while the estimator takes a quarter of its samples per axis where the pilot finds no detail. The validation
 cases are re-run on this reference before the release.
 
+## Bundle size
+
+Measured October 31, 2026 (#383) on 2.11.1 with rolldown 1.2.9, the bundler Vite 8 uses: consumers that import only the named
+root exports of the built package, minified, gzip level 9; `test/capture-bundle.test.ts` measures the same bundles from `src/`.
+
+| Consumer imports | Split ESM (a page): first load | One file, no splitting (Vite's default `iife` worker) |
+| --- | --- | --- |
+| `simulateCapture`, `simulateIdealReference` | 846,928 B / 229,007 B gzip | 851,205 B / 230,679 B gzip |
+| the same and `simulateDisplayView` | 889,156 B / 245,895 B gzip | 893,562 B / 247,758 B gzip |
+| `simulateCapture`, `simulateDisplayView`, `prepareDisplayView` | 892,566 B / 247,193 B gzip | 1,055,900 B / 302,217 B gzip |
+
+- **The display view adds 42,228 B minified and 16,888 B gzip (16.5 KiB) to a capture bundle** (42,239 B and 16,888 B in
+  the test's build from `src/`), the "about 16.9 KiB" of #383. By rendered (unminified) size the addition is the renderer `facade/display-view.ts` (55 %), its setup and result in
+  `facade/simulate-display-view.ts` (21 %, much of it the assumptions' explanations, which are part of the result), the
+  portable functions of [Same bytes in every engine](#same-bytes-in-every-engine) (13 %), and shared readout, chart and
+  illuminant code and the GPU option parsing (11 %). #383's target, 40 % of the gzip addition (6.8 kB), is about three
+  quarters of the renderer if its gzip share follows its rendered share; the renderer's repeated site loops are written out
+  for speed (#441, #442, #444), so the target is not met here: no smaller form was found that keeps every result's bytes and
+  the measured render times. #457's AHD choice (#527) then added 3,307 B minified and 1,294 B gzip, all in the renderer
+  (rendered 55,908 → 64,855 B): the test's build measures 45,546 B and 18,186 B gzip. The test keeps the addition within
+  46,500 B minified and 18,550 B gzip (about 2 % above the measured size; 43,100 B and 17,250 B before #527); a change that
+  adds to the display view raises the budget there and records its delta.
+- **The GPU display view is loaded on demand.** `prepareDisplayView` imports `facade/display-view-gpu-session.ts` (the GPU
+  session, the Speed and Quality renderers and their WGSL) dynamically, and only when `gpu` is `"auto"` or `"require"`, so a
+  bundler that splits dynamic imports puts it in a chunk the default `gpu: "off"` never loads (52 kB gzip, 15 `src/gpu`
+  modules). The package is `"sideEffects": false` and the root barrel's GPU exports drop out when they are not imported. A
+  build that cannot split inlines every dynamic import: Vite builds workers as `iife` by default, which adds the GPU code to a
+  worker that calls `prepareDisplayView` (55 kB gzip above). Build such workers as ES modules (Vite: `worker: { format: "es" }`;
+  the worker must then be created with `{ type: "module" }`) to keep it out. Measured on the Photivra app's production build
+  (Vite 8.3.2, engine 2.11.1): its capture worker went from 1,093,459 B / 317,120 B gzip to 921,285 B / 258,618 B gzip, with
+  the GPU session in a separate chunk, and its page entry was unchanged.
+
 ## Same bytes in every engine
 
 ECMAScript defines `+`, `−`, `×`, `÷` and `Math.sqrt` as correctly rounded binary64 operations, but leaves `Math.pow`
@@ -928,6 +1026,11 @@ Bun/JavaScriptCore) those inputs, and with them the expected values and noise, d
 the six requests were identical there too. The capture's own floating-point results differ in the same browsers (for
 example its diffraction kernels), while its samples were identical in every case tested.
 
+Those Node.js measurements were on x64. V8's `Math` also differs by one ulp between arm64 and x64 for some arguments
+(#508: `sin`, `cos`, `asin`, `atan2` and `log`; first `Math.log(14)` in the first hash-locked request), so on arm64 (Apple
+silicon, Linux arm64) five of the six hash-locked requests give other bytes, the same on macOS and Linux. The tests lock
+them to their own arm64 hashes ([numerical correctness](NUMERICAL_CORRECTNESS.md), "Test hash locks and platforms").
+
 ## Rendering on the GPU
 
 2.11 (#481) adds the engine API through which a prepared display view chooses between a WebGPU renderer and the CPU
@@ -942,9 +1045,12 @@ printed label (`resolveChartMaterialLayers`; `scene: { kind: "material-layers", 
 `prepareDisplayView`, `simulateDisplayView` and `simulateCapture` directly and evaluated exactly as its `callerScene`, so a CPU
 render is byte-identical to the caller-scene form). A request it does not cover (a caller scene function, a coarser view than the
 exact area mean, a footprint above 6 real pixels per axis) runs the CPU reference labelled `unsupported-on-backend` (or fails with
-it). A GPU render of the Quality options inherits the estimate's [known limits](#known-limit-quality-noise-at-small-footprints)
-(#379, and the star-centre AHD colour of #457): it agrees with the CPU reference within its bound, not with the real AHD capture
-any better than the reference does. The speed-up over the CPU is not measured yet (#475).
+it). A GPU render of the Quality options inherits the estimate's [known limit](#known-limit-quality-noise-at-small-footprints)
+(#379): it agrees with the CPU reference within its bound, not with the real AHD capture any better than the reference does.
+The Quality kernel does not compute [AHD's choice on the noise-free mosaic](#ahds-choice-where-the-scene-decides-it-457) (#457):
+it renders the candidates' average and flags a display pixel for recomputation with the CPU reference where the choice could
+move it by more than 2⁻¹⁰ of its noise σ (`docs/WEBGPU.md`, "Flags and host recomputation"), so a GPU render keeps the
+reference's values at structure at the cost of recomputing those pixels on the CPU. The speed-up over the CPU is not measured yet (#475).
 
 ```ts
 import { prepareDisplayView, type SimulateCaptureOptions } from "@photivra/engine";

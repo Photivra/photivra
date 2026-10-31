@@ -8,6 +8,17 @@ import { simulateDisplayViewWithInternals } from "../src/facade/simulate-display
 import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
 import { axisSums, clearDisplayViewCorrectionStates, displayViewCorrectionStateCount, footprintWeights, reinhardMoments, unitClip, upperClip } from "../src/facade/display-view.js";
 import { scaledTimeout as testTimeout } from "./helpers/test-timeout.js";
+import { hashLockOnThisArchitecture } from "./helpers/architecture-hash-locks.js";
+
+// #508: the arm64 hashes of the "keeps its bytes" locks whose bytes differ there, keyed by the x64 lock (recorded on
+// Node 24.19.0 and 24.22.1, macOS arm64 and Linux arm64). The Speed case without diffraction is the same on both.
+const ARM64_DISPLAY_VIEW_HASHES: Readonly<Record<string, string>> = {
+  "0b049fcb5c770bc018cfb318b292f1cffe23b2e4b6dbe53004756c107d7b0e57": "bfcf6d420791e74c553774e46a666e5528583b9ffcae61dbbd64e37b13f4b1b1",
+  "3c4d6097d5358111358165c7a820eab707b41eb5621c4ba5f2fe51bd004fb3b0": "ac0e3d1c116e0f3fc82be7d9d7d055a2859ba2d4209da55bbeb139d6533b20e4",
+  "d1f47df34a757135ce4335656e9294b1a6995429e28183451d0386b5a03de451": "cbad28f5bdfd0027959c074acb149682bf358cfa7aaf7aa5357cfd51f4216552",
+  "992eec6e7a1d8d3ec4817baf703156c46f9dda4a8dd340624dac8d1b8f439b77": "c92d880f0fff487be141eba45bc103f28e404c3ca2282c9ee9e3bf93ce5d69c8",
+  "80b0ee70106adfde5dbc6aad21d90de700e27a65ede35cc60d147d639d9ff153": "ca1bee1dd655c892c68a02c52abe9b6759255d5b03b3cb9ebddd4bd26f72b807"
+};
 
 const decode = (code: number, maximum: number): number => { const e = code / maximum; return e <= 0.04045 ? e / 12.92 : ((e + 0.055) / 1.055) ** 2.4; };
 const encode8 = (l: number): number => 255 * (l <= 0.0031308 ? l * 12.92 : 1.055 * Math.min(1, l) ** (1 / 2.4) - 0.055);
@@ -207,16 +218,22 @@ describe("simulateDisplayView", () => {
     expect(Array.from(seeded.image.samples)).not.toEqual(Array.from(a.image.samples));
   }, testTimeout(60_000));
 
-  it("keeps its bytes, the same on every JavaScript engine: one set of hash locks", async () => {
+  it("keeps its bytes: one set of hash locks on x64 for every Node.js version, and its own on arm64 (#508)", async () => {
     // SHA-256 of the samples, the expected values, the noise standard deviations and the diagnostics (timings removed).
     // Re-recorded for #393 (exact area mean): the cases whose footprints hold at most 25 real pixels changed; the first two
     // and the last two (coarser views, stratified estimator) keep their 2.6.0 hashes.
+    // Re-recorded for #457 (AHD's choice on the noise-free mosaic): the AHD dead-leaves case (fifth) only, whose expected values
+    // moved by up to 1.73 8-bit codes toward the capture (0.37 → 0.16 codes RMS against 16 reference captures); the others,
+    // the uniform AHD case included, keep their hashes. Recorded on Linux x64 (CI); see #508 for macOS arm64.
     // Each case exercises one path: non-uniform and uniform diffraction sites, the AHD correction, spectral materials with
     // mirror borders, a radiance scene, AHD with a tone curve, and Speed. The display view's own arithmetic and its
     // illuminant use only correctly rounded operations and the engine's portable functions (src/core/portable-math.ts), so
     // these hashes are the same on Node 22.13, 22 LTS, 24 and 26 (V8 12, 13 and 14), which differ in the last bit of
-    // Math.pow: there is one set, with no per-runtime variant. A mismatch on some runtime is a portability finding
-    // (docs/DISPLAY_VIEW.md, "Same bytes in every engine"). The radiance scene's own function uses exact operations only.
+    // Math.pow: there is one set, with no per-runtime variant. They were recorded on x64 and hold there. The inputs the view
+    // takes from the capture's code keep Math, whose transcendental results differ by one ulp between V8 on arm64 and on
+    // x64 (#508: first Math.log(14)), so on arm64 (Apple silicon, Linux arm64) five of the six differ and are locked to their
+    // own arm64 hashes below (docs/NUMERICAL_CORRECTNESS.md, "Test hash locks and platforms"). Any other mismatch is a
+    // portability finding (docs/DISPLAY_VIEW.md, "Same bytes in every engine"). The radiance scene's own function uses exact operations only.
     const red = { kind: "function" as const, wavelengthRangeNanometers: { minimum: 380, maximum: 780 }, evaluate: (nm: number): number => (nm > 600 ? 0.7 : 0.08) };
     const rings = (p: { u: number; v: number }): number => { const t = 20 * (p.u * p.u + p.v * p.v), f = t - Math.floor(t); return 0.1 + 0.6 * (f < 0.5 ? 2 * f : 2 - 2 * f); };
     const cases: [SimulateCaptureOptions, SimulateDisplayViewOptions, string][] = [
@@ -231,7 +248,7 @@ describe("simulateDisplayView", () => {
         sensor: { pixelAperture: { kind: "box", samplesPerAxis: 2 } }, output: { width: 48, height: 32 } }, { width: 12, height: 8 }, "992eec6e7a1d8d3ec4817baf703156c46f9dda4a8dd340624dac8d1b8f439b77"],
       [{ scene: { preset: "dead-leaves" }, lens: { fNumber: 11, diffraction: "circular-aperture" }, sensor: { pixelPitchMicrometers: 4 },
         output: { width: 300, height: 200, demosaic: "ahd", toneCurve: "positive-reinhard-per-channel" } }, { width: 30, height: 20, region: { x: 5, y: 4, width: 9, height: 7 }, format: "srgb-16" },
-      "0c459f1395213976a4c29d2441161749757141e6dada2a6e49997fa9f4954f68"],
+      "80b0ee70106adfde5dbc6aad21d90de700e27a65ede35cc60d147d639d9ff153"],
       [{ scene: { preset: "dead-leaves" }, sensor: { pixelPitchMicrometers: 2 }, output: { width: 300, height: 200 } }, { width: 30, height: 20 }, "c3c2809d9aab37e7c8269a97804d14d930fd7bf06f29eedb02f1141dcded03e8"]
     ];
     for (const [options, view, expected] of cases) {
@@ -243,7 +260,7 @@ describe("simulateDisplayView", () => {
       delete diagnostics.fast;
       for (const a of [result.image.samples, internals.expected, internals.noiseStd]) hash.update(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
       hash.update(JSON.stringify(diagnostics));
-      expect(hash.digest("hex")).toBe(expected);
+      expect(hash.digest("hex")).toBe(hashLockOnThisArchitecture(expected, ARM64_DISPLAY_VIEW_HASHES));
     }
   }, testTimeout(120_000));
 
@@ -410,7 +427,7 @@ describe("simulateDisplayView", () => {
       await expect(bilinear.computeCorrectionStates(Int32Array.of(1))).rejects.toThrow(InvalidConfigurationError);
       clearDisplayViewCorrectionStates();
     }, testTimeout(60_000));
-    // (6): the hash locks above ("keeps its bytes, the same on every JavaScript engine") are unchanged by #447.
+    // (6): the hash locks above ("keeps its bytes") are unchanged by #447.
   });
 
   it("refuses views and capture options it cannot reproduce", async () => {

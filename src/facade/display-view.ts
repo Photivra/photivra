@@ -548,64 +548,19 @@ const SITE_RING_LIMIT = 1 << 18;
 function pilotCount(span: number): number { return Math.max(4, Math.min(16, Math.ceil(span / 2))); }
 
 /**
- * The state computer of one setup's AHD correction (#447: shared by the render and `computeDisplayViewCorrectionStates`):
- * gridCorrection(i0, i1, i2) returns the offset of the grid state's three values in `states.values`, computing and storing
- * the state on first use. The code and its operations are those the render ran in place before.
+ * createAhdDemosaicTask's steps at the centre pixel of an 11 × 11 patch (patch (dy + 5)·11 + dx + 5, normalized site values):
+ * `choose(phase)` fills the two candidates within 2 sites (`horizontal`, `vertical`: (dy + 2)·5 + dx + 2, three channels) and
+ * returns the centre's direction, 0 horizontal, 1 vertical, 2 equal homogeneity (both averaged). Greens are read by flat
+ * index (dy + 3)·7 + dx + 3; every value is formed with the same operations in the same order as the steps themselves,
+ * except that CIELAB's cube root is `portableCbrt` (within 1 ulp of Math.cbrt) and squares are products, so the result has
+ * the same bits in every JavaScript engine. (The task keeps its intermediate planes in float32; these are binary64.)
  */
-function createGridCorrection(setup: DisplayViewCorrectionSetup, states: CorrectionStates): (i0: number, i1: number, i2: number) => number {
-  const { seed, ahdCorrection } = setup;
-  const k = Float64Array.from(setup.readout, (r) => r.perElectron), c0 = Float64Array.from(setup.readout, (r) => r.constantVariance);
-  const M = setup.matrix, m00 = M[0]![0]!, m01 = M[0]![1]!, m02 = M[0]![2]!, m10 = M[1]![0]!, m11 = M[1]![1]!, m12 = M[1]![2]!, m20 = M[2]![0]!, m21 = M[2]![1]!, m22 = M[2]![2]!;
-  const g0 = setup.gains[0], g1 = setup.gains[1], g2 = setup.gains[2], L = setup.clipLevel, reinhard = setup.toneCurve === "positive-reinhard-per-channel";
-  const correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE);
-  const readStd = Float64Array.from(c0, (v) => Math.sqrt(v));
-  /** The offset of a grid state's three values in states.values (computed and stored on first use). */
-  function gridCorrection(i0: number, i1: number, i2: number): number {
-    const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = states.index.get(key);
-    if (cached !== undefined) return 3 * cached;
-    const electrons = [i0, i1, i2].map((i, c) => portableExp2(i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
-    const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
-    const sum = new Float64Array(3), draws = ahdCorrection.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e, true));
-    const normal = createPortableStandardNormalPairs(random);
-    for (let draw = 0; draw < draws; draw++) {
-      const phase = draw & 3, roles = AHD_ROLES[phase]!;
-      for (let p = 0; p < AHD_SIDE * AHD_SIDE; p++) {
-        // The 16 sites the AHD steps never read are not drawn.
-        if (AHD_READ[p] === 0) continue;
-        const c = roles[p]!, value = k[c]! * poisson[c]!(random) + readStd[c]! * normal();
-        patch[p] = value < 1 ? value : 1;
-      }
-      ahdDifference(phase, correction);
-      for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / draws;
-    }
-    if (states.index.size >= AHD_STATE_LIMIT) states.index.clear();
-    const n = states.index.size;
-    if (states.values.length < 3 * (n + 1)) { const grown = new Float64Array(2 * states.values.length); grown.set(states.values); states.values = grown; }
-    states.values.set(sum, 3 * n);
-    states.index.set(key, n);
-    return 3 * n;
-  }
-  const lab = ahdCorrection.labMatrix, labWhite = Float64Array.from(lab, (row) => row[0]! + row[1]! + row[2]!);
+export function createAhdCentreSteps(labMatrix: readonly (readonly number[])[], patch: Float64Array): { horizontal: Float64Array; vertical: Float64Array; choose(phase: number): number } {
+  const lab = labMatrix, labWhite = Float64Array.from(lab, (row) => row[0]! + row[1]! + row[2]!);
   const l00 = lab[0]![0]!, l01 = lab[0]![1]!, l02 = lab[0]![2]!, l10 = lab[1]![0]!, l11 = lab[1]![1]!, l12 = lab[1]![2]!, l20 = lab[2]![0]!, l21 = lab[2]![1]!, l22 = lab[2]![2]!;
   const lw0 = labWhite[0]!, lw1 = labWhite[1]!, lw2 = labWhite[2]!;
   const gh = new Float64Array(49), gv = new Float64Array(49), cand = [new Float64Array(75), new Float64Array(75)], labs = [new Float64Array(75), new Float64Array(75)];
-  const rgb = new Float64Array(3), rendered = new Float64Array(3), linear = new Float64Array(3);
-  /** Develops one deterministic camera pixel and renders it: WB, highlight clip, colour matrix, tone curve, clip to [0, 1]. */
-  function renderPixel(r: number, gr: number, b: number, out: Float64Array): void {
-    const u0 = Math.min(L, g0 * r), u1 = Math.min(L, g1 * gr), u2 = Math.min(L, g2 * b);
-    for (let comp = 0; comp < 3; comp++) {
-      let v = comp === 0 ? m00 * u0 + m01 * u1 + m02 * u2 : comp === 1 ? m10 * u0 + m11 * u1 + m12 * u2 : m20 * u0 + m21 * u1 + m22 * u2;
-      if (reinhard) v = v > 0 ? v / (1 + v) : v;
-      out[comp] = v < 0 ? 0 : v > 1 ? 1 : v;
-    }
-  }
-  /**
-   * h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (createAhdDemosaicTask's steps, centre pixel only). The
-   * patch and the greens are read by flat index (patch (dy + 5)·11 + dx + 5, greens (dy + 3)·7 + dx + 3); every value is formed
-   * with the same operations in the same order as the steps themselves, except that CIELAB's cube root is `portableCbrt`
-   * (within 1 ulp of Math.cbrt) and squares are products, so the result has the same bits in every JavaScript engine.
-   */
-  function ahdDifference(phase: number, out: Float64Array): void {
+  function choose(phase: number): number {
     const roles = AHD_ROLES[phase]!;
     // 1. Directional greens within 3 sites.
     for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
@@ -654,8 +609,171 @@ function createGridCorrection(setup: DisplayViewCorrectionSetup, states: Correct
       sh += (hL0 <= epsL && hC0 <= epsC ? 1 : 0) + (hL1 <= epsL && hC1 <= epsC ? 1 : 0) + (hL2 <= epsL && hC2 <= epsC ? 1 : 0) + (hL3 <= epsL && hC3 <= epsC ? 1 : 0);
       sv += (vL0 <= epsL && vC0 <= epsC ? 1 : 0) + (vL1 <= epsL && vC1 <= epsC ? 1 : 0) + (vL2 <= epsL && vC2 <= epsC ? 1 : 0) + (vL3 <= epsL && vC3 <= epsC ? 1 : 0);
     }
-    const centre = 12, a = cand[0]!, b = cand[1]!;
-    for (let c = 0; c < 3; c++) rgb[c] = sh > sv ? a[3 * centre + c]! : sv > sh ? b[3 * centre + c]! : (a[3 * centre + c]! + b[3 * centre + c]!) / 2;
+    return sh > sv ? 0 : sv > sh ? 1 : 2;
+  }
+  return { horizontal: cand[0]!, vertical: cand[1]!, choose };
+}
+
+/**
+ * #457: AHD's direction at real pixels of the noise-free mosaic, as `createAhdDemosaicTask` computes it on the whole raster
+ * (every neighbour read at its reflect-101 position, so a position's greens, candidates, CIELAB and homogeneity are those of
+ * the task's planes), with each per-position quantity computed once and kept in rings of native rows. `direction(x, y)` is 0
+ * horizontal, 1 vertical, 2 equal homogeneity; `site(x, y)` gives the normalized expected value of an in-raster site, clipped
+ * at white. The kept columns are [x0, x0 + columns), set by `origin(x0)` (which also forgets every kept value); they must hold
+ * every real pixel asked about and 5 sites around it, clipped to the raster. `rows` is a power of two at least the native rows
+ * the real pixels asked about between two `origin` calls span plus 10. The arithmetic is the task's, in binary64 (the task
+ * stores its planes in float32), with `portableCbrt` and products for squares, as `createAhdCentreSteps`.
+ */
+export function createAhdDirectionPlane(labMatrix: readonly (readonly number[])[], nativeWidth: number, nativeHeight: number, columns: number, rows: number,
+  site: (x: number, y: number) => number): { origin(x0: number): void; direction(x: number, y: number): number } {
+  const lab = labMatrix, labWhite = Float64Array.from(lab, (row) => row[0]! + row[1]! + row[2]!);
+  const l00 = lab[0]![0]!, l01 = lab[0]![1]!, l02 = lab[0]![2]!, l10 = lab[1]![0]!, l11 = lab[1]![1]!, l12 = lab[1]![2]!, l20 = lab[2]![0]!, l21 = lab[2]![1]!, l22 = lab[2]![2]!;
+  const lw0 = labWhite[0]!, lw1 = labWhite[1]!, lw2 = labWhite[2]!;
+  const W = columns, mask = rows - 1, n = rows * W;
+  // Per position (slot (y & mask)·W + x − x0): the site value, the two greens, the two candidates' RGB and CIELAB and the two
+  // homogeneity counts, each valid while its stamp is epoch·2^24 + the position's row + 1 (exact in binary64; rows < 2^24).
+  const siteV = new Float64Array(n), siteS = new Float64Array(n), gH = new Float64Array(n), gV = new Float64Array(n), gS = new Float64Array(n);
+  const rgb = new Float64Array(6 * n), labs = new Float64Array(6 * n), cS = new Float64Array(n), hom = new Uint8Array(2 * n), hS = new Float64Array(n);
+  let x0 = 0, epoch = 0;
+  const rx = (x: number): number => (x < 0 ? -x : x >= nativeWidth ? 2 * nativeWidth - 2 - x : x);
+  const ry = (y: number): number => (y < 0 ? -y : y >= nativeHeight ? 2 * nativeHeight - 2 - y : y);
+  const role = (x: number, y: number): number => ((y & 1) === 0 ? ((x & 1) === 0 ? 0 : 1) : ((x & 1) === 0 ? 1 : 2));
+  /** The site at (x, y) read reflect-101 (`at` of the task). */
+  function at(x: number, y: number): number {
+    const X = rx(x), Y = ry(y), q = (Y & mask) * W + X - x0;
+    if (siteS[q] !== epoch + Y + 1) { siteV[q] = site(X, Y); siteS[q] = epoch + Y + 1; }
+    return siteV[q]!;
+  }
+  /** Fills the two greens of in-raster position (x, y) (step 1) and returns its slot. */
+  function greens(x: number, y: number): number {
+    const q = (y & mask) * W + x - x0;
+    if (gS[q] === epoch + y + 1) return q;
+    const c = at(x, y);
+    if (role(x, y) === 1) { gH[q] = c; gV[q] = c; }
+    else {
+      gH[q] = (at(x - 1, y) + at(x + 1, y)) / 2 + (2 * c - at(x - 2, y) - at(x + 2, y)) / 4;
+      gV[q] = (at(x, y - 1) + at(x, y + 1)) / 2 + (2 * c - at(x, y - 2) - at(x, y + 2)) / 4;
+    }
+    gS[q] = epoch + y + 1;
+    return q;
+  }
+  /** s − g of direction d at the reflected position of (x, y). */
+  function difference(x: number, y: number, d: number): number {
+    const X = rx(x), Y = ry(y), q = greens(X, Y);
+    return at(X, Y) - (d === 0 ? gH[q]! : gV[q]!);
+  }
+  /** Fills the two candidates and their CIELAB at in-raster position (x, y) (steps 2 and 3) and returns its slot. */
+  function candidates(x: number, y: number): number {
+    const q = (y & mask) * W + x - x0;
+    if (cS[q] === epoch + y + 1) return q;
+    greens(x, y);
+    const own = role(x, y);
+    for (let d = 0; d < 2; d++) {
+      const gi = d === 0 ? gH[q]! : gV[q]!, o = 6 * q + 3 * d;
+      rgb[o + 1] = gi;
+      if (own === 1) {
+        const hRole = role(x + 1, y), vRole = 2 - hRole;
+        const a = difference(x - 1, y, d), b = difference(x + 1, y, d);
+        rgb[o + hRole] = gi + (a + b) / 2;
+        const cc = difference(x, y - 1, d), dd = difference(x, y + 1, d);
+        rgb[o + vRole] = gi + (cc + dd) / 2;
+      } else {
+        rgb[o + own] = at(x, y);
+        rgb[o + 2 - own] = gi + (difference(x - 1, y - 1, d) + difference(x + 1, y - 1, d) + difference(x - 1, y + 1, d) + difference(x + 1, y + 1, d)) / 4;
+      }
+      const R = rgb[o]!, G = rgb[o + 1]!, Bc = rgb[o + 2]!;
+      let tx = (l00 * R + l01 * G + l02 * Bc) / lw0, ty = (l10 * R + l11 * G + l12 * Bc) / lw1, tz = (l20 * R + l21 * G + l22 * Bc) / lw2;
+      tx = tx > LAB_EPSILON ? portableCbrt(tx) : (LAB_KAPPA * tx + 16) / 116;
+      ty = ty > LAB_EPSILON ? portableCbrt(ty) : (LAB_KAPPA * ty + 16) / 116;
+      tz = tz > LAB_EPSILON ? portableCbrt(tz) : (LAB_KAPPA * tz + 16) / 116;
+      labs[o] = 116 * ty - 16; labs[o + 1] = 500 * (tx - ty); labs[o + 2] = 200 * (ty - tz);
+    }
+    cS[q] = epoch + y + 1;
+    return q;
+  }
+  /** The two homogeneity counts of in-raster position (x, y) (step 4), at hom[2·slot] and hom[2·slot + 1]. */
+  function homogeneity(x: number, y: number): number {
+    const q = (y & mask) * W + x - x0;
+    if (hS[q] === epoch + y + 1) return q;
+    const i = 6 * candidates(x, y), jl = 6 * candidates(rx(x - 1), y), jr = 6 * candidates(rx(x + 1), y), ju = 6 * candidates(x, ry(y - 1)), jd = 6 * candidates(x, ry(y + 1));
+    const h = labs;
+    // Direction 0 at offsets +0, direction 1 at +3; neighbours left, right, up, down.
+    const hL0 = Math.abs(h[i]! - h[jl]!), hL1 = Math.abs(h[i]! - h[jr]!), hL2 = Math.abs(h[i]! - h[ju]!), hL3 = Math.abs(h[i]! - h[jd]!);
+    const vL0 = Math.abs(h[i + 3]! - h[jl + 3]!), vL1 = Math.abs(h[i + 3]! - h[jr + 3]!), vL2 = Math.abs(h[i + 3]! - h[ju + 3]!), vL3 = Math.abs(h[i + 3]! - h[jd + 3]!);
+    const hC0 = square(h[i + 1]! - h[jl + 1]!) + square(h[i + 2]! - h[jl + 2]!), hC1 = square(h[i + 1]! - h[jr + 1]!) + square(h[i + 2]! - h[jr + 2]!);
+    const hC2 = square(h[i + 1]! - h[ju + 1]!) + square(h[i + 2]! - h[ju + 2]!), hC3 = square(h[i + 1]! - h[jd + 1]!) + square(h[i + 2]! - h[jd + 2]!);
+    const vC0 = square(h[i + 4]! - h[jl + 4]!) + square(h[i + 5]! - h[jl + 5]!), vC1 = square(h[i + 4]! - h[jr + 4]!) + square(h[i + 5]! - h[jr + 5]!);
+    const vC2 = square(h[i + 4]! - h[ju + 4]!) + square(h[i + 5]! - h[ju + 5]!), vC3 = square(h[i + 4]! - h[jd + 4]!) + square(h[i + 5]! - h[jd + 5]!);
+    const epsL = Math.min(Math.max(hL0, hL1), Math.max(vL2, vL3)), epsC = Math.min(Math.max(hC0, hC1), Math.max(vC2, vC3));
+    hom[2 * q] = (hL0 <= epsL && hC0 <= epsC ? 1 : 0) + (hL1 <= epsL && hC1 <= epsC ? 1 : 0) + (hL2 <= epsL && hC2 <= epsC ? 1 : 0) + (hL3 <= epsL && hC3 <= epsC ? 1 : 0);
+    hom[2 * q + 1] = (vL0 <= epsL && vC0 <= epsC ? 1 : 0) + (vL1 <= epsL && vC1 <= epsC ? 1 : 0) + (vL2 <= epsL && vC2 <= epsC ? 1 : 0) + (vL3 <= epsL && vC3 <= epsC ? 1 : 0);
+    hS[q] = epoch + y + 1;
+    return q;
+  }
+  return {
+    origin(first: number): void { x0 = first; epoch += 16777216; },
+    /** Step 5: the 3 × 3 sums of homogeneity (reflected) select the direction. */
+    direction(x: number, y: number): number {
+      let sh = 0, sv = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const q = homogeneity(rx(x + dx), ry(y + dy)); sh += hom[2 * q]!; sv += hom[2 * q + 1]!; }
+      return sh > sv ? 0 : sv > sh ? 1 : 2;
+    }
+  };
+}
+
+/**
+ * The state computer of one setup's AHD correction (#447: shared by the render and `computeDisplayViewCorrectionStates`):
+ * gridCorrection(i0, i1, i2) returns the offset of the grid state's three values in `states.values`, computing and storing
+ * the state on first use. The code and its operations are those the render ran in place before.
+ */
+function createGridCorrection(setup: DisplayViewCorrectionSetup, states: CorrectionStates): (i0: number, i1: number, i2: number) => number {
+  const { seed, ahdCorrection } = setup;
+  const k = Float64Array.from(setup.readout, (r) => r.perElectron), c0 = Float64Array.from(setup.readout, (r) => r.constantVariance);
+  const M = setup.matrix, m00 = M[0]![0]!, m01 = M[0]![1]!, m02 = M[0]![2]!, m10 = M[1]![0]!, m11 = M[1]![1]!, m12 = M[1]![2]!, m20 = M[2]![0]!, m21 = M[2]![1]!, m22 = M[2]![2]!;
+  const g0 = setup.gains[0], g1 = setup.gains[1], g2 = setup.gains[2], L = setup.clipLevel, reinhard = setup.toneCurve === "positive-reinhard-per-channel";
+  const correction = new Float64Array(3), patch = new Float64Array(AHD_SIDE * AHD_SIDE);
+  const readStd = Float64Array.from(c0, (v) => Math.sqrt(v));
+  /** The offset of a grid state's three values in states.values (computed and stored on first use). */
+  function gridCorrection(i0: number, i1: number, i2: number): number {
+    const key = (i0 * AHD_KEY_LEVELS + i1) * AHD_KEY_LEVELS + i2, cached = states.index.get(key);
+    if (cached !== undefined) return 3 * cached;
+    const electrons = [i0, i1, i2].map((i, c) => portableExp2(i / AHD_KEY_STEPS - AHD_KEY_OCTAVES) / k[c]!);
+    const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, fmixKey(i0, i1, i2), DISPLAY_VIEW_AHD_STREAM_ID));
+    const sum = new Float64Array(3), draws = ahdCorrection.drawsPerState, poisson = electrons.map((e) => createPoissonSampler(e, true));
+    const normal = createPortableStandardNormalPairs(random);
+    for (let draw = 0; draw < draws; draw++) {
+      const phase = draw & 3, roles = AHD_ROLES[phase]!;
+      for (let p = 0; p < AHD_SIDE * AHD_SIDE; p++) {
+        // The 16 sites the AHD steps never read are not drawn.
+        if (AHD_READ[p] === 0) continue;
+        const c = roles[p]!, value = k[c]! * poisson[c]!(random) + readStd[c]! * normal();
+        patch[p] = value < 1 ? value : 1;
+      }
+      ahdDifference(phase, correction);
+      for (let comp = 0; comp < 3; comp++) sum[comp] = sum[comp]! + correction[comp]! / draws;
+    }
+    if (states.index.size >= AHD_STATE_LIMIT) states.index.clear();
+    const n = states.index.size;
+    if (states.values.length < 3 * (n + 1)) { const grown = new Float64Array(2 * states.values.length); grown.set(states.values); states.values = grown; }
+    states.values.set(sum, 3 * n);
+    states.index.set(key, n);
+    return 3 * n;
+  }
+  const steps = createAhdCentreSteps(ahdCorrection.labMatrix, patch);
+  const rgb = new Float64Array(3), rendered = new Float64Array(3), linear = new Float64Array(3);
+  /** Develops one deterministic camera pixel and renders it: WB, highlight clip, colour matrix, tone curve, clip to [0, 1]. */
+  function renderPixel(r: number, gr: number, b: number, out: Float64Array): void {
+    const u0 = Math.min(L, g0 * r), u1 = Math.min(L, g1 * gr), u2 = Math.min(L, g2 * b);
+    for (let comp = 0; comp < 3; comp++) {
+      let v = comp === 0 ? m00 * u0 + m01 * u1 + m02 * u2 : comp === 1 ? m10 * u0 + m11 * u1 + m12 * u2 : m20 * u0 + m21 * u1 + m22 * u2;
+      if (reinhard) v = v > 0 ? v / (1 + v) : v;
+      out[comp] = v < 0 ? 0 : v > 1 ? 1 : v;
+    }
+  }
+  /** h(AHD) − ½(h(H) + h(V)) at the centre of the drawn neighbourhood (`createAhdCentreSteps`). */
+  function ahdDifference(phase: number, out: Float64Array): void {
+    const dir = steps.choose(phase), a = steps.horizontal, b = steps.vertical, centre = 12;
+    for (let c = 0; c < 3; c++) rgb[c] = dir === 0 ? a[3 * centre + c]! : dir === 1 ? b[3 * centre + c]! : (a[3 * centre + c]! + b[3 * centre + c]!) / 2;
     renderPixel(rgb[0]!, rgb[1]!, rgb[2]!, rendered);
     renderPixel(a[3 * centre]!, a[3 * centre + 1]!, a[3 * centre + 2]!, linear);
     for (let c = 0; c < 3; c++) out[c] = rendered[c]! - linear[c]! / 2;
@@ -742,6 +860,17 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
   // AHD low-signal correction: an 11 × 11 noisy neighbourhood (AHD reads up to 5 sites away) and the local AHD steps.
   const ahdCorrection = setup.ahdCorrection, windowReach = ahdCorrection ? Math.max(reach, AHD_REACH) : reach;
   const cmAverage = new Float64Array(3);
+  // #457: AHD's choice on the noise-free mosaic. Per candidate the rendered mean and the camera-channel means of the sample.
+  const candidateRendered = new Float64Array(6), candidateChannels = new Float64Array(6);
+  /** The normalized expected value of an in-raster site, clipped at white (the noise-free mosaic AHD's choice reads). */
+  const noiseFreeSite = (x: number, y: number): number => { const c = (y & 1) === 0 ? ((x & 1) === 0 ? 0 : 1) : ((x & 1) === 0 ? 1 : 2), v = k[c]! * (setup.signal.site(x, y) + dark[c]!); return v < 1 ? v : 1; };
+  // The exact path keeps the region's columns for the whole render; the stratified estimator keeps one display pixel's
+  // footprint at a time (its samples are scattered over it), so its plane is set to each display pixel's columns.
+  let choiceRows = 1;
+  while (choiceRows < Math.ceil(sy) + 2 + 2 * AHD_REACH) choiceRows *= 2;
+  const choiceX0 = Math.max(0, exactX0 - AHD_REACH), choiceColumns = exactView ? Math.min(nativeWidth - 1, exactX0 + exactWidth - 1 + AHD_REACH) - choiceX0 + 1 : Math.ceil(sx) + 2 + 2 * AHD_REACH;
+  const choicePlane = ahdCorrection ? createAhdDirectionPlane(ahdCorrection.labMatrix, nativeWidth, nativeHeight, choiceColumns, exactView ? 2 * choiceRows : choiceRows, noiseFreeSite) : undefined;
+  if (choicePlane && exactView) choicePlane.origin(choiceX0);
   let correctedPixels = 0;
   // The correction of a flat neighbourhood whose sites of channel c have normalized mean μ_c, on a logarithmic grid of states
   // (AHD_KEY_STEPS per octave from 2^-AHD_KEY_OCTAVES of white); each grid state is computed once with draws seeded by the state
@@ -847,6 +976,7 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
         markX = new Int32Array(slotsCount); markY = new Int32Array(slotsCount); markV = new Float64Array(slotsCount); markM = new Int32Array(slotsCount);
       }
       const mx0 = Math.floor(vx * sx) + margin, my0 = Math.floor(vy * sy) + margin;
+      if (choicePlane && !exactView) choicePlane.origin(Math.max(0, mx0 - AHD_REACH));
       const mw = Math.min(frameWidth - 1, Math.ceil((vx + 1) * sx)) + margin - mx0 + 1, mh = Math.min(frameHeight - 1, Math.ceil((vy + 1) * sy)) + margin - my0 + 1;
       const pixelMemo = !exactView && setup.signal.cachesSites && mw * mh <= PIXEL_MEMO_LIMIT;
       if (pixelMemo) {
@@ -1038,6 +1168,8 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
             }
           }
           e0 += share * hm[0]!; e1 += share * hm[1]!; e2 += share * hm[2]!;
+          candidateRendered[3 * d] = hm[0]!; candidateRendered[3 * d + 1] = hm[1]!; candidateRendered[3 * d + 2] = hm[2]!;
+          candidateChannels[3 * d] = cm[0]!; candidateChannels[3 * d + 1] = cm[1]!; candidateChannels[3 * d + 2] = cm[2]!;
           // Linear (Stein) part: a_c = J ∘ M[:, c]·Γ_c, accumulated with B_c·σ_c² (site variance of channel c); the pixel's own
           // linear variance (aᵀ·C·a, full channel covariance) for the residual.
           let l0 = 0, l1 = 0, l2 = 0;
@@ -1054,6 +1186,18 @@ export async function renderDisplayView(setup: DisplayViewSetup): Promise<Displa
           if (rt) { rt[ro + 21 + d * 3] = t0; rt[ro + 22 + d * 3] = t1; rt[ro + 23 + d * 3] = t2; }
           // Two-argument maxima (inlined; the same value as one four-argument Math.max, which V8 calls with boxed arguments).
           pixelVariance = Math.max(Math.max(pixelVariance, hv[0]!), Math.max(hv[1]!, hv[2]!));
+        }
+        // #457: AHD chooses one candidate per pixel by homogeneity. Where the scene decides that choice (structure finer than a
+        // few sites, such as a Siemens star's centre), the expected value is the chosen candidate's, not the candidates' average:
+        // the steps run on the noise-free mosaic (the expected normalized site values, clipped at white, mirrored at the raster
+        // edges as the capture's AHD reads them), and a decided direction takes that candidate's rendered mean. A tie (every flat
+        // neighbourhood, where the noise decides) keeps the average, and the low-signal correction below stays the noise's
+        // bias of a flat neighbourhood. Skipped where the two candidates' channel means are equal (the choice cannot change the
+        // value) and for one-material samples (equal up to rounding; their memo is keyed by material and phase, not by the
+        // patch). The noise terms are unchanged.
+        if (choicePlane && count === 2 && memoKey < 0 && (candidateChannels[0] !== candidateChannels[3] || candidateChannels[1] !== candidateChannels[4] || candidateChannels[2] !== candidateChannels[5])) {
+          const direction = choicePlane.direction(x, y);
+          if (direction !== 2) { e0 = candidateRendered[3 * direction]!; e1 = candidateRendered[3 * direction + 1]!; e2 = candidateRendered[3 * direction + 2]!; }
         }
         s0 += wE * e0; s1 += wE * e1; s2 += wE * e2;
         if (rt) { rt[ro + 0] = csv[0]!; rt[ro + 1] = csv[1]!; rt[ro + 2] = csv[2]!; rt[ro + 27] = e0; rt[ro + 28] = e1; rt[ro + 29] = e2; }
