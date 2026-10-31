@@ -7,6 +7,7 @@ import { calculateIdealPolygonDiffractionPsf, createDiffractionLimitedPsfProfile
 import { AIRY_REAL_SPACE_MINIMUM_BETA, besselSquareSum, calculateAiryCellEnergies, calculateAiryCellEnergiesInFrequencyDomain,
   calculateAiryCellEnergiesInRealSpace } from "../src/optics/diffraction-psf-profile.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
+import { hashLockOnThisArchitecture } from "./helpers/architecture-hash-locks.js";
 
 const base: CreateDiffractionLimitedPsfProfileInput = { aperture: "circular", focalLengthMm: 50, apertureFNumber: 8, focus: { kind: "finite", distanceM: 5 },
   wavelengthsNm: [450, 550, 650], samplePitchMicrometers: 6, kernelRadiusSamples: 3, fieldHalfExtentMm: { x: 0.2, y: 0.2 }, profileId: "test-airy" };
@@ -195,10 +196,23 @@ describe("Airy cell construction (2.6): memoized, with the recorded values", () 
     [123.3, 1, "29e0dde5430f94c7914e8160d2738b499e68427d5d97a55160b6ad9e4157c16e", "0dbd2bd91626948d20d8924c6e01705c3e8dd38539d2adb92b268a2ead6e44c9"],
     [191.9, 2, "e45e23b47e8be573a39d4f484bf6cc6836118fc2e6362ff721cf521866436bdb", "13b1378c84ac2dcec94c40bcc0e7ed4aa70468c8ec5a8e54075f6c1b438cc590"],
     [250, 1, "5553c2cd9c85cd0ae2cbf7c843c15f7f916c25949de83cfe913403a24baf82d8"]];
+  // #508: these were recorded on x64 and hold there. The cells use Math.cos, Math.sin and Math.asin, whose results differ by one
+  // ulp between V8 on arm64 and on x64 (first at the 184th call, a Math.cos in the β = 12.5 frequency-domain cells), so on arm64
+  // (Apple silicon, Linux arm64) the locks whose bytes differ are checked against their own arm64 hashes, keyed by the x64 lock
+  // (docs/NUMERICAL_CORRECTNESS.md, "Test hash locks and platforms"). β = 0.4 and the β = 60 real-space cells are the same on both.
+  const arm64Locks: Readonly<Record<string, string>> = {
+    "958bf878d5802650bf06e3b4775040f4e92bfba30b7bce6d5109d46db06005ea": "cd75bca6d868149b6bc0e60cdb02fec0ee7ba339c754fa61607b8d8ee4850875",
+    "f43d3b640a66a1800a1ccd2f340e3641f07322253b373ccdadb69630050a6e0b": "58b554d8c64dd54b7c5a3ccd1d63956e803dcdb406d56833b84a821f224b4c56",
+    "29e0dde5430f94c7914e8160d2738b499e68427d5d97a55160b6ad9e4157c16e": "17330664c435ce3655419f212cbdfae3ad66371aed9b4f25e58887ec38bcbfd7",
+    "0dbd2bd91626948d20d8924c6e01705c3e8dd38539d2adb92b268a2ead6e44c9": "5e3eaca8f0d5caa4f7b1ad97a22d5a2fdfb09febcb21744cd2401820cf4a2f3f",
+    "e45e23b47e8be573a39d4f484bf6cc6836118fc2e6362ff721cf521866436bdb": "164a067652403d5a1bfe3b6e5fa4d6d8fb92c32bea3d891a295f17496f95db36",
+    "13b1378c84ac2dcec94c40bcc0e7ed4aa70468c8ec5a8e54075f6c1b438cc590": "d41e7fe1702d8e7509e322939362519f5f853b96dac438bdd1acdd97436a1472",
+    "5553c2cd9c85cd0ae2cbf7c843c15f7f916c25949de83cfe913403a24baf82d8": "20533b85ba222932461efac21f9aba24d384fce2424b25ac43a6e75047414715"};
   const sha = (cells: Float64Array): string => createHash("sha256").update(new Uint8Array(cells.buffer, cells.byteOffset, cells.byteLength)).digest("hex");
 
   it("gives the recorded cell bytes, first built and then from the cache", () => {
-    for (const [beta, radius, recorded, dispatched] of locks) {
+    for (const [beta, radius, x64Recorded, x64Dispatched] of locks) {
+      const recorded = hashLockOnThisArchitecture(x64Recorded, arm64Locks), dispatched = x64Dispatched && hashLockOnThisArchitecture(x64Dispatched, arm64Locks);
       if (dispatched) expect(sha(calculateAiryCellEnergiesInFrequencyDomain(beta, radius).cells)).toBe(recorded);
       const lock = dispatched ?? recorded;
       const direct = beta >= AIRY_REAL_SPACE_MINIMUM_BETA ? calculateAiryCellEnergiesInRealSpace(beta, radius).cells : calculateAiryCellEnergiesInFrequencyDomain(beta, radius).cells;

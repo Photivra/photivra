@@ -5,7 +5,7 @@
  * for the in-process fake WebGPU device. It mirrors the WGSL line by line, running-bound pairs included; the material module
  * is an emulator object (`ChartMaterialEmulator`). Real-device conformance lives in test/webgpu.
  */
-import { DISPLAY_VIEW_QUALITY_AUX, DISPLAY_VIEW_QUALITY_CANDIDATE_FLOATS, DISPLAY_VIEW_QUALITY_FLAG, DISPLAY_VIEW_QUALITY_GEOMETRY_STRIDE, DISPLAY_VIEW_QUALITY_GROUP_WORDS,
+import { DISPLAY_VIEW_QUALITY_AUX, DISPLAY_VIEW_QUALITY_CANDIDATE_FLOATS, DISPLAY_VIEW_QUALITY_CHOICE_SIGMA, DISPLAY_VIEW_QUALITY_FLAG, DISPLAY_VIEW_QUALITY_GEOMETRY_STRIDE, DISPLAY_VIEW_QUALITY_GROUP_WORDS,
   DISPLAY_VIEW_QUALITY_OUTPUT_FLOATS, DISPLAY_VIEW_QUALITY_SITE_FLOATS, DISPLAY_VIEW_QUALITY_SLOPE_U, DISPLAY_VIEW_QUALITY_TAP_WORDS, DISPLAY_VIEW_QUALITY_UNCERTAINTY_LIMIT } from "../../src/gpu/wgsl-display-view-quality-kernel.js";
 import { DISPLAY_VIEW_CLIP_MEAN_U, DISPLAY_VIEW_CLIP_VARIANCE_U, DISPLAY_VIEW_REINHARD_MEAN_U, DISPLAY_VIEW_REINHARD_VARIANCE_U } from "../../src/gpu/wgsl-display-view-speed-kernel.js";
 import { AHD_KEY_FLOOR, AHD_KEY_LEVELS, AHD_KEY_OCTAVES, AHD_KEY_STEPS } from "../../src/facade/display-view.js";
@@ -16,7 +16,7 @@ const E = f(2 ** -23), REACH = 8.5, CM = f(DISPLAY_VIEW_CLIP_MEAN_U), CV = f(DIS
 const RM = f(DISPLAY_VIEW_REINHARD_MEAN_U), RV = f(DISPLAY_VIEW_REINHARD_VARIANCE_U), RS = 64;
 const STRIDE = DISPLAY_VIEW_QUALITY_GEOMETRY_STRIDE, SITE = DISPLAY_VIEW_QUALITY_SITE_FLOATS, GROUP = DISPLAY_VIEW_QUALITY_GROUP_WORDS, TAP = DISPLAY_VIEW_QUALITY_TAP_WORDS, CF = DISPLAY_VIEW_QUALITY_CANDIDATE_FLOATS;
 const PHI_C = f(0.3989422804014327), AS = [f(0.2316419), f(0.319381530), f(-0.356563782), f(1.781477937), f(-1.821255978), f(1.330274429)];
-const UNCERTAINTY_LIMIT = f(DISPLAY_VIEW_QUALITY_UNCERTAINTY_LIMIT);
+const UNCERTAINTY_LIMIT = f(DISPLAY_VIEW_QUALITY_UNCERTAINTY_LIMIT), CHOICE_SIGMA = f(DISPLAY_VIEW_QUALITY_CHOICE_SIGMA);
 const KEY_TOP = AHD_KEY_OCTAVES * AHD_KEY_STEPS - 1, KEY_FLOOR = f(AHD_KEY_FLOOR), LOG2E = f(1.4426950408889634), LOG_ABS = f(4.76837158203125e-7);
 
 /** A value with its absolute bound. */
@@ -249,6 +249,7 @@ export function emulateDisplayViewQualityPixels(pw: Uint32Array, pf: Float32Arra
       f(f(f(f(f(f(xpp * ypp) + f(xqq * ypp)) + f(xpp * yqq)) + f(f(2 * xpq) * ypp)) + f(f(2 * xpp) * ypq)) + f(f(2 * xpq) * ypq));
     const bOf = [f(xbE * ybE), f(green(xppO, xqqO, xpqO, yppE, yqqE, ypqE) + green(xppE, xqqE, xpqE, yppO, yqqO, ypqO)), f(xbO * ybO)];
     const s: B[] = [Z, Z, Z], cov: B[] = [Z, Z, Z, Z, Z, Z], res: B[] = [Z, Z, Z];
+    const choice = [0, 0, 0];
     for (let j = 0; j < ny; j++) {
       const ay = G(row + 2 + j);
       for (let ii = 0; ii < nx; ii++) {
@@ -269,6 +270,7 @@ export function emulateDisplayViewQualityPixels(pw: Uint32Array, pf: Float32Arra
         const eMean: B[] = [Z, Z, Z], cmAverage: B[] = [Z, Z, Z];
         let pixelVariance: B = Z;
         let bs: B[] = [], hs: B[] = [];
+        const hCand: B[] = [Z, Z, Z, Z, Z, Z];
         for (let d = 0; d < count; d++) {
           const cm: B[] = [Z, Z, Z], C: B[] = [Z, Z, Z, Z, Z, Z], exact = [true, true, true];
           for (let n = 0; n < entries; n++) {
@@ -312,6 +314,7 @@ export function emulateDisplayViewQualityPixels(pw: Uint32Array, pf: Float32Arra
               moments = unitClip(mean, variance, skew);
             }
             hm.push(moments.mean); hv.push(moments.variance); hs.push(moments.slope);
+            hCand[d * 3 + comp] = moments.mean;
             eMean[comp] = bAdd(eMean[comp]!, bScale(moments.mean, share));
             pixelVariance = [Math.max(pixelVariance[0], moments.variance[0]), Math.max(pixelVariance[1], moments.variance[1])];
           }
@@ -329,6 +332,11 @@ export function emulateDisplayViewQualityPixels(pw: Uint32Array, pf: Float32Arra
             const t: B = [f(share * Math.max(0, f(hv[comp]![0] - l[0]))), f(share * f(hv[comp]![1] + l[1]))];
             res[comp] = bAdd(res[comp]!, bMul(bMul(aj, aj), t));
           }
+        }
+        if (count === 2) for (let comp = 0; comp < 3; comp++) {
+          const diff = Math.abs(f(hCand[comp]![0] - hCand[3 + comp]![0])), both = f(hCand[comp]![1] + hCand[3 + comp]![1]);
+          choice[comp] = f(choice[comp]! + f(f(aj[0] * 0.5) * diff));
+          eMean[comp] = [eMean[comp]![0], f(eMean[comp]![1] + f(0.5 * f(diff + both)))];
         }
         for (let comp = 0; comp < 3; comp++) s[comp] = bAdd(s[comp]!, bMul(aj, eMean[comp]!));
         if (count === 2) {
@@ -354,6 +362,8 @@ export function emulateDisplayViewQualityPixels(pw: Uint32Array, pf: Float32Arra
         }
       }
     }
+    const sigmaOf = (v: number): number => f(CHOICE_SIGMA * f(Math.sqrt(Math.max(v, 0))));
+    if (choice[0]! > sigmaOf(f(cov[0]![0] + res[0]![0])) || choice[1]! > sigmaOf(f(cov[3]![0] + res[1]![0])) || choice[2]! > sigmaOf(f(cov[5]![0] + res[2]![0]))) pixelFlags |= DISPLAY_VIEW_QUALITY_FLAG.ahdChoice;
     const o = i * DISPLAY_VIEW_QUALITY_OUTPUT_FLOATS;
     out[o] = s[0]![0]; out[o + 1] = s[1]![0]; out[o + 2] = s[2]![0];
     out[o + 3] = f(cov[0]![0] + res[0]![0]); out[o + 4] = f(cov[3]![0] + res[1]![0]); out[o + 5] = f(cov[5]![0] + res[2]![0]);

@@ -21,7 +21,8 @@
  * the bilinear or the AHD candidates and the low-signal correction. Internal: not exported from the package.
  *
  * Flagged display pixels (an uncertain lattice material among the sites read, a missing correction state after the
- * states were computed, a correction-threshold decision within its bound, a non-finite output) are recomputed with the
+ * states were computed, a correction-threshold decision within its bound, AHD's choice on the noise-free mosaic able to move
+ * the pixel by more than DISPLAY_VIEW_QUALITY_CHOICE_SIGMA of its noise (#457), a non-finite output) are recomputed with the
  * reference, so they are exact. Every stage's wall-clock time is reported (`stageMilliseconds`); on a software adapter it
  * is not GPU performance.
  */
@@ -697,7 +698,7 @@ export async function renderDisplayViewQualityOnGpu(runtime: WebGpuRuntime, band
     }
   }
   timings.finishing = now() - t0;
-  // Flagged display pixels: the reference's own pixel (a one-pixel region render is byte-identical to the whole view's pixel).
+  // Flagged display pixels: the reference's own pixels (a region render is byte-identical to the whole view's pixels).
   t0 = now();
   const recomputed: number[] = [];
   if (flagged.length > 0) {
@@ -714,14 +715,19 @@ export async function renderDisplayViewQualityOnGpu(runtime: WebGpuRuntime, band
       }
     } else {
       const signal = createDisplayViewExpectedSignal(signalInput);
-      for (const i of flagged) {
+      // Runs of consecutive flagged pixels along a row are rendered as one region (#457: AHD's choice flags stretches near
+      // edges); a region render is byte-identical to the same pixels of the whole view, so each pixel equals its one-pixel
+      // render, and the run's counts are the sums of its pixels' counts.
+      for (let r = 0; r < flagged.length;) {
         checkAbort(abort.signal);
-        const rx = i % region.width, ry = (i - rx) / region.width;
-        const pixel = await renderDisplayView({ ...setup, signal, region: { x: region.x + rx, y: region.y + ry, width: 1, height: 1 } });
-        samples.set(pixel.samples, i * 3); expected.set(pixel.expected, i * 3); noiseStd.set(pixel.noiseStd, i * 3);
-        meanBound[i] = 0; varianceBound[i] = 0;
-        corrected += pixel.ahdCorrectedPixelCount; sampleCount += pixel.sampleCount; siteCount += pixel.siteCount;
-        recomputed.push(i);
+        const first = flagged[r]!, rx = first % region.width, ry = (first - rx) / region.width;
+        let run = 1;
+        while (r + run < flagged.length && flagged[r + run] === first + run && rx + run < region.width) run++;
+        const part = await renderDisplayView({ ...setup, signal, region: { x: region.x + rx, y: region.y + ry, width: run, height: 1 } });
+        samples.set(part.samples, first * 3); expected.set(part.expected, first * 3); noiseStd.set(part.noiseStd, first * 3);
+        for (let k = 0; k < run; k++) { meanBound[first + k] = 0; varianceBound[first + k] = 0; recomputed.push(first + k); }
+        corrected += part.ahdCorrectedPixelCount; sampleCount += part.sampleCount; siteCount += part.siteCount;
+        r += run;
       }
     }
   }
