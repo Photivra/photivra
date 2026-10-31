@@ -56,6 +56,18 @@ describe("baseline JPEG encoder version 2", () => {
     for (let b = 0; b < 64 * 64; b++) large.writeRgbBlock(Array.from({ length: 192 }, next));
     expect(large.finish().length).toBeGreaterThan(65_536 * 4);
   });
+
+  it("codes a reused Uint8Array block to the same bytes as the same samples in arrays, and still checks its length (#417)", () => {
+    const options = { width: 24, height: 16, quantizationStep: 2, maximumOutputBytes: 100_000, exif: new Uint8Array(), xmp: new Uint8Array() };
+    let s = 7; const next = (): number => (s = (Math.imul(s, 1103515245) + 12345) >>> 0) >>> 24;
+    const blocks = Array.from({ length: 6 }, () => Array.from({ length: 192 }, next));
+    const arrays = createExportJpegEncoder(options), typed = createExportJpegEncoder(options), buffer = new Uint8Array(192);
+    for (const block of blocks) { arrays.writeRgbBlock(block); buffer.set(block); typed.writeRgbBlock(buffer); }
+    expect(typed.finish()).toEqual(arrays.finish());
+    const short = createExportJpegEncoder(options);
+    expect(() => short.writeRgbBlock(new Uint8Array(191))).toThrow(InvalidConfigurationError);
+    expect(() => short.writeRgbBlock(new Uint8Array(193))).toThrow(InvalidConfigurationError);
+  });
 });
 
 describe("Exif 2.32 completion for JPEG-compressed primary images", () => {
