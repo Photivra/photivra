@@ -20,7 +20,7 @@ export const PRINT_JPEG_SCHEMA_VERSION="0.2.0" as const;
  * `maximumPixels`, up to `ceilingPixels`. A raised limit raises the `maximumEncodedBytes` ceiling in proportion
  * (256 000 000 bytes per 24 000 000 source pixels).
  */
-export const PRINT_JPEG_LIMITS=Object.freeze({maximumPixels:24_000_000,ceilingPixels:FULL_RESOLUTION_CEILING_PIXELS,maximumDimension:16_384,
+export const PRINT_JPEG_LIMITS=/* @__PURE__ */ Object.freeze({maximumPixels:24_000_000,ceilingPixels:FULL_RESOLUTION_CEILING_PIXELS,maximumDimension:16_384,
   maximumEncodedBytes:256_000_000,maximumProviderReads:1_000_000});
 let srgbDecode:Float64Array|undefined;
 /** decodeSrgbComponent(v/255) for every 8-bit code v, computed once with the same function (identical values). */

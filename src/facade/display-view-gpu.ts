@@ -103,7 +103,7 @@ export interface DisplayViewFastReport extends SimulateCaptureFastReport {
   execution: DisplayViewExecution;
 }
 
-const CPU_LIMITATIONS = Object.freeze(["Float64 engine reference execution; results are the reference by definition"]);
+const CPU_LIMITATIONS = /* @__PURE__ */ Object.freeze(["Float64 engine reference execution; results are the reference by definition"]);
 
 /** Internal: the execution record of a display view rendered on the CPU reference. `requested` names what `gpu` asked for. */
 export function cpuDisplayViewExecution(gpu: DisplayViewGpuMode, fallbackReason: DisplayViewGpuFallbackReason | null, adapter: ImageKernelAdapterDescription | null,

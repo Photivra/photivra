@@ -75,9 +75,9 @@ interface PortableOps { pow(x: number, y: number): number; expm1(x: number): num
 const PORTABLE: PortableOps = { pow: portablePow, expm1: portableExpm1, hypot: portableHypot };
 
 /** Temperature range of the Planckian-locus models, K. */
-export const PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1000, maximum: 100000 });
+export const PLANCKIAN_LOCUS_RANGE_KELVIN = /* @__PURE__ */ Object.freeze({ minimum: 1000, maximum: 100000 });
 /** CIE daylight-locus validity, K. */
-export const CIE_DAYLIGHT_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 4000, maximum: 25000 });
+export const CIE_DAYLIGHT_LOCUS_RANGE_KELVIN = /* @__PURE__ */ Object.freeze({ minimum: 4000, maximum: 25000 });
 /**
  * Engine limit: no CCT beyond |Duv| = 0.05, the range over which Smet et al. (2023, free) evaluate CCT
  * methods for nominally white light (CIE 15:2018 §9.5, paid, gives the same limit).
@@ -132,7 +132,7 @@ function planckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNa
 }
 
 /** CIE illuminant A defining range (nm). */
-export const CIE_ILLUMINANT_A_RANGE_NANOMETERS = Object.freeze({ minimum: 300, maximum: 830 });
+export const CIE_ILLUMINANT_A_RANGE_NANOMETERS = /* @__PURE__ */ Object.freeze({ minimum: 300, maximum: 830 });
 
 /**
  * CIE standard illuminant A relative SPD from its defining formula (100 at 560 nm),

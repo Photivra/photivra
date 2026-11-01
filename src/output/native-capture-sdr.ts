@@ -16,7 +16,7 @@ import { parseSdrRenderingProfile, prepareSdrPixelTone, type SdrPixelTone, type 
 
 export const NATIVE_CAPTURE_SDR_SCHEMA_VERSION = "0.1.0" as const;
 /** `maximumPixels` is the default pixel limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`. */
-export const NATIVE_CAPTURE_SDR_LIMITS = Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
+export const NATIVE_CAPTURE_SDR_LIMITS = /* @__PURE__ */ Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumDimension: 16_384, tileWidth: 256, tileHeight: 32, maximumTileStorageSamples: 32_768 });
 /** Input. The capture holds only metadata; float samples are read from external storage. Samples must already have colour and white balance applied. */
 export interface NativeCaptureSdrInput {

@@ -58,7 +58,7 @@ export type RadialLensProjectionModel = Exclude<
 >;
 
 export const LENS_PROJECTION_MODELS: readonly LensProjectionModel[] =
-  Object.freeze([
+  /* @__PURE__ */ Object.freeze([
     "rectilinear",
     "fisheye-equidistant",
     "fisheye-equisolid-angle",

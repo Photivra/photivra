@@ -100,14 +100,14 @@ export function dwMulDekker(a: Dw, b: Dw, t: number = dwCrossTerm(a, b)): Dw {
  * (2.11.0, the M5 Pro finding) are normalized double words whose products have non-zero TwoProduct errors on both operand pairs, so
  * a contraction of the Dekker path's final Fast2Sum (which then adds the product's error twice) shows in the double-word product.
  */
-export const PROBE_INPUTS: readonly (readonly [number, number, number, number])[] = Object.freeze([
+export const PROBE_INPUTS: readonly (readonly [number, number, number, number])[] = /* @__PURE__ */ Object.freeze([
   [1, 2 ** -30, 1.5, 2 ** -29], [3.7, 1e-8, -2.25, 3e-9], [0.1, 0.7, 12345.678, -0.0001], [1e6, 1e-3, 1e-6, 1e-9], [-5.5, 2 ** -26, 7, -(2 ** -27)],
   [0.3333333, 0.6666667, 1.0000001, 0.99999994], [1024.5, 1e-5, 0.0078125, 3e-10], [2.5e-3, 4.1e-11, 999.75, 2 ** -40],
   [1, 3 * 2 ** -26, 1.25, 1 + 2 ** -23], [-1, -3 * 2 ** -26, -1.25, 1 + 2 ** -23], [1 + 2 ** -23, 1.25, 1, 5 * 2 ** -26], [0.75, 2 ** -25 + 2 ** -27, 3, 2 ** -24 + 2 ** -26],
   [1.1, 2.2e-9, 1.3, -3.1e-9], [0.7071068, -1.2e-8, 0.7071067, 2.9e-8], [123.456, 3.3e-6, -0.0123, 4.4e-10], [3.14159274, -8.7422777e-8, 2.7182817, 8.2e-8]
 ]);
 /** The components of the probe in output order (see `CHART_COMPOSITE_PROBE_WGSL`). */
-export const PROBE_COMPONENTS: readonly ChartCompositeProbeComponent[] = Object.freeze(["two-sum", "two-product", "double-word-add", "double-word-multiply", "fma-two-product", "fma-double-word-multiply"]);
+export const PROBE_COMPONENTS: readonly ChartCompositeProbeComponent[] = /* @__PURE__ */ Object.freeze(["two-sum", "two-product", "double-word-add", "double-word-multiply", "fma-two-product", "fma-double-word-multiply"]);
 /**
  * The probe's output per input on a device that evaluates as written, round to nearest, unfused, with a fused `fma`, in the shader's
  * order: [TwoSum lo, Dekker TwoProduct lo, double-word sum lo, fma TwoProduct lo, Dekker product hi, lo, fma product hi, lo].

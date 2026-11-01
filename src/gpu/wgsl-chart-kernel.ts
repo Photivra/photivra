@@ -22,7 +22,7 @@
 
 export const CHART_WORKGROUP_SIZE = 256;
 /** Preset codes of `Params.preset`, in `CHART_SCENE_PRESETS` order. */
-export const CHART_PRESET_CODE = Object.freeze({ uniform: 0, "slanted-edge": 1, "siemens-star": 2, "step-wedge": 3, "grey-ramp": 4, checkerboard: 5,
+export const CHART_PRESET_CODE = /* @__PURE__ */ Object.freeze({ uniform: 0, "slanted-edge": 1, "siemens-star": 2, "step-wedge": 3, "grey-ramp": 4, checkerboard: 5,
   "point-grid": 6, patches: 7 } as const);
 
 export const CHART_RADIANCE_WGSL = /* wgsl */ `

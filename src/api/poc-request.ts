@@ -56,9 +56,9 @@ function requireFiniteNumber(
  * scientific range. Zero, negative values and physical validity within these limits are still
  * checked by the calculation modules.
  */
-export const POC_REQUEST_MAGNITUDE_LIMITS = Object.freeze({
-  "lens.aperture": Object.freeze({ smallestPositive: 0.01, maximum: 10_000 }),
-  "focus.focusDistanceM": Object.freeze({ smallestPositive: 1e-9, maximum: 1e9 })
+export const POC_REQUEST_MAGNITUDE_LIMITS = /* @__PURE__ */ Object.freeze({
+  "lens.aperture": /* @__PURE__ */ Object.freeze({ smallestPositive: 0.01, maximum: 10_000 }),
+  "focus.focusDistanceM": /* @__PURE__ */ Object.freeze({ smallestPositive: 1e-9, maximum: 1e9 })
 });
 
 function requireFiniteNumberWithin(
