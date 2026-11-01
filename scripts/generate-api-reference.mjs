@@ -76,6 +76,8 @@ for (const [file, rows] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) 
       let text = declaration.getText();
       if (ts.isFunctionDeclaration(declaration) && declaration.body) text = text.slice(0, declaration.body.pos - declaration.getStart()).trimEnd() + ";";
       // Variable declarations carry literal constants/defaults. Interfaces retain every field and union.
+      // #536: the bundler annotation on module-level frozen tables is not part of the contract.
+      text = text.replaceAll("/* @__PURE__ */ ", "");
       detail += "```ts\n" + text + "\n```\n\n";
     }
     const type = checker.getTypeOfSymbolAtLocation(row.symbol, row.declaration);

@@ -32,7 +32,7 @@ type SiteEnvironment = EnvironmentSite["environment"];
  * `fixedBytesPerSite + bytesPerTemporalSamplePerSite × temporalSampleCount` bytes of typed-array storage;
  * distinct environment and photo templates (each about one site's input size) are capped separately.
  */
-export const NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS = Object.freeze({
+export const NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS = /* @__PURE__ */ Object.freeze({
   /** Two one-byte template indices plus seven float64 values (site x/y, window start/end/duration, photon/electron counts). */
   fixedBytesPerSite: 58,
   /** Three float64 values per temporal midpoint: time, incident-photon rate, generated-electron rate. */

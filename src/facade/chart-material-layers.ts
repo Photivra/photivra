@@ -46,9 +46,9 @@ export interface ChartMaskLayer {
 export interface ChartMaterialLayerScene { kind: "material-layers"; sceneId: string; chart: ChartScene; layers: readonly ChartMaskLayer[] }
 
 /** The cell index grain of every layer: cells across and down the mask box. */
-export const CHART_MASK_INDEX_GRAIN = Object.freeze({ cellsX: 64, cellsY: 16 });
+export const CHART_MASK_INDEX_GRAIN = /* @__PURE__ */ Object.freeze({ cellsX: 64, cellsY: 16 });
 /** Limits of a declared scene. */
-export const CHART_MATERIAL_LAYER_LIMITS = Object.freeze({ maximumLayers: 16, maximumShapes: 4096, maximumRings: 256, maximumEdges: 65_536 });
+export const CHART_MATERIAL_LAYER_LIMITS = /* @__PURE__ */ Object.freeze({ maximumLayers: 16, maximumShapes: 4096, maximumRings: 256, maximumEdges: 65_536 });
 
 /** Internal: a shape with its bounding box and flattened edges (polygon) or squared radii (annulus). */
 export type ResolvedChartMaskShape =

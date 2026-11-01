@@ -691,6 +691,27 @@ The browser test prints these numbers on each run. No SwiftShader timings are gi
 - The hardware run refuses a software adapter, so its numbers are GPU numbers. Still check the report's `adapter`: `softwareAdapter` must be false.
 - The script was run in this container only at 0.06 MP on SwiftShader, to check that it works. That run measured nothing about GPUs, and its numbers are deliberately not recorded.
 
+## Shipped shader text
+
+From 2.14 (#536) the published package carries the engine's WGSL without comments or indentation. `npm run build` runs
+`scripts/minify-wgsl-dist.mjs` after `tsc`; it rewrites only template literals tagged `/* wgsl */`
+(`scripts/lib/wgsl-minify.mjs`), and only in ways that cannot change the WGSL token stream:
+
+- line comments are removed and block comments (which nest in WGSL) become one space;
+- spaces and tabs at the start and end of a line are removed;
+- every newline stays, so line numbers, source maps and line-anchored edits such as `/^const SLACK: f32 = …\n/m` still hold;
+- a line holding a `${…}` interpolation, the literal's first and last lines, and any literal where a block comment or an
+  escape could interact with them are left exactly as written.
+
+WGSL treats comments and whitespace only as token separators, and the build fails if any literal's tokens, line count or
+count of tagged literals changes. The tests and the WebGPU suites run the same minified text (a Vite plugin in the Vitest
+configs, and the conformance page's server); `PHOTIVRA_WGSL_MINIFY=0` runs the source text instead.
+`test/wgsl-minify.test.ts` checks every literal with an independent tokenizer and every text anchor the engine uses to edit
+its own shaders (`display-view-chart-material-module.ts`, `display-view-composite-material-module.ts`,
+`wgsl-chart-composite-kernel.ts`). On the Apple M5 Pro (Chromium 153, hardware adapter), `npm run test:webgpu` passed all
+167 tests with the minified and with the source text, and the 2,911 recorded values of the two runs (maxima, bounds,
+differing and flagged counts) were identical; only the stage timings differ.
+
 ## Running on hardware
 
 The conformance suite and the timing run are the two checks to make on a real GPU. Every hardware run goes into the [hardware record](WEBGPU_DEVICES.md) (device, adapter, driver, browser, OS, engine commit, result, timings file); so far one device, an Apple M5 Pro, has been run; its October 27, 2026 runs after the #471 changes passed every non-composite test and were refused by the composite probe, and the re-run with the probe fix is pending (below). In this container, `npm run test:webgpu:hardware` was run only to confirm that it refuses SwiftShader.

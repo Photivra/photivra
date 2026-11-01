@@ -44,7 +44,7 @@ export const DISPLAY_VIEW_OUTPUT_FLOATS = 11;
 /** Floats per column or row record of the geometry buffer. */
 export const DISPLAY_VIEW_GEOMETRY_STRIDE = 20;
 /** Layout of the aux table (float32 words). */
-export const DISPLAY_VIEW_AUX = Object.freeze({
+export const DISPLAY_VIEW_AUX = /* @__PURE__ */ Object.freeze({
   /** Per offset o: ou (0.5 + ox − W/2), ov (0.5 + oy − H/2), weight, 0. */
   offsets: 0,
   /** Per phase p, channel c, tap t: dx, dy, weight, 0 (4 taps; unused taps have weight 0). */

@@ -22,7 +22,7 @@ import { SENSOR_RAW_PRODUCER_NOISE_MODEL, calculateNativeRawSite, parseNativeRaw
 
 export const NATIVE_RAW_SCHEMA_VERSION = "0.1.0" as const;
 /** `maximumPixels` is the default pixel limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`. */
-export const NATIVE_RAW_LIMITS = Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS, maximumDimension: 16_384,
+export const NATIVE_RAW_LIMITS = /* @__PURE__ */ Object.freeze({ maximumPixels: 24_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS, maximumDimension: 16_384,
   tileWidth: 256, tileHeight: 1, outputBytesPerPixel: 7 });
 /** Default whole-event radiance query budget ceiling of the native environment tasks; it scales with a raised `maximumPixels`. */
 const DEFAULT_MAXIMUM_PROVIDER_EVALUATIONS = 2_000_000_000;

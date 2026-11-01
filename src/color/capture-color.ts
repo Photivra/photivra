@@ -18,10 +18,10 @@ import { parseSimulatedCapture, type SimulatedCapture, type CaptureLinearPlane, 
 
 export const CAPTURE_COLOR_MODEL_VERSION = "0.1.0" as const;
 /** Explicit ideal colorimetric camera, not measured spectral sensor channels. */
-export const VIRTUAL_COLOR_CAMERA_PROFILE = Object.freeze({ id: "photivra-colorimetric-rgb-d65", version: CAPTURE_COLOR_MODEL_VERSION });
+export const VIRTUAL_COLOR_CAMERA_PROFILE = /* @__PURE__ */ Object.freeze({ id: "photivra-colorimetric-rgb-d65", version: CAPTURE_COLOR_MODEL_VERSION });
 /** Linear light with sRGB primaries and a D65 white. No sRGB transfer curve is applied. */
-export const LINEAR_CAPTURE_RGB_PROFILE = Object.freeze({ id: "linear-srgb-d65", version: CAPTURE_COLOR_MODEL_VERSION });
-const D65 = Object.freeze({ x: .3127/.3290, y: 1 as const, z: (1-.3127-.3290)/.3290 });
+export const LINEAR_CAPTURE_RGB_PROFILE = /* @__PURE__ */ Object.freeze({ id: "linear-srgb-d65", version: CAPTURE_COLOR_MODEL_VERSION });
+const D65 = /* @__PURE__ */ Object.freeze({ x: .3127/.3290, y: 1 as const, z: (1-.3127-.3290)/.3290 });
 type Vector = readonly [number, number, number];
 type Matrix = readonly [Vector, Vector, Vector];
 const IDENTITY: Matrix = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];

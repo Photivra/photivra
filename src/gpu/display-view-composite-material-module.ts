@@ -60,7 +60,7 @@ const KEPT_SCENES = 4;
 const MODEL_TOLERANCE = 2 ** -48;
 
 /** Layout of the lattice uniform (float32 / u32 words, 48 bytes) and the offsets table (one vec4 per offset: cu hi, cu lo, cv hi, cv lo). */
-export const DISPLAY_VIEW_LATTICE = Object.freeze({ scaleUHi: 0, scaleULo: 1, scaleVHi: 2, scaleVLo: 3, chartKHi: 4, chartKLo: 5, chartAspect: 6, tolerance: 7, offsets: 8, placed: 9, surround: 10, zero: 11, words: 12 });
+export const DISPLAY_VIEW_LATTICE = /* @__PURE__ */ Object.freeze({ scaleUHi: 0, scaleULo: 1, scaleVHi: 2, scaleVLo: 3, chartKHi: 4, chartKLo: 5, chartAspect: 6, tolerance: 7, offsets: 8, placed: 9, surround: 10, zero: 11, words: 12 });
 
 /**
  * The composite kernel's classification (`material(p: vec4<f32>)` with its bound arithmetic, double-float32, cos polynomial,

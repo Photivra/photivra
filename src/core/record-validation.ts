@@ -115,9 +115,9 @@ export function requireFixedFieldsWhenPresent(
  * Fields of the shared relative / not-quantified uncertainty union used by many evidence-backed
  * profiles: `{ kind: "relative", fraction, basis }` or `{ kind: "not-quantified", limitation }`.
  */
-export const UNCERTAINTY_VARIANT_FIELDS: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  relative: Object.freeze(["kind", "fraction", "basis"]),
-  "not-quantified": Object.freeze(["kind", "limitation"])
+export const UNCERTAINTY_VARIANT_FIELDS: Readonly<Record<string, readonly string[]>> = /* @__PURE__ */ Object.freeze({
+  relative: /* @__PURE__ */ Object.freeze(["kind", "fraction", "basis"]),
+  "not-quantified": /* @__PURE__ */ Object.freeze(["kind", "limitation"])
 });
 
 /**
