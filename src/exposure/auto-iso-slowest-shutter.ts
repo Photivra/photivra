@@ -42,7 +42,7 @@ export const AUTO_ISO_SLOWEST_SHUTTER_MODEL_VERSION = "1.0.0" as const;
  * heavier camera, another grip or another photographer moves differently: pass your own profile.
  */
 export const GENERIC_HANDHELD_ANGULAR_VELOCITY_RAD_PER_SEC: Readonly<{ yaw: number; pitch: number }> =
-  Object.freeze({ yaw: (4.39 * Math.PI) / 180, pitch: 0 });
+  /* @__PURE__ */ Object.freeze({ yaw: (4.39 * Math.PI) / 180, pitch: 0 });
 
 /** The largest whole-stop bias accepted, either way (makers offer up to 2 stops faster or slower). */
 export const AUTO_ISO_SLOWEST_SHUTTER_MAXIMUM_BIAS_STOPS = 2 as const;

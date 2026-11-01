@@ -456,7 +456,7 @@ export function assessReadoutExposureTimingLinkage(
 }
 
 /** Model identity of the electronic rolling-shutter (line reset → line read) exposure schedule. */
-export const ELECTRONIC_ROLLING_SHUTTER_MODEL = Object.freeze({
+export const ELECTRONIC_ROLLING_SHUTTER_MODEL = /* @__PURE__ */ Object.freeze({
   id: "electronic-rolling-shutter-line-reset-read",
   version: "1.0.0"
 } as const);

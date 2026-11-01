@@ -27,7 +27,7 @@ GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.1.0" as const
 Every exact preset version that resolves, oldest first. A version is never retuned in place (`test/generic-tier-presets.test.ts`).
 
 ```ts
-GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS = /* @__PURE__ */ Object.freeze(["2.0.0", "2.1.0"] as const)
+GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS = Object.freeze(["2.0.0", "2.1.0"] as const)
 ```
 
 ## GENERIC_EQUIPMENT_TIERS

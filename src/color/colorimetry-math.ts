@@ -64,8 +64,8 @@ export function requireRecordValue(value: unknown, path: string): Record<string,
   return value as Record<string, unknown>;
 }
 
-const XYZ_FIELDS: readonly string[] = Object.freeze(["x", "y", "z"]);
-const CHROMATICITY_FIELDS: readonly string[] = Object.freeze(["x", "y"]);
+const XYZ_FIELDS: readonly string[] = /* @__PURE__ */ Object.freeze(["x", "y", "z"]);
+const CHROMATICITY_FIELDS: readonly string[] = /* @__PURE__ */ Object.freeze(["x", "y"]);
 
 /** Parses an XYZ tristimulus record with exactly the fields x, y and z; any other field is rejected. */
 export function parseXyz(value: unknown, path: string): CieXyzTristimulus {

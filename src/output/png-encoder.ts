@@ -28,7 +28,7 @@ export const PNG_ENCODER_ID = "photivra-png-rgb-v1" as const;
  * Limits, checked before allocation. 100 MP (megapixels) of 16-bit RGB is about 600 MB of filtered scanlines.
  * `maximumPixels` is the default; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`.
  */
-export const PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
+export const PNG_ENCODER_LIMITS = /* @__PURE__ */ Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumIccProfileBytes: 4_000_000 });
 
 /** ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020). */
@@ -77,7 +77,7 @@ export interface PngEncodeInput {
 const PRIMARIES: ReadonlyMap<string, number> = new Map<PngCicpPrimaries, number>([["bt709", 1], ["display-p3", 12], ["bt2020", 9]]);
 const TRANSFER: ReadonlyMap<string, number> = new Map<PngCicpTransfer, number>([["bt709", 1], ["linear", 8], ["srgb", 13]]);
 const INTENT: ReadonlyMap<string, number> = new Map([["perceptual", 0], ["relative-colorimetric", 1], ["saturation", 2], ["absolute-colorimetric", 3]]);
-const COLOUR_ENCODING_FIELDS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+const COLOUR_ENCODING_FIELDS: Readonly<Record<string, readonly string[]>> = /* @__PURE__ */ Object.freeze({
   srgb: ["kind", "renderingIntent"], icc: ["kind", "profileName", "profile"], cicp: ["kind", "primaries", "transfer", "fullRange"]
 });
 function fail(message: string): never { throw new InvalidConfigurationError("PNG encoder: " + message); }

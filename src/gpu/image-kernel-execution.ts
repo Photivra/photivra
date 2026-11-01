@@ -201,8 +201,8 @@ export function composeRelativeErrorBounds(first: ImageKernelRelativeErrorBound,
     absolute: second.absolute + secondWeightSum * first.absolute * (1 + second.relative) };
 }
 
-export const CPU_REFERENCE_LIMITATIONS = Object.freeze(["Float64 engine reference execution; results are the reference by definition"]);
-export const WEBGPU_F32_LIMITATIONS = Object.freeze([
+export const CPU_REFERENCE_LIMITATIONS = /* @__PURE__ */ Object.freeze(["Float64 engine reference execution; results are the reference by definition"]);
+export const WEBGPU_F32_LIMITATIONS = /* @__PURE__ */ Object.freeze([
   "Float32 WebGPU execution is an approximation of the float64 reference within the reported a-priori bound",
   "Not bit-identical to the reference: never use for SHA-256 artifact identities, byte-parity evidence or determinism hashes",
   "Bound assumes a conforming WebGPU implementation (correctly rounded f32 add/multiply/divide, WGSL accuracy table)",

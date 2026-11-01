@@ -1003,7 +1003,7 @@ interface LinearStokes {
   s2: number;
 }
 
-const UNPOLARIZED: LinearPolarizationState = Object.freeze({
+const UNPOLARIZED: LinearPolarizationState = /* @__PURE__ */ Object.freeze({
   degreeOfLinearPolarization: 0,
   angleDegrees: 0
 });

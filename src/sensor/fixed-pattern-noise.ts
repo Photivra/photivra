@@ -42,7 +42,7 @@ import {
 
 export const SENSOR_FIXED_PATTERN_NOISE_PROFILE_SCHEMA_VERSION = "0.1.0" as const;
 /** Versioned identity of the pattern-generation equations and seed schedule. */
-export const SENSOR_FIXED_PATTERN_NOISE_MODEL = Object.freeze({ id: "photivra-sensor-fixed-pattern", version: "1.0.0" } as const);
+export const SENSOR_FIXED_PATTERN_NOISE_MODEL = /* @__PURE__ */ Object.freeze({ id: "photivra-sensor-fixed-pattern", version: "1.0.0" } as const);
 
 /**
  * Explicit fixed-pattern parameters for one sensor instance. Every component is required; a zero

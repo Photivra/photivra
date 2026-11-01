@@ -121,7 +121,7 @@ export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shut
  * and limits), whatever the scene's reflectances.
  */
 export type SimulateCaptureMetering = "scene-average" | "grey-card";
-export const SIMULATE_CAPTURE_METERING_MODES: readonly SimulateCaptureMetering[] = Object.freeze(["scene-average", "grey-card"] as const);
+export const SIMULATE_CAPTURE_METERING_MODES: readonly SimulateCaptureMetering[] = /* @__PURE__ */ Object.freeze(["scene-average", "grey-card"] as const);
 /**
  * #516: what aperture priority does with Auto ISO once the ISO reaches the body's Auto ISO maximum and the exposure is
  * still under the meter target: `"allow-slower-shutter"` lengthens the shutter past the slowest preferred shutter to reach
@@ -493,7 +493,7 @@ export interface SimulateCaptureOptions {
  * Options reported in `diagnostics.options` (2.1), in this order, when they ran: the ones that change how much work
  * a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.temporalSampleCount` a count above 1.
  */
-export const SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
+export const SIMULATE_CAPTURE_COST_OPTIONS = /* @__PURE__ */ Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
   "lens.diffraction", "lens.defocus", "sensor.antiAliasing", "sensor.pixelAperture.box", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror", "output.region",
   "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
   "output.format.jpeg", "output.format.png", "output.format.dng"] as const);
@@ -504,7 +504,7 @@ export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[num
  * the record form with `fast` and is reported in `diagnostics.fast.applied` when it runs. Every one of them takes the flag,
  * whether or not it has a fast method yet; one without runs exact and reports `false`.
  */
-export const SIMULATE_CAPTURE_FAST_OPTIONS = Object.freeze(["lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "output.demosaic.ahd"] as const);
+export const SIMULATE_CAPTURE_FAST_OPTIONS = /* @__PURE__ */ Object.freeze(["lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "output.demosaic.ahd"] as const);
 export type SimulateCaptureFastOption = typeof SIMULATE_CAPTURE_FAST_OPTIONS[number];
 
 /** `diagnostics.fast` of a capture or display view (#395): what was asked for and what ran. */
@@ -681,9 +681,9 @@ export interface SimulateCaptureResult {
   assumptions: readonly SimulateCaptureAssumption[];
 }
 
-export const FACADE_EVIDENCE: readonly EvidenceProvenance[] = Object.freeze([Object.freeze({ sourceOrigin: "photivra" as const,
+export const FACADE_EVIDENCE: readonly EvidenceProvenance[] = /* @__PURE__ */ Object.freeze([/* @__PURE__ */ Object.freeze({ sourceOrigin: "photivra" as const,
   sourceReference: "photivra:simulate-capture-facade", reuseStatus: "photivra-owned" as const })]);
-const DEFAULTS = Object.freeze({ camera: "professional" as const, fNumber: 8, shutterSeconds: 1 / 125, iso: 100, compensationStops: 0,
+const DEFAULTS = /* @__PURE__ */ Object.freeze({ camera: "professional" as const, fNumber: 8, shutterSeconds: 1 / 125, iso: 100, compensationStops: 0,
   subjectDistanceM: 5, width: 64, height: 64, format: "srgb-8" as const, toneCurve: "identity" as const, highlightMode: "clip" as const,
   whiteBalance: "scene-illuminant" as const, jpegQuantizationStep: 2, pixelPitchMicrometers: 6, spectralStepNanometers: 20,
   temporalSampleCount: 1, noiseSeed: 1, illuminantKelvin: 6500 });
@@ -856,7 +856,7 @@ export function apertureNodeOffsets(n: number): { x: number; y: number }[] {
 const AIRY_THIRD_ZERO_PER_LAMBDA_N = 10.173468135062722 / Math.PI;
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
-const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
+const IDS = /* @__PURE__ */ Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
   sceneState: "facade-scene-state", scene: "facade-scene", provider: "facade-provider", lights: "facade-lights", materials: "facade-materials",
   capture: "facade-capture", spectral: "facade-colorimetric-eqe", sampling: "facade-sampling", stack: "facade-no-aa", stackAa: "facade-aa",
   stationarity: "facade-stationarity", operatingState: "facade-operating-state", dark: "facade-dark", completeness: "facade-completeness",
@@ -869,8 +869,8 @@ type Channel = typeof CHANNELS[number];
  * proportional to CIE XYZ (the Luther–Ives condition holds, up to quadrature error), and the camera→XYZ
  * matrix is diagonal.
  */
-const EQE_SCALE: Readonly<Record<Channel, number>> = Object.freeze({ red: 0.5, green: 0.5, blue: 0.25 });
-const CMF_KEY: Readonly<Record<Channel, "x" | "y" | "z">> = Object.freeze({ red: "x", green: "y", blue: "z" });
+const EQE_SCALE: Readonly<Record<Channel, number>> = /* @__PURE__ */ Object.freeze({ red: 0.5, green: 0.5, blue: 0.25 });
+const CMF_KEY: Readonly<Record<Channel, "x" | "y" | "z">> = /* @__PURE__ */ Object.freeze({ red: "x", green: "y", blue: "z" });
 export const CAMERA_TO_XYZ: readonly (readonly number[])[] = Object.freeze([[EQE_SCALE.green / EQE_SCALE.red, 0, 0], [0, 1, 0], [0, 0, EQE_SCALE.green / EQE_SCALE.blue]].map((r) => Object.freeze(r)));
 const XYZ_TO_CAMERA = [[EQE_SCALE.red / EQE_SCALE.green, 0, 0], [0, 1, 0], [0, 0, EQE_SCALE.blue / EQE_SCALE.green]] as const;
 /** Synthetic dark current per site at the operating temperature, e⁻/s. */
@@ -879,7 +879,7 @@ const OPERATING_TEMPERATURE_C = 20;
 
 export function fail(message: string): never { throw new InvalidConfigurationError(message); }
 /** Where `output.metadata` goes in each file format (reported in the `output.metadata` assumption). */
-const TEXT_METADATA_LAYOUT = Object.freeze({
+const TEXT_METADATA_LAYOUT = /* @__PURE__ */ Object.freeze({
   jpeg: "XMP packet in APP1 (dc:description, xmp:CreatorTool, dc:rights, exif:UserComment), plus a COM segment holding the comment",
   png: "One tEXt (printable Latin-1) or iTXt (UTF-8) chunk per field, keywords Description, Software, Copyright, Comment, before the first IDAT",
   dng: "ImageDescription (statement, then the description) and Copyright when printable ASCII; an XMP packet in tag 700 with every field"

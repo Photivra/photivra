@@ -68,12 +68,12 @@ import { DIGIT_SEGMENTS, NUMERAL_ADVANCE, SEGMENTS } from "../facade/chart-scene
 export const CHART_COMPOSITE_WORKGROUP_SIZE = 256;
 
 /** Element kind codes of the record headers. */
-export const CHART_ELEMENT_KIND = Object.freeze({ uniform: 0, "slanted-edge": 1, "siemens-star": 2, "step-wedge": 3, checkerboard: 5, "point-grid": 6, patches: 7,
+export const CHART_ELEMENT_KIND = /* @__PURE__ */ Object.freeze({ uniform: 0, "slanted-edge": 1, "siemens-star": 2, "step-wedge": 3, checkerboard: 5, "point-grid": 6, patches: 7,
   "dead-leaves": 8, "bar-groups": 9, "hyperbolic-wedge": 10, "zone-plate": 11, "slanted-squares": 12, "line-grid": 13, fiducial: 14 } as const);
 /** Placement modes of an element record: the background fills the frame; elements are rectangles or ellipses. */
-export const CHART_PLACEMENT = Object.freeze({ frame: 0, rectangle: 1, ellipse: 2 } as const);
+export const CHART_PLACEMENT = /* @__PURE__ */ Object.freeze({ frame: 0, rectangle: 1, ellipse: 2 } as const);
 /** Words per element header, layer header and shape header in the u32 record array. */
-export const CHART_RECORD_STRIDE = Object.freeze({ element: 8, layer: 16, shape: 4, placementFloats: 10, barGroupFloats: 16 } as const);
+export const CHART_RECORD_STRIDE = /* @__PURE__ */ Object.freeze({ element: 8, layer: 16, shape: 4, placementFloats: 10, barGroupFloats: 16 } as const);
 
 const SEGMENT_ORDER = "abcdefg";
 const segmentRows = SEGMENT_ORDER.split("").map((s) => `vec4<f32>(${SEGMENTS[s]!.map((x) => x.toFixed(2)).join(", ")})`).join(", ");

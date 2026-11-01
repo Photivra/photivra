@@ -1,5 +1,7 @@
 import { configDefaults, defineConfig } from "vitest/config";
 import WeightedShardSequencer from "./test/helpers/weighted-shard-sequencer.js";
+// #536: the tests run the shader text the build ships (comments and indentation stripped); PHOTIVRA_WGSL_MINIFY=0 runs the source text.
+import { wgslMinifyPlugin } from "./scripts/lib/wgsl-minify.mjs";
 
 /*
  * V8 coverage instrumentation slows the heavy numerical fixtures by roughly 3-4x on a
@@ -21,6 +23,7 @@ const timeoutScale = coverageRun ? 4 : 1;
 const shardRun = process.argv.some((argument) => argument === "--shard" || argument.startsWith("--shard="));
 
 export default defineConfig({
+  plugins: process.env.PHOTIVRA_WGSL_MINIFY === "0" ? [] : [wgslMinifyPlugin()],
   test: {
     exclude: ["**/node_modules/**", ".claude/**", ...configDefaults.exclude],
     testTimeout: 5_000 * timeoutScale,

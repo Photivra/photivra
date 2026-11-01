@@ -18,16 +18,16 @@ import { requireInputKeys, requireInputObject } from "../core/record-validation.
 import { calculateEquivalentFocalLength35Mm } from "../camera/equivalent-focal-length.js";
 
 /** Full-frame-equivalent focal lengths of the generic prime family, mm. */
-export const GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM = Object.freeze([10, 12, 14, 16, 20, 24, 28, 35, 40, 50, 85, 105, 135, 200, 300, 400, 500, 600, 800, 1200] as const);
+export const GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM = /* @__PURE__ */ Object.freeze([10, 12, 14, 16, 20, 24, 28, 35, 40, 50, 85, 105, 135, 200, 300, 400, 500, 600, 800, 1200] as const);
 export type GenericPrimeEquivalentFocalLengthMm = typeof GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM[number];
 /**
  * The marked third-stop f-numbers (the conventional rounded values of N = 2^(k/6), k = 0, 1, …), from f/1 to f/32.
  * A lens's `fNumbers` are those within its range; any f-number inside the range is accepted.
  */
-export const GENERIC_PRIME_THIRD_STOP_F_NUMBERS = Object.freeze([1, 1.1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.5, 2.8, 3.2, 3.5, 4, 4.5, 5, 5.6, 6.3, 7.1, 8, 9, 10, 11,
+export const GENERIC_PRIME_THIRD_STOP_F_NUMBERS = /* @__PURE__ */ Object.freeze([1, 1.1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.5, 2.8, 3.2, 3.5, 4, 4.5, 5, 5.6, 6.3, 7.1, 8, 9, 10, 11,
   13, 14, 16, 18, 20, 22, 25, 29, 32] as const);
 /** Minimum focus rule: the object distance at this magnification, but at least `minimumDistanceM`. */
-export const GENERIC_PRIME_MINIMUM_FOCUS = Object.freeze({ magnification: 0.15, minimumDistanceM: 0.1 });
+export const GENERIC_PRIME_MINIMUM_FOCUS = /* @__PURE__ */ Object.freeze({ magnification: 0.15, minimumDistanceM: 0.1 });
 
 /** Widest f-number by equivalent focal length (inclusive upper bounds of each class). */
 const WIDEST: readonly (readonly [number, number])[] = [[16, 2.8], [28, 1.8], [85, 1.4], [135, 2], [300, 2.8], [600, 4], [800, 5.6], [1200, 8]];

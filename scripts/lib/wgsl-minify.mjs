@@ -1,0 +1,167 @@
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Strips comments and indentation from the engine's WGSL shader text (#536), safely by construction.
+ *
+ * It rewrites only the static text of template literals tagged with a leading `/* wgsl *\/` comment, in TypeScript
+ * or JavaScript source, and only in ways that cannot change the WGSL token stream:
+ * - a line comment (`//` to the end of the line) is removed;
+ * - a block comment (WGSL block comments nest) is replaced by one space;
+ * - spaces and tabs at the start and end of each line are removed.
+ *
+ * Every newline is kept, so line numbers (and so source maps) of everything after a shader stay exact, and so do
+ * line-anchored edits such as `/^const SLACK: f32 = …\n/m`. A line that contains a `${…}` interpolation is left
+ * untouched, so an interpolation can never end up inside or outside a comment differently than written, and its
+ * columns keep their source-map positions. The first line (after the opening backtick) and the last line (before the
+ * closing one) are left untouched too. A backslash (a template escape) may only be removed inside a comment, where its
+ * whole escape sequence goes with it; a literal with a backslash in shader code or ending a line is left whole. Expressions inside `${…}` are copied unchanged. WGSL has no string literals, so `//` and `/*`
+ * always start comments in shader text.
+ *
+ * WGSL treats comments and whitespace only as token separators (WGSL §3 "Textual structure": "comments …
+ * behave as blankspace"), and every removed run either touches a newline that stays or is replaced by a space,
+ * so the tokens and their order are unchanged. `wgslTokens()` gives that token stream for tests.
+ */
+
+const TAG = /\/\*\s*wgsl\s*\*\/\s*`/gu;
+
+/**
+ * Finds the end of the template literal whose opening backtick is at `open`. Returns the parts: static text chunks
+ * (raw source text) and expression source text between them, and the index just past the closing backtick.
+ */
+function readTemplate(source, open) {
+  const chunks = [], expressions = [];
+  let i = open + 1, chunkStart = i;
+  for (;;) {
+    if (i >= source.length) throw new Error("Unterminated template literal at offset " + open + ".");
+    const c = source[i];
+    if (c === "\\") { i += 2; continue; }
+    if (c === "`") { chunks.push(source.slice(chunkStart, i)); return { chunks, expressions, end: i + 1 }; }
+    if (c === "$" && source[i + 1] === "{") {
+      chunks.push(source.slice(chunkStart, i));
+      const exprStart = i + 2, exprEnd = skipExpression(source, exprStart);
+      expressions.push(source.slice(exprStart, exprEnd));
+      i = exprEnd + 1;
+      chunkStart = i;
+      continue;
+    }
+    i++;
+  }
+}
+/** Index of the `}` closing an interpolation that starts at `start`, skipping strings, nested templates and comments. */
+function skipExpression(source, start) {
+  let depth = 0, i = start;
+  while (i < source.length) {
+    const c = source[i];
+    if (c === "'" || c === "\"") {
+      i++;
+      while (i < source.length && source[i] !== c) i += source[i] === "\\" ? 2 : 1;
+      i++;
+      continue;
+    }
+    if (c === "`") { i = readTemplate(source, i).end; continue; }
+    if (c === "/" && source[i + 1] === "/") { while (i < source.length && source[i] !== "\n") i++; continue; }
+    if (c === "/" && source[i + 1] === "*") { i = source.indexOf("*/", i + 2) + 2; continue; }
+    if (c === "{") depth++;
+    else if (c === "}") { if (depth === 0) return i; depth--; }
+    i++;
+  }
+  throw new Error("Unterminated interpolation at offset " + start + ".");
+}
+
+/** Removes comments from one line of shader text; `state.blockDepth` carries an open block comment across lines. */
+function stripCommentsFromLine(line, state) {
+  let out = "", i = 0;
+  while (i < line.length) {
+    if (state.blockDepth > 0) {
+      if (line.startsWith("/*", i)) { state.blockDepth++; i += 2; continue; }
+      if (line.startsWith("*/", i)) { state.blockDepth--; i += 2; if (state.blockDepth === 0) out += " "; continue; }
+      i++;
+      continue;
+    }
+    if (line.startsWith("//", i)) break;
+    if (line.startsWith("/*", i)) { state.blockDepth = 1; i += 2; continue; }
+    out += line[i];
+    i++;
+  }
+  return out;
+}
+
+const SENTINEL = (k) => "\uE000" + k + "\uE000";
+const HAS_SENTINEL = /\uE000\d+\uE000/u;
+
+/**
+ * Minifies the static text of one template literal. `chunks` are raw static texts, `expressions` the interpolation
+ * sources. Returns the new literal body (between the backticks), or null to keep it unchanged.
+ */
+function minifyTemplateBody(chunks, expressions) {
+  if (chunks.some((chunk) => chunk.includes("\uE000"))) return null;
+  let text = chunks[0];
+  for (let k = 0; k < expressions.length; k++) text += SENTINEL(k) + chunks[k + 1];
+  const lines = text.split("\n");
+  if (lines.length < 3) return null;
+  const state = { blockDepth: 0 };
+  const out = lines.map((line, index) => {
+    if (index === 0 || index === lines.length - 1 || HAS_SENTINEL.test(line)) {
+      // Kept as written. A line comment on it ends at its own newline; a block comment on it, or one still open when it
+      // starts, could span lines differently from the minified neighbours, so the whole literal is then left unchanged.
+      if (state.blockDepth > 0 || line.includes("/*")) state.unsafe = true;
+      return line;
+    }
+    // A backslash may only disappear inside a removed comment, and never as a line continuation (a raw "\\" before
+    // the newline): then every escape sequence is either removed whole or kept whole.
+    if (/\\[ \t]*$/u.test(line)) state.unsafe = true;
+    const kept = stripCommentsFromLine(line, state).replace(/^[ \t]+|[ \t]+$/gu, "");
+    if (kept.includes("\\")) state.unsafe = true;
+    return kept;
+  });
+  if (state.unsafe || state.blockDepth !== 0) return null;
+  return out.join("\n").replace(/\uE000(\d+)\uE000/gu, (_, k) => "${" + expressions[Number(k)] + "}");
+}
+
+/**
+ * Minifies every `/* wgsl *\/`-tagged template literal in `source`. Returns the new source and a report of the
+ * literals found, minified and kept (with the static texts before and after, for tests).
+ */
+export function minifyWgslTemplates(source) {
+  const literals = [];
+  let out = "", last = 0;
+  TAG.lastIndex = 0;
+  for (let match; (match = TAG.exec(source));) {
+    const open = match.index + match[0].length - 1;
+    const { chunks, expressions, end } = readTemplate(source, open);
+    const body = minifyTemplateBody(chunks, expressions);
+    const original = source.slice(open + 1, end - 1);
+    literals.push({ offset: open, original, minified: body ?? original, kept: body === null, expressions });
+    out += source.slice(last, open + 1) + (body ?? original);
+    last = end - 1;
+    TAG.lastIndex = end;
+  }
+  out += source.slice(last);
+  return { code: out, literals };
+}
+
+/**
+ * The WGSL token stream of shader text: comments removed (block comments nest), split on blankspace. Interpolations
+ * (`${…}` in a literal body) are kept as single tokens. Used by tests to show minification changes no token.
+ */
+export function wgslTokens(body) {
+  const tokens = [];
+  const state = { blockDepth: 0 };
+  for (const line of body.split("\n")) {
+    for (const token of stripCommentsFromLine(line, state).split(/[ \t\r]+/u)) if (token !== "") tokens.push(token);
+  }
+  return tokens;
+}
+
+/** A Vite/Vitest plugin that applies {@link minifyWgslTemplates} to `src/` TypeScript, so tests run the shipped shader text. */
+export function wgslMinifyPlugin() {
+  return {
+    name: "photivra-wgsl-minify",
+    enforce: "pre",
+    transform(code, id) {
+      if (!/[\\/]src[\\/].*\.ts$/u.test(id) || !code.includes("wgsl")) return null;
+      const { code: next, literals } = minifyWgslTemplates(code);
+      return literals.length === 0 ? null : { code: next, map: null };
+    }
+  };
+}
