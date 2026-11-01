@@ -44,7 +44,7 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { resolveCaptureColorModel } from "./capture-color.js";
 
 type Matrix = readonly (readonly number[])[];
-export const SENSOR_COLOR_DEVELOPMENT_MODEL = Object.freeze({ id: "sensor-color-development", version: "2.0.0" } as const);
+export const SENSOR_COLOR_DEVELOPMENT_MODEL = /* @__PURE__ */ Object.freeze({ id: "sensor-color-development", version: "2.0.0" } as const);
 /** RAW development highlight policy; see the module notes. */
 export type RawHighlightMode = "clip" | "reconstruct";
 /** Normalized channel level where `reconstruct` starts blending toward neutral. */

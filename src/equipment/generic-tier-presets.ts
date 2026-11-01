@@ -23,7 +23,7 @@ import type { LateralChromaticAberrationProfile } from "../optics/lateral-chroma
 import type { IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
 
 export const GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.0.0" as const;
-export const GENERIC_EQUIPMENT_TIERS = Object.freeze(["consumer", "prosumer", "professional"] as const);
+export const GENERIC_EQUIPMENT_TIERS = /* @__PURE__ */ Object.freeze(["consumer", "prosumer", "professional"] as const);
 export interface GenericEquipmentTierProfileReference { profileId: string; profileVersion: string }
 export interface GenericEquipmentTierSelection {
   schemaVersion: "0.1.0"; presetVersion: typeof GENERIC_EQUIPMENT_TIER_PRESET_VERSION;

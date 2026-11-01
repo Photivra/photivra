@@ -27,7 +27,7 @@ import { buildPlanarSceneRadianceProvider, calculateIlluminantIrradianceScale, r
 
 export const CHART_RADIANCE_BATCH_SCHEMA_VERSION = "0.1.0" as const;
 /** `maximumQueries` is the default batch limit; a request may raise it with its own `maximumQueries`, up to `ceilingQueries`. */
-export const CHART_RADIANCE_BATCH_LIMITS = Object.freeze({ maximumQueries: 24_000_000, ceilingQueries: FULL_RESOLUTION_CEILING_PIXELS, maximumWavelengths: 256,
+export const CHART_RADIANCE_BATCH_LIMITS = /* @__PURE__ */ Object.freeze({ maximumQueries: 24_000_000, ceilingQueries: FULL_RESOLUTION_CEILING_PIXELS, maximumWavelengths: 256,
   maximumChannels: 4 });
 
 export interface ChartRadianceBatchInput {

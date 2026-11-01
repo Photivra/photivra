@@ -34,7 +34,7 @@ import { resolveChartMaterialLayers, type ChartMaterialLayerScene } from "./char
 /** CIE maximum luminous efficacy for photopic vision, lm/W. */
 export const PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W = 683;
 /** Wavelength range of every facade spectrum and of the facade sensor quadrature, nm. */
-export const FACADE_SPECTRAL_RANGE_NANOMETERS = Object.freeze({ minimum: 380, maximum: 780 });
+export const FACADE_SPECTRAL_RANGE_NANOMETERS = /* @__PURE__ */ Object.freeze({ minimum: 380, maximum: 780 });
 
 /**
  * Illuminant choices. CIE D65 is not bundled: its S0/S1/S2 basis tables must come from the caller
@@ -235,7 +235,7 @@ export function planarProviderMaterialOfDirection(provider: PlanarSceneRadianceP
   return MATERIAL_OF_DIRECTION.get(provider);
 }
 
-const UNCERTAINTY = Object.freeze({ kind: "not-quantified" as const, limitation: "Analytic planar Lambertian scene; no measured scene, BRDF or illumination." });
+const UNCERTAINTY = /* @__PURE__ */ Object.freeze({ kind: "not-quantified" as const, limitation: "Analytic planar Lambertian scene; no measured scene, BRDF or illumination." });
 
 /** Most distinct wavelengths {@link tabulatedSpectrum} keeps; later ones are evaluated on every call. */
 const TABULATED_SPECTRUM_MAX_ENTRIES = 4096;

@@ -67,7 +67,7 @@ export const DISPLAY_VIEW_QUALITY_CANDIDATE_ENTRIES = 49;
 export const DISPLAY_VIEW_QUALITY_CANDIDATE_FLOATS = 8;
 const CANDIDATE_PHASE_STRIDE = 4 + DISPLAY_VIEW_QUALITY_CANDIDATE_ENTRIES * DISPLAY_VIEW_QUALITY_CANDIDATE_FLOATS;
 /** Layout of the aux table (float32 words). */
-export const DISPLAY_VIEW_QUALITY_AUX = Object.freeze({
+export const DISPLAY_VIEW_QUALITY_AUX = /* @__PURE__ */ Object.freeze({
   /** Per phase p, channel c, tap t: dx, dy, weight, 0 (the bilinear kernels, 4 taps; unused taps have weight 0). */
   bilinear: 0,
   /** Per phase p, channel c: 1 / Σ_t w_t² of the bilinear kernel (host float64). */
@@ -80,7 +80,7 @@ export const DISPLAY_VIEW_QUALITY_AUX = Object.freeze({
   size: 240 + 4 * CANDIDATE_PHASE_STRIDE
 });
 /** Pixel flag bits of the output flag word. */
-export const DISPLAY_VIEW_QUALITY_FLAG = Object.freeze({
+export const DISPLAY_VIEW_QUALITY_FLAG = /* @__PURE__ */ Object.freeze({
   /** A site the pixel read had an uncertain lattice material (recompute on the host). */
   materialUncertain: 1,
   /** A site the pixel read lies outside the band's site window (a host geometry error; recompute). */

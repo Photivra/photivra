@@ -36,7 +36,7 @@ export const COLOR_PATCH_SET_ID = "photivra-color-patches";
 /** Version of the patch set's spectra and reference values; a change to any spectrum changes it. */
 export const COLOR_PATCH_SET_VERSION = "1.0.0";
 /** Wavelengths on which every patch spectrum is defined, nanometres, inclusive. */
-export const COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS = Object.freeze({ minimum: 360, maximum: 830 });
+export const COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS = /* @__PURE__ */ Object.freeze({ minimum: 360, maximum: 830 });
 
 /** One term of a patch spectrum (see the module formula). */
 export type ColorPatchSpectralTerm =
@@ -47,7 +47,7 @@ export type ColorPatchSpectralTerm =
 export type ColorPatchGroup = "neutral" | "strong" | "soft" | "skin" | "memory" | "gamut-edge";
 
 /** The ids of the built-in patches, in the order of the `color-patches` chart (row-major, six per row). */
-export const COLOR_PATCH_IDS = Object.freeze([
+export const COLOR_PATCH_IDS = /* @__PURE__ */ Object.freeze([
   "neutral-1", "neutral-2", "neutral-3", "neutral-4", "neutral-5", "neutral-6",
   "red", "yellow", "green", "cyan", "blue", "magenta",
   "red-soft", "yellow-soft", "green-soft", "cyan-soft", "blue-soft", "magenta-soft",
@@ -135,7 +135,7 @@ const PATCHES: readonly ColorPatch[] = Object.freeze(DEFINITIONS.map(([patchId, 
   patchId, name, group, base, terms, reference: { cielabD65: lab, srgbHex: hex, inSrgbGamut: true }
 })));
 const BY_ID = new Map<string, ColorPatch>(PATCHES.map((p) => [p.patchId, p]));
-const SET: ColorPatchSet = Object.freeze({ setId: COLOR_PATCH_SET_ID, version: COLOR_PATCH_SET_VERSION,
+const SET: ColorPatchSet = /* @__PURE__ */ Object.freeze({ setId: COLOR_PATCH_SET_ID, version: COLOR_PATCH_SET_VERSION,
   wavelengthRangeNanometers: COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS, columns: 6, patches: PATCHES });
 
 /**

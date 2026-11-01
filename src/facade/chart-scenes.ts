@@ -269,32 +269,32 @@ export interface CompositeChartScene {
 }
 export type ChartScene = ChartElementScene | CompositeChartScene;
 export type ChartScenePresetId = ChartScene["preset"];
-export const CHART_SCENE_PRESETS: readonly ChartScenePresetId[] = Object.freeze(["uniform", "slanted-edge", "siemens-star",
+export const CHART_SCENE_PRESETS: readonly ChartScenePresetId[] = /* @__PURE__ */ Object.freeze(["uniform", "slanted-edge", "siemens-star",
   "step-wedge", "grey-ramp", "checkerboard", "point-grid", "patches", "dead-leaves", "bar-groups", "hyperbolic-wedge", "zone-plate",
   "slanted-squares", "line-grid", "fiducial", "color-patches", "composite"] as const);
 /** Neutral levels that represent a continuous pattern (grey ramp; 2.3 sine star, zone plate and dead-leaves greys). */
 export const CHART_CONTINUOUS_LEVELS = 1024;
 
 /** Engine-chosen chart parameters, each reported when the caller omitted it. */
-export const CHART_SCENE_DEFAULTS = Object.freeze({
-  uniform: Object.freeze({ reflectance: 0.18 }),
-  "slanted-edge": Object.freeze({ angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 }),
-  "siemens-star": Object.freeze({ cycles: 36, radiusFraction: 0.9, darkReflectance: 0.05, lightReflectance: 0.8, backgroundReflectance: 0.18 }),
-  "step-wedge": Object.freeze({ steps: 11, minimumReflectance: 0.03, maximumReflectance: 0.9, spacing: "equal-density" as const }),
-  "grey-ramp": Object.freeze({ minimumReflectance: 0.03, maximumReflectance: 0.9 }),
-  checkerboard: Object.freeze({ squaresAcross: 8, darkReflectance: 0.05, lightReflectance: 0.8 }),
-  "point-grid": Object.freeze({ columns: 5, rows: 3, radius: 0.01, pointReflectance: 0.9, backgroundReflectance: 0.02 }),
-  patches: Object.freeze({ gapFraction: 0.1, backgroundReflectance: 0.18 }),
-  "dead-leaves": Object.freeze({ radiusMinimum: 0.01, radiusMaximum: 0.5, minimumReflectance: 0.2, maximumReflectance: 0.6, seed: 1 }),
-  "bar-groups": Object.freeze({ lineWidthsPerPictureHeight: Object.freeze([100, 200, 400, 800]), numerals: true, darkReflectance: 0.05, lightReflectance: 0.8 }),
-  "hyperbolic-wedge": Object.freeze({ orientation: "horizontal" as const, lineCount: 5, minimumLineWidthsPerPictureHeight: 100,
+export const CHART_SCENE_DEFAULTS = /* @__PURE__ */ Object.freeze({
+  uniform: /* @__PURE__ */ Object.freeze({ reflectance: 0.18 }),
+  "slanted-edge": /* @__PURE__ */ Object.freeze({ angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 }),
+  "siemens-star": /* @__PURE__ */ Object.freeze({ cycles: 36, radiusFraction: 0.9, darkReflectance: 0.05, lightReflectance: 0.8, backgroundReflectance: 0.18 }),
+  "step-wedge": /* @__PURE__ */ Object.freeze({ steps: 11, minimumReflectance: 0.03, maximumReflectance: 0.9, spacing: "equal-density" as const }),
+  "grey-ramp": /* @__PURE__ */ Object.freeze({ minimumReflectance: 0.03, maximumReflectance: 0.9 }),
+  checkerboard: /* @__PURE__ */ Object.freeze({ squaresAcross: 8, darkReflectance: 0.05, lightReflectance: 0.8 }),
+  "point-grid": /* @__PURE__ */ Object.freeze({ columns: 5, rows: 3, radius: 0.01, pointReflectance: 0.9, backgroundReflectance: 0.02 }),
+  patches: /* @__PURE__ */ Object.freeze({ gapFraction: 0.1, backgroundReflectance: 0.18 }),
+  "dead-leaves": /* @__PURE__ */ Object.freeze({ radiusMinimum: 0.01, radiusMaximum: 0.5, minimumReflectance: 0.2, maximumReflectance: 0.6, seed: 1 }),
+  "bar-groups": /* @__PURE__ */ Object.freeze({ lineWidthsPerPictureHeight: /* @__PURE__ */ Object.freeze([100, 200, 400, 800]), numerals: true, darkReflectance: 0.05, lightReflectance: 0.8 }),
+  "hyperbolic-wedge": /* @__PURE__ */ Object.freeze({ orientation: "horizontal" as const, lineCount: 5, minimumLineWidthsPerPictureHeight: 100,
     maximumLineWidthsPerPictureHeight: 1000, darkReflectance: 0.05, lightReflectance: 0.8 }),
-  "zone-plate": Object.freeze({ radiusFraction: 0.9, maximumCyclesPerPictureHeight: 200, darkReflectance: 0.1, lightReflectance: 0.7, backgroundReflectance: 0.18 }),
-  "slanted-squares": Object.freeze({ columns: 3, rows: 2, sizeFraction: 0.5, angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 }),
-  "line-grid": Object.freeze({ spacing: 1 / 3, lineWidth: 0.01, lineReflectance: 0.42, backgroundReflectance: 0.6 }),
-  fiducial: Object.freeze({ radiusFraction: 0.8, ringFraction: 0.18, inverted: false, darkReflectance: 0.05, lightReflectance: 0.8, backgroundReflectance: 0.18 }),
-  "color-patches": Object.freeze({ patchIds: COLOR_PATCH_IDS, gapFraction: 0.1, backgroundReflectance: 0.18 }),
-  composite: Object.freeze({ background: Object.freeze({ preset: "uniform" as const, reflectance: 0.18 }) })
+  "zone-plate": /* @__PURE__ */ Object.freeze({ radiusFraction: 0.9, maximumCyclesPerPictureHeight: 200, darkReflectance: 0.1, lightReflectance: 0.7, backgroundReflectance: 0.18 }),
+  "slanted-squares": /* @__PURE__ */ Object.freeze({ columns: 3, rows: 2, sizeFraction: 0.5, angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 }),
+  "line-grid": /* @__PURE__ */ Object.freeze({ spacing: 1 / 3, lineWidth: 0.01, lineReflectance: 0.42, backgroundReflectance: 0.6 }),
+  fiducial: /* @__PURE__ */ Object.freeze({ radiusFraction: 0.8, ringFraction: 0.18, inverted: false, darkReflectance: 0.05, lightReflectance: 0.8, backgroundReflectance: 0.18 }),
+  "color-patches": /* @__PURE__ */ Object.freeze({ patchIds: COLOR_PATCH_IDS, gapFraction: 0.1, backgroundReflectance: 0.18 }),
+  composite: /* @__PURE__ */ Object.freeze({ background: /* @__PURE__ */ Object.freeze({ preset: "uniform" as const, reflectance: 0.18 }) })
 });
 
 /** A validated chart: every parameter resolved, plus which ones came from {@link CHART_SCENE_DEFAULTS}. */
@@ -332,7 +332,7 @@ function finiteIn(value: unknown, name: string, minimum: number, maximum: number
   return value;
 }
 /** Wavelength range every chart spectrum must cover (the facade's sensor quadrature range). */
-export const CHART_SPECTRAL_RANGE_NANOMETERS = Object.freeze({ minimum: 380, maximum: 780 });
+export const CHART_SPECTRAL_RANGE_NANOMETERS = /* @__PURE__ */ Object.freeze({ minimum: 380, maximum: 780 });
 /**
  * Internal: validates a chart reflectance input (a neutral number, a reflectance spectrum covering 380–780 nm or a
  * built-in colour patch) as a material.
@@ -851,7 +851,7 @@ function barGroupLayout(list: readonly number[], numerals: boolean, aspect: numb
 /** Engine-drawn seven-segment numerals: a 0.6 × 1 cell per digit (baseline at 0, y up), stroke 0.16, advance 0.82. */
 export const NUMERAL_WIDTH = 0.6, NUMERAL_ADVANCE = 0.82;
 /** Internal: segment rectangles [x0, y0, x1, y1] of the seven-segment numerals and the segments each digit lights. */
-export const SEGMENTS: Readonly<Record<string, readonly [number, number, number, number]>> = Object.freeze({
+export const SEGMENTS: Readonly<Record<string, readonly [number, number, number, number]>> = /* @__PURE__ */ Object.freeze({
   a: [0.08, 0.84, 0.52, 1], b: [0.44, 0.5, 0.6, 1], c: [0.44, 0, 0.6, 0.5], d: [0.08, 0, 0.52, 0.16], e: [0, 0, 0.16, 0.5], f: [0, 0.5, 0.16, 1], g: [0.08, 0.42, 0.52, 0.58] });
 export const DIGIT_SEGMENTS = ["abcdef", "bc", "abged", "abgcd", "fgbc", "afgcd", "afgedc", "abc", "abcdefg", "abcdfg"];
 function numeralInk(label: NumeralLabel, u: number, v: number): boolean {

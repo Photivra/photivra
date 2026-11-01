@@ -10,6 +10,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join, normalize, resolve, sep } from "node:path";
 import ts from "typescript";
+import { minifyWgslTemplates } from "../../scripts/lib/wgsl-minify.mjs";
 
 /**
  * Chromium flags that expose a WebGPU adapter in headless mode without a hardware GPU (SwiftShader's
@@ -98,7 +99,9 @@ function serve(root: string): Promise<{ server: Server; origin: string }> {
       if (!path.endsWith(".js") || !existsSync(source)) { response.writeHead(404).end(); return; }
       let code = cache.get(source);
       if (code === undefined) {
-        code = ts.transpileModule(readFileSync(source, "utf8"), { fileName: source,
+        // #536: the page runs the shader text the build ships, unless PHOTIVRA_WGSL_MINIFY=0.
+        const text = readFileSync(source, "utf8");
+        code = ts.transpileModule(process.env.PHOTIVRA_WGSL_MINIFY === "0" ? text : minifyWgslTemplates(text).code, { fileName: source,
           compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 } }).outputText;
         cache.set(source, code);
       }

@@ -33,7 +33,7 @@ import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "./sensor-raw-producer.js";
 
 export const PACKED_SENSOR_RAW_SCHEMA_VERSION = "0.1.0" as const;
 /** `maximumRegionSites` is the default region limit; a request may raise it with its own `maximumRegionSites`, up to `ceilingRegionSites`. */
-export const PACKED_SENSOR_RAW_LIMITS = Object.freeze({
+export const PACKED_SENSOR_RAW_LIMITS = /* @__PURE__ */ Object.freeze({
   maximumRegionSites: 24_000_000,
   ceilingRegionSites: FULL_RESOLUTION_CEILING_PIXELS,
   maximumNativeSites: 0xffffffff,
@@ -229,7 +229,7 @@ export function createPackedFixedPattern(plan: PackedSensorRawPlan): ((column: n
 }
 
 /** Saturation and clamp flags of one site: bit 0 physical, 1 pre-ADC, 2 digital, 3 lower clamp. */
-export const PACKED_SENSOR_RAW_FLAG = Object.freeze({ physical: 1, preAdc: 2, digital: 4, lower: 8 });
+export const PACKED_SENSOR_RAW_FLAG = /* @__PURE__ */ Object.freeze({ physical: 1, preAdc: 2, digital: 4, lower: 8 });
 
 /**
  * One site of the reference, in the operation order of `calculateNativeRawSite`. Returns the code and
@@ -299,7 +299,7 @@ export interface PackedSensorExtras {
   pattern: ((column: number, row: number) => PackedSensorSitePattern) | null;
   additional: readonly (Float32Array | Float64Array)[];
 }
-const NO_EXTRAS: PackedSensorExtras = Object.freeze({ pattern: null, additional: Object.freeze([]) });
+const NO_EXTRAS: PackedSensorExtras = /* @__PURE__ */ Object.freeze({ pattern: null, additional: /* @__PURE__ */ Object.freeze([]) });
 
 /** The extras of a validated input; `snapshot` copies the arrays. @internal */
 export function packedSensorExtras(plan: PackedSensorRawPlan, input: PackedSensorRawInput, snapshot: boolean): PackedSensorExtras {

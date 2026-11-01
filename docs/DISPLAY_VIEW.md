@@ -982,6 +982,15 @@ root exports of the built package, minified, gzip level 9; `test/capture-bundle.
   the worker must then be created with `{ type: "module" }`) to keep it out. Measured on the Photivra app's production build
   (Vite 8.3.2, engine 2.11.1): its capture worker went from 1,093,459 B / 317,120 B gzip to 921,285 B / 258,618 B gzip, with
   the GPU session in a separate chunk, and its page entry was unchanged.
+- **Shipped shaders are minified (2.14, #536).** `npm run build` strips comments and indentation from the WGSL source
+  (`scripts/minify-wgsl-dist.mjs`, see [WebGPU, Shipped shader text](WEBGPU.md#shipped-shader-text)). Measured on the app's
+  production build (Vite 8, app 0.50.0 at `a82a5eb`, engine `main` at `42ec9d8` packed before and after): the GPU session
+  chunk went from 159,675 B / 52,917 B gzip to 142,399 B / 46,430 B gzip (−6,487 B gzip), and the app's total JavaScript from
+  500.7 KiB to 494.1 KiB gzip.
+- **Module-level frozen tables are `/* @__PURE__ */` (2.14, #536).** 110 `Object.freeze(<literal>)` calls that build
+  module-level constants carry the annotation, so a bundler drops a table nothing imports. A consumer that imports only
+  `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` went from 2,542 B / 1,175 B gzip to 729 B / 457 B gzip (rolldown, minified).
+  Freezes inside functions and initializers that call other code are unchanged.
 
 ## Same bytes in every engine
 

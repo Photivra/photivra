@@ -49,9 +49,9 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 /** Supported linear chromatic-adaptation transforms. */
 export type ChromaticAdaptationTransform = "bradford" | "cat16" | "xyz-scaling";
 
-export const CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat16", "xyz-scaling"]);
+export const CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = /* @__PURE__ */ Object.freeze(["bradford", "cat16", "xyz-scaling"]);
 
-const CONE_MATRICES: Readonly<Record<ChromaticAdaptationTransform, ColorMatrix3x3>> = Object.freeze({
+const CONE_MATRICES: Readonly<Record<ChromaticAdaptationTransform, ColorMatrix3x3>> = /* @__PURE__ */ Object.freeze({
   bradford: [[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]],
   cat16: [[0.401288, 0.650173, -0.051461], [-0.250268, 1.204414, 0.045854], [-0.002079, 0.048952, 0.953127]],
   "xyz-scaling": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]

@@ -40,6 +40,14 @@ Target: 2.14.0, a minor release. Colour test charts from the engine's own spectr
 
     Images, RAW codes, every other exposure field, the assumptions and the scene digests are identical to 2.13.0 for manual, aperture-priority, program Auto ISO and shutter-priority captures and a display view (compared by SHA-256 between the two builds; every hash lock holds).
 
+### Changed
+
+- **Smaller published package (#536).** The app was 2 KiB under its 500 KiB JavaScript budget.
+  - **Shader text:** `npm run build` strips comments and indentation from the `/* wgsl */` shader literals (`scripts/minify-wgsl-dist.mjs`, `scripts/lib/wgsl-minify.mjs`), keeping every newline and every line that holds an interpolation, so the WGSL token stream, line numbers and the engine's own shader-text anchors are unchanged; the build fails if any of that changes. Tests and the WebGPU suites run the minified text (`PHOTIVRA_WGSL_MINIFY=0` for the source). docs/WEBGPU.md, "Shipped shader text".
+  - **Pure annotations:** 110 module-level `Object.freeze(<literal>)` table constructors are `/* @__PURE__ */`, so bundlers drop unused tables; in-function freezes are untouched.
+  - **Measured:** on the app's production build (0.50.0, Vite 8), the GPU session chunk 52,917 → 46,430 B gzip and the app's total JavaScript 500.7 → 494.1 KiB gzip; importing only `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` 1,175 → 457 B gzip.
+  - **Same output:** on an Apple M5 Pro, `npm run test:webgpu` passed all 167 tests with the minified and with the source shader text, with identical recorded values (2,911); the CPU suite and every hash lock pass with the minified text. `test/wgsl-minify.test.ts` checks every literal's tokens with an independent tokenizer, the 14 shader-text anchors, and the edge cases.
+
 ### Known
 
 - At the default `sensor.spectralStepNanometers` (20 nm) the facade's scene-illuminant white balance is measured on 1 nm nodes while the sensor integrates on 20 nm nodes, which leaves a small neutral cast that depends on the illuminant's spectral detail: white a* 0.17, b* 0.36 under the default 6500 K Planckian, b* −0.17 under illuminant A, and a* −0.74, b* +0.95 under the CIE D65 table as a caller spectrum. With 5 nm nodes it is below 0.03. Unchanged in this release (changing it would change existing captures); docs/COLOR_PATCHES.md recommends 5 nm for colour work.

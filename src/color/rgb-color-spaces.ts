@@ -92,7 +92,7 @@ export interface RgbColorSpaceDefinition extends RgbToXyzMatrices {
   sources: readonly string[];
 }
 
-const D65_CHROMATICITY: CieXyChromaticity = Object.freeze({ x: 0.3127, y: 0.3290 });
+const D65_CHROMATICITY: CieXyChromaticity = /* @__PURE__ */ Object.freeze({ x: 0.3127, y: 0.3290 });
 const BT709_PRIMARIES: RgbPrimaryChromaticities = { red: { x: 0.64, y: 0.33 }, green: { x: 0.30, y: 0.60 }, blue: { x: 0.15, y: 0.06 } };
 const SPACES: Readonly<Record<RgbColorSpaceId, { primaries: RgbPrimaryChromaticities; transferFunction: RgbTransferFunctionId; sources: readonly string[] }>> = {
   srgb: { primaries: BT709_PRIMARIES, transferFunction: "srgb", sources: ["W3C CSS Color Module Level 4 srgb", "ITU-R BT.709-6"] },

@@ -20,7 +20,7 @@ export interface HostYieldCadence {
   readonly now: () => number;
 }
 
-export const DEFAULT_HOST_YIELD_CADENCE: HostYieldCadence = Object.freeze({
+export const DEFAULT_HOST_YIELD_CADENCE: HostYieldCadence = /* @__PURE__ */ Object.freeze({
   budgetMilliseconds: HOST_YIELD_BUDGET_MILLISECONDS,
   now: (): number => performance.now()
 });

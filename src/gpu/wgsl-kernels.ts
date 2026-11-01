@@ -15,11 +15,11 @@
  * largest per-sample linear bound of a luminance tone curve (a maximum, not a sum: non-negative float32
  * bit patterns order like their values). `luminanceDomain` counts samples outside the float32 domain.
  */
-export const SDR_COUNTER = Object.freeze({ negative: 0, above: 1, changed: 2, low: 3, high: 4, outOfGamut: 5, uncertain: 6, gamutUncertain: 7,
+export const SDR_COUNTER = /* @__PURE__ */ Object.freeze({ negative: 0, above: 1, changed: 2, low: 3, high: 4, outOfGamut: 5, uncertain: 6, gamutUncertain: 7,
   saturatedPixels: 8, whiteBalanceClipped: 9, reconstructedPixels: 10, linearBoundBits: 11, luminanceDomain: 12 });
 export const SDR_COUNTER_SLOTS = 16;
 /** Tone modes of the luminance kernels (`Params.tone_mode`); 0 is a per-channel curve. */
-export const SDR_TONE_MODE = Object.freeze({ perChannel: 0, extendedReinhard: 1, nakaRushton: 2 });
+export const SDR_TONE_MODE = /* @__PURE__ */ Object.freeze({ perChannel: 0, extendedReinhard: 1, nakaRushton: 2 });
 export const LINEAR_WORKGROUP_SIZE = 256;
 /** RAW_HIGHLIGHT_RECONSTRUCTION_START as a WGSL literal (rounded once to float32 by the compiler). */
 const RAW_HIGHLIGHT_START_WGSL = "0.8";
