@@ -13,7 +13,8 @@
  * rounded to 8 bits. A patch is in the sRGB gamut when every linear component lies in [0, 1].
  *
  * Data: CIE datasets "CIE standard illuminant D65" (DOI 10.25039/CIE.DS.hjfjmt59) and "CIE 1931 colour-matching
- * functions, 2 degree observer" (DOI 10.25039/CIE.DS.xvudnb9b), both CC BY-SA 4.0. Like scripts/fit-cie-1931-cmf.mjs,
+ * functions, 2 degree observer" (DOI 10.25039/CIE.DS.xvudnb9b); their licence and attribution are in THIRD_PARTY.md and
+ * docs/COLORIMETRY.md, which explain why they are not bundled. Like scripts/fit-cie-1931-cmf.mjs,
  * the script downloads them into a fresh temporary directory outside the repository, checks their SHA-256, uses them
  * and deletes them. It writes no CIE value anywhere: its output is the computed colorimetry of Photivra's spectra.
  *

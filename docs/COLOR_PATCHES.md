@@ -127,7 +127,8 @@ independent of any camera:
 - sRGB: the XYZ is scaled from the D65 table's white to the sRGB white (0.3127, 0.3290) (they differ by about 3·10⁻⁵ in
   x and y), converted with the CSS Color 4 matrix, encoded with the sRGB transfer function and rounded to 8 bits.
 
-The CIE tables are CC BY-SA 4.0 datasets the engine does not bundle ([Colorimetry](COLORIMETRY.md#data-policy-what-is-and-is-not-bundled)).
+The CIE tables are datasets the engine does not bundle, because of their licence ([Colorimetry](COLORIMETRY.md#data-policy-what-is-and-is-not-bundled);
+attribution and licence in `THIRD_PARTY.md`).
 `scripts/compute-color-patch-reference.mjs` downloads them (D65: DOI 10.25039/CIE.DS.hjfjmt59; CIE 1931:
 DOI 10.25039/CIE.DS.xvudnb9b) into a temporary directory, checks their SHA-256, computes these values from the built
 package's spectra, compares them with the published ones and deletes the tables; `--print` prints this table. The
