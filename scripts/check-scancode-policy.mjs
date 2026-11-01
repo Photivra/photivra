@@ -75,7 +75,6 @@ const LICENSE_ALLOWLIST = [
   { path: "THIRD_PARTY.md", license: "BSD-3-Clause", reason: LICENCE_NAMES_IN_DOCS },
   { path: "THIRD_PARTY.md", license: "CC-BY-ND-3.0", reason: LICENCE_NAMES_IN_DOCS },
   { path: "THIRD_PARTY.md", license: "CC-BY-SA-3.0", reason: LICENCE_NAMES_IN_DOCS },
-  { path: "THIRD_PARTY.md", license: "CC0-1.0", reason: LICENCE_NAMES_IN_DOCS },
   { path: "THIRD_PARTY.md", license: "CC-BY-SA-4.0", reason: LICENCE_NAMES_IN_DOCS },
   { path: "THIRD_PARTY.md", license: "CDDL-1.0", reason: LICENCE_NAMES_IN_DOCS },
   { path: "THIRD_PARTY.md", license: "GPL-1.0-or-later", reason: LICENCE_NAMES_IN_DOCS },
