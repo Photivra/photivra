@@ -57,7 +57,7 @@ console.log(capture.assumptions.map((a) => `${a.id}: ${a.explanation}`));
 
 `simulateCapture()` runs the full physical pipeline through the engine's existing contracts: scene radiance, lens, spectral sensor, noise, RAW readout, RAW development and optional JPEG. It lists every default and modelling choice it made in `assumptions`.
 
-The [Quick Start](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md) covers the inputs, the chart presets (slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid, caller patches and, from 2.14, Photivra's own [colour patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md)), illuminants, white balance and limits.
+The [Quick Start](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md) covers the inputs, the chart presets (slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid, caller patches and, from 2.14, Photivra's own [color patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md)), illuminants, white balance and limits.
 
 The individual calculations are still available as small functions. For example, the horizontal field of view for a 36 mm sensor dimension and a 50 mm focal length:
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Computes the reference colorimetry of the built-in Photivra colour patches (`getColorPatchSet()`) and checks it
+ * Computes the reference colorimetry of the built-in Photivra color patches (`getColorPatchSet()`) and checks it
  * against the values published in src/facade/color-patches.ts and docs/COLOR_PATCHES.md.
  *
  * For each patch spectrum R(λ) (the engine's own analytic formula, read from the built package):
@@ -13,7 +13,7 @@
  * rounded to 8 bits. A patch is in the sRGB gamut when every linear component lies in [0, 1].
  *
  * Data: CIE datasets "CIE standard illuminant D65" (DOI 10.25039/CIE.DS.hjfjmt59) and "CIE 1931 colour-matching
- * functions, 2 degree observer" (DOI 10.25039/CIE.DS.xvudnb9b); their licence and attribution are in THIRD_PARTY.md and
+ * functions, 2 degree observer" (DOI 10.25039/CIE.DS.xvudnb9b); their license and attribution are in THIRD_PARTY.md and
  * docs/COLORIMETRY.md, which explain why they are not bundled. Like scripts/fit-cie-1931-cmf.mjs,
  * the script downloads them into a fresh temporary directory outside the repository, checks their SHA-256, uses them
  * and deletes them. It writes no CIE value anywhere: its output is the computed colorimetry of Photivra's spectra.
@@ -26,7 +26,7 @@
  *
  * `--render` passes the D65 table to `simulateIdealReference()` as a caller illuminant (`{ kind: "spectrum" }`), renders
  * the `color-patches` chart with 1 nm and 5 nm sensor quadrature, reads the CIELAB of each patch centre (relative to the
- * sRGB white scaled to the 90 % neutral) and fails when any patch differs from its published value by more than
+ * sRGB white scaled to the white neutral's reflectance) and fails when any patch differs from its published value by more than
  * ΔE00 0.3. The residual is the engine's analytic approximation of the CIE 1931 observer (docs/COLORIMETRY.md).
  */
 
@@ -116,9 +116,9 @@ for (const row of rows) {
 if (process.argv.includes("--print")) {
   for (const row of rows) console.log(JSON.stringify(row.patch.patchId) + ": [" + row.lab.join(", ") + "], " + JSON.stringify(row.hex) + ", in gamut " + row.inGamut +
     ", min linear " + Math.min(...row.linear).toFixed(4) + ", max linear " + Math.max(...row.linear).toFixed(4));
-  console.log("\n| Id | Name | L* | a* | b* | C*ab | hab (°) | sRGB |\n| --- | --- | --- | --- | --- | --- | --- | --- |");
-  for (const row of rows) console.log("| `" + row.patch.patchId + "` | " + row.patch.name + " | " + row.lab.map((v) => v.toFixed(2)).join(" | ") + " | " + row.chroma.toFixed(2) + " | " +
-    (row.chroma < 0.005 ? "—" : row.hue.toFixed(1)) + " | `" + row.hex + "`" + (row.inGamut ? "" : " (outside sRGB)") + " |");
+  console.log("\n| Code | Name | Group | sRGB | L* | a* | b* | C*ab | hab (°) | Why it is on the chart |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const row of rows) console.log("| " + row.patch.code + " | " + row.patch.name + " | " + row.patch.group + " | `" + row.hex + "`" + (row.inGamut ? "" : " (outside sRGB)") + " | " +
+    row.lab.map((v) => v.toFixed(2)).join(" | ") + " | " + row.chroma.toFixed(2) + " | " + (row.chroma < 0.005 ? "—" : row.hue.toFixed(1)) + " | " + row.patch.reason + " |");
 }
 if (process.argv.includes("--render")) {
   const { simulateIdealReference, calculateCielabFromXyz, calculateColorDifference } = await import(path.join(REPOSITORY_ROOT, "dist", "index.js"));
@@ -133,7 +133,7 @@ if (process.argv.includes("--render")) {
       for (let y = 3; y < 7; y++) for (let x = 3; x < 7; x++) for (let c = 0; c < 3; c++) sum[c] += decode(image.samples[((Math.floor(index / 6) * cell + y) * width + (index % 6) * cell + x) * 3 + c] / 65535) / 16;
       return toXyz.map((r) => r[0] * sum[0] + r[1] * sum[1] + r[2] * sum[2]);
     };
-    const whiteY = xyzAt(0)[1] / 0.9;
+    const whiteY = xyzAt(0)[1] / set.patches[0].base;
     let worst = { deltaE: 0, patchId: "" }, total = 0;
     for (const [index, row] of rows.entries()) {
       const xyz = xyzAt(index);

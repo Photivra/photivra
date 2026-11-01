@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The built-in Photivra colour patches (2.14): the set contract, the spectral formula, input validation, the
+ * The built-in Photivra color patches (2.14): the set contract, the spectral formula, input validation, the
  * `color-patches` chart and the `{ kind: "color-patch" }` reflectance, rendering through the spectral pipeline, and
  * backward compatibility of existing charts.
  *
@@ -50,12 +50,12 @@ function patchMeans(samples: Uint8Array | Uint16Array, cell: number, full: numbe
     return sum.map((v) => v / (side * side));
   });
 }
-/** CIELAB of every patch of a render with `cell`-pixel cells, relative to the sRGB D65 white scaled so that the 90 % neutral has Y = 0.9. */
+/** CIELAB of every patch of a render with `cell`-pixel cells, relative to the sRGB D65 white scaled so that the white neutral has Y = its reflectance. */
 async function renderedLab(options: Partial<SimulateCaptureOptions>, ideal = true, cell = 10): Promise<{ lStar: number; aStar: number; bStar: number }[]> {
   const request: SimulateCaptureOptions = { scene: { preset: "color-patches" }, ...options, output: { width: 6 * cell, height: 5 * cell, format: "srgb-16", ...options.output } };
   const image = (ideal ? await simulateIdealReference(request) : await simulateCapture(request)).image;
   const xyz = patchMeans(image.samples, cell, 65535).map(xyzOfLinear);
-  const whiteY = xyz[0]![1] / 0.9;
+  const whiteY = xyz[0]![1] / set.patches[0]!.base;
   return xyz.map((v) => labOf(v, whiteY));
 }
 
@@ -75,6 +75,25 @@ describe("the built-in colour-patch set (2.14)", () => {
     }
     expect(Object.isFrozen(set) && Object.isFrozen(set.patches) && Object.isFrozen(COLOR_PATCH_IDS)).toBe(true);
     expect(() => { (set.patches[0] as { name: string }).name = "x"; }).toThrow(TypeError);
+  });
+
+  it("gives every patch a stable code, a Photivra name in US English and one sentence on why it is on the chart", () => {
+    const letters: Record<string, string> = { neutral: "N", strong: "S", soft: "T", skin: "P", memory: "M", "gamut-edge": "G" };
+    const counters: Record<string, number> = {};
+    for (const p of set.patches) {
+      counters[p.group] = (counters[p.group] ?? 0) + 1;
+      // Codes are numbered in chart order within each group: PV-N1…PV-N6, PV-S1…, PV-T1…, PV-P1…PV-P4, PV-M1…, PV-G1, PV-G2.
+      expect(p.code, p.patchId).toBe("PV-" + letters[p.group] + counters[p.group]);
+      expect(p.name, p.patchId).toMatch(/^[A-Z][a-z]+( [A-Z][a-z]+)*( [1-6])?$/);
+      expect(p.name, p.patchId).not.toMatch(/grey|colour/i);
+      expect(p.reason, p.patchId).toMatch(/^[A-Z][^.]*(\.\d[^.]*)*[^.]*\.$/);
+      expect(p.reason, p.patchId).not.toMatch(/grey|colour/i);
+    }
+    expect(new Set(set.patches.map((p) => p.code)).size).toBe(30);
+    expect(set.patches.filter((p) => p.group === "neutral").map((p) => p.name)).toEqual([1, 2, 3, 4, 5, 6].map((n) => "Studio Gray " + n));
+    // Names that a third-party set uses for its own patches are not reused (docs/COLOR_PATCHES.md, "Names").
+    const avoided = /^(dark skin|light skin|blue sky|foliage|blue flower|bluish green|orange|purplish blue|moderate red|purple|yellow green|orange yellow|blue|green|red|yellow|magenta|cyan|white|black|neutral \d.*)$/i;
+    for (const p of set.patches) expect(p.name).not.toMatch(avoided);
   });
 
   it("evaluates the documented formula, which never needs its clamp: every spectrum stays in [0.02, 0.95]", () => {
@@ -116,6 +135,16 @@ describe("the built-in colour-patch set (2.14)", () => {
         expect(Math.abs(lab.lStar - (116 * Math.cbrt(p.base) - 16))).toBeLessThanOrEqual(0.005);
       }
     }
+    // The published hues keep the group structure: strong and soft hues each run red, yellow, green, cyan, blue,
+    // magenta, the soft ones at lower chroma; the skin tones fall in lightness at similar hue.
+    for (const suffix of ["", "-soft"]) {
+      const hues = ["red", "yellow", "green", "cyan", "blue", "magenta"].map((h) => hue(published((h + suffix) as ColorPatchId)));
+      for (let i = 1; i < hues.length; i++) expect(hues[i]!, suffix + " " + i).toBeGreaterThan(hues[i - 1]!);
+    }
+    for (const h of ["red", "yellow", "green", "cyan", "blue", "magenta"]) expect(chroma(published((h + "-soft") as ColorPatchId))).toBeLessThan(chroma(published(h as ColorPatchId)));
+    const skin = (["skin-pale", "skin-medium", "skin-tan", "skin-deep"] as const).map(published);
+    for (let i = 1; i < 4; i++) expect(skin[i]!.lStar).toBeLessThan(skin[i - 1]!.lStar);
+    for (const s of skin) { expect(hue(s)).toBeGreaterThan(50); expect(hue(s)).toBeLessThan(65); }
     // The neutral ramp runs from white to black in roughly equal lightness steps.
     const ramp = set.patches.filter((p) => p.group === "neutral").map((p) => p.reference.cielabD65[0]);
     for (let i = 1; i < ramp.length; i++) expect(ramp[i - 1]! - ramp[i]!).toBeGreaterThan(14);
@@ -167,7 +196,7 @@ describe("the color-patches chart and the color-patch reflectance", () => {
     const custom = resolveChartScene({ scene: { preset: "color-patches", patchIds: ["deep-violet", "neutral-4"] }, aspect: 0.5 });
     expect(custom.parameters.columns).toBe(2);
     expect(custom.reflectanceAt(-0.5, 0, 450)).toBe(evaluateColorPatchReflectance({ patchId: "deep-violet", wavelengthNanometers: 450 }).value.reflectance);
-    expect(custom.reflectanceAt(0.5, 0, 450)).toBe(0.193);
+    expect(custom.reflectanceAt(0.5, 0, 450)).toBe(0.197);
   });
 
   it("reports a colour-patch reflectance by id and draws exactly what patches with the same reflectances draws", async () => {
@@ -206,9 +235,9 @@ describe("the color-patches chart and the color-patch reflectance", () => {
 });
 
 describe("rendering through the spectral pipeline", () => {
-  // Measured (5 nm quadrature, ideal reference, default Planckian 6500 K): maximum ΔE00 1.21 (deep orange), mean 0.40.
+  // Measured (5 nm quadrature, ideal reference, default Planckian 6500 K): maximum ΔE00 1.12 (deep orange), mean 0.39.
   // The difference is the illuminant: the published values are for CIE D65, which the repository does not bundle. With
-  // the CIE D65 table passed as a caller illuminant, the same render agrees within ΔE00 0.26 (scripts/compute-color-patch-reference.mjs
+  // the CIE D65 table passed as a caller illuminant, the same render agrees within ΔE00 0.24 (scripts/compute-color-patch-reference.mjs
   // --render), the residual being the engine's analytic CIE 1931 observer. The bounds leave about 10 % for rounding.
   it("reproduces the published CIELAB under a 6500 K daylight-like illuminant within the measured illuminant difference", async () => {
     const lab = await renderedLab({ sensor: { spectralStepNanometers: 5 } });
@@ -255,7 +284,7 @@ describe("rendering through the spectral pipeline", () => {
 
   it("renders in the display view on the chart path", async () => {
     const view = await simulateDisplayView({ scene: { preset: "color-patches" }, sensor: { spectralStepNanometers: 5 }, output: { width: 600, height: 500 } }, { width: 60, height: 50 });
-    const xyz = patchMeans(view.image.samples, 10, 255).map(xyzOfLinear), whiteY = xyz[0]![1] / 0.9;
+    const xyz = patchMeans(view.image.samples, 10, 255).map(xyzOfLinear), whiteY = xyz[0]![1] / set.patches[0]!.base;
     const reference = await renderedLab({ sensor: { spectralStepNanometers: 5 } });
     // 8-bit samples with display-view noise: compare hue ordering and a loose colour agreement with the ideal reference.
     for (let i = 0; i < 30; i++) expect(de00(reference[i]!, labOf(xyz[i]!, whiteY))).toBeLessThan(3);
