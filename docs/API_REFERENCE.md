@@ -1271,6 +1271,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
 | [`SIMULATE_CAPTURE_FACADE_VERSION`](api/facade-simulate-capture.md#simulate_capture_facade_version) | Runtime |
 | [`SIMULATE_CAPTURE_FAST_OPTIONS`](api/facade-simulate-capture.md#simulate_capture_fast_options) | Runtime |
+| [`SIMULATE_CAPTURE_METERING_MODES`](api/facade-simulate-capture.md#simulate_capture_metering_modes) | Runtime |
 | [`SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS`](api/facade-simulate-capture.md#simulate_display_view_default_samples_per_axis) | Runtime |
 | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Runtime |
 | [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
@@ -1288,6 +1289,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureFastOption`](api/facade-simulate-capture.md#simulatecapturefastoption) | Type |
 | [`SimulateCaptureFastReport`](api/facade-simulate-capture.md#simulatecapturefastreport) | Type |
 | [`SimulateCaptureLensDistortion`](api/facade-simulate-capture.md#simulatecapturelensdistortion) | Type |
+| [`SimulateCaptureMetering`](api/facade-simulate-capture.md#simulatecapturemetering) | Type |
 | [`SimulateCaptureMotion`](api/facade-simulate-capture.md#simulatecapturemotion) | Type |
 | [`SimulateCaptureOptions`](api/facade-simulate-capture.md#simulatecaptureoptions) | Type |
 | [`SimulateCaptureOutputFormat`](api/facade-simulate-capture.md#simulatecaptureoutputformat) | Type |

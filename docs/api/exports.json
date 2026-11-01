@@ -8238,6 +8238,11 @@
       "kind": "runtime"
     },
     {
+      "name": "SIMULATE_CAPTURE_METERING_MODES",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS",
       "source": "src/facade/simulate-capture.ts",
       "kind": "runtime"
@@ -8319,6 +8324,11 @@
     },
     {
       "name": "SimulateCaptureLensDistortion",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureMetering",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
