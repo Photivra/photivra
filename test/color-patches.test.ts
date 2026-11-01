@@ -265,17 +265,20 @@ describe("rendering through the spectral pipeline", () => {
 /**
  * Existing charts render bit-identically: SHA-256 of the scene digest and of the 8-bit samples, recorded with the 2.13.0
  * build (origin/main 9c3fe85) on Node 24 before the colour patches were added. Neutral scalar reflectances, a caller
- * tabulated spectrum and a caller function spectrum.
+ * tabulated spectrum and a caller function spectrum. The cases avoid values computed with `**` or other functions whose
+ * last bit differs between the supported Node versions, so the locks hold on Node 22, 24 and 26.
  */
 describe("backward compatibility", () => {
   const warm = { kind: "tabulated" as const, samples: [[380, 0.1], [500, 0.2], [600, 0.6], [780, 0.7]].map(([w, v]) => ({ wavelengthNanometers: w!, value: v! })) };
   const cases: [string, SimulateCaptureOptions, string, string][] = [
     ["composite of grey elements", { scene: { preset: "composite", background: { preset: "line-grid", spacing: 1 / 6, lineWidth: 0.004 }, elements: [
       { scene: { preset: "uniform", reflectance: 0.18 }, centerU: -0.6, centerV: -0.4, width: 0.3, height: 0.2 },
-      { scene: { preset: "step-wedge", steps: 12 }, centerU: 0.1, centerV: -0.5, width: 0.9, height: 0.12 },
+      // A linear wedge: equal-density levels use `**`, whose last bit differs between Node 22 and 24 (docs/NUMERICAL_CORRECTNESS.md),
+      // and the levels enter the scene digest, so they would make this lock runtime-specific.
+      { scene: { preset: "step-wedge", steps: 12, spacing: "linear" }, centerU: 0.1, centerV: -0.5, width: 0.9, height: 0.12 },
       { scene: { preset: "siemens-star", profile: "sine", cycles: 64 }, centerU: 0, centerV: 0, width: 0.6, height: 0.6, mask: "ellipse" },
       { scene: { preset: "uniform", reflectance: warm }, centerU: -0.2, centerV: 0.5, width: 0.2, height: 0.1 }] }, output: { width: 48, height: 32 } },
-      "2fafa3bef23eb6755f438d56b72ceb92e760984830b2d08f647c8b3cf7cda69d", "c7bbf14af4ceedee39a0a912ca2e81cfb759e4925c9882531c20b56b0aa7bbfe"],
+      "777cc88b8ac58965bfe69b5bcb9742759dac8dfa3f06dd5caf326af9b5f61166", "71f8b74544f6e0029d7eb7dbfceea12968e898e4cf362c2261fafcecc138e2b9"],
     ["patches with caller spectra under illuminant A", { scene: { preset: "patches", columns: 3, patches: [{ patchId: "a", reflectance: 0.5 }, { patchId: "b", reflectance: warm },
       { patchId: "c", reflectance: { kind: "function", wavelengthRangeNanometers: { minimum: 360, maximum: 830 }, evaluate: (nm: number) => 0.2 + 0.5 * Math.exp(-0.5 * ((nm - 520) / 40) ** 2) } }] },
       illuminant: "cie-a", output: { width: 24, height: 8 } }, "6bffeed35b196b5920cd225b75cfe93b672c84a0bfd4953f99533810c775c388", "b741902e69d9437b9ff4affa90f4719bb85f14d80f410755bd6ab3e6bae5791f"],
