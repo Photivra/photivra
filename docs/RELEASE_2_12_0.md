@@ -73,7 +73,7 @@ No network, persistence or telemetry is added.
 - [x] Green CI on this pull request, then on `main` after merge ([CI run 41226055418](https://github.com/Photivra/photivra/actions/runs/41226055418) on `9d29475`).
 - [x] **The owner's explicit approval to tag `v2.12.0`** on `9d29475`.
 - [x] After publication: npm version, dist-tag, integrity and provenance verified ([Publication](#publication)); publication dates updated in `CHANGELOG.md`, `SECURITY.md` and this record by the 2.13.0 release preparation, since `README.md` and `docs/DEVELOPERS.md` now describe 2.13.0.
-- [ ] GitHub release notes for `v2.12.0` (the owner's step; none was published as of the 2.13.0 preparation).
+- [x] GitHub release notes for `v2.12.0` (the owner's step; published as `@photivra/engine 2.12.0`, October 31, 2026, 22:15:54 UTC, after the 2.13.0 preparation).
 
 ## Publication
 
