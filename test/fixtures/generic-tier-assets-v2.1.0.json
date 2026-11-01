@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "0.1.0",
+  "presetVersion": "2.1.0",
+  "provenance": {
+    "sourceOrigin": "photivra",
+    "reuseStatus": "photivra-owned",
+    "sourceReference": "photivra:generic-tier-assets-v1"
+  },
+  "catalogSha256": "61440e058fe6bdbd123b0b91d5615f77deee9b0aaa9bf01162de57982c9a2353",
+  "change": "2.14 (round 5 item 8): third-stop ISO settings on every body; everything else as 2.0.0.",
+  "limitation": "Synthetic finite reference assets, not measured camera/lens calibration."
+}

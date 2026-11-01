@@ -40,6 +40,13 @@ Target: 2.14.0, a minor release. Colour test charts from the engine's own spectr
 
     Images, RAW codes, every other exposure field, the assumptions and the scene digests are identical to 2.13.0 for manual, aperture-priority, program Auto ISO and shutter-priority captures and a display view (compared by SHA-256 between the two builds; every hash lock holds).
 
+- **Third-stop exposure grids (owner's round 5, item 8).** The app's dials step in thirds.
+  - **ISO:** the generic tier presets 2.1.0 (`GENERIC_EQUIPMENT_TIER_PRESET_VERSION`) take third-stop ISO settings, `GENERIC_THIRD_STOP_ISO_SETTINGS` = 100, 125, 160, 200 … 25 600 (the rounded values of 100·2^(k/3), each within 2 %), up to each body's maximum (Consumer 6400, Prosumer 12 800, Professional 25 600), each with its own readout regime from the same gain model. Preset 2.0.0 is kept exactly (manifest pin unchanged) and still resolves; `GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS` = `["2.0.0", "2.1.0"]`.
+  - **Auto ISO keeps whole stops** by default, so its choices are those of 2.13; `exposure.autoIso.isoSteps: "third-stop"` lets it choose every setting (reported as `autoIso.isoSteps` when given). Auto ISO limits must lie on the grid it uses.
+  - **Shutter:** `GENERIC_THIRD_STOP_SHUTTER_SECONDS`, the standard third-stop times from 1/8000 s to 30 s (55 values, the rounded values of 2^(k/3) s, each within 7 %). The bodies' shutters stay continuous and take every value as the exact time.
+  - **Same output:** whole-stop requests on the tier ids give the same samples, RAW codes, files, settings and assumptions as the 2.0.0 records (`test/third-stop-settings.test.ts`, five requests on each tier), and the 22-result fingerprint is identical in every typed array. The result fields that change are the version identifiers (`provenance.cameraPresetVersion` and `exposure.resolution.capabilityProfiles.{body,lens}ProfileVersion` read 2.1.0) and the request records (`request.environmentRaw`, `request.siteInput(i)`), whose readout profile now lists a regime per third-stop ISO; `test/simulate-capture-integration.test.ts` re-pins those six request digests and none of its sample, code, flag, development or scene digests.
+  - **Tests:** `test/third-stop-settings.test.ts`: the series against 100·2^(k/3) and 2^(k/3) s; both catalogs pinned; selections of both versions; ISO 125–320 expose in proportion and are refused on a 2.0.0 record; whole-stop byte identity; Auto ISO whole-stop by default and thirds on request (300 lx: 6400 → 8000); limits on the grid; every shutter time accepted as given.
+
 ### Changed
 
 - **Smaller published package (#536).** The app was 2 KiB under its 500 KiB JavaScript budget.
