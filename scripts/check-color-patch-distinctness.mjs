@@ -10,10 +10,10 @@
  *   - colorchecker-srgb: the 24-patch ColorChecker Classic, the manufacturer's sRGB values as tabulated on Wikipedia,
  *     "ColorChecker" (revision 1367818471);
  *   - colorchecker-lab: the same chart's published CIELAB/xyY (ICC D50) values as collected in colour-science 0.4.6
- *     (BSD-3-Clause): X-Rite before and after November 2014, GretagMacbeth 2005 and the BabelColor average;
+ *     (terms in THIRD_PARTY.md): X-Rite before and after November 2014, GretagMacbeth 2005 and the BabelColor average;
  *   - ral: RAL Classic approximate sRGB values as tabulated on Wikipedia, "List of RAL colours" (revision 1369650571);
  *     only the RAL Classic sections, not RAL Effect or RAL Design System+;
- *   - brands: brand colors from Simple Icons (CC0-1.0) 1.20.0, 2.19.0, 4.25.0, 9.21.0 and 16.36.0, so that brands
+ *   - brands: brand colors from Simple Icons 1.20.0, 2.19.0, 4.25.0, 9.21.0 and 16.36.0, so that brands
  *     removed from later releases are still checked.
  * Pantone's data is proprietary and is not checked.
  *

@@ -202,11 +202,12 @@ published reference sets:
 | --- | --- | --- |
 | `css` | 148 | The CSS named colors: W3C, CSS Color Module Level 4, Candidate Recommendation Draft 24 April 2025, §6.1 |
 | `colorchecker-srgb` | 24 | The 24-patch ColorChecker Classic, the manufacturer's sRGB values as tabulated in Wikipedia, "ColorChecker" (revision 1367818471) |
-| `colorchecker-lab` | 96 | The same 24 patches' published CIELAB/xyY (ICC D50) values: X-Rite before and after November 2014, GretagMacbeth 2005 and the BabelColor average, as collected in colour-science 0.4.6 (BSD-3-Clause) |
+| `colorchecker-lab` | 96 | The same 24 patches' published CIELAB/xyY (ICC D50) values: X-Rite before and after November 2014, GretagMacbeth 2005 and the BabelColor average, as collected in colour-science 0.4.6 |
 | `ral` | 215 | RAL Classic approximate sRGB values as tabulated in Wikipedia, "List of RAL colours" (revision 1369650571); the RAL Classic sections only |
-| `brands` | 10,386 | Brand colors from Simple Icons (CC0-1.0) releases 1.20.0, 2.19.0, 4.25.0, 9.21.0 and 16.36.0: about 3,800 tech, social-media, retail, drinks and other brands, with brands removed from later releases kept from earlier ones |
+| `brands` | 10,386 | Brand colors from Simple Icons releases 1.20.0, 2.19.0, 4.25.0, 9.21.0 and 16.36.0: about 3,800 tech, social-media, retail, drinks and other brands, with brands removed from later releases kept from earlier ones |
 
-Pantone's data is proprietary and was not used or checked; no openly published approximation of it was used.
+Pantone's data is proprietary and was not used or checked; no openly published approximation of it was used. The
+sources' terms are recorded in `THIRD_PARTY.md`.
 
 **Rule.** For each patch: no reference color has the same 8-bit sRGB hex, and every reference color is at least
 ΔE00 2.0 (CIEDE2000, the engine's `calculateColorDifference`) from the patch's published CIELAB. Neutral patches are
