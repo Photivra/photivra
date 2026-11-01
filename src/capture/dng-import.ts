@@ -25,7 +25,7 @@ import { parseLosslessJpeg } from "./lossless-jpeg.js";
 
 export const DNG_IMPORT_SCHEMA_VERSION = "1.0.0" as const;
 /** Upper bound for `maximumPixels`. 200 MP (megapixels) of 16-bit codes is 400 MB. */
-export const DNG_IMPORT_LIMITS = Object.freeze({ defaultMaximumPixels: 64_000_000, maximumPixels: 200_000_000, defaultMaximumIfds: 64, maximumIfds: 1024 });
+export const DNG_IMPORT_LIMITS = /* @__PURE__ */ Object.freeze({ defaultMaximumPixels: 64_000_000, maximumPixels: 200_000_000, defaultMaximumIfds: 64, maximumIfds: 1024 });
 export interface DngImportInput {
   bytes: Uint8Array;
   /** Pixel-count limit (width x height), checked before any decode allocation. Default 64 000 000, at most 200 000 000. */

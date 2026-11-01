@@ -69,7 +69,7 @@ export interface GenericTierLensAssets {
 export interface GenericEquipmentTierPreset {
   tier: GenericEquipmentTier;
   label: "Consumer" | "Prosumer" | "Professional";
-  presetId: string; presetVersion: "2.0.0";
+  presetId: string; presetVersion: GenericTierPresetVersion;
   scientificStatus: "approximation";
   evidence: readonly EvidenceProvenance[];
   body: GenericTierBodyAssets;
@@ -81,7 +81,29 @@ const evidence: readonly EvidenceProvenance[] = [{ sourceOrigin: "photivra", sou
   reuseStatus: "photivra-owned" }];
 const limitations = ["Synthetic educational design values; no named camera/lens calibration or population ranking."];
 const fact = <T>(value: T): EvidenceBackedFact<T> => ({ value, evidence });
-const version = "2.0.0";
+/**
+ * The exact versions of the generic tier presets (no "latest" alias). 2.1.0 (2.14, round 5) adds the third-stop ISO
+ * settings; 2.0.0 is kept, whole-stop, so saved selections and records of it still resolve to exactly what they named.
+ */
+export type GenericTierPresetVersion = "2.0.0" | "2.1.0";
+/** Whole-stop ISO settings of the 2.0.0 bodies (each body's list stops at its maximum). */
+export const GENERIC_WHOLE_STOP_ISO_SETTINGS = /* @__PURE__ */ Object.freeze([100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600] as const);
+/**
+ * Third-stop ISO settings of the 2.1.0 bodies: the conventional rounded markings of S = 100·2^(k/3), k = 0 … 24 (125 for
+ * 126.0, 160 for 158.7 …; each within 2 % of the exact value). The engine takes the setting as the exact ISO speed.
+ */
+/**
+ * The standard third-stop shutter times, seconds, from 1/8000 s to 30 s: the conventional markings of t = 2^(k/3) s
+ * (1/8000 for 2^−13, 1/6 for 2^−8/3, 0.3 for 2^−5/3, 30 for 2^5; each within 7 % of the exact value). The generic bodies'
+ * shutters are continuous over 1/8000–30 s and take any time as exact, so these are the values to offer in a third-stop
+ * dial, not a restriction.
+ */
+export const GENERIC_THIRD_STOP_SHUTTER_SECONDS = /* @__PURE__ */ Object.freeze([1 / 8000, 1 / 6400, 1 / 5000, 1 / 4000, 1 / 3200, 1 / 2500, 1 / 2000,
+  1 / 1600, 1 / 1250, 1 / 1000, 1 / 800, 1 / 640, 1 / 500, 1 / 400, 1 / 320, 1 / 250, 1 / 200, 1 / 160, 1 / 125, 1 / 100, 1 / 80, 1 / 60, 1 / 50, 1 / 40,
+  1 / 30, 1 / 25, 1 / 20, 1 / 15, 1 / 13, 1 / 10, 1 / 8, 1 / 6, 1 / 5, 1 / 4, 0.3, 0.4, 0.5, 0.6, 0.8, 1, 1.3, 1.6, 2, 2.5, 3.2, 4, 5, 6, 8, 10, 13,
+  15, 20, 25, 30] as const);
+export const GENERIC_THIRD_STOP_ISO_SETTINGS = /* @__PURE__ */ Object.freeze([100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600,
+  2000, 2500, 3200, 4000, 5000, 6400, 8000, 10000, 12800, 16000, 20000, 25600] as const);
 const disk = [0,0,1,0,0, 0,1,1,1,0, 1,1,1,1,1, 0,1,1,1,0, 0,0,1,0,0];
 const clipped = [0,0,1,0,0, 0,1,1,1,0, 0,1,1,1,1, 0,1,1,1,0, 0,0,1,0,0];
 const clippedMore = [0,0,0,0,0, 0,0,1,1,0, 0,0,1,1,1, 0,0,1,1,0, 0,0,0,0,0];
@@ -101,9 +123,9 @@ interface SyntheticSensorDesign {
   prnu: number; dsnu: number; hotFraction: number; hotMultiplier: number; rowRms: number; columnRms: number; instanceSeed: number;
 }
 /** Used only to build data. Tier labels never enter any scientific equation. */
-function bodyAssets(id: string, isoMax: number, cadence: number, frames: number, sensor: SyntheticSensorDesign,
+function bodyAssets(version: GenericTierPresetVersion, id: string, isoMax: number, cadence: number, frames: number, sensor: SyntheticSensorDesign,
   dataReadoutSeconds: number, gain: number, maxAngle: number, continuousAf: boolean, advancedPolicies: boolean): GenericTierBodyAssets {
-  const isoValues = [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600].filter((v) => v <= isoMax);
+  const isoValues: number[] = (version === "2.0.0" ? GENERIC_WHOLE_STOP_ISO_SETTINGS : GENERIC_THIRD_STOP_ISO_SETTINGS).filter((v) => v <= isoMax);
   const exposure = parseGenericBodyExposureCapabilityProfile({ schemaVersion: "0.1.0", profileId: id+":exposure", profileVersion: version,
     scientificStatus: "approximation", evidence, shutter: { durationSecondsRange: fact({ minimum: 1/8000, maximum: 30 }), settingGrid: { kind: "continuous-within-range" } },
     iso: { range: fact({ minimum: 100, maximum: isoMax }), settingGrid: { kind: "discrete-values", values: fact(isoValues) }, autoIso: fact("supported") } });
@@ -173,7 +195,7 @@ function bodyAssets(id: string, isoMax: number, cadence: number, frames: number,
       captureModeId: "native-still", timingProfileId: timingId, supportedOrdinarySyncModes: ["front-curtain", "rear-curtain"],
       highSpeedSyncSupported: false, ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed: true, evidence, limitations }) };
 }
-function lensAssets(id: string, r: GenericTierLensAssets["matchedReference"]): GenericTierLensAssets {
+function lensAssets(version: GenericTierPresetVersion, id: string, r: GenericTierLensAssets["matchedReference"]): GenericTierLensAssets {
   return { form: "prime", exposure: parseGenericLensExposureCapabilityProfile({ schemaVersion: "0.1.0", profileId: id+":exposure", profileVersion: version,
     scientificStatus: "approximation", evidence, focalLengthMmRange: fact({ minimum: 50, maximum: 50 }), aperture: { widestAvailableFNumber: {
       kind: "constant", fNumber: fact(4) }, narrowestAvailableFNumber: fact(16), settingGrid: { kind: "continuous-within-range" } } }),
@@ -184,29 +206,40 @@ function lensAssets(id: string, r: GenericTierLensAssets["matchedReference"]): G
 }
 const common = { focalLengthMm: 50 as const, aperture: 4 as const, focusDistanceM: 5 as const, wavelengthNm: 550 as const,
   normalizationRadiusMm: Math.hypot(18,12), correctionCaFraction: .8 };
-export const GENERIC_TIER_ASSETS: readonly GenericEquipmentTierPreset[] = [
+function buildGenericTierAssets(version: GenericTierPresetVersion): readonly GenericEquipmentTierPreset[] {
+  return [
   { tier: "consumer", label: "Consumer", presetId: "photivra-consumer", presetVersion: version, scientificStatus: "approximation", evidence,
-    body: bodyAssets("photivra-consumer-body", 6400, 4, 8, { bitDepth: 12, blackLevelCode: 256, saturationElectrons: 20000,
+    body: bodyAssets(version, "photivra-consumer-body", 6400, 4, 8, { bitDepth: 12, blackLevelCode: 256, saturationElectrons: 20000,
       maximumAnalogGain: 32, lowGainReadNoise: 6, highGainReadNoise: 2.5, highGainFromIso: 800, highGainMaximumCharge: 6000,
       prnu: .01, dsnu: .3, hotFraction: 2e-4, hotMultiplier: 50, rowRms: .6, columnRms: .4, instanceSeed: 0x51ed270b }, .03, .35, .005, false, false),
-    lens: lensAssets("photivra-consumer-prime", { ...common, distortionK1: -.06, lateralCaK1Offset: .008, vignettingR2: -.5,
+    lens: lensAssets(version, "photivra-consumer-prime", { ...common, distortionK1: -.06, lateralCaK1Offset: .008, vignettingR2: -.5,
       breathingProjectionScale: 1.03, transmission: .75, correctionGainStrength: .8, ghostPowerFraction: .006, veilPowerFraction: .012,
       pupilAmplitudeByField: [disk, clipped, clippedMore], pupilOpdMicrometersByDefocus: [near, flat, far], pupilThroughputByField: [1,.85,.65] }),
     tradeoffs: ["Limited continuous AF; heavier digital correction and edge pupil clipping in matched reference."] },
   { tier: "prosumer", label: "Prosumer", presetId: "photivra-prosumer", presetVersion: version, scientificStatus: "approximation", evidence,
-    body: bodyAssets("photivra-prosumer-body", 12800, 8, 16, { bitDepth: 14, blackLevelCode: 1024, saturationElectrons: 40000,
+    body: bodyAssets(version, "photivra-prosumer-body", 12800, 8, 16, { bitDepth: 14, blackLevelCode: 1024, saturationElectrons: 40000,
       maximumAnalogGain: 64, lowGainReadNoise: 3, highGainReadNoise: 1.4, highGainFromIso: 800, highGainMaximumCharge: 12000,
       prnu: .006, dsnu: .2, hotFraction: 1e-4, hotMultiplier: 40, rowRms: .3, columnRms: .2, instanceSeed: 0x2c1b3c6d }, .015, .65, .01, true, true),
-    lens: lensAssets("photivra-prosumer-prime", { ...common, distortionK1: -.025, lateralCaK1Offset: .004, vignettingR2: -.25,
+    lens: lensAssets(version, "photivra-prosumer-prime", { ...common, distortionK1: -.025, lateralCaK1Offset: .004, vignettingR2: -.25,
       breathingProjectionScale: 1.015, transmission: .85, correctionGainStrength: .6, ghostPowerFraction: .003, veilPowerFraction: .006,
       pupilAmplitudeByField: [disk, disk, clipped], pupilOpdMicrometersByDefocus: [near.map((v)=>v*.7), flat, far.map((v)=>v*.7)], pupilThroughputByField: [1,.95,.85] }),
     tradeoffs: ["Lower matched-reference peripheral gain/noise amplification than Professional; not universally inferior."] },
   { tier: "professional", label: "Professional", presetId: "photivra-professional", presetVersion: version, scientificStatus: "approximation", evidence,
-    body: bodyAssets("photivra-professional-body", 25600, 12, 24, { bitDepth: 14, blackLevelCode: 1024, saturationElectrons: 60000,
+    body: bodyAssets(version, "photivra-professional-body", 25600, 12, 24, { bitDepth: 14, blackLevelCode: 1024, saturationElectrons: 60000,
       maximumAnalogGain: 128, lowGainReadNoise: 2, highGainReadNoise: 1.1, highGainFromIso: 800, highGainMaximumCharge: 16000,
       prnu: .004, dsnu: .15, hotFraction: 5e-5, hotMultiplier: 30, rowRms: .15, columnRms: .1, instanceSeed: 0x6a09e667 }, .008, .85, .02, true, true),
-    lens: lensAssets("photivra-professional-prime", { ...common, distortionK1: -.01, lateralCaK1Offset: .002, vignettingR2: -.35,
+    lens: lensAssets(version, "photivra-professional-prime", { ...common, distortionK1: -.01, lateralCaK1Offset: .002, vignettingR2: -.35,
       breathingProjectionScale: 1.005, transmission: .9, correctionGainStrength: .8, ghostPowerFraction: .001, veilPowerFraction: .002,
       pupilAmplitudeByField: [disk, disk, disk], pupilOpdMicrometersByDefocus: [near.map((v)=>v*.9), flat, far.map((v)=>v*.6)], pupilThroughputByField: [1,.98,.95] }),
     tradeoffs: ["Less edge clipping/stray light, with greater f/4 falloff/gain cost than Prosumer and asymmetric near/far wavefront character."] }
-];
+  ];
+}
+
+/** The presets of the current version, 2.1.0 (third-stop ISO settings). */
+export const GENERIC_TIER_ASSETS: readonly GenericEquipmentTierPreset[] = buildGenericTierAssets("2.1.0");
+let historical: readonly GenericEquipmentTierPreset[] | undefined;
+/** The presets of an exact version; 2.0.0 (whole-stop ISO) is built on first use. */
+export function genericTierAssets(version: GenericTierPresetVersion): readonly GenericEquipmentTierPreset[] {
+  if (version === "2.1.0") return GENERIC_TIER_ASSETS;
+  return historical ??= buildGenericTierAssets("2.0.0");
+}

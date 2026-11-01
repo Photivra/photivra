@@ -33,7 +33,7 @@ import { FULL_RESOLUTION_CEILING_PIXELS, resolveRaisedLimit } from "../core/pixe
 
 export const IRRADIANCE_CONVOLUTION_SCHEMA_VERSION = "0.1.0" as const;
 /** `maximumPixels` is the default grid limit; a request may raise it with its own `maximumPixels`, up to `ceilingPixels`. */
-export const IRRADIANCE_CONVOLUTION_LIMITS = Object.freeze({
+export const IRRADIANCE_CONVOLUTION_LIMITS = /* @__PURE__ */ Object.freeze({
   maximumPixels: 24_000_000,
   ceilingPixels: FULL_RESOLUTION_CEILING_PIXELS,
   maximumDimension: 16_384,

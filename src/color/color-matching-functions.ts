@@ -46,7 +46,7 @@ export const MAX_COLORIMETRIC_QUADRATURE_NODES = 100_000;
 export const MAX_COLORIMETRIC_TABLE_SAMPLES = 100_000;
 
 /** Wavelength domain over which the analytic CIE 1931 fit is accepted (the domain it was fitted on). */
-export const ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS: Readonly<SpectralWavelengthRangeNanometers> = Object.freeze({ minimum: 360, maximum: 830 });
+export const ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS: Readonly<SpectralWavelengthRangeNanometers> = /* @__PURE__ */ Object.freeze({ minimum: 360, maximum: 830 });
 
 /** One wavelength quadrature node; d-lambda is in nanometres. */
 export interface ColorimetricQuadratureNode {

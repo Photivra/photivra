@@ -68,10 +68,10 @@ import type { FocusPlane } from "./focus-state.js";
 import { calculateThinLensImageDistance } from "./thin-lens.js";
 import { parseLensSampledPsfProfile, type LensSampledPsfProfile } from "./lens-psf-profile.js";
 
-export const DIFFRACTION_LIMITED_PSF_PROFILE_MODEL = Object.freeze({
+export const DIFFRACTION_LIMITED_PSF_PROFILE_MODEL = /* @__PURE__ */ Object.freeze({
   modelId: "photivra-diffraction-limited-circular-pupil-psf" as const, modelVersion: "1.0.0" as const });
 /** Input limits: at most 64 wavelengths, kernel radius 0–32 samples (the irradiance-convolution limit). */
-export const DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS = Object.freeze({ maximumWavelengths: 64, maximumKernelRadiusSamples: 32 });
+export const DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS = /* @__PURE__ */ Object.freeze({ maximumWavelengths: 64, maximumKernelRadiusSamples: 32 });
 /**
  * Internal: β = p·f_c (cell side over the cut-off period) from which `calculateAiryCellEnergies` integrates the cells in
  * real space (2.5). Above every β of a `simulateCapture` pitch up to 100 µm, whose captures keep the frequency-domain values.
@@ -132,9 +132,9 @@ export interface DiffractionLimitedPsfProfile {
     maximumRadialNodes: number; maximumAngularNodes: number; realSpaceWavelengthsNm?: readonly number[] };
 }
 
-const EVIDENCE: readonly EvidenceProvenance[] = Object.freeze([Object.freeze({ sourceOrigin: "photivra" as const,
+const EVIDENCE: readonly EvidenceProvenance[] = /* @__PURE__ */ Object.freeze([/* @__PURE__ */ Object.freeze({ sourceOrigin: "photivra" as const,
   sourceReference: "photivra:diffraction-limited-psf-profile", reuseStatus: "photivra-owned" as const })]);
-const LIMITATIONS = Object.freeze([
+const LIMITATIONS = /* @__PURE__ */ Object.freeze([
   "Scalar Fraunhofer diffraction of an ideal, uniformly lit circular pupil (Airy pattern); no aberration, apodization, polarization or stray light.",
   "Exactly in focus: no defocus or depth of field. Thin lens with unity pupil magnification; the pupil-to-image distance is the thin-lens image distance.",
   "The on-axis PSF is declared unchanged across the field (isoplanatic); no field-dependent aberration or pupil clipping.",

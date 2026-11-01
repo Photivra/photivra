@@ -9,7 +9,7 @@
 import { ImageKernelExecutionError, type ImageKernelAdapterDescription, type ImageKernelFallbackReason } from "./image-kernel-execution.js";
 
 /** WebGPU spec constants (GPUBufferUsage, GPUMapMode), defined here so no global is needed at import time. */
-export const BUFFER_USAGE = Object.freeze({ MAP_READ: 0x0001, COPY_SRC: 0x0004, COPY_DST: 0x0008, UNIFORM: 0x0040, STORAGE: 0x0080 });
+export const BUFFER_USAGE = /* @__PURE__ */ Object.freeze({ MAP_READ: 0x0001, COPY_SRC: 0x0004, COPY_DST: 0x0008, UNIFORM: 0x0040, STORAGE: 0x0080 });
 const MAP_MODE_READ = 0x0001;
 
 /** Minimum per-binding storage this backend requires (the WebGPU default is 128 MiB). */

@@ -26,7 +26,7 @@ import {
   type ExposureMeteringSampleSet
 } from "./metering.js";
 
-export const TTL_FLASH_MODEL = Object.freeze({ id: "preflash-linear-ttl", version: "1.0.0" } as const);
+export const TTL_FLASH_MODEL = /* @__PURE__ */ Object.freeze({ id: "preflash-linear-ttl", version: "1.0.0" } as const);
 
 function requirePositive(value: unknown, name: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {

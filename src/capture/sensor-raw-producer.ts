@@ -42,7 +42,7 @@ export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.3.0" as const;
  * 0.4.0: exact ADC rounding with ties up, normal-approximation Poisson draws for means of 1e9 and above,
  * optional post-ADC digital gain and INL (integral non-linearity), and optional per-sensor fixed-pattern noise.
  */
-export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.4.0" } as const);
+export const SENSOR_RAW_PRODUCER_NOISE_MODEL = /* @__PURE__ */ Object.freeze({ id: "photivra-native-raw-noise", version: "0.4.0" } as const);
 /** For each native site: one declared exposure event (EQE photo signal, dark signal, charge completeness) and its readout state. */
 export interface SensorRawProducerSiteInput {
   charge: ComposeSensorAccumulatedChargeInput;

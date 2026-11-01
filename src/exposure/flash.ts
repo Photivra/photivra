@@ -51,7 +51,7 @@ export const FLASH_SYNC_CAPABILITY_SCHEMA_VERSION =
 export const FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION =
   "0.2.0" as const;
 /** Model identity of the pulsed quasi-continuous high-speed-sync burst. */
-export const HIGH_SPEED_SYNC_MODEL = Object.freeze({
+export const HIGH_SPEED_SYNC_MODEL = /* @__PURE__ */ Object.freeze({
   id: "flash-hss-quasi-continuous-burst",
   version: "1.0.0"
 } as const);

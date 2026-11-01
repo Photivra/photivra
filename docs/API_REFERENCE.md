@@ -846,10 +846,14 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`GENERIC_THIRD_STOP_ISO_SETTINGS`](api/equipment-generic-tier-assets.md#generic_third_stop_iso_settings) | Runtime |
+| [`GENERIC_THIRD_STOP_SHUTTER_SECONDS`](api/equipment-generic-tier-assets.md#generic_third_stop_shutter_seconds) | Runtime |
+| [`GENERIC_WHOLE_STOP_ISO_SETTINGS`](api/equipment-generic-tier-assets.md#generic_whole_stop_iso_settings) | Runtime |
 | [`GenericEquipmentTier`](api/equipment-generic-tier-assets.md#genericequipmenttier) | Type |
 | [`GenericEquipmentTierPreset`](api/equipment-generic-tier-assets.md#genericequipmenttierpreset) | Type |
 | [`GenericTierBodyAssets`](api/equipment-generic-tier-assets.md#generictierbodyassets) | Type |
 | [`GenericTierLensAssets`](api/equipment-generic-tier-assets.md#generictierlensassets) | Type |
+| [`GenericTierPresetVersion`](api/equipment-generic-tier-assets.md#generictierpresetversion) | Type |
 | [`GenericVersionedAsset`](api/equipment-generic-tier-assets.md#genericversionedasset) | Type |
 
 ## equipment/generic-tier-presets.ts
@@ -860,6 +864,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | --- | --- |
 | [`createGenericEquipmentTierSelection`](api/equipment-generic-tier-presets.md#creategenericequipmenttierselection) | Runtime |
 | [`GENERIC_EQUIPMENT_TIER_PRESET_VERSION`](api/equipment-generic-tier-presets.md#generic_equipment_tier_preset_version) | Runtime |
+| [`GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS`](api/equipment-generic-tier-presets.md#generic_equipment_tier_preset_versions) | Runtime |
 | [`GENERIC_EQUIPMENT_TIERS`](api/equipment-generic-tier-presets.md#generic_equipment_tiers) | Runtime |
 | [`GenericEquipmentTierProfileReference`](api/equipment-generic-tier-presets.md#genericequipmenttierprofilereference) | Type |
 | [`GenericEquipmentTierSelection`](api/equipment-generic-tier-presets.md#genericequipmenttierselection) | Type |

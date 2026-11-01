@@ -44,7 +44,7 @@ export const SENSOR_OUTPUT = Object.freeze({ codeMask: 0xffff, flagShift: 16, un
  * each: the integer mantissa m (< 2^12), the exponent s and the exact scale 2^s, so that piece = m·2^s. The INL
  * table holds the knot codes, the knot offsets and the host-computed segment slopes.
  */
-export const SENSOR_AUX = Object.freeze({ stirlingRemainder: 0, sigma: 256, inversePieces: 272, digitalPieces: 284, knots: 296 });
+export const SENSOR_AUX = /* @__PURE__ */ Object.freeze({ stirlingRemainder: 0, sigma: 256, inversePieces: 272, digitalPieces: 284, knots: 296 });
 export const SENSOR_PIECE_WORDS = 3;
 export const SENSOR_WORKGROUP_SIZE = 256;
 /**
@@ -54,11 +54,11 @@ export const SENSOR_WORKGROUP_SIZE = 256;
  */
 export const SENSOR_SITE_WORDS = 4;
 /** Bits of `Params.extras`. */
-export const SENSOR_EXTRAS = Object.freeze({ deterministic: 1, fixedPattern: 2 });
+export const SENSOR_EXTRAS = /* @__PURE__ */ Object.freeze({ deterministic: 1, fixedPattern: 2 });
 /** Partial charge sums saturate here: above every supported capacity (2^24), so no decision changes. */
 export const SENSOR_REALIZED_CLAMP = 2 ** 30;
 /** Mean categories in bits 30–31 of a mean word, mirroring `samplePoisson`'s branches. */
-export const SENSOR_MEAN_CATEGORY = Object.freeze({ zero: 0, multiplication: 1, transformedRejection: 2, normal: 3 });
+export const SENSOR_MEAN_CATEGORY = /* @__PURE__ */ Object.freeze({ zero: 0, multiplication: 1, transformedRejection: 2, normal: 3 });
 /** One WGSL rounding (one ULP, either direction) is at most this relative error: 2^-23. */
 export const SENSOR_ROUNDING = 2 ** -23;
 /** |z_f32 − z_f64| ≤ SENSOR_NORMAL_ERROR·E·radius for the Box–Muller normal (docs/WEBGPU.md). */

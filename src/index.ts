@@ -8,7 +8,7 @@
  * @see docs/DEVELOPERS.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
-export { GENERIC_EQUIPMENT_TIER_PRESET_VERSION, GENERIC_EQUIPMENT_TIERS, resolveGenericEquipmentTierCatalog,
+export { GENERIC_EQUIPMENT_TIER_PRESET_VERSION, GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS, GENERIC_EQUIPMENT_TIERS, resolveGenericEquipmentTierCatalog,
   createGenericEquipmentTierSelection, parseGenericEquipmentTierSelection, resolveGenericEquipmentTierLensProfiles,
   type GenericEquipmentTierProfileReference, type GenericEquipmentTierSelection, type ResolvedGenericTierLensProfiles } from "./equipment/generic-tier-presets.js";
 export type { GenericEquipmentTier, GenericEquipmentTierPreset, GenericVersionedAsset, GenericTierBodyAssets, GenericTierLensAssets } from "./equipment/generic-tier-assets.js";
@@ -1792,6 +1792,7 @@ export { simulateDisplayView, prepareDisplayView, type PreparedDisplayView, type
 export type { DisplayViewGpuMode, PrepareDisplayViewOptions, DisplayViewGpuFallbackReason, DisplayViewGpuConformance, DisplayViewExecution,
   DisplayViewFastReport } from "./facade/display-view-gpu.js";
 export { type OutputTextMetadata, addJpegTextMetadata, addPngTextMetadata } from "./output/text-metadata.js";
+export { GENERIC_THIRD_STOP_ISO_SETTINGS, GENERIC_THIRD_STOP_SHUTTER_SECONDS, GENERIC_WHOLE_STOP_ISO_SETTINGS, type GenericTierPresetVersion } from "./equipment/generic-tier-assets.js";
 export { GENERIC_PRIME_EQUIVALENT_FOCAL_LENGTHS_MM, GENERIC_PRIME_THIRD_STOP_F_NUMBERS, GENERIC_PRIME_MINIMUM_FOCUS, resolveGenericPrimeLens,
   calculateGenericPrimeMinimumFocusDistanceM, type GenericPrimeLens, type GenericPrimeEquivalentFocalLengthMm } from "./equipment/generic-prime-lenses.js";
 export { calculateChartFraming, calculateSubjectDistanceForFraming, type CalculateChartFramingInput, type CalculateSubjectDistanceForFramingInput, type ChartFraming,

@@ -73,7 +73,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/minify-wgsl-dist.mjs",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "prepush": "node scripts/prepush.mjs",
     "check:static": "eslint . && tsc --noEmit && npm run check:licenses && npm run check:license-headers && npm run check:identity && npm run check:browser-surface",

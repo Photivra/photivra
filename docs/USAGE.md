@@ -7696,11 +7696,12 @@ console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id
 console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
 ```
 
-### Colour charts (2.14)
+### Color charts (2.14)
 
-The engine's own [colour patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md) are reflectance spectra lit by the capture's illuminant. Draw the
+The engine's own [color patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md) are reflectance spectra lit by the capture's illuminant. Draw the
 whole set with the `color-patches` preset, or use one patch wherever a chart takes a reflectance spectrum, as
-`{ kind: "color-patch", patchId }`. `getColorPatchSet()` gives each patch's name and its reference CIELAB under D65.
+`{ kind: "color-patch", patchId }`. `getColorPatchSet()` gives each patch's code, name, reason for being on the chart and reference CIELAB and sRGB
+under D65.
 
 ```ts
 import { getColorPatchSet, simulateCapture } from "@photivra/engine";
@@ -7712,7 +7713,7 @@ const tungsten = await simulateCapture({
   output: { width: 64, height: 16 }
 });
 const sky = getColorPatchSet().patches.find((p) => p.patchId === "sky-blue");
-console.log(tungsten.scene.parameters.patchSet, sky?.name, sky?.reference.cielabD65);
+console.log(tungsten.scene.parameters.patchSet, sky?.code, sky?.name, sky?.reference.cielabD65); // "PV-M1", "Midday Sky"
 ```
 
 In `aperture-priority` mode, the shutter comes from the meter (CIPA DC-004 relations S = 10/H and H = 0.65·L·t/N²) through
