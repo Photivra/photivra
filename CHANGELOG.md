@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.14.0 — unreleased (prepared November 1, 2026)
 
-Target: 2.14.0, a minor release. Colour test charts from the engine's own spectra, and grey-card (incident) exposure. Captures, RAW codes, files and assumptions are the same as 2.13.0 for every request that uses neither the new patches nor `exposure.metering: "grey-card"`.
+A minor release for the app's Beta charts. Colour test charts from the engine's own spectra, and grey-card (incident) exposure. Captures, RAW codes, files and assumptions are the same as 2.13.0 for every request that uses neither the new patches nor `exposure.metering: "grey-card"`.
 - **New:** built-in Photivra colour patches: the `color-patches` chart preset, the chart reflectance `{ kind: "color-patch", patchId }`, `getColorPatchSet()`, `evaluateColorPatchReflectance()`. `exposure.greyCardDeviationStops` on the capture and the display view: the exposure's deviation from an 18 % grey card's standard exposure under the scene's illuminance (incident metering). `exposure.metering: "scene-average" | "grey-card"`: with `"grey-card"` the automatic modes and Auto ISO meter that card instead of the scene (owner decision, 2026-11-01).
 - **Compatibility:** 16 new root exports (1,796; runtime exports 600 → 607), none removed or changed. Colour patches, 14: 6 runtime exports (`COLOR_PATCH_SET_ID`, `COLOR_PATCH_SET_VERSION`, `COLOR_PATCH_IDS`, `COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS`, `getColorPatchSet`, `evaluateColorPatchReflectance`) and 8 types (`ColorPatch`, `ColorPatchId`, `ColorPatchGroup`, `ColorPatchSet`, `ColorPatchSpectralTerm`, `EvaluateColorPatchReflectanceInput`, `ColorPatchReflectance`, `ColorPatchesChartScene`). `ChartReflectance` and `ChartElementScene` gain a member, `CHART_SCENE_PRESETS` and `CHART_SCENE_DEFAULTS` gain `color-patches`. A scalar reflectance means a spectrally flat grey as before, and existing charts render bit-identically (locked in `test/color-patches.test.ts` against 2.13.0). Grey card, 2: `SIMULATE_CAPTURE_METERING_MODES` and the type `SimulateCaptureMetering`; `SimulateCaptureResult.exposure` and `SimulateDisplayViewResult.exposure` gain `greyCardDeviationStops` and `metering`. No default changed: `exposure.metering` defaults to `"scene-average"`, today's meter, and adds no assumption when omitted.
 
@@ -44,7 +44,7 @@ Target: 2.14.0, a minor release. Colour test charts from the engine's own spectr
 
 - At the default `sensor.spectralStepNanometers` (20 nm) the facade's scene-illuminant white balance is measured on 1 nm nodes while the sensor integrates on 20 nm nodes, which leaves a small neutral cast that depends on the illuminant's spectral detail: white a* 0.17, b* 0.36 under the default 6500 K Planckian, b* −0.17 under illuminant A, and a* −0.74, b* +0.95 under the CIE D65 table as a caller spectrum. With 5 nm nodes it is below 0.03. Unchanged in this release (changing it would change existing captures); docs/COLOR_PATCHES.md recommends 5 nm for colour work.
 
-## 2.13.0 — unreleased (prepared October 31, 2026)
+## 2.13.0 — published October 31, 2026
 
 A minor release for the app's Beta camera: Auto ISO with photographer-set limits and an automatic slowest shutter, the illuminance that gives the standard exposure, and root exports for adding text metadata to a file the caller encoded. Captures, RAW codes and files are the same as 2.12.0 for the same request; Quality (AHD) display views change where the scene decides AHD's choice, closer to the capture (#457).
 - **New:** `estimateAutoIsoSlowestShutter()` and `exposure.autoIso.slowestPreferredShutterSeconds: "auto"` (#504); `autoIsoLimits` on every Auto ISO resolver and `exposure.autoIso.limits` (#505); `exposure.standardExposureIlluminanceLux`; `addJpegTextMetadata` and `addPngTextMetadata` (#388).
