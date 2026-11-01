@@ -168,6 +168,8 @@ export interface SimulateCaptureAutoIsoReport {
   slowestPreferredShutterApplied?: boolean;
   /** #504: present only with `slowestPreferredShutterSeconds: "auto"`: how the engine derived it (`estimateAutoIsoSlowestShutter`). */
   automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterReport;
+  /** 2.14: present when `exposure.autoIso.isoSteps` is given: the ISO steps Auto ISO chose from. */
+  isoSteps?: "whole-stop" | "third-stop";
 }
 /**
  * #504: the settings of `exposure.autoIso.slowestPreferredShutterSeconds: "auto"`. Every field is optional; the defaults are
@@ -353,9 +355,13 @@ export interface SimulateCaptureOptions {
      *   `maximum` (default: the body's minimum). Outside the body's range or off its ISO grid the request fails; the
      *   engine never clips a limit. When the ISO stops at a limit strictly inside the body's range, the report's
      *   `limitingConstraint` is `"user-iso-maximum"` or `"user-iso-minimum"`.
+     * - `isoSteps` (2.14): `"whole-stop"` (default) lets Auto ISO choose only the whole-stop ISOs of the body's grid
+     *   (100, 200, 400 …), as before the generic bodies gained third-stop settings (preset 2.1.0); `"third-stop"` lets it
+     *   choose every setting (100, 125, 160 …). Manual ISO always takes any setting of the grid. Limits must lie on the
+     *   grid Auto ISO uses.
      */
     autoIso?: { slowestPreferredShutterSeconds?: number | "auto"; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits;
-      automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterOptions };
+      automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterOptions; isoSteps?: "whole-stop" | "third-stop" };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
@@ -951,6 +957,17 @@ function luminanceOf(radiance: (nm: number) => number): number {
   }
   return PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W * sum;
 }
+/**
+ * 2.14: the capabilities with the ISO grid cut to its whole stops (ISO 100·2^k, as the 2.0.0 tier bodies list them), for
+ * Auto ISO's default `isoSteps: "whole-stop"`. A whole-stop grid is returned unchanged, so 2.0.0 records resolve as before.
+ */
+function wholeStopIsoCapabilities(capabilities: ResolvedGenericEquipmentExposureCapabilities): ResolvedGenericEquipmentExposureCapabilities {
+  const grid = capabilities.iso.settingGrid;
+  if (grid.kind !== "discrete-values") return capabilities;
+  const whole = grid.values.filter((iso) => Number.isInteger(Math.log2(iso / 100)));
+  if (whole.length === grid.values.length || whole.length === 0) return capabilities;
+  return { ...capabilities, iso: { ...capabilities.iso, settingGrid: { kind: "discrete-values", values: Object.freeze(whole) } } };
+}
 /** The white balance measured from a perfect white diffuser under the scene illuminant ("scene-illuminant"). */
 export function sceneIlluminantWhiteBalance(illuminant: ResolvedCaptureIlluminant): ResolvedWhiteBalanceState {
   const xyz = illuminantXyz(illuminant), camera = XYZ_TO_CAMERA.map((row) => row[0] * xyz[0] + row[1] * xyz[1] + row[2] * xyz[2]);
@@ -990,7 +1007,8 @@ export function bilinearPhaseProfiles(): RawFrameReconstructionPhaseProfile[] {
  */
 function autoIsoReport(resolution: unknown, iso: ResolvedGenericEquipmentExposureCapabilities["iso"],
   shutterPolicy: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined,
-  limits: { minimum: number; maximum: number } | undefined, automatic: SimulateCaptureAutomaticSlowestShutterReport | undefined): SimulateCaptureAutoIsoReport {
+  limits: { minimum: number; maximum: number } | undefined, automatic: SimulateCaptureAutomaticSlowestShutterReport | undefined,
+  isoSteps?: "whole-stop" | "third-stop"): SimulateCaptureAutoIsoReport {
   const r = resolution as { idealIsoBeforeConstraints?: unknown; isoResolution?: { clamped?: unknown }; afterMaximumIsoFallbackUsed?: unknown;
     slowestPreferredShutter?: { applied?: unknown; afterMaximumIsoFallbackUsed?: unknown };
     targetResidual?: { status?: unknown; limitingConstraint?: unknown; residualStops?: unknown } };
@@ -1005,7 +1023,7 @@ function autoIsoReport(resolution: unknown, iso: ResolvedGenericEquipmentExposur
     ...(limits ? { limits: { ...limits } } : {}), limitingConstraint: r.targetResidual.limitingConstraint as ExposureResolutionConstraint, residualStops: residual,
     ...(shutterPolicy ? { ...shutterPolicy, afterMaximumIsoFallbackUsed: (program ? program.afterMaximumIsoFallbackUsed : r.afterMaximumIsoFallbackUsed) === true } : {}),
     ...(program ? { slowestPreferredShutterApplied: program.applied === true } : {}),
-    ...(automatic ? { automaticSlowestShutter: automatic } : {}) };
+    ...(automatic ? { automaticSlowestShutter: automatic } : {}), ...(isoSteps ? { isoSteps } : {}) };
 }
 /**
  * #505: `exposure.autoIso.limits`, the photographer's Auto ISO range. Both limits are selectable ISOs inside the body's
@@ -1995,13 +2013,20 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   // #504: the slowest preferred shutter (aperture priority; optional in program) and, with "auto", how it was derived.
   let autoIsoShutterPolicy: { slowestPreferredShutterSeconds: number; afterMaximumIso: SimulateCaptureAutoIsoAfterMaximum } | undefined;
   let automaticSlowestShutter: SimulateCaptureAutomaticSlowestShutterReport | undefined;
+  // 2.14: the capabilities the exposure-mode resolvers see; with Auto ISO in whole stops, the ISO grid's whole stops only.
+  let resolverCapabilities = capabilities, autoIsoIsoSteps: "whole-stop" | "third-stop" = "whole-stop";
   if (automaticIso) {
     if (capabilities.iso.autoIsoAvailability !== "supported")
       fail('exposure.iso "auto" needs a body with Auto ISO; this camera\'s Auto ISO is ' + capabilities.iso.autoIsoAvailability + ".");
-    autoIsoOptions = allowKeys(exposureOptions.autoIso, "exposure.autoIso", ["slowestPreferredShutterSeconds", "afterMaximumIso", "limits", "automaticSlowestShutter"]);
+    autoIsoOptions = allowKeys(exposureOptions.autoIso, "exposure.autoIso", ["slowestPreferredShutterSeconds", "afterMaximumIso", "limits", "automaticSlowestShutter", "isoSteps"]);
+    // 2.14: Auto ISO steps in whole stops unless asked for thirds, so its choices are those of 2.13 on the third-stop bodies.
+    if (autoIsoOptions.isoSteps !== undefined && autoIsoOptions.isoSteps !== "whole-stop" && autoIsoOptions.isoSteps !== "third-stop")
+      fail('exposure.autoIso.isoSteps must be "whole-stop" or "third-stop".');
+    if (autoIsoOptions.isoSteps === "third-stop") autoIsoIsoSteps = "third-stop";
+    if (autoIsoIsoSteps === "whole-stop") resolverCapabilities = wholeStopIsoCapabilities(capabilities);
     if (mode !== "aperture-priority" && mode !== "program") for (const key of ["slowestPreferredShutterSeconds", "afterMaximumIso", "automaticSlowestShutter"])
       if (autoIsoOptions[key] !== undefined) fail("exposure.autoIso." + key + ' applies only to exposure.mode "aperture-priority" or "program"; omit it.');
-    if (autoIsoOptions.limits !== undefined) autoIsoLimits = parseAutoIsoLimitsOption(autoIsoOptions.limits, capabilities.iso);
+    if (autoIsoOptions.limits !== undefined) autoIsoLimits = parseAutoIsoLimitsOption(autoIsoOptions.limits, resolverCapabilities.iso);
     assume("exposure.autoIso", "model", { minimum: capabilities.iso.autoIsoMinimum ?? capabilities.iso.minimum, maximum: capabilities.iso.autoIsoMaximum ?? capabilities.iso.maximum,
       ...(autoIsoLimits ? { limits: { ...autoIsoLimits } } : {}), ...autoIsoBaseline },
       "Auto ISO: the engine's exposure-mode resolver chooses the ISO from the meter target, starting from the lowest selectable ISO in the body's Auto ISO range and " +
@@ -2038,21 +2063,21 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   const limitsPolicy = autoIsoLimits ? { autoIsoLimits: { ...autoIsoLimits } } : {};
   if (mode === "manual") {
-    resolution = resolveManualExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber, manualShutterSeconds: shutterSeconds,
+    resolution = resolveManualExposureMode({ target, capabilities: resolverCapabilities, referenceExposure: reference, manualAperture: fNumber, manualShutterSeconds: shutterSeconds,
       isoControl: automaticIso ? { kind: "automatic", quantizationPolicy: autoIsoBaseline.isoQuantizationPolicy, ...limitsPolicy } : { kind: "manual", iso } });
   } else if (autoIsoAperturePriority) {
-    resolution = resolveAperturePriorityAutoIsoExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber,
+    resolution = resolveAperturePriorityAutoIsoExposureMode({ target, capabilities: resolverCapabilities, referenceExposure: reference, manualAperture: fNumber,
       policy: { kind: "minimum-iso-until-slowest-preferred-shutter", ...autoIsoBaseline, shutterSelectionPolicy: "not-longer-than-target", ...autoIsoAperturePriority, ...limitsPolicy } });
   } else if (mode === "aperture-priority") {
-    resolution = resolveAperturePriorityExposureMode({ target, capabilities, referenceExposure: reference, manualAperture: fNumber, manualIso: iso,
+    resolution = resolveAperturePriorityExposureMode({ target, capabilities: resolverCapabilities, referenceExposure: reference, manualAperture: fNumber, manualIso: iso,
       shutterQuantizationPolicy: "nearest-log2-shorter-on-tie" });
   } else if (mode === "shutter-priority") {
-    resolution = resolveShutterPriorityExposureMode({ target, capabilities, referenceExposure: reference, manualShutterSeconds: shutterSeconds,
+    resolution = resolveShutterPriorityExposureMode({ target, capabilities: resolverCapabilities, referenceExposure: reference, manualShutterSeconds: shutterSeconds,
       isoControl: automaticIso ? { kind: "automatic", policy: { kind: "minimum-iso-aperture-first", apertureSelectionPolicy: "not-wider-than-target", ...autoIsoBaseline, ...limitsPolicy } } :
         { kind: "manual", iso, apertureQuantizationPolicy: "nearest-log2-narrower-on-tie" } });
   } else {
     assume("exposure.programLine", "model", "facade-generic-program-line", "Engine-authored generic program line (f/16 1/2000 s … f/8 1/125 s … f/4 1.024 s); not a manufacturer program.");
-    resolution = resolveProgramAutoExposureMode({ target, capabilities, referenceExposure: reference, programLine: defaultProgramLine(),
+    resolution = resolveProgramAutoExposureMode({ target, capabilities: resolverCapabilities, referenceExposure: reference, programLine: defaultProgramLine(),
       isoControl: automaticIso ? { kind: "automatic", ...autoIsoBaseline, ...limitsPolicy, ...(autoIsoShutterPolicy ? { slowestPreferredShutter: { ...autoIsoShutterPolicy } } : {}) } :
         { kind: "manual", iso } });
   }
@@ -2061,7 +2086,8 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
   if (!Number.isFinite(resolvedIso) || resolvedIso <= 0) fail("Exposure could not be resolved: the resolved ISO is not a positive finite number.");
-  const isoReport = automaticIso ? { isoControl: "automatic" as const, autoIso: autoIsoReport(resolution, capabilities.iso, autoIsoShutterPolicy, autoIsoLimits, automaticSlowestShutter) } : { isoControl: "manual" as const };
+  const isoReport = automaticIso ? { isoControl: "automatic" as const, autoIso: autoIsoReport(resolution, resolverCapabilities.iso, autoIsoShutterPolicy, autoIsoLimits, automaticSlowestShutter,
+    autoIsoOptions.isoSteps === undefined ? undefined : autoIsoIsoSteps) } : { isoControl: "manual" as const };
   const exposureDeviationStops = standardExposureDeviationStops(fNumber, shutterSeconds, resolvedIso, meteredLuminance);
   const exposureIlluminanceLux = standardExposureIlluminanceLux(fNumber, shutterSeconds, resolvedIso, meteredLuminance, illuminanceLux,
     callerScene?.kind !== "radiance-function");

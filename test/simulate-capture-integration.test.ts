@@ -42,7 +42,7 @@ const DC004_DEFAULT_UNIFORM: Record<string, string> = {
   jpeg: "none",
   environmentRaw: "7d5305401f89fa9cd417a3a18f7e4e47230fabaab0a15f4354c276de67909504",
   development: "5eb9d20168ba577baf2523450c593d4f18edcd6b60f4cde1f68a07f88470b108",
-  sites: "ad06886481bb191d4dd5496d6d6ed5ce9ce7b3af79640b75e227f1eb58453a2c",
+  sites: "7cda3bcff3cb4f90f01b8804a2b76bc6f10750de55a3ec41a2a7c4986580fc93",
   sourceSha256: "02ea939bf5f2d449f69412d899629de5ed061b0e6ce8f5a2107ba778c3dfbdfb"
 };
 
@@ -50,6 +50,9 @@ const DC004_DEFAULT_UNIFORM: Record<string, string> = {
  * Digests recorded from the 1.0 facade (origin/main 09e4262) before any 2.0 option existed, re-pinned in
  * 2.0.0 for the engine's own CIE 1931 CMF fit (it replaced the Wyman et al. 2013 coefficients): samples,
  * codes, environmentRaw and sites changed; blackLevels, flags, development and sourceSha256 did not.
+ * Re-pinned in 2.14 for the tier presets 2.1.0 (third-stop ISO settings): only the request records changed (sites ×5,
+ * environmentRaw ×1), because they carry the whole readout profile, which now lists a regime per third-stop ISO, and the
+ * 2.1.0 profile versions; samples, codes, blackLevels, flags, development and sourceSha256 are unchanged.
  */
 const BASELINE: Record<string, Record<string, string>> = {
   uniform: {
@@ -60,7 +63,7 @@ const BASELINE: Record<string, Record<string, string>> = {
     jpeg: "none",
     environmentRaw: "963c0242b3ac30a7ee396fe7f2202e5c9fa529ffe2988d6d1693c2c114e09ff4",
     development: "5eb9d20168ba577baf2523450c593d4f18edcd6b60f4cde1f68a07f88470b108",
-    sites: "b61fcc328742567601e7752f507cbc4eef9e8bf0c4f24adc5247a0da0e8821a7",
+    sites: "c281b0159e753b396693e293ed865e105d8f4fc34c2de8f3f03defb126c72fee",
     sourceSha256: "6a9f7f6da9604c767ea52a17dade98a8e2887ccafb4e6c09a82c0f429fe572e9"
   },
   edge16: {
@@ -71,7 +74,7 @@ const BASELINE: Record<string, Record<string, string>> = {
     jpeg: "none",
     environmentRaw: "5d8f6a9e2add505f477c1b2fcd38f899f4eda2eeb87b2ba52c358e8d71ebed3b",
     development: "ea3c54f5a8ac75edc8e69e5fc77e16769b77060b307454d27f582773c7c78e0d",
-    sites: "c46e7ea6a1bebf956071e2285659e89ca8330d7bc12db216bd174a1b55f5b45f",
+    sites: "d9dfb49e94aa5c01d44338123b0401f661292b3816d926940fb3f58ecbe2067a",
     sourceSha256: "3b43a89f6c71e66ded934d2485ab8e49723b2540f8ff8fe54c1608a9f7a51166"
   },
   jpegAuto: {
@@ -80,9 +83,9 @@ const BASELINE: Record<string, Record<string, string>> = {
     blackLevels: "f235651a4bd57afc227c07e0fdb0b4ebe6aa8463eaf8307fec533194c8624a1f",
     flags: "cd00e292c5970d3c5e2f0ffa5171e555bc46bfc4faddfb4a418b6840b86e79a3",
     jpeg: "b4ba0b638197e309fbaadf60c895fa40fc97000e907dd3389c95b9c5d9163a9e",
-    environmentRaw: "40d8f10bff288597db11c01cf072c6e17d0c8c323f26f1ba1383590f236ae5ca",
+    environmentRaw: "0c8b8eb1ba9f74bdc48c4201d06acce7a493fd27e2d46012a011f0da20d87291",
     development: "d919bdef431a2156a47488818ffe86288634d1a02f6af0ccd6d7476f18c571e7",
-    sites: "93406f59335a9b026f25bc56b692d6fb8eab796a7d260d3d59dbfa532ec22740",
+    sites: "bae7af3a56a2b45e457cacfcf917336fed310832a8267980286fcac6110f0587",
     sourceSha256: "d09e9c4233d2ccc43f00be71dc1b04845c11caad831eeb32b90e1fa278779f80"
   },
   pupil: {
@@ -93,7 +96,7 @@ const BASELINE: Record<string, Record<string, string>> = {
     jpeg: "none",
     environmentRaw: "e78b5cf661ab7a83b6442e13b6dc7a76f536e4700b7e0d835bb98d005ea085c9",
     development: "5eb9d20168ba577baf2523450c593d4f18edcd6b60f4cde1f68a07f88470b108",
-    sites: "b9b05184c9c980cc69aa067271ce7ae7cbd6a676c136e5c13b2a748e01824f4d",
+    sites: "f4c4208df32f99ad3a7e3a9b906a94388d7b8affd435de822c281c51473f473e",
     sourceSha256: "a01c6c54d4193eea40a88e8ae802e6887aeb2058b0d43bd73b670a650f4835f0"
   }
 };

@@ -75,7 +75,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.defocus` | off | `{ model: "geometric-disc" }`: defocus of the scene plane as the geometric blur disc (see [Optics](#optics)). `simulateCapture` and `simulateDisplayView` render it. |
 | `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ kind: "circular-aperture", kernelRadiusSamples, fast }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). `aperture` is accepted as a deprecated alias of `kind` until 3.0.0. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
-| `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). `"auto"` lets Auto ISO choose it from the meter in any mode (see [Auto ISO](#auto-iso-516)). |
+| `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). From 2.14 the tier bodies (preset 2.1.0) take the third-stop settings `GENERIC_THIRD_STOP_ISO_SETTINGS` (100, 125, 160, 200 … up to the body's maximum: 6400, 12 800 or 25 600). `"auto"` lets Auto ISO choose it from the meter in any mode (see [Auto ISO](#auto-iso-516)); it steps in whole stops unless `exposure.autoIso.isoSteps: "third-stop"`. |
 | `exposure.autoIso` | none | With `iso: "auto"` only. `aperture-priority` requires `{ slowestPreferredShutterSeconds, afterMaximumIso? }`, and `program` takes them optionally; the slowest shutter may be `"auto"`, set by `automaticSlowestShutter`. Every mode takes `limits: { maximum, minimum? }`, the photographer's Auto ISO range (see [Auto ISO](#auto-iso-516)). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
 | `exposure.compensationStops` | 0 | Applied to the meter target. |
@@ -174,6 +174,10 @@ real products, and carry no brand:
   to 135 mm, f/32 beyond. Any f-number inside the range is accepted; `fNumbers` lists the marked
   third-stop values within it (`GENERIC_PRIME_THIRD_STOP_F_NUMBERS`: 1, 1.1, 1.2, 1.4, …, 22, 25, 29, 32,
   the conventional rounded values of 2^(k/6)). An f-number outside the range is rejected.
+- **Third-stop dials (2.14):** `GENERIC_THIRD_STOP_ISO_SETTINGS` lists the bodies' ISO settings (the rounded values of
+  100·2^(k/3)), and `GENERIC_THIRD_STOP_SHUTTER_SECONDS` the standard third-stop shutter times from 1/8000 s to 30 s
+  (the rounded values of 2^(k/3) s: 1/8000, 1/6400, 1/5000, … 1/13, 1/10, 1/8, 1/6, 1/5, 1/4, 0.3, 0.4 … 25, 30). The
+  bodies' shutters are continuous over 1/8000–30 s and take each value as the exact time.
 - **Minimum focus** = max(0.10 m, f·(1 + 1/0.15)): the thin-lens object distance at 0.15× magnification,
   never closer than 10 cm (`GENERIC_PRIME_MINIMUM_FOCUS`). A subject or focus distance below it is
   rejected. This is a generic thin-lens approximation, measured from the lens, not a real lens's
