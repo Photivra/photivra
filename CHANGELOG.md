@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-Target: 2.14.0, a minor release. Captures, RAW codes, files and every existing result field are the same as 2.13.0 for the same request.
-- **New:** `exposure.greyCardDeviationStops` on the capture and the display view: the exposure's deviation from an 18 % grey card's standard exposure under the scene's illuminance (incident metering).
-- **Compatibility:** no new root export; `SimulateCaptureResult.exposure` and `SimulateDisplayViewResult.exposure` gain one field. No default or behaviour changed: the automatic modes still meter the scene.
+Target: 2.14.0, a minor release. Captures, RAW codes, files, assumptions and every existing result field are the same as 2.13.0 for the same request.
+- **New:** `exposure.greyCardDeviationStops` on the capture and the display view: the exposure's deviation from an 18 % grey card's standard exposure under the scene's illuminance (incident metering). `exposure.metering: "scene-average" | "grey-card"`: with `"grey-card"` the automatic modes and Auto ISO meter that card instead of the scene (owner decision, 2026-11-01).
+- **Compatibility:** 2 new root exports (`SIMULATE_CAPTURE_METERING_MODES`, type `SimulateCaptureMetering`); `SimulateCaptureResult.exposure` and `SimulateDisplayViewResult.exposure` gain `greyCardDeviationStops` and `metering`. No default changed: `exposure.metering` defaults to `"scene-average"`, today's meter, and adds no assumption when omitted.
 
 ### Added
 
@@ -17,6 +17,9 @@ Target: 2.14.0, a minor release. Captures, RAW codes, files and every existing r
     - in aperture priority on a 90 % white field it exceeds the metered deviation by log₂(0.9/0.18);
     - shutter priority and program with Auto ISO follow the closed form of the settings used;
     - null for a radiance scene, 0 for a black scene at the defaults.
+
+- **Grey-card metering (`exposure.metering`).** `"scene-average"` (default) keeps the body's 16 × 16-zone scene meter. `"grey-card"` gives every meter zone the luminance 0.18·E/π of an 18 % Lambertian grey card under the request's illuminance, so aperture priority, shutter priority and program, with a fixed ISO or Auto ISO, choose settings with `greyCardDeviationStops` = 0 whatever the scene's reflectances; only the mode's own steps and limits remain (whole-stop Auto ISO: at most half a stop, equal to the Auto ISO report's `residualStops`; the lens's f/4 or the shutter range when the light is beyond them). The result reports `exposure.metering`; with `"grey-card"` an assumption `exposure.meteringSource` gives the card's luminance. A `radiance-function` scene is refused with grey-card metering. Unknown values fail with `InvalidConfigurationError`. The scene-luminance fields keep describing the scene.
+  - **Tests** (`test/exposure-grey-card.test.ts`): the default is scene-average and an explicit `"scene-average"` gives the same bytes, settings and assumptions; unknown values and a radiance scene are refused; each automatic mode lands within 1e-6 stops of 0 at two illuminances, and compensation moves it by exactly the compensation; settings do not depend on the scene's reflectances; with Auto ISO in all four modes the deviation equals the report's `residualStops` (to 1e-9), within half a stop for `iso-grid-quantization`, and an `iso-maximum` limit is reported as such; the display view and the ideal reference resolve the same settings.
 
     Images, RAW codes, every other exposure field, the assumptions and the scene digests are identical to 2.13.0 for manual, aperture-priority, program Auto ISO and shutter-priority captures and a display view (compared by SHA-256 between the two builds; every hash lock holds).
 

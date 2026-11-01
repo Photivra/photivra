@@ -7705,7 +7705,19 @@ mode it is minus the compensation plus any limit the resolver hit; it is `null` 
 request's illuminance E (a reflective scene's metered luminance is proportional to E); `null` for a black scene or a
 `radiance-function` scene. `exposure.greyCardDeviationStops` (2.14) is the deviation from the standard exposure of an 18 % grey
 card under that illuminance, log₂(L_ref/(0.18·E/π)): incident metering, independent of the scene's reflectances, exactly 0 at
-the defaults; the automatic modes still meter the scene. The display view's `exposure` carries the same values.
+the defaults. The automatic modes meter the scene by default; `exposure.metering: "grey-card"` makes them (and Auto ISO) meter
+that grey card instead, so they land on a grey-card deviation of 0. The display view's `exposure` carries the same values.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const chart = await simulateCapture({
+  scene: { preset: "uniform", reflectance: 0.9 },
+  exposure: { mode: "aperture-priority", metering: "grey-card" },
+  output: { width: 8, height: 8 }
+});
+console.log(chart.exposure.metering, chart.exposure.settings.shutterSeconds, chart.exposure.greyCardDeviationStops);
+```
 
 With `exposure.iso: "auto"` (#516) the ISO is chosen too, in every mode, by the resolvers' Auto ISO branches
 ([Priority modes with Auto ISO](#priority-modes-with-auto-iso)). Aperture priority then needs the slowest shutter

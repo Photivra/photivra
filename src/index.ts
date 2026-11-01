@@ -1778,9 +1778,9 @@ export { SYNTHETIC_FILM_GRAIN_STREAM_ID, createBilateralFilterTask, createNonLoc
 
 export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
 
-export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, SIMULATE_CAPTURE_COST_OPTIONS, simulateCapture,
+export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, SIMULATE_CAPTURE_COST_OPTIONS, SIMULATE_CAPTURE_METERING_MODES, simulateCapture,
   type SimulateCaptureOptions, type SimulateCaptureResult, type SimulateCaptureAssumption, type SimulateCaptureProgress,
-  type SimulateCaptureExposureMode, type SimulateCaptureAutoIsoAfterMaximum, type SimulateCaptureAutoIsoReport, type SimulateCaptureAutomaticSlowestShutterOptions,
+  type SimulateCaptureExposureMode, type SimulateCaptureMetering, type SimulateCaptureAutoIsoAfterMaximum, type SimulateCaptureAutoIsoReport, type SimulateCaptureAutomaticSlowestShutterOptions,
   type SimulateCaptureAutomaticSlowestShutterReport, type SimulateCaptureOutputFormat, type SimulateCaptureWhiteBalance, type SimulateCaptureColorEncoding,
   type SimulateCaptureDemosaic, type SimulateCaptureBorderHandling, type SimulateCaptureLensDistortion, type SimulateCaptureMotion,
   type SimulateCaptureSensorAntiAliasing, type SimulateCaptureCostOption, type SimulateCapturePixelAperture, SIMULATE_CAPTURE_BOX_APERTURE_DEFAULT_SAMPLES,

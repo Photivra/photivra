@@ -79,6 +79,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `exposure.autoIso` | none | With `iso: "auto"` only. `aperture-priority` requires `{ slowestPreferredShutterSeconds, afterMaximumIso? }`, and `program` takes them optionally; the slowest shutter may be `"auto"`, set by `automaticSlowestShutter`. Every mode takes `limits: { maximum, minimum? }`, the photographer's Auto ISO range (see [Auto ISO](#auto-iso-516)). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
 | `exposure.compensationStops` | 0 | Applied to the meter target. |
+| `exposure.metering` | `"scene-average"` | 2.14: or `"grey-card"`, incident metering: the meter reads an 18 % grey card under the scene's illuminance instead of the scene, so the automatic modes and Auto ISO land on `greyCardDeviationStops` = 0 (see [Exposure](#exposure)). Reported as `exposure.metering`. |
 | `scene` | required | A chart preset or a caller function (below). |
 | `subjectDistanceM` | 5 | Distance of the scene plane. |
 | `chartSize` | fill the frame | 2.3: `{ widthM, heightM?, surroundReflectance? }` places the chart at its physical size (see [Fixed-size chart](#fixed-size-chart-23)). |
@@ -383,13 +384,24 @@ The facade meters the scene like a reflected-light meter:
   With the default settings and illuminance it is exactly 0 (the default illuminance is defined from this grey card,
   below); each stop of shutter, aperture or ISO, and each halving of the illuminance, moves it by one stop. It is `null`
   for a `radiance-function` scene, whose radiance ignores the illuminance. The display view reports the same value.
-  - **The automatic modes are unchanged: they still meter the scene** (the body's 16 × 16-zone meter,
-    `meteredSceneLuminanceCdPerSquareMeter`). `greyCardDeviationStops` only reports where their exposure sits against
-    the grey card. On a scene brighter than 18 % grey they expose darker than the grey card: a uniform 90 % white
-    gives log₂(0.9/0.18) ≈ +2.32, and the app's round 4 All-in-one chart on 90 % white paper about +1.78 (its metered
-    luminance is 3.4 times the grey card's). To expose by incident metering, use `manual` with settings that give
-    `greyCardDeviationStops` = 0, or give an automatic mode `exposure.compensationStops` equal to the value it reports
-    without compensation (+1.78 brightens that chart by 1.78 stops; the resolver's limits and steps still apply).
+  - **By default the automatic modes meter the scene** (`exposure.metering: "scene-average"`: the body's
+    16 × 16-zone meter, `meteredSceneLuminanceCdPerSquareMeter`), exactly as before 2.14, and `greyCardDeviationStops`
+    reports where their exposure sits against the grey card. On a scene brighter than 18 % grey they expose darker
+    than the grey card: a uniform 90 % white gives log₂(0.9/0.18) ≈ +2.32, and the app's round 4 All-in-one chart on
+    90 % white paper about +1.78 (its metered luminance is 3.4 times the grey card's).
+  - **`exposure.metering: "grey-card"` (2.14) meters by the grey card**: every meter zone reads L = 0.18·E/π, so
+    aperture priority, shutter priority and program, with a fixed ISO or Auto ISO, choose settings with
+    `greyCardDeviationStops` = 0 whatever the scene's reflectances, as a manual exposure at the default settings and
+    illuminance has. What is left is the mode's own steps and limits: the resolvers set a continuous shutter or
+    aperture, so only rounding remains unless the lens or shutter range stops them (shutter priority at 1/125 s and
+    5000 lx would need f/3.9 and stops at f/4, 0.10 stop under); Auto ISO chooses whole-stop ISOs, so up to half a
+    stop remains, and that remainder is the Auto ISO report's `residualStops`, with `limitingConstraint` naming
+    `iso-grid-quantization` or the ISO limit. Compensation still applies (+⅔ gives −⅔). Manual exposure ignores the
+    meter, so the option changes nothing there except Auto ISO. `meteredSceneLuminanceCdPerSquareMeter`,
+    `standardExposureDeviationStops` and `standardExposureIlluminanceLux` still describe the scene's own luminance.
+    A `radiance-function` scene is refused, since its radiance ignores the illuminance. The capture reports
+    `exposure.metering`, and the assumption `exposure.meteringSource` gives the card's luminance. When the option is
+    omitted, nothing is added to the assumptions, so 2.13 requests give the same assumptions and bytes.
 
 DC-004 ties the reference level to an 18 % grey (Explanation 1 and 2.2). The default illuminance
 puts an 18 % Lambertian grey card, whose luminance is L = 0.18·E/π, exactly at that luminance:

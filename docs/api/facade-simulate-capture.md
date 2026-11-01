@@ -30,6 +30,8 @@ export interface DisplayViewResult {
     standardExposureIlluminanceLux: number | null;
     /** 2.14: as in the capture result. */
     greyCardDeviationStops: number | null;
+    /** 2.14: as in the capture result. */
+    metering: SimulateCaptureMetering;
     /** #516: as in the capture result. */
     isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
@@ -139,6 +141,14 @@ whether or not it has a fast method yet; one without runs exact and reports `fal
 
 ```ts
 SIMULATE_CAPTURE_FAST_OPTIONS = Object.freeze(["lens.diffraction", "sensor.antiAliasing", "sensor.pixelAperture.box", "output.demosaic.ahd"] as const)
+```
+
+## SIMULATE_CAPTURE_METERING_MODES
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+SIMULATE_CAPTURE_METERING_MODES: readonly SimulateCaptureMetering[] = Object.freeze(["scene-average", "grey-card"] as const)
 ```
 
 ## SIMULATE_DISPLAY_VIEW_DEFAULT_SAMPLES_PER_AXIS
@@ -374,6 +384,17 @@ export type SimulateCaptureLensDistortion =
   | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
 ```
 
+## SimulateCaptureMetering
+
+2.14: what the meter reads. `scene-average` (the default): the body's 16 × 16-zone meter reads the scene's luminance.
+`grey-card`: incident metering; every zone reads the luminance 0.18·E/π of an 18 % Lambertian grey card under the
+request's illuminance E, so the automatic modes choose settings whose `greyCardDeviationStops` is 0 (up to their steps
+and limits), whatever the scene's reflectances.
+
+```ts
+export type SimulateCaptureMetering = "scene-average" | "grey-card";
+```
+
 ## SimulateCaptureMotion
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -479,6 +500,11 @@ export interface SimulateCaptureOptions {
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
     compensationStops?: number;
+    /**
+     * 2.14: `"scene-average"` (default) or `"grey-card"` (incident metering, see {@link SimulateCaptureMetering}). Manual
+     * exposure does not use the meter's reading, so the setting changes only the automatic modes and Auto ISO.
+     */
+    metering?: SimulateCaptureMetering;
   };
   /**
    * Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card), a declared `material-layers` scene (#491:
@@ -687,6 +713,9 @@ export interface SimulateCaptureResult {
     isoControl: "manual" | "automatic";
     /** #516: present with `iso: "auto"`: how Auto ISO chose `settings.iso` and what limited it. */
     autoIso?: SimulateCaptureAutoIsoReport;
+    /** 2.14: the metering the exposure used (`exposure.metering`; `"scene-average"` when omitted). */
+    metering: SimulateCaptureMetering;
+    /** The scene's average luminance on the meter's zones, cd/m², with either metering. */
     meteredSceneLuminanceCdPerSquareMeter: number;
     /**
      * #515: deviation, in stops, of the exposure used from the CIPA DC-004-2020 standard exposure for the metered luminance L:

@@ -115,6 +115,14 @@ export const SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const;
 
 export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shutter-priority" | "program";
 /**
+ * 2.14: what the meter reads. `scene-average` (the default): the body's 16 × 16-zone meter reads the scene's luminance.
+ * `grey-card`: incident metering; every zone reads the luminance 0.18·E/π of an 18 % Lambertian grey card under the
+ * request's illuminance E, so the automatic modes choose settings whose `greyCardDeviationStops` is 0 (up to their steps
+ * and limits), whatever the scene's reflectances.
+ */
+export type SimulateCaptureMetering = "scene-average" | "grey-card";
+export const SIMULATE_CAPTURE_METERING_MODES: readonly SimulateCaptureMetering[] = Object.freeze(["scene-average", "grey-card"] as const);
+/**
  * #516: what aperture priority does with Auto ISO once the ISO reaches the body's Auto ISO maximum and the exposure is
  * still under the meter target: `"allow-slower-shutter"` lengthens the shutter past the slowest preferred shutter to reach
  * the target; `"hold-preferred-shutter"` keeps the preferred shutter and leaves the exposure under target.
@@ -352,6 +360,11 @@ export interface SimulateCaptureOptions {
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */
     compensationStops?: number;
+    /**
+     * 2.14: `"scene-average"` (default) or `"grey-card"` (incident metering, see {@link SimulateCaptureMetering}). Manual
+     * exposure does not use the meter's reading, so the setting changes only the automatic modes and Auto ISO.
+     */
+    metering?: SimulateCaptureMetering;
   };
   /**
    * Required: an engine chart (for example `{ preset: "uniform" }`, an 18 % grey card), a declared `material-layers` scene (#491:
@@ -569,6 +582,9 @@ export interface SimulateCaptureResult {
     isoControl: "manual" | "automatic";
     /** #516: present with `iso: "auto"`: how Auto ISO chose `settings.iso` and what limited it. */
     autoIso?: SimulateCaptureAutoIsoReport;
+    /** 2.14: the metering the exposure used (`exposure.metering`; `"scene-average"` when omitted). */
+    metering: SimulateCaptureMetering;
+    /** The scene's average luminance on the meter's zones, cd/m², with either metering. */
     meteredSceneLuminanceCdPerSquareMeter: number;
     /**
      * #515: deviation, in stops, of the exposure used from the CIPA DC-004-2020 standard exposure for the metered luminance L:
@@ -1350,6 +1366,8 @@ export interface DisplayViewResult {
     standardExposureIlluminanceLux: number | null;
     /** 2.14: as in the capture result. */
     greyCardDeviationStops: number | null;
+    /** 2.14: as in the capture result. */
+    metering: SimulateCaptureMetering;
     /** #516: as in the capture result. */
     isoControl: "manual" | "automatic"; autoIso?: SimulateCaptureAutoIsoReport };
   scene: SimulateCaptureResult["scene"];
@@ -1416,6 +1434,8 @@ export interface DisplayViewRunContext {
   standardExposureIlluminanceLux: number | null;
   /** 2.14: the capture's `exposure.greyCardDeviationStops`. */
   greyCardDeviationStops: number | null;
+  /** 2.14: the capture's `exposure.metering`. */
+  metering: SimulateCaptureMetering;
   sceneOption: unknown;
   scenePreset: "composite" | "uniform" | "patches" | "slanted-edge" | "siemens-star" | "step-wedge" | "grey-ramp" | "checkerboard" | "point-grid" | "dead-leaves" | "bar-groups" | "hyperbolic-wedge" | "zone-plate" | "slanted-squares" | "line-grid" | "fiducial" | "reflectance-function" | "radiance-function" | "material-function";
   shutterSeconds: number;
@@ -1905,7 +1925,10 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the engine's analytic CIE 1931 ȳ fit.");
 
   // Metering (CIPA DC-004 standard output sensitivity and camera equation) and exposure-mode resolution
-  const exposureOptions = allowKeys(top.exposure, "exposure", ["mode", "iso", "shutterSeconds", "compensationStops", "autoIso"]);
+  const exposureOptions = allowKeys(top.exposure, "exposure", ["mode", "iso", "shutterSeconds", "compensationStops", "autoIso", "metering"]);
+  // 2.14: no default assumption when omitted, so 2.13 requests keep their assumptions; the result reports `exposure.metering`.
+  const metering: SimulateCaptureMetering = exposureOptions.metering === undefined ? "scene-average" : exposureOptions.metering as SimulateCaptureMetering;
+  if (!(SIMULATE_CAPTURE_METERING_MODES as readonly unknown[]).includes(metering)) fail('exposure.metering must be "scene-average" or "grey-card".');
   const mode = pick<SimulateCaptureExposureMode>(exposureOptions, "mode", "exposure.mode", "manual", "Manual exposure.");
   if (!["manual", "aperture-priority", "shutter-priority", "program"].includes(mode)) fail("Unknown exposure mode.");
   const isoOption = pick<unknown>(exposureOptions, "iso", "exposure.iso", DEFAULTS.iso, "ISO 100, the tiers' base ISO.");
@@ -1933,6 +1956,14 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   const meteredLuminance = luminanceSum / (zones * zones);
   assume("exposure.metering", "model", { policy: meterProfile.policy.kind, zones: zones * zones },
     "The body's " + meterProfile.policy.kind + " meter reads scene luminance on a 16 × 16 zone grid, before the lens (no lens transmission, vignetting or flare).");
+  if (metering === "grey-card") {
+    // 2.14: incident metering. Every zone reads the 18 % Lambertian grey card under the request's illuminance, L = 0.18·E/π.
+    if (callerScene?.kind === "radiance-function") fail('exposure.metering "grey-card" needs a scene lit by the illuminance; a radiance-function scene ignores illuminanceLux.');
+    const cardLuminance = GREY_CARD_REFLECTANCE * illuminanceLux / Math.PI;
+    for (const sample of zoneSamples) sample.relativeLinearSignal = meterProfile.target.targetRelativeSignal * cardLuminance / referenceLuminance;
+    assume("exposure.meteringSource", "model", { metering, greyCardReflectance: GREY_CARD_REFLECTANCE, luminanceCdPerSquareMeter: cardLuminance },
+      "Grey-card (incident) metering: every meter zone reads an 18 % Lambertian grey card under the scene illuminance, L = 0.18·E/π, instead of the scene.");
+  }
   const meterResult = meterRelativeExposure({ profile: meterProfile, sampleSet: { measurementId: "facade-meter", sceneStateId: IDS.sceneState,
     inputDomain: "relative-pre-exposure-linear-signal", captureRegion: "oriented-active-capture", captureGeometry: resolvedGeometry,
     processingState: { exposureSettingsApplied: false, whiteBalanceApplied: false, toneMappingApplied: false, displayGammaApplied: false, sharpeningApplied: false },
@@ -2469,7 +2500,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
   }
   // Display view: the renderer that simulate-display-view.ts passes in reads this request's resolved state, so a bundle
   // that only captures does not contain the display view.
-  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, defocus: displayViewDefocus, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, isoReport, standardExposureDeviationStops: exposureDeviationStops, standardExposureIlluminanceLux: exposureIlluminanceLux, greyCardDeviationStops: exposureGreyCardDeviationStops, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
+  if (displayView) return await renderView!({ ahd, fastReport, antiAliasing, aspect, assume, assumptions, axisChannelResponse, boxSamples, buildProvider, callerScene, chart, materialLayers, chartReport, chartSize, diffraction, defocus: displayViewDefocus, diffractionPsf, fNumber, focalLengthMm, focusDistanceM, height, highlightMode, illuminanceLux, illuminant, illuminantOption, imagingArea, intentOf, metresPerFrameUnit, noiseSeed, outputOptions, parsedView, pitch, preset, provider, regimeByChannel, resolvedIso, isoReport, standardExposureDeviationStops: exposureDeviationStops, standardExposureIlluminanceLux: exposureIlluminanceLux, greyCardDeviationStops: exposureGreyCardDeviationStops, metering, sceneOption, scenePreset, shutterSeconds, started, subjectDistanceM, toneCurve, whiteBalanceOption, whiteBalanceState, width, checkAbort, margin, mode, nativeHeight, nativeWidth, sourceSha256, yieldControl, kelvinWhiteBalanceInput });
   // Ideal reference (2.3): the scene without camera effects, at the capture's own exposure, white balance and encoding.
   if (idealReference) {
     const referenceStarted = clockMs();
@@ -2796,7 +2827,7 @@ export async function runCapture(options: SimulateCaptureOptions, run: "capture"
     request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState,
       ...(diffraction ? { diffraction: { profile: diffraction, psf: diffractionPsf!, execution: diffractionObjectSpace ? "object-space-convolution" as const : "environment-psf-quadrature" as const } } : {}) },
     exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds), ...isoReport,
-      meteredSceneLuminanceCdPerSquareMeter: meteredLuminance, standardExposureDeviationStops: exposureDeviationStops,
+      metering, meteredSceneLuminanceCdPerSquareMeter: meteredLuminance, standardExposureDeviationStops: exposureDeviationStops,
       standardExposureIlluminanceLux: exposureIlluminanceLux, greyCardDeviationStops: exposureGreyCardDeviationStops, resolution },
     scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,

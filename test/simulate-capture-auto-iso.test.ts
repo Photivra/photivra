@@ -150,7 +150,7 @@ describe("a capture, its display view, its ideal reference and its region parts 
     const reference = await simulateIdealReference(options);
     // The display view also reports the capture's deviations from the standard exposure (#515; 2.14 grey card); the ideal reference does not.
     const viewExposure = { ...shared, standardExposureDeviationStops: capture.exposure.standardExposureDeviationStops,
-      standardExposureIlluminanceLux: capture.exposure.standardExposureIlluminanceLux, greyCardDeviationStops: capture.exposure.greyCardDeviationStops };
+      standardExposureIlluminanceLux: capture.exposure.standardExposureIlluminanceLux, greyCardDeviationStops: capture.exposure.greyCardDeviationStops, metering: capture.exposure.metering };
     expect(direct.exposure).toEqual(viewExposure);
     expect(prepared.exposure).toEqual(viewExposure);
     expect(reference.exposure).toEqual(shared);
