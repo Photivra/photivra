@@ -1437,7 +1437,7 @@ export interface DisplayViewRunContext {
   /** 2.14: the capture's `exposure.metering`. */
   metering: SimulateCaptureMetering;
   sceneOption: unknown;
-  scenePreset: "composite" | "uniform" | "patches" | "slanted-edge" | "siemens-star" | "step-wedge" | "grey-ramp" | "checkerboard" | "point-grid" | "dead-leaves" | "bar-groups" | "hyperbolic-wedge" | "zone-plate" | "slanted-squares" | "line-grid" | "fiducial" | "reflectance-function" | "radiance-function" | "material-function";
+  scenePreset: "composite" | "uniform" | "patches" | "slanted-edge" | "siemens-star" | "step-wedge" | "grey-ramp" | "checkerboard" | "point-grid" | "dead-leaves" | "bar-groups" | "hyperbolic-wedge" | "zone-plate" | "slanted-squares" | "line-grid" | "fiducial" | "color-patches" | "reflectance-function" | "radiance-function" | "material-function";
   shutterSeconds: number;
   started: number;
   subjectDistanceM: number;

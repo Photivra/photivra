@@ -4,7 +4,8 @@
  * Procedural test charts for the capture facade, written for this engine. Every chart is a flat,
  * Lambertian (matte) reflectance pattern, defined by formulas in normalized frame coordinates. No
  * third-party chart data (for example ColorChecker reflectances) is bundled. Coloured patches use
- * spectra that the caller supplies.
+ * spectra that the caller supplies or, from 2.14, Photivra's own analytic colour patches
+ * (`color-patches.ts`, docs/COLOR_PATCHES.md).
  *
  * Frame coordinates: `u` runs from -1 (left edge of the framed chart) to +1 (right edge); `v` points up
  * and has the same scale, so it runs from -aspect to +aspect where aspect = height/width of the frame.
@@ -25,14 +26,23 @@
  * @see docs/QUICK_START.md for the chart catalogue and their analytic definitions.
  */
 
-import { portablePow } from "../core/portable-math.js";
+import { portableExp, portablePow } from "../core/portable-math.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { prepareColorimetricSpectrum, type ColorimetricSpectrum, type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
 import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 import { createDeterministicUniformStream } from "../sensor/stochastic-seed.js";
+import { COLOR_PATCH_IDS, COLOR_PATCH_SET_ID, COLOR_PATCH_SET_VERSION, findColorPatch, prepareColorPatchSpectrum, type ColorPatchId } from "./color-patches.js";
 
-/** A neutral (spectrally flat) reflectance in [0, 1], or a caller reflectance spectrum (values in [0, 1]). */
-export type ChartReflectance = number | ColorimetricSpectrum;
+/**
+ * 2.14: one of the engine's built-in colour patches (see `getColorPatchSet()`): its reflectance spectrum, Photivra's own
+ * analytic design, rendered through the same spectral path as a caller spectrum.
+ */
+export interface ColorPatchReflectance { kind: "color-patch"; patchId: ColorPatchId }
+/**
+ * A neutral (spectrally flat) reflectance in [0, 1], a caller reflectance spectrum (values in [0, 1]) or, from 2.14, a
+ * built-in colour patch `{ kind: "color-patch", patchId }`.
+ */
+export type ChartReflectance = number | ColorimetricSpectrum | ColorPatchReflectance;
 
 export interface UniformChartScene { preset: "uniform"; reflectance?: ChartReflectance }
 export interface SlantedEdgeChartScene {
@@ -102,6 +112,22 @@ export interface PatchChartScene {
   columns?: number;
   /** Gap between patches as a fraction of the cell size, [0, 0.5). Default 0.1. */
   gapFraction?: number;
+  backgroundReflectance?: number;
+}
+/**
+ * 2.14: the built-in Photivra colour patches (`getColorPatchSet()`) in a grid, drawn like `patches`: row-major, each
+ * patch centred in an equal cell with a neutral gap around it. The spectra are the engine's own analytic designs; no
+ * third-party chart data, names, order or layout are used.
+ */
+export interface ColorPatchesChartScene {
+  preset: "color-patches";
+  /** Patches to draw, row-major, distinct. Default: the whole set in `COLOR_PATCH_IDS` order (30 patches, six per row). */
+  patchIds?: readonly ColorPatchId[];
+  /** Patches per row, 1 to the patch count. Default min(6, patch count). */
+  columns?: number;
+  /** Gap between patches as a fraction of the cell size, [0, 0.5). Default 0.1. */
+  gapFraction?: number;
+  /** Neutral reflectance of the gaps and empty cells. Default 0.18. */
   backgroundReflectance?: number;
 }
 /**
@@ -214,7 +240,7 @@ export interface FiducialChartScene {
 }
 /** Any chart preset except `composite`: a composite's background or element. */
 export type ChartElementScene = UniformChartScene | SlantedEdgeChartScene | SiemensStarChartScene | StepWedgeChartScene | GreyRampChartScene |
-  CheckerboardChartScene | PointGridChartScene | PatchChartScene | DeadLeavesChartScene | BarGroupsChartScene | HyperbolicWedgeChartScene |
+  CheckerboardChartScene | PointGridChartScene | PatchChartScene | ColorPatchesChartScene | DeadLeavesChartScene | BarGroupsChartScene | HyperbolicWedgeChartScene |
   ZonePlateChartScene | SlantedSquaresChartScene | LineGridChartScene | FiducialChartScene;
 /**
  * One element of a composite chart: a preset drawn inside its placement rectangle (frame units of the
@@ -245,7 +271,7 @@ export type ChartScene = ChartElementScene | CompositeChartScene;
 export type ChartScenePresetId = ChartScene["preset"];
 export const CHART_SCENE_PRESETS: readonly ChartScenePresetId[] = Object.freeze(["uniform", "slanted-edge", "siemens-star",
   "step-wedge", "grey-ramp", "checkerboard", "point-grid", "patches", "dead-leaves", "bar-groups", "hyperbolic-wedge", "zone-plate",
-  "slanted-squares", "line-grid", "fiducial", "composite"] as const);
+  "slanted-squares", "line-grid", "fiducial", "color-patches", "composite"] as const);
 /** Neutral levels that represent a continuous pattern (grey ramp; 2.3 sine star, zone plate and dead-leaves greys). */
 export const CHART_CONTINUOUS_LEVELS = 1024;
 
@@ -267,6 +293,7 @@ export const CHART_SCENE_DEFAULTS = Object.freeze({
   "slanted-squares": Object.freeze({ columns: 3, rows: 2, sizeFraction: 0.5, angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 }),
   "line-grid": Object.freeze({ spacing: 1 / 3, lineWidth: 0.01, lineReflectance: 0.42, backgroundReflectance: 0.6 }),
   fiducial: Object.freeze({ radiusFraction: 0.8, ringFraction: 0.18, inverted: false, darkReflectance: 0.05, lightReflectance: 0.8, backgroundReflectance: 0.18 }),
+  "color-patches": Object.freeze({ patchIds: COLOR_PATCH_IDS, gapFraction: 0.1, backgroundReflectance: 0.18 }),
   composite: Object.freeze({ background: Object.freeze({ preset: "uniform" as const, reflectance: 0.18 }) })
 });
 
@@ -306,9 +333,18 @@ function finiteIn(value: unknown, name: string, minimum: number, maximum: number
 }
 /** Wavelength range every chart spectrum must cover (the facade's sensor quadrature range). */
 export const CHART_SPECTRAL_RANGE_NANOMETERS = Object.freeze({ minimum: 380, maximum: 780 });
-/** Internal: validates a chart reflectance input (a neutral number or a reflectance spectrum covering 380–780 nm) as a material. */
-export function resolveChartMaterial(value: unknown, name: string): ResolvedChartScene["materials"][number] {
+/**
+ * Internal: validates a chart reflectance input (a neutral number, a reflectance spectrum covering 380–780 nm or a
+ * built-in colour patch) as a material.
+ */
+export function resolveChartMaterial(value: unknown, name: string, exp?: (x: number) => number): ResolvedChartScene["materials"][number] {
   if (typeof value === "number") return { kind: "neutral", reflectance: reflectance(value, name) };
+  if (typeof value === "object" && value !== null && (value as { kind?: unknown }).kind === "color-patch") {
+    for (const key of Object.keys(value)) if (key !== "kind" && key !== "patchId") throw new InvalidConfigurationError(name + " has unknown field \"" + key + "\".");
+    const patch = findColorPatch((value as { patchId?: unknown }).patchId);
+    if (!patch) throw new InvalidConfigurationError(name + ".patchId must be one of the built-in colour patches (COLOR_PATCH_IDS).");
+    return { kind: "spectrum", spectrum: prepareColorPatchSpectrum(patch, exp) };
+  }
   let spectrum: PreparedColorimetricSpectrum;
   try { spectrum = prepareColorimetricSpectrum(value as ColorimetricSpectrum, name); } catch (error) {
     throw new InvalidConfigurationError(name + " must be a neutral reflectance or a valid reflectance spectrum: " + (error instanceof Error ? error.message : "invalid"));
@@ -318,6 +354,24 @@ export function resolveChartMaterial(value: unknown, name: string): ResolvedChar
     throw new InvalidConfigurationError(name + " must cover 380-780 nm.");
   for (let nm = CHART_SPECTRAL_RANGE_NANOMETERS.minimum; nm <= CHART_SPECTRAL_RANGE_NANOMETERS.maximum; nm += 5) reflectance(spectrum.evaluate(nm), name + " values");
   return { kind: "spectrum", spectrum };
+}
+
+/** How a uniform chart reports its reflectance: the number, the colour-patch record, or `"caller-spectrum"`. */
+function reflectanceReport(raw: unknown): unknown {
+  if (typeof raw === "number") return raw;
+  const record = raw as { kind?: unknown; patchId?: unknown };
+  return record.kind === "color-patch" ? { kind: "color-patch", patchId: record.patchId } : "caller-spectrum";
+}
+/** Material at a point of a row-major patch grid (`patches`, 2.14 `color-patches`): a patch index or `backgroundIndex`. */
+function patchGridMaterialAt(columns: number, rows: number, count: number, gap: number, aspect: number, backgroundIndex: number): (u: number, v: number) => number {
+  const cellW = 2 / columns, cellH = 2 * aspect / rows;
+  return (u, v) => {
+    const fx = (u + 1) / cellW, fy = (aspect - v) / cellH, i = Math.floor(fx), j = Math.floor(fy);
+    if (i < 0 || j < 0 || i >= columns || j >= rows) return backgroundIndex;
+    const index = j * columns + i, x = fx - i, y = fy - j;
+    if (index >= count || x < gap / 2 || x > 1 - gap / 2 || y < gap / 2 || y > 1 - gap / 2) return backgroundIndex;
+    return index;
+  };
 }
 
 /** Raw caller spectrum inputs per material (undefined for neutral materials), for the facade's scene digest. */
@@ -364,8 +418,11 @@ export function chartGeometry(chart: ResolvedChartScene): ChartGeometry {
   return geometry;
 }
 /** Frame context of a chart being resolved: the picture height (in its own frame units) its LW/PH frequencies refer to. */
-/** `pow`: the portable power for the display view's step-wedge levels (passed in, so captures' bundles do not contain it). */
-interface ChartContext { pictureHeight: number; nested: boolean; pow?: (x: number, y: number) => number }
+/**
+ * `pow`: the portable power for the display view's step-wedge levels, and (2.14) `exp`: the portable exponential for its
+ * built-in colour patches (passed in, so captures' bundles do not contain them).
+ */
+interface ChartContext { pictureHeight: number; nested: boolean; pow?: (x: number, y: number) => number; exp?: (x: number) => number }
 type Materials = ResolvedChartScene["materials"][number][];
 const neutralMaterials = (values: readonly number[]): Materials => values.map((reflectanceValue) => ({ kind: "neutral" as const, reflectance: reflectanceValue }));
 /** CHART_CONTINUOUS_LEVELS equal neutral levels between `from` and `to` (level i at from + (to − from)(i + ½)/levels). */
@@ -395,12 +452,13 @@ export function resolveChartScene(input: { scene: ChartScene; aspect: number }):
 }
 /**
  * Internal (not exported from the package): {@link resolveChartScene} with the step wedge's geometric levels computed
- * with the portable power (`portablePow`, within 1 ulp) instead of `**`, whose last bit differs between JavaScript
- * engines. Every other value, the geometry and the material order are the same. The display view uses its materials.
+ * with the portable power (`portablePow`, within 1 ulp) instead of `**`, and (2.14) the built-in colour patches with the
+ * portable exponential (`portableExp`) instead of `Math.exp`, whose last bits differ between JavaScript engines. Every
+ * other value, the geometry and the material order are the same. The display view uses its materials.
  */
 export function resolvePortableChartScene(input: { scene: ChartScene; aspect: number }): ResolvedChartScene {
   requireInputObject(input, "resolveChartScene input");
-  return resolveScene(input.scene, input.aspect, { pictureHeight: 2 * input.aspect, nested: false, pow: portablePow });
+  return resolveScene(input.scene, input.aspect, { pictureHeight: 2 * input.aspect, nested: false, pow: portablePow, exp: portableExp });
 }
 
 function resolveScene(scene: unknown, aspect: number, context: ChartContext): ResolvedChartScene {
@@ -410,7 +468,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
   if (preset === "composite" && context.nested) throw new InvalidConfigurationError("A composite chart cannot contain another composite.");
   const record = scene as Record<string, unknown>;
   const defaults = CHART_SCENE_DEFAULTS[preset as ChartScenePresetId] as Record<string, unknown>;
-  const extra = preset === "patches" ? ["patches", "columns"] : preset === "composite" ? ["elements"] : preset === "siemens-star" ? ["profile"] : [];
+  const extra = preset === "patches" ? ["patches", "columns"] : preset === "color-patches" ? ["columns"] : preset === "composite" ? ["elements"] : preset === "siemens-star" ? ["profile"] : [];
   const allowed = ["preset", ...Object.keys(defaults), ...extra];
   for (const key of Object.keys(record)) if (!allowed.includes(key)) throw new InvalidConfigurationError("Unknown chart parameter: " + key + ".");
   const defaulted: string[] = [];
@@ -433,8 +491,8 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
   };
   switch (preset as ChartScenePresetId) {
     case "uniform": {
-      const raw = get("reflectance"), m = resolveChartMaterial(raw, "reflectance");
-      return done({ reflectance: typeof raw === "number" ? raw : "caller-spectrum" }, [m], () => 0, [typeof raw === "number" ? undefined : raw], { kind: "uniform" });
+      const raw = get("reflectance"), m = resolveChartMaterial(raw, "reflectance", context.exp);
+      return done({ reflectance: reflectanceReport(raw) }, [m], () => 0, [typeof raw === "number" ? undefined : raw], { kind: "uniform" });
     }
     case "slanted-edge": {
       const angle = finiteIn(get("angleDegrees"), "angleDegrees", -45, 45, true), dark = neutral("darkReflectance"), light = neutral("lightReflectance");
@@ -515,7 +573,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         for (const key of Object.keys(p)) if (key !== "patchId" && key !== "reflectance") throw new InvalidConfigurationError("Unknown patch field: " + key + ".");
         if (typeof p.patchId !== "string" || p.patchId.trim() === "" || ids.has(p.patchId)) throw new InvalidConfigurationError("Each patch needs a unique non-empty patchId.");
         ids.add(p.patchId);
-        materials.push(resolveChartMaterial(p.reflectance, "patches[" + index + "].reflectance"));
+        materials.push(resolveChartMaterial(p.reflectance, "patches[" + index + "].reflectance", context.exp));
         inputs.push(typeof p.reflectance === "number" ? undefined : p.reflectance);
       }
       const columnsRaw = record.columns === undefined ? Math.ceil(Math.sqrt(list.length)) : record.columns;
@@ -527,13 +585,33 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
       materials.push({ kind: "neutral", reflectance: background });
       inputs.push(undefined);
       const cellW = 2 / columns, cellH = 2 * aspect / rows;
-      return done({ patchIds: list.map((p: { patchId: string }) => p.patchId), columns, rows, gapFraction: gap, backgroundReflectance: background }, materials, (u, v) => {
-        const fx = (u + 1) / cellW, fy = (aspect - v) / cellH, i = Math.floor(fx), j = Math.floor(fy);
-        if (i < 0 || j < 0 || i >= columns || j >= rows) return backgroundIndex;
-        const index = j * columns + i, x = fx - i, y = fy - j;
-        if (index >= list.length || x < gap / 2 || x > 1 - gap / 2 || y < gap / 2 || y > 1 - gap / 2) return backgroundIndex;
-        return index;
-      }, inputs, { kind: "patches", columns, rows, count: list.length, gap, cellW, cellH, backgroundIndex });
+      return done({ patchIds: list.map((p: { patchId: string }) => p.patchId), columns, rows, gapFraction: gap, backgroundReflectance: background }, materials,
+        patchGridMaterialAt(columns, rows, list.length, gap, aspect, backgroundIndex), inputs, { kind: "patches", columns, rows, count: list.length, gap, cellW, cellH, backgroundIndex });
+    }
+    case "color-patches": {
+      const ids = get("patchIds");
+      if (!Array.isArray(ids) || ids.length < 1 || ids.length > COLOR_PATCH_IDS.length) throw new InvalidConfigurationError("patchIds must list 1 to " + COLOR_PATCH_IDS.length + " built-in colour patch ids.");
+      const seen = new Set<string>(), materials: Materials = [], inputs: unknown[] = [];
+      for (const [index, id] of ids.entries()) {
+        if (!findColorPatch(id)) throw new InvalidConfigurationError("patchIds[" + index + "] must be one of the built-in colour patches (COLOR_PATCH_IDS).");
+        if (seen.has(id as string)) throw new InvalidConfigurationError("patchIds[" + index + "] repeats " + JSON.stringify(id) + ".");
+        seen.add(id as string);
+        const input = Object.freeze({ kind: "color-patch" as const, patchId: id as ColorPatchId });
+        materials.push(resolveChartMaterial(input, "patchIds[" + index + "]", context.exp));
+        inputs.push(input);
+      }
+      const columnsRaw = record.columns === undefined ? Math.min(6, ids.length) : record.columns;
+      if (record.columns === undefined) defaulted.push("columns");
+      const columns = integerIn(columnsRaw, "columns", 1, ids.length), rows = Math.ceil(ids.length / columns);
+      const gap = finiteIn(get("gapFraction"), "gapFraction", 0, 0.5), background = neutral("backgroundReflectance");
+      if (gap >= 0.5) throw new InvalidConfigurationError("gapFraction must be below 0.5.");
+      const backgroundIndex = materials.length;
+      materials.push({ kind: "neutral", reflectance: background });
+      inputs.push(undefined);
+      const cellW = 2 / columns, cellH = 2 * aspect / rows;
+      return done({ patchSet: COLOR_PATCH_SET_ID, patchSetVersion: COLOR_PATCH_SET_VERSION, patchIds: [...ids], columns, rows, gapFraction: gap, backgroundReflectance: background },
+        materials, patchGridMaterialAt(columns, rows, ids.length, gap, aspect, backgroundIndex), inputs,
+        { kind: "patches", columns, rows, count: ids.length, gap, cellW, cellH, backgroundIndex });
     }
     case "dead-leaves": {
       const rMin = finiteIn(get("radiusMinimum"), "radiusMinimum", DEAD_LEAVES_MINIMUM_RADIUS, 2), rMax = finiteIn(get("radiusMaximum"), "radiusMaximum", 0, 2, true);
@@ -636,7 +714,8 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
     case "composite": {
       const list = record.elements;
       if (!Array.isArray(list) || list.length < 1 || list.length > 256) throw new InvalidConfigurationError("elements must list 1 to 256 chart elements.");
-      const nested: ChartContext = { pictureHeight: context.pictureHeight, nested: true, ...(context.pow ? { pow: context.pow } : {}) };
+      const portable = { ...(context.pow ? { pow: context.pow } : {}), ...(context.exp ? { exp: context.exp } : {}) };
+      const nested: ChartContext = { pictureHeight: context.pictureHeight, nested: true, ...portable };
       const background = resolveScene(get("background"), aspect, nested);
       const materials: Materials = [...background.materials], inputs: unknown[] = [...chartMaterialInputs(background)];
       for (const key of background.defaultedParameters) defaulted.push("background.parameters." + key);
@@ -651,7 +730,7 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
         if (mask !== "rectangle" && mask !== "ellipse") throw new InvalidConfigurationError(name + ".mask must be rectangle or ellipse.");
         if (e.mask === undefined) defaulted.push("elements." + index + ".placement.mask");
         // The element's own frame: u = ±1 across its width; frequencies keep the composite's picture height.
-        const chart = resolveScene(e.scene, height / width, { pictureHeight: context.pictureHeight * 2 / width, nested: true, ...(context.pow ? { pow: context.pow } : {}) });
+        const chart = resolveScene(e.scene, height / width, { pictureHeight: context.pictureHeight * 2 / width, nested: true, ...portable });
         for (const key of chart.defaultedParameters) defaulted.push("elements." + index + ".parameters." + key);
         const offset = materials.length;
         materials.push(...chart.materials);

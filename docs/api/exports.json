@@ -2078,6 +2078,26 @@
       "kind": "type"
     },
     {
+      "name": "COLOR_PATCH_IDS",
+      "source": "src/facade/color-patches.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "COLOR_PATCH_SET_ID",
+      "source": "src/facade/color-patches.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "COLOR_PATCH_SET_VERSION",
+      "source": "src/facade/color-patches.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS",
+      "source": "src/facade/color-patches.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION",
       "source": "src/color/white-balance.ts",
       "kind": "runtime"
@@ -2120,6 +2140,41 @@
     {
       "name": "ColorMatrix3x3",
       "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorPatch",
+      "source": "src/facade/color-patches.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorPatchesChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorPatchGroup",
+      "source": "src/facade/color-patches.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorPatchId",
+      "source": "src/facade/color-patches.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorPatchReflectance",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorPatchSet",
+      "source": "src/facade/color-patches.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorPatchSpectralTerm",
+      "source": "src/facade/color-patches.ts",
       "kind": "type"
     },
     {
@@ -2923,6 +2978,16 @@
       "kind": "runtime"
     },
     {
+      "name": "evaluateColorPatchReflectance",
+      "source": "src/facade/color-patches.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EvaluateColorPatchReflectanceInput",
+      "source": "src/facade/color-patches.ts",
+      "kind": "type"
+    },
+    {
       "name": "evaluateSceneIlluminationTemporalMultiplier",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
@@ -3581,6 +3646,11 @@
       "name": "GeometricSamplingPlan",
       "source": "src/output/geometric-transforms.ts",
       "kind": "type"
+    },
+    {
+      "name": "getColorPatchSet",
+      "source": "src/facade/color-patches.ts",
+      "kind": "runtime"
     },
     {
       "name": "getImageFormationContract",

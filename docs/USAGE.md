@@ -7696,6 +7696,25 @@ console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id
 console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
 ```
 
+### Colour charts (2.14)
+
+The engine's own [colour patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md) are reflectance spectra lit by the capture's illuminant. Draw the
+whole set with the `color-patches` preset, or use one patch wherever a chart takes a reflectance spectrum, as
+`{ kind: "color-patch", patchId }`. `getColorPatchSet()` gives each patch's name and its reference CIELAB under D65.
+
+```ts
+import { getColorPatchSet, simulateCapture } from "@photivra/engine";
+
+const tungsten = await simulateCapture({
+  scene: { preset: "color-patches", patchIds: ["neutral-4", "red", "skin-medium", "sky-blue"], columns: 4 },
+  illuminant: "cie-a",
+  sensor: { spectralStepNanometers: 5 },
+  output: { width: 64, height: 16 }
+});
+const sky = getColorPatchSet().patches.find((p) => p.patchId === "sky-blue");
+console.log(tungsten.scene.parameters.patchSet, sky?.name, sky?.reference.cielabD65);
+```
+
 In `aperture-priority` mode, the shutter comes from the meter (CIPA DC-004 relations S = 10/H and H = 0.65·L·t/N²) through
 `resolveAperturePriorityExposureMode()`.
 `exposure.standardExposureDeviationStops` is the exposure used minus the standard exposure for the metered luminance L, in stops,

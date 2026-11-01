@@ -509,18 +509,22 @@ console.log(handheld.exposure.autoIso?.automaticSlowestShutter, handheld.exposur
 
 All charts are analytic patterns written by the engine; no third-party chart data is bundled. Each
 is a flat Lambertian reflector (it looks equally bright from every direction). Neutral reflectances
-are spectrally flat.
+are spectrally flat. Where a preset takes a reflectance spectrum (`uniform`, `patches`), it accepts a
+neutral number, a caller spectrum (`{ kind: "tabulated" }` or `{ kind: "function" }`, 380–780 nm at
+least) or, from 2.14, a built-in colour patch `{ kind: "color-patch", patchId }` (see
+[Colour patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md)).
 
 | Preset | Parameters (defaults) | Definition |
 | --- | --- | --- |
-| `uniform` | `reflectance` (0.18) | One reflectance or caller spectrum everywhere. |
+| `uniform` | `reflectance` (0.18) | One reflectance, caller spectrum or built-in colour patch everywhere. |
 | `slanted-edge` | `angleDegrees` (5), `darkReflectance` (0.15), `lightReflectance` (0.6) | An edge through the centre, tilted clockwise from vertical: light where u·cos θ − v·sin θ ≥ 0. The geometry follows the slanted-edge method described by Burns (2000), also used by ISO 12233 (a few degrees of slant, 4:1 contrast by default). |
 | `siemens-star` | `cycles` (36), `radiusFraction` (0.9), `darkReflectance` (0.05), `lightReflectance` (0.8), `backgroundReflectance` (0.18) | Alternating sectors of angular width π/cycles inside radius `radiusFraction` × frame half-height. |
 | `step-wedge` | `steps` (11), `minimumReflectance` (0.03), `maximumReflectance` (0.9), `spacing` (`equal-density`) | Equal-width vertical steps from left to right. Equal density spaces D = −log₁₀ R evenly; `linear` spaces R evenly. |
 | `grey-ramp` | `minimumReflectance` (0.03), `maximumReflectance` (0.9) | Reflectance linear in u, represented by 1024 equal levels. |
 | `checkerboard` | `squaresAcross` (8), `darkReflectance` (0.05), `lightReflectance` (0.8) | Square cells, light at the top-left. |
 | `point-grid` | `columns` (5), `rows` (3), `radius` (0.01), `pointReflectance` (0.9), `backgroundReflectance` (0.02) | Small disks centred in equal cells, for PSF and defocus inspection. |
-| `patches` | `patches` (required), `columns`, `gapFraction` (0.1), `backgroundReflectance` (0.18) | Caller reflectance per patch, row-major. Use it for a ColorChecker-like chart with reflectance data you are entitled to use; the engine does not ship such data because its licence is unclear. |
+| `patches` | `patches` (required), `columns`, `gapFraction` (0.1), `backgroundReflectance` (0.18) | Caller reflectance per patch, row-major. Use it for a chart with reflectance data you are entitled to use; the engine does not ship third-party chart data because its licence is unclear. |
+| `color-patches` | `patchIds` (all 30), `columns` (min(6, count)), `gapFraction` (0.1), `backgroundReflectance` (0.18) | 2.14: Photivra's own 30 colour patches (neutral ramp, strong and soft primaries and secondaries, skin tones, memory colours, two near the sRGB gamut edge) drawn like `patches`. Each is an analytic reflectance spectrum; see [Colour patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md) for the formula, the parameters and the CIELAB (D65) and sRGB of every patch. |
 
 ### Chart elements and composite charts (2.3)
 
