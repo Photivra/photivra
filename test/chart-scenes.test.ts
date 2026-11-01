@@ -11,7 +11,7 @@ const request = (outgoing: { x: number; y: number; z: number }, nm = 550): Scene
 describe("procedural chart presets", () => {
   it("lists every preset and resolves defaults explicitly", () => {
     expect(CHART_SCENE_PRESETS).toEqual(["uniform", "slanted-edge", "siemens-star", "step-wedge", "grey-ramp", "checkerboard", "point-grid", "patches",
-      "dead-leaves", "bar-groups", "hyperbolic-wedge", "zone-plate", "slanted-squares", "line-grid", "fiducial", "composite"]);
+      "dead-leaves", "bar-groups", "hyperbolic-wedge", "zone-plate", "slanted-squares", "line-grid", "fiducial", "color-patches", "composite"]);
     const edge = resolveChartScene({ scene: { preset: "slanted-edge" }, aspect: 1 });
     expect(edge.parameters).toEqual({ angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 });
     expect(edge.defaultedParameters).toEqual(["angleDegrees", "darkReflectance", "lightReflectance"]);

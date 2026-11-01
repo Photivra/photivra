@@ -120,7 +120,9 @@ describe("root exports reject malformed input with domain errors (API review #4)
     // #474: the realm's WebGPU switch: no argument, and one boolean.
     "getWebGpuEnabled", "setWebGpuEnabled",
     // #388: the text writers take a file's raw bytes and the text; the text rejects unknown fields as output.metadata does.
-    "addJpegTextMetadata", "addPngTextMetadata"
+    "addJpegTextMetadata", "addPngTextMetadata",
+    // 2.14: the built-in colour-patch set, a static contract with no argument.
+    "getColorPatchSet"
   ]);
   /*
    * 2.0.0: the parse*() record parsers and the functions that take a whole engine or versioned record

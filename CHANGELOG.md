@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+Target: 2.14.0, a minor release. Colour test charts from the engine's own spectra. Captures, RAW codes and files are the same as 2.13.0 for every request that does not use the new patches.
+- **New:** built-in Photivra colour patches: the `color-patches` chart preset, the chart reflectance `{ kind: "color-patch", patchId }`, `getColorPatchSet()`, `evaluateColorPatchReflectance()`.
+- **Compatibility:** 14 new root exports (1,794): 6 runtime exports (`COLOR_PATCH_SET_ID`, `COLOR_PATCH_SET_VERSION`, `COLOR_PATCH_IDS`, `COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS`, `getColorPatchSet`, `evaluateColorPatchReflectance`; 600 → 606) and 8 types (`ColorPatch`, `ColorPatchId`, `ColorPatchGroup`, `ColorPatchSet`, `ColorPatchSpectralTerm`, `EvaluateColorPatchReflectanceInput`, `ColorPatchReflectance`, `ColorPatchesChartScene`), none removed or changed. `ChartReflectance` and `ChartElementScene` gain a member, `CHART_SCENE_PRESETS` and `CHART_SCENE_DEFAULTS` gain `color-patches`. A scalar reflectance means a spectrally flat grey as before, and existing charts render bit-identically (locked in `test/color-patches.test.ts` against 2.13.0).
+
+### Added
+
+- **Colour patches designed by Photivra (docs/COLOR_PATCHES.md).** 30 reflectance spectra in six groups: a six-step flat neutral ramp from white (90 %) to black (3.2 %); red, yellow, green, cyan, blue and magenta, each strong and soft; four skin tones; sky blue, foliage green, brick red, sand, teal and lavender; a deep orange and a deep violet near the sRGB gamut edge. Each has a stable id and a plain English name.
+  - **Spectra:** R(λ) = min(1, max(0, b + Σ aₖφₖ(λ))) on 360–830 nm, with Gaussian bumps exp(−½((λ − μ)/σ)²) and logistic steps 1/(1 + exp(−(λ − λ₀)/s)). Photivra fitted the parameters once to its own target colours and rounded them; the rounded values are the definition and are published in full. Every spectrum lies in [0.027, 0.9], so the clamp never acts; no fluorescence. No ColorChecker, IT8 or other commercial target's patch data, names, order, layout or measured spectra are used.
+  - **API:** `{ kind: "color-patch", patchId }` is accepted wherever a chart takes a reflectance spectrum (`uniform`, `patches`, material scenes and material layers). The `color-patches` preset draws a list of patches (default: all 30, six per row) as `patches` does, with `columns`, `gapFraction` and `backgroundReflectance`; its parameters name the set and its version, and its spectra enter the scene digest. `getColorPatchSet()` returns the frozen set (ids, names, groups, parameters, reference values); `evaluateColorPatchReflectance()` evaluates one spectrum (approximation, model `photivra-color-patch-spectrum` 1.0.0). Invalid ids, fields and values fail with `InvalidConfigurationError`, wavelengths outside 360–830 nm with `InvalidScientificInputError`.
+  - **Reference colorimetry:** each patch's CIELAB under CIE D65 with the CIE 1931 2° observer (CIE tables, 1 nm, 360–830 nm) and its 8-bit sRGB. All 30 are inside sRGB; the gamut-edge patches' smallest linear components are 0.0033 and 0.0133. `scripts/compute-color-patch-reference.mjs` recomputes them from the CIE tables, which it downloads, checks by SHA-256 and deletes (nothing from them is stored), and with `--render` renders the chart under D65: maximum ΔE00 0.20 at 1 nm and 0.26 at 5 nm against the published values.
+  - **Display view:** it evaluates the patches of chart presets with the portable exponential, so those values have the same bits in every JavaScript engine; captures use `Math.exp`.
+  - **Cost:** a 600 × 500 capture of the chart costs the same as a neutral 30-patch chart (95–101 ms against 93–95 ms, one machine). The patch table adds 6,526 B minified (2,671 B gzip) to a capture-only bundle; the display view's addition is unchanged.
+  - **Tests:** `test/color-patches.test.ts`:
+    - the set contract, frozen records and the documented groups;
+    - the formula against the published terms on a 0.25 nm grid, and the unused clamp;
+    - the neutral L* against 116·R^(1/3) − 16, and the published hex against the published CIELAB;
+    - 35 invalid reflectances, charts and inputs;
+    - `color-patches` renders exactly what `patches` with the same reflectances renders, and a material scene what a uniform chart renders;
+    - neutral after white balance under the 6500 K Planckian and illuminant A (ideal reference and a noisy capture);
+    - hue order red, yellow, green, cyan, blue, magenta for the strong and the soft patches, lower chroma for the soft ones, skin tones by lightness;
+    - CIELAB rendered under the 6500 K Planckian within ΔE00 1.35 of the published D65 values (measured 1.21, mean 0.40);
+    - the display view;
+    - bit-identical renders of existing charts against digests recorded with 2.13.0.
+
+### Known
+
+- At the default `sensor.spectralStepNanometers` (20 nm) the facade's scene-illuminant white balance is measured on 1 nm nodes while the sensor integrates on 20 nm nodes, which leaves a small neutral cast that depends on the illuminant's spectral detail: white a* 0.17, b* 0.36 under the default 6500 K Planckian, b* −0.17 under illuminant A, and a* −0.74, b* +0.95 under the CIE D65 table as a caller spectrum. With 5 nm nodes it is below 0.03. Unchanged in this release (changing it would change existing captures); docs/COLOR_PATCHES.md recommends 5 nm for colour work.
+
 ## 2.13.0 — unreleased (prepared October 31, 2026)
 
 A minor release for the app's Beta camera: Auto ISO with photographer-set limits and an automatic slowest shutter, the illuminance that gives the standard exposure, and root exports for adding text metadata to a file the caller encoded. Captures, RAW codes and files are the same as 2.12.0 for the same request; Quality (AHD) display views change where the scene decides AHD's choice, closer to the capture (#457).

@@ -1173,6 +1173,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ChartScenePresetId`](api/facade-chart-scenes.md#chartscenepresetid) | Type |
 | [`ChartSlantedSquare`](api/facade-chart-scenes.md#chartslantedsquare) | Type |
 | [`CheckerboardChartScene`](api/facade-chart-scenes.md#checkerboardchartscene) | Type |
+| [`ColorPatchesChartScene`](api/facade-chart-scenes.md#colorpatcheschartscene) | Type |
+| [`ColorPatchReflectance`](api/facade-chart-scenes.md#colorpatchreflectance) | Type |
 | [`CompositeChartElement`](api/facade-chart-scenes.md#compositechartelement) | Type |
 | [`CompositeChartScene`](api/facade-chart-scenes.md#compositechartscene) | Type |
 | [`DeadLeavesChartScene`](api/facade-chart-scenes.md#deadleaveschartscene) | Type |
@@ -1190,6 +1192,25 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`StepWedgeChartScene`](api/facade-chart-scenes.md#stepwedgechartscene) | Type |
 | [`UniformChartScene`](api/facade-chart-scenes.md#uniformchartscene) | Type |
 | [`ZonePlateChartScene`](api/facade-chart-scenes.md#zoneplatechartscene) | Type |
+
+## facade/color-patches.ts
+
+[Detailed contracts](api/facade-color-patches.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/color-patches.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`COLOR_PATCH_IDS`](api/facade-color-patches.md#color_patch_ids) | Runtime |
+| [`COLOR_PATCH_SET_ID`](api/facade-color-patches.md#color_patch_set_id) | Runtime |
+| [`COLOR_PATCH_SET_VERSION`](api/facade-color-patches.md#color_patch_set_version) | Runtime |
+| [`COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS`](api/facade-color-patches.md#color_patch_wavelength_range_nanometers) | Runtime |
+| [`ColorPatch`](api/facade-color-patches.md#colorpatch) | Type |
+| [`ColorPatchGroup`](api/facade-color-patches.md#colorpatchgroup) | Type |
+| [`ColorPatchId`](api/facade-color-patches.md#colorpatchid) | Type |
+| [`ColorPatchSet`](api/facade-color-patches.md#colorpatchset) | Type |
+| [`ColorPatchSpectralTerm`](api/facade-color-patches.md#colorpatchspectralterm) | Type |
+| [`evaluateColorPatchReflectance`](api/facade-color-patches.md#evaluatecolorpatchreflectance) | Runtime |
+| [`EvaluateColorPatchReflectanceInput`](api/facade-color-patches.md#evaluatecolorpatchreflectanceinput) | Type |
+| [`getColorPatchSet`](api/facade-color-patches.md#getcolorpatchset) | Runtime |
 
 ## facade/display-view-gpu.ts
 
