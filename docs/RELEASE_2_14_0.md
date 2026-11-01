@@ -149,7 +149,7 @@ Requests that the fingerprint does not cover also change in their request record
 No third-party code, data or dependencies are added to the package.
 
 - **Color patches:** the spectra are Photivra's own design. Their reference values are computed from the CIE D65 and CIE 1931 tables at computation time only, and nothing from the tables is stored.
-- **Distinctness check:** the repository-only script downloads pinned third-party color lists (CSS named colors, published ColorChecker values, RAL Classic approximations, Simple Icons under CC0), uses them in memory and discards them; no third-party color data is committed.
+- **Distinctness check:** the repository-only script downloads pinned third-party color lists (CSS named colors, published ColorChecker values, RAL Classic approximations, Simple Icons brand colors; their sources and licences are in `THIRD_PARTY.md`), uses them in memory and discards them; no third-party color data is committed.
 - Both uses are recorded in `THIRD_PARTY.md`.
 - **Grey-card exposure:** uses CIPA DC-004-2020 (free).
 - **Third-stop series:** the conventional rounded markings, checked against 2^(k/3) in the tests.
