@@ -11,7 +11,7 @@ The CIE distributes its tabulated datasets under **CC BY-SA 4.0**. These include
 - CIE 1931 2° CMFs are available as the engine's own **analytic approximation** (see below), or as caller-supplied tables (`{ kind: "tabulated", … }`). A caller may load the official CIE CSV themselves under its licence.
 - CIE daylight spectra need a caller-supplied S₀/S₁/S₂ basis (`createCieDaylightSpectrum`). The daylight-locus chromaticity and the M₁/M₂ weights are equations and are built in.
 - Illuminant A and Planckian radiators are computed from their defining formulas.
-- The engine bundles no ColorChecker or other reflectance tables, because their licences are unclear. Training reflectances for matrix fitting are supplied by the caller.
+- The engine bundles no ColorChecker or other third-party reflectance tables, because their licences are unclear. Training reflectances for matrix fitting are supplied by the caller. From 2.14 it has its own [colour patches](COLOR_PATCHES.md): 30 analytic spectra designed by Photivra, whose reference CIELAB under D65 is computed once from the CIE tables by a script that does not store them.
 
 The tests assert no values taken from CIE tables (owner decision, October 17, 2026). They check internal consistency, normalization, round trips, and values computed inside the test from Planck's law and the daylight formula. The comparisons with CIE data below were computed once, outside the repository.
 

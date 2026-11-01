@@ -97,6 +97,7 @@ CHART_SCENE_DEFAULTS = Object.freeze({
   "slanted-squares": Object.freeze({ columns: 3, rows: 2, sizeFraction: 0.5, angleDegrees: 5, darkReflectance: 0.15, lightReflectance: 0.6 }),
   "line-grid": Object.freeze({ spacing: 1 / 3, lineWidth: 0.01, lineReflectance: 0.42, backgroundReflectance: 0.6 }),
   fiducial: Object.freeze({ radiusFraction: 0.8, ringFraction: 0.18, inverted: false, darkReflectance: 0.05, lightReflectance: 0.8, backgroundReflectance: 0.18 }),
+  "color-patches": Object.freeze({ patchIds: COLOR_PATCH_IDS, gapFraction: 0.1, backgroundReflectance: 0.18 }),
   composite: Object.freeze({ background: Object.freeze({ preset: "uniform" as const, reflectance: 0.18 }) })
 })
 ```
@@ -108,7 +109,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 CHART_SCENE_PRESETS: readonly ChartScenePresetId[] = Object.freeze(["uniform", "slanted-edge", "siemens-star",
   "step-wedge", "grey-ramp", "checkerboard", "point-grid", "patches", "dead-leaves", "bar-groups", "hyperbolic-wedge", "zone-plate",
-  "slanted-squares", "line-grid", "fiducial", "composite"] as const)
+  "slanted-squares", "line-grid", "fiducial", "color-patches", "composite"] as const)
 ```
 
 ## CHART_SPECTRAL_RANGE_NANOMETERS
@@ -144,7 +145,7 @@ Any chart preset except `composite`: a composite's background or element.
 
 ```ts
 export type ChartElementScene = UniformChartScene | SlantedEdgeChartScene | SiemensStarChartScene | StepWedgeChartScene | GreyRampChartScene |
-  CheckerboardChartScene | PointGridChartScene | PatchChartScene | DeadLeavesChartScene | BarGroupsChartScene | HyperbolicWedgeChartScene |
+  CheckerboardChartScene | PointGridChartScene | PatchChartScene | ColorPatchesChartScene | DeadLeavesChartScene | BarGroupsChartScene | HyperbolicWedgeChartScene |
   ZonePlateChartScene | SlantedSquaresChartScene | LineGridChartScene | FiducialChartScene;
 ```
 
@@ -158,10 +159,11 @@ export interface ChartRectangle { u0: number; v0: number; u1: number; v1: number
 
 ## ChartReflectance
 
-A neutral (spectrally flat) reflectance in [0, 1], or a caller reflectance spectrum (values in [0, 1]).
+A neutral (spectrally flat) reflectance in [0, 1], a caller reflectance spectrum (values in [0, 1]) or, from 2.14, a
+built-in colour patch `{ kind: "color-patch", patchId }`.
 
 ```ts
-export type ChartReflectance = number | ColorimetricSpectrum;
+export type ChartReflectance = number | ColorimetricSpectrum | ColorPatchReflectance;
 ```
 
 ## ChartScene
@@ -211,6 +213,35 @@ export interface CheckerboardChartScene {
   darkReflectance?: number;
   lightReflectance?: number;
 }
+```
+
+## ColorPatchesChartScene
+
+2.14: the built-in Photivra colour patches (`getColorPatchSet()`) in a grid, drawn like `patches`: row-major, each
+patch centred in an equal cell with a neutral gap around it. The spectra are the engine's own analytic designs; no
+third-party chart data, names, order or layout are used.
+
+```ts
+export interface ColorPatchesChartScene {
+  preset: "color-patches";
+  /** Patches to draw, row-major, distinct. Default: the whole set in `COLOR_PATCH_IDS` order (30 patches, six per row). */
+  patchIds?: readonly ColorPatchId[];
+  /** Patches per row, 1 to the patch count. Default min(6, patch count). */
+  columns?: number;
+  /** Gap between patches as a fraction of the cell size, [0, 0.5). Default 0.1. */
+  gapFraction?: number;
+  /** Neutral reflectance of the gaps and empty cells. Default 0.18. */
+  backgroundReflectance?: number;
+}
+```
+
+## ColorPatchReflectance
+
+2.14: one of the engine's built-in colour patches (see `getColorPatchSet()`): its reflectance spectrum, Photivra's own
+analytic design, rendered through the same spectral path as a caller spectrum.
+
+```ts
+export interface ColorPatchReflectance { kind: "color-patch"; patchId: ColorPatchId }
 ```
 
 ## CompositeChartElement
