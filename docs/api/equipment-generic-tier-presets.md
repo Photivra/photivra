@@ -16,10 +16,18 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## GENERIC_EQUIPMENT_TIER_PRESET_VERSION
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+The current preset version (2.14: 2.1.0, third-stop ISO settings).
 
 ```ts
-GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.0.0" as const
+GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.1.0" as const
+```
+
+## GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS
+
+Every exact preset version that resolves, oldest first. A version is never retuned in place (`test/generic-tier-presets.test.ts`).
+
+```ts
+GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS = /* @__PURE__ */ Object.freeze(["2.0.0", "2.1.0"] as const)
 ```
 
 ## GENERIC_EQUIPMENT_TIERS
@@ -44,7 +52,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface GenericEquipmentTierSelection {
-  schemaVersion: "0.1.0"; presetVersion: typeof GENERIC_EQUIPMENT_TIER_PRESET_VERSION;
+  schemaVersion: "0.1.0"; presetVersion: GenericTierPresetVersion;
   bodyTier: GenericEquipmentTier; lensTier: GenericEquipmentTier;
   bodyPresetId: string; lensPresetId: string;
   profileReferences: readonly GenericEquipmentTierProfileReference[];

@@ -236,6 +236,8 @@ export interface SimulateCaptureAutoIsoReport {
   slowestPreferredShutterApplied?: boolean;
   /** #504: present only with `slowestPreferredShutterSeconds: "auto"`: how the engine derived it (`estimateAutoIsoSlowestShutter`). */
   automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterReport;
+  /** 2.14: present when `exposure.autoIso.isoSteps` is given: the ISO steps Auto ISO chose from. */
+  isoSteps?: "whole-stop" | "third-stop";
 }
 ```
 
@@ -493,9 +495,13 @@ export interface SimulateCaptureOptions {
      *   `maximum` (default: the body's minimum). Outside the body's range or off its ISO grid the request fails; the
      *   engine never clips a limit. When the ISO stops at a limit strictly inside the body's range, the report's
      *   `limitingConstraint` is `"user-iso-maximum"` or `"user-iso-minimum"`.
+     * - `isoSteps` (2.14): `"whole-stop"` (default) lets Auto ISO choose only the whole-stop ISOs of the body's grid
+     *   (100, 200, 400 …), as before the generic bodies gained third-stop settings (preset 2.1.0); `"third-stop"` lets it
+     *   choose every setting (100, 125, 160 …). Manual ISO always takes any setting of the grid. Limits must lie on the
+     *   grid Auto ISO uses.
      */
     autoIso?: { slowestPreferredShutterSeconds?: number | "auto"; afterMaximumIso?: SimulateCaptureAutoIsoAfterMaximum; limits?: AutoIsoLimits;
-      automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterOptions };
+      automaticSlowestShutter?: SimulateCaptureAutomaticSlowestShutterOptions; isoSteps?: "whole-stop" | "third-stop" };
     /** Shutter for manual and shutter-priority modes. Default 1/125 s. */
     shutterSeconds?: number;
     /** Exposure compensation applied to the meter target, in stops. Default 0. */

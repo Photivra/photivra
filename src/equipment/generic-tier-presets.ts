@@ -12,7 +12,7 @@
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { choice, record, parseOpticalProfileState, type OpticalProfileState, type GenericOpticalEvidence } from "../optics/profile-contract.js";
-import { GENERIC_TIER_ASSETS, type GenericEquipmentTier, type GenericEquipmentTierPreset } from "./generic-tier-assets.js";
+import { genericTierAssets, type GenericEquipmentTier, type GenericEquipmentTierPreset, type GenericTierPresetVersion } from "./generic-tier-assets.js";
 import { resolveGenericEquipmentExposureCapabilities } from "./exposure-capabilities.js";
 import { parseGenericLensCorrectionProfile, type GenericLensCorrectionProfile } from "../output/lens-corrections.js";
 import { parseLensStrayLightProfile, type LensStrayLightProfile } from "../optics/stray-light.js";
@@ -22,11 +22,14 @@ import type { RadialDistortionProfile } from "../optics/radial-distortion.js";
 import type { LateralChromaticAberrationProfile } from "../optics/lateral-chromatic-aberration.js";
 import type { IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
 
-export const GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.0.0" as const;
+/** The current preset version (2.14: 2.1.0, third-stop ISO settings). */
+export const GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.1.0" as const;
+/** Every exact preset version that resolves, oldest first. A version is never retuned in place (`test/generic-tier-presets.test.ts`). */
+export const GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS = /* @__PURE__ */ Object.freeze(["2.0.0", "2.1.0"] as const);
 export const GENERIC_EQUIPMENT_TIERS = Object.freeze(["consumer", "prosumer", "professional"] as const);
 export interface GenericEquipmentTierProfileReference { profileId: string; profileVersion: string }
 export interface GenericEquipmentTierSelection {
-  schemaVersion: "0.1.0"; presetVersion: typeof GENERIC_EQUIPMENT_TIER_PRESET_VERSION;
+  schemaVersion: "0.1.0"; presetVersion: GenericTierPresetVersion;
   bodyTier: GenericEquipmentTier; lensTier: GenericEquipmentTier;
   bodyPresetId: string; lensPresetId: string;
   profileReferences: readonly GenericEquipmentTierProfileReference[];
@@ -45,15 +48,25 @@ export interface ResolvedGenericTierLensProfiles {
   correction: GenericLensCorrectionProfile;
   scientificStatus: "approximation";
 }
-const catalog = freezeOwnedData(GENERIC_TIER_ASSETS);
-function preset(tier: GenericEquipmentTier): GenericEquipmentTierPreset {
-  return catalog.find((p) => p.tier === tier)!;
+const catalogs = new Map<GenericTierPresetVersion, readonly GenericEquipmentTierPreset[]>();
+function catalogOf(version: GenericTierPresetVersion): readonly GenericEquipmentTierPreset[] {
+  let catalog = catalogs.get(version);
+  if (!catalog) catalogs.set(version, catalog = freezeOwnedData(genericTierAssets(version)));
+  return catalog;
+}
+function preset(version: GenericTierPresetVersion, tier: GenericEquipmentTier): GenericEquipmentTierPreset {
+  return catalogOf(version).find((p) => p.tier === tier)!;
+}
+function exactVersion(value: unknown): GenericTierPresetVersion {
+  if (!(GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS as readonly unknown[]).includes(value)) {
+    throw new InvalidConfigurationError("Unknown equipment preset version; historical definitions may not silently fall back.");
+  }
+  return value as GenericTierPresetVersion;
 }
 /** Catalog of exact versions. No hidden "latest" alias and no default sensor size. */
 export function resolveGenericEquipmentTierCatalog(input: { presetVersion: string }): readonly GenericEquipmentTierPreset[] {
   const r = record(input, ["presetVersion"]);
-  if (r.presetVersion !== GENERIC_EQUIPMENT_TIER_PRESET_VERSION) throw new InvalidConfigurationError("Unknown equipment preset version; historical definitions may not silently fall back.");
-  return catalog;
+  return catalogOf(exactVersion(r.presetVersion));
 }
 function bodyReferences(p: GenericEquipmentTierPreset): GenericEquipmentTierProfileReference[] {
   const b = p.body;
@@ -67,10 +80,10 @@ export function createGenericEquipmentTierSelection(input: {
   presetVersion: string; bodyTier: GenericEquipmentTier; lensTier?: GenericEquipmentTier;
 }): GenericEquipmentTierSelection {
   const r = record(input, ["presetVersion", "bodyTier", "lensTier"]);
-  resolveGenericEquipmentTierCatalog({ presetVersion: r.presetVersion as string });
+  const presetVersion = exactVersion(r.presetVersion);
   const bodyTier = choice(r.bodyTier, GENERIC_EQUIPMENT_TIERS), lensTier = choice(r.lensTier === undefined ? bodyTier : r.lensTier, GENERIC_EQUIPMENT_TIERS);
-  const body = preset(bodyTier), lens = preset(lensTier);
-  return freezeOwnedData({ schemaVersion: "0.1.0", presetVersion: GENERIC_EQUIPMENT_TIER_PRESET_VERSION, bodyTier, lensTier,
+  const body = preset(presetVersion, bodyTier), lens = preset(presetVersion, lensTier);
+  return freezeOwnedData({ schemaVersion: "0.1.0", presetVersion, bodyTier, lensTier,
     bodyPresetId: body.presetId+":body", lensPresetId: lens.presetId+":lens",
     profileReferences: [...bodyReferences(body), { profileId: lens.lens.exposure.profileId, profileVersion: lens.lens.exposure.profileVersion }, ...lens.lens.profileReferences],
     sensorFormatSelectedByTier: false, scientificTierMultiplierApplied: false });
@@ -93,7 +106,7 @@ export function parseGenericEquipmentTierSelection(value: unknown): GenericEquip
 /** Ties the finite matched-reference optical data to one exact generic selected state. Never extrapolates. */
 export function resolveGenericEquipmentTierLensProfiles(input: { selection: GenericEquipmentTierSelection; state: OpticalProfileState }): ResolvedGenericTierLensProfiles {
   const request = record(input, ["selection", "state"]), selection = parseGenericEquipmentTierSelection(request.selection), state = parseOpticalProfileState(request.state);
-  const b = preset(selection.bodyTier), l = preset(selection.lensTier), a = l.lens.matchedReference;
+  const b = preset(selection.presetVersion, selection.bodyTier), l = preset(selection.presetVersion, selection.lensTier), a = l.lens.matchedReference;
   if (state.bodyId !== b.body.exposure.profileId.replace(/:exposure$/, "") || state.bodyVersion !== selection.presetVersion ||
       state.lensId !== l.lens.exposure.profileId.replace(/:exposure$/, "") || state.lensVersion !== selection.presetVersion ||
       state.focalLengthMm !== a.focalLengthMm || state.aperture !== a.aperture || state.focusDistanceM !== a.focusDistanceM ||

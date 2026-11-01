@@ -3433,6 +3433,11 @@
       "kind": "runtime"
     },
     {
+      "name": "GENERIC_EQUIPMENT_TIER_PRESET_VERSIONS",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "GENERIC_EQUIPMENT_TIERS",
       "source": "src/equipment/generic-tier-presets.ts",
       "kind": "runtime"
@@ -3470,6 +3475,21 @@
     {
       "name": "GENERIC_RELEASE_CAPABILITY_SCHEMA_VERSION",
       "source": "src/equipment/release-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_THIRD_STOP_ISO_SETTINGS",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_THIRD_STOP_SHUTTER_SECONDS",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_WHOLE_STOP_ISO_SETTINGS",
+      "source": "src/equipment/generic-tier-assets.ts",
       "kind": "runtime"
     },
     {
@@ -3589,6 +3609,11 @@
     },
     {
       "name": "GenericTierLensAssets",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericTierPresetVersion",
       "source": "src/equipment/generic-tier-assets.ts",
       "kind": "type"
     },
