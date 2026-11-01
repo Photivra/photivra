@@ -160,7 +160,7 @@ export interface ChartRectangle { u0: number; v0: number; u1: number; v1: number
 ## ChartReflectance
 
 A neutral (spectrally flat) reflectance in [0, 1], a caller reflectance spectrum (values in [0, 1]) or, from 2.14, a
-built-in colour patch `{ kind: "color-patch", patchId }`.
+built-in color patch `{ kind: "color-patch", patchId }`.
 
 ```ts
 export type ChartReflectance = number | ColorimetricSpectrum | ColorPatchReflectance;
@@ -217,7 +217,7 @@ export interface CheckerboardChartScene {
 
 ## ColorPatchesChartScene
 
-2.14: the built-in Photivra colour patches (`getColorPatchSet()`) in a grid, drawn like `patches`: row-major, each
+2.14: the built-in Photivra color patches (`getColorPatchSet()`) in a grid, drawn like `patches`: row-major, each
 patch centred in an equal cell with a neutral gap around it. The spectra are the engine's own analytic designs; no
 third-party chart data, names, order or layout are used.
 
@@ -237,7 +237,7 @@ export interface ColorPatchesChartScene {
 
 ## ColorPatchReflectance
 
-2.14: one of the engine's built-in colour patches (see `getColorPatchSet()`): its reflectance spectrum, Photivra's own
+2.14: one of the engine's built-in color patches (see `getColorPatchSet()`): its reflectance spectrum, Photivra's own
 analytic design, rendered through the same spectral path as a caller spectrum.
 
 ```ts
@@ -377,7 +377,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface PatchChartScene {
   preset: "patches";
-  /** Caller reflectance per patch, row-major; the facade bundles no colour-chart data. 1..1024 patches. */
+  /** Caller reflectance per patch, row-major; the facade bundles no color-chart data. 1..1024 patches. */
   patches: readonly { patchId: string; reflectance: ChartReflectance }[];
   /** Patches per row. Default ceil(sqrt(patch count)). */
   columns?: number;

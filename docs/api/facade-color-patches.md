@@ -34,7 +34,7 @@ COLOR_PATCH_SET_VERSION = "1.0.0"
 
 ## COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS
 
-Wavelengths on which every patch spectrum is defined, nanometres, inclusive.
+Wavelengths on which every patch spectrum is defined, nanometers, inclusive.
 
 ```ts
 COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS = Object.freeze({ minimum: 360, maximum: 830 })
@@ -42,20 +42,30 @@ COLOR_PATCH_WAVELENGTH_RANGE_NANOMETERS = Object.freeze({ minimum: 360, maximum:
 
 ## ColorPatch
 
-One built-in patch: its id, a plain English name, its spectrum definition and its reference colorimetry.
+One built-in patch: its id, short code, name, reason for being on the chart, spectrum definition and reference
+colorimetry.
 
 ```ts
 export interface ColorPatch {
+  /** Stable API id, e.g. `"skin-medium"`. */
   patchId: ColorPatchId;
+  /**
+   * Stable short code for labels and printed charts: `PV-` and a group letter and number, e.g. `"PV-N4"`. The letters are
+   * N neutral, S strong, T soft (tint), P skin (portrait), M memory and G gamut-edge, numbered in chart order.
+   */
+  code: string;
+  /** Photivra's own descriptive name, in US English, e.g. `"Studio Gray 4"`; not a third-party color name. */
   name: string;
   group: ColorPatchGroup;
+  /** One sentence: why the patch is on the chart. */
+  reason: string;
   /** The constant b of the formula. */
   base: number;
   terms: readonly ColorPatchSpectralTerm[];
   /**
    * Reference colorimetry of the reflectance (not of a rendered capture): CIELAB under CIE illuminant D65 with the CIE
    * 1931 2° observer, the CIE tables at 1 nm over 360–830 nm, white = the perfect diffuser under D65 (Y = 100); and the
-   * sRGB colour of that XYZ (CSS Color 4 matrix, after XYZ scaling of the D65 table white to the sRGB white),
+   * sRGB color of that XYZ (CSS Color 4 matrix, after XYZ scaling of the D65 table white to the sRGB white),
    * 8-bit hex. Rounded for publication: L*, a*, b* to 0.01.
    */
   reference: { cielabD65: readonly [number, number, number]; srgbHex: string; inSrgbGamut: boolean };
@@ -105,8 +115,8 @@ export type ColorPatchSpectralTerm =
 
 ## evaluateColorPatchReflectance
 
-The reflectance (dimensionless, in [0, 1]) of a built-in colour patch at one wavelength, from its analytic formula.
-Labelled `approximation`: the spectra are Photivra's own smooth designs, not measurements of a physical sample.
+The reflectance (dimensionless, in [0, 1]) of a built-in color patch at one wavelength, from its analytic formula.
+Labeled `approximation`: the spectra are Photivra's own smooth designs, not measurements of a physical sample.
 
 ```ts
 export function evaluateColorPatchReflectance(input: EvaluateColorPatchReflectanceInput): CalculationResult<{ reflectance: number }>;
@@ -121,14 +131,14 @@ Input of {@link evaluateColorPatchReflectance}.
 ```ts
 export interface EvaluateColorPatchReflectanceInput {
   patchId: ColorPatchId;
-  /** Vacuum wavelength, nanometres, in 360–830. */
+  /** Vacuum wavelength, nanometers, in 360–830. */
   wavelengthNanometers: number;
 }
 ```
 
 ## getColorPatchSet
 
-The built-in Photivra colour-patch set: every patch's id, name, group, spectrum parameters and reference CIELAB (D65,
+The built-in Photivra color-patch set: every patch's id, code, name, group, reason, spectrum parameters and reference CIELAB (D65,
 CIE 1931 2°) and sRGB values. A static, deeply frozen engine contract. Pass a patch to a chart as
 `{ kind: "color-patch", patchId }` wherever a chart reflectance is accepted, or draw the whole set with the
 `color-patches` chart preset.

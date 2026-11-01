@@ -511,8 +511,8 @@ All charts are analytic patterns written by the engine; no third-party chart dat
 is a flat Lambertian reflector (it looks equally bright from every direction). Neutral reflectances
 are spectrally flat. Where a preset takes a reflectance spectrum (`uniform`, `patches`), it accepts a
 neutral number, a caller spectrum (`{ kind: "tabulated" }` or `{ kind: "function" }`, 380–780 nm at
-least) or, from 2.14, a built-in colour patch `{ kind: "color-patch", patchId }` (see
-[Colour patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md)).
+least) or, from 2.14, a built-in color patch `{ kind: "color-patch", patchId }` (see
+[Color patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md)).
 
 | Preset | Parameters (defaults) | Definition |
 | --- | --- | --- |
@@ -524,7 +524,7 @@ least) or, from 2.14, a built-in colour patch `{ kind: "color-patch", patchId }`
 | `checkerboard` | `squaresAcross` (8), `darkReflectance` (0.05), `lightReflectance` (0.8) | Square cells, light at the top-left. |
 | `point-grid` | `columns` (5), `rows` (3), `radius` (0.01), `pointReflectance` (0.9), `backgroundReflectance` (0.02) | Small disks centred in equal cells, for PSF and defocus inspection. |
 | `patches` | `patches` (required), `columns`, `gapFraction` (0.1), `backgroundReflectance` (0.18) | Caller reflectance per patch, row-major. Use it for a chart with reflectance data you are entitled to use; the engine does not ship third-party chart data because its licence is unclear. |
-| `color-patches` | `patchIds` (all 30), `columns` (min(6, count)), `gapFraction` (0.1), `backgroundReflectance` (0.18) | 2.14: Photivra's own 30 colour patches (neutral ramp, strong and soft primaries and secondaries, skin tones, memory colours, two near the sRGB gamut edge) drawn like `patches`. Each is an analytic reflectance spectrum; see [Colour patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md) for the formula, the parameters and the CIELAB (D65) and sRGB of every patch. |
+| `color-patches` | `patchIds` (all 30), `columns` (min(6, count)), `gapFraction` (0.1), `backgroundReflectance` (0.18) | 2.14: Photivra's own 30 color patches (neutral ramp, strong and soft primaries and secondaries, skin tones, memory colors, two near the sRGB gamut edge) drawn like `patches`. Each is an analytic reflectance spectrum; see [Color patches](https://github.com/Photivra/photivra/blob/main/docs/COLOR_PATCHES.md) for the formula, the parameters and the code, name, CIELAB (D65) and sRGB of every patch. |
 
 ### Chart elements and composite charts (2.3)
 

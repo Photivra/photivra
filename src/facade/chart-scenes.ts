@@ -3,8 +3,8 @@
 /**
  * Procedural test charts for the capture facade, written for this engine. Every chart is a flat,
  * Lambertian (matte) reflectance pattern, defined by formulas in normalized frame coordinates. No
- * third-party chart data (for example ColorChecker reflectances) is bundled. Coloured patches use
- * spectra that the caller supplies or, from 2.14, Photivra's own analytic colour patches
+ * third-party chart data (for example ColorChecker reflectances) is bundled. Colored patches use
+ * spectra that the caller supplies or, from 2.14, Photivra's own analytic color patches
  * (`color-patches.ts`, docs/COLOR_PATCHES.md).
  *
  * Frame coordinates: `u` runs from -1 (left edge of the framed chart) to +1 (right edge); `v` points up
@@ -34,13 +34,13 @@ import { createDeterministicUniformStream } from "../sensor/stochastic-seed.js";
 import { COLOR_PATCH_IDS, COLOR_PATCH_SET_ID, COLOR_PATCH_SET_VERSION, findColorPatch, prepareColorPatchSpectrum, type ColorPatchId } from "./color-patches.js";
 
 /**
- * 2.14: one of the engine's built-in colour patches (see `getColorPatchSet()`): its reflectance spectrum, Photivra's own
+ * 2.14: one of the engine's built-in color patches (see `getColorPatchSet()`): its reflectance spectrum, Photivra's own
  * analytic design, rendered through the same spectral path as a caller spectrum.
  */
 export interface ColorPatchReflectance { kind: "color-patch"; patchId: ColorPatchId }
 /**
  * A neutral (spectrally flat) reflectance in [0, 1], a caller reflectance spectrum (values in [0, 1]) or, from 2.14, a
- * built-in colour patch `{ kind: "color-patch", patchId }`.
+ * built-in color patch `{ kind: "color-patch", patchId }`.
  */
 export type ChartReflectance = number | ColorimetricSpectrum | ColorPatchReflectance;
 
@@ -106,7 +106,7 @@ export interface PointGridChartScene {
 }
 export interface PatchChartScene {
   preset: "patches";
-  /** Caller reflectance per patch, row-major; the facade bundles no colour-chart data. 1..1024 patches. */
+  /** Caller reflectance per patch, row-major; the facade bundles no color-chart data. 1..1024 patches. */
   patches: readonly { patchId: string; reflectance: ChartReflectance }[];
   /** Patches per row. Default ceil(sqrt(patch count)). */
   columns?: number;
@@ -115,7 +115,7 @@ export interface PatchChartScene {
   backgroundReflectance?: number;
 }
 /**
- * 2.14: the built-in Photivra colour patches (`getColorPatchSet()`) in a grid, drawn like `patches`: row-major, each
+ * 2.14: the built-in Photivra color patches (`getColorPatchSet()`) in a grid, drawn like `patches`: row-major, each
  * patch centred in an equal cell with a neutral gap around it. The spectra are the engine's own analytic designs; no
  * third-party chart data, names, order or layout are used.
  */
@@ -335,14 +335,14 @@ function finiteIn(value: unknown, name: string, minimum: number, maximum: number
 export const CHART_SPECTRAL_RANGE_NANOMETERS = Object.freeze({ minimum: 380, maximum: 780 });
 /**
  * Internal: validates a chart reflectance input (a neutral number, a reflectance spectrum covering 380–780 nm or a
- * built-in colour patch) as a material.
+ * built-in color patch) as a material.
  */
 export function resolveChartMaterial(value: unknown, name: string, exp?: (x: number) => number): ResolvedChartScene["materials"][number] {
   if (typeof value === "number") return { kind: "neutral", reflectance: reflectance(value, name) };
   if (typeof value === "object" && value !== null && (value as { kind?: unknown }).kind === "color-patch") {
     for (const key of Object.keys(value)) if (key !== "kind" && key !== "patchId") throw new InvalidConfigurationError(name + " has unknown field \"" + key + "\".");
     const patch = findColorPatch((value as { patchId?: unknown }).patchId);
-    if (!patch) throw new InvalidConfigurationError(name + ".patchId must be one of the built-in colour patches (COLOR_PATCH_IDS).");
+    if (!patch) throw new InvalidConfigurationError(name + ".patchId must be one of the built-in color patches (COLOR_PATCH_IDS).");
     return { kind: "spectrum", spectrum: prepareColorPatchSpectrum(patch, exp) };
   }
   let spectrum: PreparedColorimetricSpectrum;
@@ -356,7 +356,7 @@ export function resolveChartMaterial(value: unknown, name: string, exp?: (x: num
   return { kind: "spectrum", spectrum };
 }
 
-/** How a uniform chart reports its reflectance: the number, the colour-patch record, or `"caller-spectrum"`. */
+/** How a uniform chart reports its reflectance: the number, the color-patch record, or `"caller-spectrum"`. */
 function reflectanceReport(raw: unknown): unknown {
   if (typeof raw === "number") return raw;
   const record = raw as { kind?: unknown; patchId?: unknown };
@@ -420,7 +420,7 @@ export function chartGeometry(chart: ResolvedChartScene): ChartGeometry {
 /** Frame context of a chart being resolved: the picture height (in its own frame units) its LW/PH frequencies refer to. */
 /**
  * `pow`: the portable power for the display view's step-wedge levels, and (2.14) `exp`: the portable exponential for its
- * built-in colour patches (passed in, so captures' bundles do not contain them).
+ * built-in color patches (passed in, so captures' bundles do not contain them).
  */
 interface ChartContext { pictureHeight: number; nested: boolean; pow?: (x: number, y: number) => number; exp?: (x: number) => number }
 type Materials = ResolvedChartScene["materials"][number][];
@@ -452,7 +452,7 @@ export function resolveChartScene(input: { scene: ChartScene; aspect: number }):
 }
 /**
  * Internal (not exported from the package): {@link resolveChartScene} with the step wedge's geometric levels computed
- * with the portable power (`portablePow`, within 1 ulp) instead of `**`, and (2.14) the built-in colour patches with the
+ * with the portable power (`portablePow`, within 1 ulp) instead of `**`, and (2.14) the built-in color patches with the
  * portable exponential (`portableExp`) instead of `Math.exp`, whose last bits differ between JavaScript engines. Every
  * other value, the geometry and the material order are the same. The display view uses its materials.
  */
@@ -590,10 +590,10 @@ function resolveScene(scene: unknown, aspect: number, context: ChartContext): Re
     }
     case "color-patches": {
       const ids = get("patchIds");
-      if (!Array.isArray(ids) || ids.length < 1 || ids.length > COLOR_PATCH_IDS.length) throw new InvalidConfigurationError("patchIds must list 1 to " + COLOR_PATCH_IDS.length + " built-in colour patch ids.");
+      if (!Array.isArray(ids) || ids.length < 1 || ids.length > COLOR_PATCH_IDS.length) throw new InvalidConfigurationError("patchIds must list 1 to " + COLOR_PATCH_IDS.length + " built-in color patch ids.");
       const seen = new Set<string>(), materials: Materials = [], inputs: unknown[] = [];
       for (const [index, id] of ids.entries()) {
-        if (!findColorPatch(id)) throw new InvalidConfigurationError("patchIds[" + index + "] must be one of the built-in colour patches (COLOR_PATCH_IDS).");
+        if (!findColorPatch(id)) throw new InvalidConfigurationError("patchIds[" + index + "] must be one of the built-in color patches (COLOR_PATCH_IDS).");
         if (seen.has(id as string)) throw new InvalidConfigurationError("patchIds[" + index + "] repeats " + JSON.stringify(id) + ".");
         seen.add(id as string);
         const input = Object.freeze({ kind: "color-patch" as const, patchId: id as ColorPatchId });
