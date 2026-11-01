@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+Target: 2.14.0, a minor release. Captures, RAW codes, files and every existing result field are the same as 2.13.0 for the same request.
+- **New:** `exposure.greyCardDeviationStops` on the capture and the display view: the exposure's deviation from an 18 % grey card's standard exposure under the scene's illuminance (incident metering).
+- **Compatibility:** no new root export; `SimulateCaptureResult.exposure` and `SimulateDisplayViewResult.exposure` gain one field. No default or behaviour changed: the automatic modes still meter the scene.
+
+### Added
+
+- **Incident (grey-card) exposure deviation.** `exposure.greyCardDeviationStops` = log₂(L_ref(N, t, S)/(0.18·E/π)), with L_ref = 10·N²/(0.65·t·S) the luminance that the settings expose at the CIPA DC-004-2020 standard output sensitivity reference exposure H = 10/S (§3.2; camera equation §5.5 (4), the same constants as `standardExposureDeviationStops` and `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`), and 0.18·E/π the luminance of an 18 % Lambertian grey card under the request's illuminance E. Positive is darker (under), as for the metered deviation. It reads the light falling on the scene, as a grey card or a hand-held incident meter does, so it does not depend on the scene's reflectances: a white chart, which makes the scene meter read bright, leaves it unchanged. `null` for a `radiance-function` scene (its radiance ignores the illuminance).
+  - **Exposure modes unchanged:** aperture priority, shutter priority and program still meter the scene with the body's zone meter; the new field only reports where their exposure sits against the grey card (docs/QUICK_START.md, "Exposure"). On the app's round 4 All-in-one chart (90 % white paper) at the default illuminance they expose 1.78 stops darker than the grey card.
+  - **Tests:** `test/exposure-grey-card.test.ts`:
+    - exactly 0 at the defaults, in the capture and the display view;
+    - one stop per stop of shutter, aperture and ISO and per doubling of the illuminance (to 1e-12 stops), and the closed form at marked settings;
+    - the same value for four scenes of different reflectances and for a fixed-size chart with a dark surround, while the metered deviation differs;
+    - in aperture priority on a 90 % white field it exceeds the metered deviation by log₂(0.9/0.18);
+    - shutter priority and program with Auto ISO follow the closed form of the settings used;
+    - null for a radiance scene, 0 for a black scene at the defaults.
+
+    Images, RAW codes, every other exposure field, the assumptions and the scene digests are identical to 2.13.0 for manual, aperture-priority, program Auto ISO and shutter-priority captures and a display view (compared by SHA-256 between the two builds; every hash lock holds).
+
 ## 2.13.0 — unreleased (prepared October 31, 2026)
 
 A minor release for the app's Beta camera: Auto ISO with photographer-set limits and an automatic slowest shutter, the illuminance that gives the standard exposure, and root exports for adding text metadata to a file the caller encoded. Captures, RAW codes and files are the same as 2.12.0 for the same request; Quality (AHD) display views change where the scene decides AHD's choice, closer to the capture (#457).

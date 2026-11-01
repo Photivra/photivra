@@ -48,7 +48,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `raw` | The packed native RAW: codes, black levels, saturation flags and per-phase white levels |
 | `plan` | The native RAW plan the engine executed |
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
-| `exposure` | Mode, resolved settings, EV100, `isoControl` (`"manual"` or `"automatic"`) and, with `iso: "auto"`, `autoIso` (how the ISO was chosen and what limited it), metered scene luminance, the deviation from the standard exposure in stops (`standardExposureDeviationStops`), the illuminance at which the settings give the standard exposure (`standardExposureIlluminanceLux`) and the exposure-mode resolver's full output |
+| `exposure` | Mode, resolved settings, EV100, `isoControl` (`"manual"` or `"automatic"`) and, with `iso: "auto"`, `autoIso` (how the ISO was chosen and what limited it), metered scene luminance, the deviation from the standard exposure in stops (`standardExposureDeviationStops`), the illuminance at which the settings give the standard exposure (`standardExposureIlluminanceLux`), from 2.14 the deviation from the standard exposure of an 18 % grey card under the scene's illuminance (`greyCardDeviationStops`, incident metering) and the exposure-mode resolver's full output |
 | `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
 | `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Cost of each option](#cost-of-each-option) |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
@@ -375,6 +375,21 @@ The facade meters the scene like a reflected-light meter:
   illuminances). With the defaults it is the default illuminance; the marked f/11 gives 2^0.919 times it, about
   40 612 lux. It is `null` for a black scene and for a `radiance-function` scene, whose radiance does not depend on the
   illuminance. It can exceed the 1e7 lux `illuminanceLux` accepts. The display view reports the same value.
+- `exposure.greyCardDeviationStops` (2.14) is the same deviation for incident metering: the light falling on the scene,
+  as an 18 % grey card or a hand-held incident meter reads it, instead of the scene's own luminance. It uses the grey
+  card's luminance L = 0.18·E/π (a Lambertian reflector; E the request's `illuminanceLux`) in place of the metered L:
+  Δ_grey = log₂(L_ref/(0.18·E/π)), L_ref = 10·N²/(0.65·t·S). Same sign: positive is darker (under). It depends only on
+  the settings used and the illuminance, never on the scene's reflectances, so a chart's white paper cannot fool it.
+  With the default settings and illuminance it is exactly 0 (the default illuminance is defined from this grey card,
+  below); each stop of shutter, aperture or ISO, and each halving of the illuminance, moves it by one stop. It is `null`
+  for a `radiance-function` scene, whose radiance ignores the illuminance. The display view reports the same value.
+  - **The automatic modes are unchanged: they still meter the scene** (the body's 16 × 16-zone meter,
+    `meteredSceneLuminanceCdPerSquareMeter`). `greyCardDeviationStops` only reports where their exposure sits against
+    the grey card. On a scene brighter than 18 % grey they expose darker than the grey card: a uniform 90 % white
+    gives log₂(0.9/0.18) ≈ +2.32, and the app's round 4 All-in-one chart on 90 % white paper about +1.78 (its metered
+    luminance is 3.4 times the grey card's). To expose by incident metering, use `manual` with settings that give
+    `greyCardDeviationStops` = 0, or give an automatic mode `exposure.compensationStops` equal to the value it reports
+    without compensation (+1.78 brightens that chart by 1.78 stops; the resolver's limits and steps still apply).
 
 DC-004 ties the reference level to an 18 % grey (Explanation 1 and 2.2). The default illuminance
 puts an 18 % Lambertian grey card, whose luminance is L = 0.18·E/π, exactly at that luminance:

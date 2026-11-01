@@ -7703,7 +7703,9 @@ log₂(N²/t) − log₂(0.65·L·S/10) from the same relations: positive is dar
 mode it is minus the compensation plus any limit the resolver hit; it is `null` only for a scene with no metered luminance.
 `exposure.standardExposureIlluminanceLux` is the illuminance at which those settings give the standard exposure, E·2^Δ for the
 request's illuminance E (a reflective scene's metered luminance is proportional to E); `null` for a black scene or a
-`radiance-function` scene. The display view's `exposure` carries the same values.
+`radiance-function` scene. `exposure.greyCardDeviationStops` (2.14) is the deviation from the standard exposure of an 18 % grey
+card under that illuminance, log₂(L_ref/(0.18·E/π)): incident metering, independent of the scene's reflectances, exactly 0 at
+the defaults; the automatic modes still meter the scene. The display view's `exposure` carries the same values.
 
 With `exposure.iso: "auto"` (#516) the ISO is chosen too, in every mode, by the resolvers' Auto ISO branches
 ([Priority modes with Auto ISO](#priority-modes-with-auto-iso)). Aperture priority then needs the slowest shutter
